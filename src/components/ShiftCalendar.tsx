@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Calendar, Sun, Sunrise, Moon } from 'lucide-react';
@@ -62,15 +63,15 @@ const ShiftCalendar = ({
           
         if (error) throw error;
         
-        // Format the shifts for the calendar
+        // Format the shifts for the calendar with updated shift type logic
         const formattedShifts: Shift[] = data?.map(shift => {
-          // Determine shift type based on start time
+          // Determine shift type based on start time - UPDATED LOGIC
           let type: 'day' | 'afternoon' | 'night' = 'day';
           const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
           
-          if (startHour >= 5 && startHour < 13) {
+          if (startHour <= 8) {
             type = 'day';
-          } else if (startHour >= 13 && startHour < 21) {
+          } else if (startHour > 8 && startHour < 16) {
             type = 'afternoon';
           } else {
             type = 'night';
@@ -263,19 +264,19 @@ const ShiftCalendar = ({
           <div className="p-1 bg-yellow-100 rounded-full mr-1">
             <Sunrise className="h-3.5 w-3.5 text-yellow-800" />
           </div>
-          <span className="text-xs">Day Shift</span>
+          <span className="text-xs">Day Shift (≤ 8am)</span>
         </div>
         <div className="flex items-center">
           <div className="p-1 bg-orange-100 rounded-full mr-1">
             <Sun className="h-3.5 w-3.5 text-orange-800" />
           </div>
-          <span className="text-xs">Afternoon Shift</span>
+          <span className="text-xs">Afternoon Shift (> 8am & < 4pm)</span>
         </div>
         <div className="flex items-center">
           <div className="p-1 bg-blue-100 rounded-full mr-1">
             <Moon className="h-3.5 w-3.5 text-blue-800" />
           </div>
-          <span className="text-xs">Night Shift</span>
+          <span className="text-xs">Night Shift (≥ 4pm)</span>
         </div>
       </div>
     </div>

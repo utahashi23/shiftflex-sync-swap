@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,15 +134,16 @@ const ShiftForm = ({
     }
   };
   
-  // Handle start time change
+  // Handle start time change with updated shift type calculation
   const handleStartTimeChange = (time: string) => {
     setShiftStartTime(time);
     
-    // Update shift type based on start time
+    // Update shift type based on start time - UPDATED LOGIC
     const [hours] = time.split(':').map(Number);
-    if (hours >= 5 && hours < 13) {
+    
+    if (hours <= 8) {
       setShiftType('day');
-    } else if (hours >= 13 && hours < 21) {
+    } else if (hours > 8 && hours < 16) {
       setShiftType('afternoon');
     } else {
       setShiftType('night');
