@@ -1,35 +1,27 @@
 
-import { Session, User, UserResponse, AuthError, AuthTokenResponse } from "@supabase/supabase-js";
-import { ExtendedUser } from "./supabase-client";
-import { AppRole } from "@/types/database";
+import { User, Session } from '@supabase/supabase-js';
+import { AppRole } from '@/types/database';
 
-export type AuthContextType = {
+export interface ExtendedUser extends User {
+  app_metadata?: {
+    role?: AppRole;
+  };
+  email_confirmed_at?: string | null; 
+  organization?: string | null;
+}
+
+export interface AuthContextType {
   user: ExtendedUser | null;
   session: Session | null;
   isLoading: boolean;
   isAdmin: boolean;
   isEmailVerified: boolean;
-  signUp: (email: string, password: string, metadata: any) => Promise<{
-    error: AuthError | null;
-    data: UserResponse["data"] | null;
-  }>;
-  signIn: (email: string, password: string) => Promise<{
-    error: AuthError | null;
-    data: AuthTokenResponse["data"] | null;
-  }>;
+  signUp: (email: string, password: string, metadata?: { firstName?: string, lastName?: string, organization?: string, organizationCode?: string, employeeId?: string }) => Promise<{ success: boolean; error?: any }>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: any }>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{
-    error: AuthError | null;
-    data: {} | null;
-  }>;
-  updateUser: (updates: any) => Promise<{
-    error: AuthError | null;
-    data: UserResponse["data"] | null;
-  }>;
-  updatePassword: (password: string) => Promise<{
-    error: AuthError | null;
-    data: UserResponse["data"] | null;
-  }>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: any }>;
+  updateUser: (data: { firstName?: string; lastName?: string; employeeId?: string; }) => Promise<{ success: boolean; error?: any }>;
+  updatePassword: (password: string) => Promise<{ success: boolean; error?: any }>;
   refreshSession: () => Promise<void>;
-  checkOrganizationCode: (organization: string, code: string) => boolean;
-};
+  checkOrganizationCode: (code: string) => Promise<boolean>;
+}
