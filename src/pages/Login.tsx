@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -26,6 +26,7 @@ import AuthLayout from '@/layouts/AuthLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { toast } from '@/hooks/use-toast';
+import { createAdminUser } from '@/hooks/auth/auth-utils';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required'),
@@ -46,6 +47,24 @@ const Login = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [adminCreated, setAdminCreated] = useState(false);
+  
+  // Ensure admin user exists on component mount
+  useEffect(() => {
+    const ensureAdminExists = async () => {
+      const result = await createAdminUser();
+      setAdminCreated(result.exists || !!result.user);
+      
+      if (!result.exists && result.user) {
+        toast({
+          title: "Admin Account Created",
+          description: "Admin user has been set up successfully.",
+        });
+      }
+    };
+    
+    ensureAdminExists();
+  }, []);
   
   // Login form
   const form = useForm<z.infer<typeof loginSchema>>({
@@ -119,6 +138,11 @@ const Login = () => {
     }
   };
 
+  const useAdminLogin = () => {
+    form.setValue('email', 'sfadmin');
+    form.setValue('password', 'EzySodha1623%');
+  };
+
   return (
     <AuthLayout title="Log in to your account">
       <Form {...form}>
@@ -169,11 +193,25 @@ const Login = () => {
             {isLoading ? "Logging in..." : "Log in"}
           </Button>
           
-          <div className="text-center text-sm">
-            Don't have an account?{" "}
-            <Link to="/register" className="text-primary hover:underline">
-              Sign up
-            </Link>
+          <div className="flex justify-between items-center text-sm">
+            <span>Don't have an account?{" "}
+              <Link to="/register" className="text-primary hover:underline">
+                Sign up
+              </Link>
+            </span>
+            <Button 
+              type="button" 
+              variant="ghost" 
+              size="sm" 
+              onClick={useAdminLogin} 
+              className="text-xs text-gray-500"
+            >
+              Use Admin Login
+            </Button>
+          </div>
+          
+          <div className="pt-2 text-xs text-gray-500 text-center">
+            Admin credentials: sfadmin / EzySodha1623%
           </div>
         </form>
       </Form>

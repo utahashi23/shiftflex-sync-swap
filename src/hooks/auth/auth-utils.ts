@@ -22,13 +22,69 @@ export const signUp = async (email: string, password: string, metadata: any) => 
 export const signIn = async (email: string, password: string) => {
   // Special case for the admin user
   if (email === 'sfadmin' && password === 'EzySodha1623%') {
-    console.log("Admin login attempt");
+    console.log("Admin login attempt - using special admin credentials");
+    return await supabase.auth.signInWithPassword({
+      email: 'admin@shiftflex.com',
+      password: 'EzySodha1623%',
+    });
   }
   
   return await supabase.auth.signInWithPassword({
     email,
     password,
   });
+};
+
+// Create admin user function (for initial setup)
+export const createAdminUser = async () => {
+  try {
+    // Check if admin user already exists
+    const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
+      email: 'admin@shiftflex.com',
+      password: 'EzySodha1623%',
+    });
+    
+    if (user) {
+      console.log("Admin user already exists");
+      return { exists: true, user };
+    }
+    
+    // Create admin user if it doesn't exist
+    const { data, error } = await supabase.auth.signUp({
+      email: 'admin@shiftflex.com',
+      password: 'EzySodha1623%',
+      options: {
+        data: {
+          first_name: 'Admin',
+          last_name: 'User',
+        },
+      },
+    });
+
+    if (error) {
+      console.error("Error creating admin user:", error);
+      return { exists: false, error };
+    }
+
+    // Add admin role for the user
+    if (data.user) {
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: data.user.id,
+          role: 'admin'
+        });
+
+      if (roleError) {
+        console.error("Error setting admin role:", roleError);
+      }
+    }
+
+    return { exists: false, user: data.user };
+  } catch (error) {
+    console.error("Error in createAdminUser:", error);
+    return { exists: false, error };
+  }
 };
 
 // Reset password function
