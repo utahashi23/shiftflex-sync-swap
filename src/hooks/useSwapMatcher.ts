@@ -34,6 +34,15 @@ interface IndexedRequest {
   offeredShiftType: string;
 }
 
+// Helper function to normalize date format to YYYY-MM-DD in local timezone
+const normalizeDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const useSwapMatcher = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { user } = useAuth();
@@ -147,14 +156,14 @@ export const useSwapMatcher = () => {
       
       // Build shifts lookup and user's rostered days
       shiftsData.forEach(shift => {
-        shifts[shift.id] = shift;
+        shifts[shift.id] = {...shift, date: normalizeDate(shift.date)};
       });
       
       allUserShifts.forEach(shift => {
         if (!userShifts[shift.user_id]) {
           userShifts[shift.user_id] = new Set();
         }
-        userShifts[shift.user_id].add(shift.date);
+        userShifts[shift.user_id].add(normalizeDate(shift.date));
       });
       
       console.log('User shifts map built:', Object.keys(userShifts).length);
@@ -166,10 +175,11 @@ export const useSwapMatcher = () => {
       // Create a map of request_id to its preferred dates for easier access
       const preferencesByRequest: Record<string, PreferredDate[]> = {};
       allPreferredDates.forEach(pref => {
+        const normalizedDate = normalizeDate(pref.date);
         if (!preferencesByRequest[pref.request_id]) {
           preferencesByRequest[pref.request_id] = [];
         }
-        preferencesByRequest[pref.request_id].push(pref);
+        preferencesByRequest[pref.request_id].push({...pref, date: normalizedDate});
       });
       
       // Process each request
@@ -189,11 +199,13 @@ export const useSwapMatcher = () => {
         
         // For each preferred date, add to the index
         userPreferences.forEach(pref => {
-          if (!requestsByDesiredDay[pref.date]) {
-            requestsByDesiredDay[pref.date] = [];
+          const normalizedDate = pref.date;
+          
+          if (!requestsByDesiredDay[normalizedDate]) {
+            requestsByDesiredDay[normalizedDate] = [];
           }
           
-          requestsByDesiredDay[pref.date].push({
+          requestsByDesiredDay[normalizedDate].push({
             requestId: request.id,
             requesterId: request.requester_id,
             offeredShiftId: request.requester_shift_id,

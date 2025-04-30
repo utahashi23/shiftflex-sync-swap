@@ -5,6 +5,15 @@ import { toast } from '@/hooks/use-toast';
 import { Shift } from '@/hooks/useShiftData';
 import { SwapCalendarState, SwapCalendarHelpers, AcceptableShiftTypes } from './types';
 
+// Helper function to normalize date format to YYYY-MM-DD in local timezone
+const normalizeDate = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const useSwapCalendarActions = (
   state: SwapCalendarState,
   setState: {
@@ -89,7 +98,7 @@ export const useSwapCalendarActions = (
       
       // Now store each preferred date with the request_id and shift_id
       const preferredDatesInserts = selectedSwapDates.map(dateStr => ({
-        date: dateStr,
+        date: normalizeDate(dateStr), // Normalize date format
         accepted_types: acceptedTypesArray,
         shift_id: selectedShift.id,
         request_id: swapRequest.id
