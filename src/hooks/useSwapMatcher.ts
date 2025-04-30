@@ -42,7 +42,7 @@ export const useSwapMatcher = () => {
     try {
       console.log('----------- SWAP MATCHING STARTED -----------');
       
-      // Step 1: Fetch ALL pending swap requests from ALL users
+      // Step 1: Fetch ALL pending swap requests regardless of user
       console.log('Fetching ALL pending swap requests from ALL users...');
       const { data: allRequests, error: requestsError } = await supabase
         .from('shift_swap_requests')
@@ -50,7 +50,10 @@ export const useSwapMatcher = () => {
         .eq('status', 'pending')
         .gt('preferred_dates_count', 0);
         
-      if (requestsError) throw requestsError;
+      if (requestsError) {
+        console.error('Error fetching pending requests:', requestsError);
+        throw requestsError;
+      }
       
       if (!allRequests || allRequests.length === 0) {
         toast({
@@ -67,6 +70,8 @@ export const useSwapMatcher = () => {
       const userIds = [...new Set(allRequests.map(req => req.requester_id))];
       const shiftIds = [...new Set(allRequests.map(req => req.requester_shift_id))];
       
+      console.log(`Found ${userIds.length} users with pending requests:`, userIds);
+      
       if (userIds.length < 2) {
         toast({
           title: "Insufficient swap requests",
@@ -76,8 +81,6 @@ export const useSwapMatcher = () => {
         return;
       }
       
-      console.log(`Found ${userIds.length} users with pending requests:`, userIds);
-      
       // Step 2: Fetch all shifts associated with the requests
       console.log('Fetching shifts for all requests...');
       const { data: requestShifts, error: shiftsError } = await supabase
@@ -85,7 +88,10 @@ export const useSwapMatcher = () => {
         .select('*')
         .in('id', shiftIds);
         
-      if (shiftsError) throw shiftsError;
+      if (shiftsError) {
+        console.error('Error fetching shifts:', shiftsError);
+        throw shiftsError;
+      }
       
       if (!requestShifts || requestShifts.length === 0) {
         toast({
@@ -102,12 +108,16 @@ export const useSwapMatcher = () => {
       // Step 3: Fetch all preferred dates for all requests
       console.log('Fetching preferred dates for all requests...');
       const requestIds = allRequests.map(req => req.id);
+      
       const { data: preferredDates, error: datesError } = await supabase
         .from('shift_swap_preferred_dates')
         .select('*')
         .in('request_id', requestIds);
         
-      if (datesError) throw datesError;
+      if (datesError) {
+        console.error('Error fetching preferred dates:', datesError);
+        throw datesError;
+      }
       
       if (!preferredDates || preferredDates.length === 0) {
         toast({
@@ -128,12 +138,9 @@ export const useSwapMatcher = () => {
         .select('*')
         .in('user_id', userIds);
         
-      if (userShiftsError) throw userShiftsError;
-      
-      if (!allUserShifts) {
-        console.warn('No shifts found for conflict checking');
-      } else {
-        console.log(`Found ${allUserShifts.length} shifts for conflict checking:`, allUserShifts);
+      if (userShiftsError) {
+        console.error('Error fetching user shifts:', userShiftsError);
+        throw userShiftsError;
       }
       
       // Build data structures for efficient matching
@@ -276,6 +283,23 @@ export const useSwapMatcher = () => {
               console.log(`🎉 MATCH FOUND between users ${userId1} and ${userId2}!`);
               
               try {
+                // Check if this match already exists
+                const { data: existingMatches, error: matchCheckError } = await supabase
+                  .from('shift_swap_potential_matches')
+                  .select('*')
+                  .or(`requester_request_id.eq.${request1.id},requester_request_id.eq.${request2.id}`)
+                  .or(`acceptor_request_id.eq.${request1.id},acceptor_request_id.eq.${request2.id}`);
+                  
+                if (matchCheckError) {
+                  console.error('Error checking existing matches:', matchCheckError);
+                  continue;
+                }
+                
+                if (existingMatches && existingMatches.length > 0) {
+                  console.log('Match already exists, skipping');
+                  continue;
+                }
+                
                 // Record the match in potential_matches table
                 const { data: matchData, error: matchError } = await supabase
                   .from('shift_swap_potential_matches')
