@@ -26,11 +26,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { toast } from '@/hooks/use-toast';
 
+// Schema for organization step
 const organizationSchema = z.object({
   organization: z.string().min(1, 'Please select an organization'),
   code: z.string().min(1, 'Organization code is required'),
 });
 
+// Schema for registration step
 const registrationSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
@@ -61,7 +63,7 @@ const Register = () => {
     },
   });
 
-  // Registration form - Initialize with empty values to prevent field pre-population
+  // Registration form with its own separate state
   const registrationForm = useForm<z.infer<typeof registrationSchema>>({
     resolver: zodResolver(registrationSchema),
     defaultValues: {
@@ -77,17 +79,8 @@ const Register = () => {
     try {
       const isValid = await checkOrganizationCode(data.code);
       if (isValid) {
-        // Store organization but DO NOT transfer the code to any registration form fields
+        // Only store organization name for later use
         setSelectedOrg(data.organization);
-        
-        // Reset registration form to ensure clean state
-        registrationForm.reset({
-          firstName: '',
-          lastName: '',
-          email: '',
-          password: '',
-          employeeId: '',
-        });
         
         // Move to registration step
         setStep('registration');
@@ -127,7 +120,7 @@ const Register = () => {
         description: "Please check your email to verify your account before logging in.",
       });
       
-      // In a real app, this would navigate to a verification screen
+      // Reset forms and go back to the first step
       registrationForm.reset();
       orgForm.reset();
       setStep('organization');
