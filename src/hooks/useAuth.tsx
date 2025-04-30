@@ -22,8 +22,13 @@ import {
 const supabaseUrl = "https://your-supabase-url.supabase.co";
 const supabaseAnonKey = "your-supabase-anon-key";
 
+// Extended User type to include the properties we need
+interface ExtendedUser extends User {
+  email_verified?: boolean;
+}
+
 type AuthContextType = {
-  user: User | null;
+  user: ExtendedUser | null;
   session: Session | null;
   isLoading: boolean;
   isAdmin: boolean;
@@ -58,7 +63,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Mock Supabase client for initial development
 // This will be replaced with an actual Supabase integration
 const createMockSupabaseClient = () => {
-  let currentUser: User | null = null;
+  let currentUser: ExtendedUser | null = null;
   let currentSession: Session | null = null;
   let isAdmin = false;
   
@@ -72,8 +77,10 @@ const createMockSupabaseClient = () => {
       employee_id: 'ADMIN001',
     },
     email: 'sfadmin',
-    email_verified: true
-  } as User;
+    email_verified: true,
+    aud: 'authenticated',
+    created_at: new Date().toISOString(),
+  } as unknown as ExtendedUser;
 
   return {
     auth: {
@@ -90,7 +97,10 @@ const createMockSupabaseClient = () => {
           email,
           user_metadata: options?.data || {},
           email_verified: false,
-        } as User;
+          aud: 'authenticated',
+          created_at: new Date().toISOString(),
+          app_metadata: {}
+        } as unknown as ExtendedUser;
         
         // For demo - Create admin user if using predefined credentials
         if (email === 'sfadmin') {
@@ -174,7 +184,7 @@ const mockSupabase = createMockSupabaseClient();
 const supabase = mockSupabase;
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<ExtendedUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);

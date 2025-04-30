@@ -4,18 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Calendar, Sun, Sunrise, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Mock shift data
+// Mock shift data with proper type annotations
 const mockShifts = [
-  { id: 1, date: '2025-05-01', title: '02-MAT01', startTime: '07:00', endTime: '15:00', type: 'day', colleagueType: 'Qualified' },
-  { id: 2, date: '2025-05-03', title: '04-MAT03', startTime: '15:00', endTime: '23:00', type: 'afternoon', colleagueType: 'Graduate' },
-  { id: 3, date: '2025-05-05', title: '09-MAT12', startTime: '23:00', endTime: '07:00', type: 'night', colleagueType: 'ACO' },
-  { id: 4, date: '2025-05-07', title: '06-MAT07', startTime: '07:00', endTime: '15:00', type: 'day', colleagueType: 'Qualified' },
-  { id: 5, date: '2025-05-10', title: '08-MAT11', startTime: '23:00', endTime: '07:00', type: 'night', colleagueType: 'Unknown' },
-  { id: 6, date: '2025-05-13', title: '02-MAT01', startTime: '15:00', endTime: '23:00', type: 'afternoon', colleagueType: 'ACO' },
-  { id: 7, date: '2025-05-18', title: '09-MAT12', startTime: '07:00', endTime: '15:00', type: 'day', colleagueType: 'Graduate' },
-  { id: 8, date: '2025-05-21', title: '04-MAT03', startTime: '23:00', endTime: '07:00', type: 'night', colleagueType: 'Qualified' },
-  { id: 9, date: '2025-05-25', title: '06-MAT07', startTime: '15:00', endTime: '23:00', type: 'afternoon', colleagueType: 'Unknown' },
-  { id: 10, date: '2025-05-28', title: '08-MAT11', startTime: '07:00', endTime: '15:00', type: 'day', colleagueType: 'Qualified' },
+  { id: 1, date: '2025-05-01', title: '02-MAT01', startTime: '07:00', endTime: '15:00', type: 'day' as const, colleagueType: 'Qualified' as const },
+  { id: 2, date: '2025-05-03', title: '04-MAT03', startTime: '15:00', endTime: '23:00', type: 'afternoon' as const, colleagueType: 'Graduate' as const },
+  { id: 3, date: '2025-05-05', title: '09-MAT12', startTime: '23:00', endTime: '07:00', type: 'night' as const, colleagueType: 'ACO' as const },
+  { id: 4, date: '2025-05-07', title: '06-MAT07', startTime: '07:00', endTime: '15:00', type: 'day' as const, colleagueType: 'Qualified' as const },
+  { id: 5, date: '2025-05-10', title: '08-MAT11', startTime: '23:00', endTime: '07:00', type: 'night' as const, colleagueType: 'Unknown' as const },
+  { id: 6, date: '2025-05-13', title: '02-MAT01', startTime: '15:00', endTime: '23:00', type: 'afternoon' as const, colleagueType: 'ACO' as const },
+  { id: 7, date: '2025-05-18', title: '09-MAT12', startTime: '07:00', endTime: '15:00', type: 'day' as const, colleagueType: 'Graduate' as const },
+  { id: 8, date: '2025-05-21', title: '04-MAT03', startTime: '23:00', endTime: '07:00', type: 'night' as const, colleagueType: 'Qualified' as const },
+  { id: 9, date: '2025-05-25', title: '06-MAT07', startTime: '15:00', endTime: '23:00', type: 'afternoon' as const, colleagueType: 'Unknown' as const },
+  { id: 10, date: '2025-05-28', title: '08-MAT11', startTime: '07:00', endTime: '15:00', type: 'day' as const, colleagueType: 'Qualified' as const },
 ];
 
 // Types
