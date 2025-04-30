@@ -1,16 +1,20 @@
 
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
 import ShiftSwapCalendar from '@/components/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useSwapMatching } from '@/hooks/useSwapMatching';
+import { RefreshCw } from 'lucide-react';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
   const [activeTab, setActiveTab] = useState('calendar');
+  const { findSwapMatches, isProcessing } = useSwapMatching();
   
   return (
     <AppLayout>
@@ -33,11 +37,25 @@ const ShiftSwaps = () => {
           }}
           className="w-full"
         >
-          <TabsList className="grid grid-cols-3 mb-8">
-            <TabsTrigger value="calendar">Calendar</TabsTrigger>
-            <TabsTrigger value="requested">Requested Swaps</TabsTrigger>
-            <TabsTrigger value="matched">Matched Swaps</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between mb-8">
+            <TabsList className="grid grid-cols-3">
+              <TabsTrigger value="calendar">Calendar</TabsTrigger>
+              <TabsTrigger value="requested">Requested Swaps</TabsTrigger>
+              <TabsTrigger value="matched">Matched Swaps</TabsTrigger>
+            </TabsList>
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={findSwapMatches}
+              disabled={isProcessing}
+              className="ml-4"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
+              {isProcessing ? 'Finding Matches...' : 'Find Matches'}
+            </Button>
+          </div>
+          
           <TabsContent value="calendar">
             <ShiftSwapCalendar />
           </TabsContent>
