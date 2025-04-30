@@ -16,7 +16,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Combobox } from '@/components/ui/combobox';
 import { toast } from '@/hooks/use-toast';
 import { AlertCircle, Clock, Sun, Sunrise, Moon } from 'lucide-react';
 import { useTruckNames } from '@/hooks/useTruckNames';
@@ -54,6 +53,8 @@ const ShiftForm = ({
   const [formTitle, setFormTitle] = useState('Add Shift to Calendar');
   const [isLoading, setIsLoading] = useState(false);
   const [truckName, setTruckName] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isTruckDropdownOpen, setIsTruckDropdownOpen] = useState(false);
   const [shiftDate, setShiftDate] = useState('');
   const [shiftStartTime, setShiftStartTime] = useState('');
   const [shiftEndTime, setShiftEndTime] = useState('');
@@ -67,6 +68,7 @@ const ShiftForm = ({
       // Editing mode
       setFormTitle('Edit Shift');
       setTruckName(selectedShift.title);
+      setSearchTerm(selectedShift.title);
       setShiftDate(selectedShift.date);
       setShiftStartTime(selectedShift.startTime);
       setShiftEndTime(selectedShift.endTime);
@@ -77,6 +79,7 @@ const ShiftForm = ({
       // Adding new shift
       setFormTitle('Add Shift to Calendar');
       setTruckName('');
+      setSearchTerm('');
       setShiftDate(selectedDate.toISOString().split('T')[0]);
       setShiftStartTime('');
       setShiftEndTime('');
@@ -88,6 +91,11 @@ const ShiftForm = ({
       resetForm();
     }
   }, [selectedShift, selectedDate]);
+  
+  // Filter truck names based on search term
+  const filteredTruckNames = truckNames.filter(name => 
+    name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   
   // Calculate end time based on start time and shift length
   const calculateEndTime = (startTime: string, length: string) => {
@@ -151,6 +159,7 @@ const ShiftForm = ({
   const resetForm = () => {
     setFormTitle('Add Shift to Calendar');
     setTruckName('');
+    setSearchTerm('');
     setShiftDate('');
     setShiftStartTime('');
     setShiftEndTime('');
@@ -272,19 +281,11 @@ const ShiftForm = ({
   // Check if form is complete
   const isFormComplete = truckName && shiftDate && shiftStartTime && shiftEndTime;
   
-  // Format truck names for combobox
-  const formattedTruckNames = truckNames.map(name => ({
-    value: name,
-    label: name
-  }));
-  
-  // Handle truck name change safely
-  const handleTruckNameChange = (value: string) => {
-    try {
-      setTruckName(value);
-    } catch (error) {
-      console.error("Error changing truck name:", error);
-    }
+  // Handle truck selection
+  const handleTruckSelection = (name: string) => {
+    setTruckName(name);
+    setSearchTerm(name);
+    setIsTruckDropdownOpen(false);
   };
   
   return (
@@ -338,12 +339,36 @@ const ShiftForm = ({
               Loading truck names...
             </div>
           ) : (
-            <Combobox
-              items={formattedTruckNames}
-              value={truckName}
-              onChange={handleTruckNameChange}
-              placeholder="Select or search for a truck name"
-            />
+            <div className="relative">
+              <Input
+                id="truck-name-search"
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setIsTruckDropdownOpen(true);
+                }}
+                onFocus={() => setIsTruckDropdownOpen(true)}
+                placeholder="Search for a truck name"
+              />
+              {isTruckDropdownOpen && searchTerm && (
+                <div className="absolute z-50 w-full mt-1 bg-popover text-popover-foreground rounded-md border shadow-md max-h-60 overflow-auto">
+                  {filteredTruckNames.length > 0 ? (
+                    filteredTruckNames.map((name, index) => (
+                      <div
+                        key={index}
+                        className="px-3 py-2 cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                        onClick={() => handleTruckSelection(name)}
+                      >
+                        {name}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-gray-500">No truck names found</div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
