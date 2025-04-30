@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -69,6 +68,9 @@ export const useFetchSwapRequests = (user: User | null) => {
         }
         
         // Create the formatted request
+        // Use the user-selected dates (if they exist)
+        // For now, since we're not storing selected dates yet, we'll keep the next day logic
+        // In a real implementation, we would fetch these from a separate table
         formattedRequests.push({
           id: request.id,
           status: request.status,
@@ -81,9 +83,8 @@ export const useFetchSwapRequests = (user: User | null) => {
             type: shiftType
           },
           preferredDates: [
-            // Add preferred dates
-            // In a real app, you would fetch these from a separate table
-            // For now, we're mocking it with the shift date + 1 day
+            // This would come from a separate table in a full implementation
+            // For demonstration purposes, using the shift date + 1 day
             {
               date: new Date(new Date(shiftData.date).getTime() + 86400000).toISOString().split('T')[0],
               acceptedTypes: [shiftType]

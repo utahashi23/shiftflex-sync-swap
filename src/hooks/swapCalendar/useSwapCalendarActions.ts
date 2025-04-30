@@ -79,10 +79,11 @@ export const useSwapCalendarActions = (
         throw new Error('Failed to get ID for new swap request');
       }
       
-      // Now let's store the preferred dates in some way
-      // In a real production app, you would have a separate table for this
-      // For now, we'll just show a success message
+      // Now we would store the preferred dates in a separate table
+      // For now, we'll create a separate table to store the preferred dates
+      // This is just a placeholder until we implement the actual database schema
       console.log('Created swap request with ID:', data.id);
+      console.log('Selected swap dates:', selectedSwapDates);
       
       toast({
         title: "Swap Request Created",

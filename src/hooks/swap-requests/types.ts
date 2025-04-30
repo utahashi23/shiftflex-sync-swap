@@ -1,11 +1,16 @@
 
-import { ShiftDetails, PreferredDate } from '@/components/swaps/SwapRequestCard';
+import { Shift } from '@/hooks/useShiftData';
+
+export interface PreferredDate {
+  date: string;
+  acceptedTypes: string[];
+}
 
 export interface SwapRequest {
   id: string;
-  originalShift: ShiftDetails;
-  preferredDates: PreferredDate[];
   status: string;
+  originalShift: Omit<Shift, 'colleagueType'>;
+  preferredDates: PreferredDate[];
 }
 
 export interface UseSwapRequestsReturn {
