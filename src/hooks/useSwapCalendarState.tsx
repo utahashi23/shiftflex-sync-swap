@@ -93,6 +93,7 @@ export const useSwapCalendarState = () => {
     }
   }, [selectedShift]);
 
+  // Helper functions for working with shifts and dates
   const getShiftForDate = (dateStr: string) => {
     return shifts.find(shift => shift.date === dateStr);
   };
@@ -265,50 +266,6 @@ export const useSwapCalendarState = () => {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + increment);
     setCurrentDate(newDate);
-  };
-
-  const getShiftForDate = (dateStr: string) => {
-    return shifts.find(shift => shift.date === dateStr);
-  };
-  
-  // Check if a date has a shift
-  const hasShift = (dateStr: string) => {
-    return shifts.some(shift => shift.date === dateStr);
-  };
-
-  // Check if a date is selected for swap
-  const isDateSelectedForSwap = (dateStr: string) => {
-    return selectedSwapDates.includes(dateStr);
-  };
-  
-  // Check if date is disabled for swap selection
-  const isDateDisabled = (dateStr: string) => {
-    // User cannot select days they are already working
-    if (hasShift(dateStr)) return true;
-    
-    // Check 10-hour rule
-    if (acceptableShiftTypes.day || acceptableShiftTypes.afternoon) {
-      // Get previous day
-      const date = new Date(dateStr);
-      date.setDate(date.getDate() - 1);
-      const prevDateStr = date.toISOString().split('T')[0];
-      
-      // Check if previous day has a night shift
-      const prevShift = getShiftForDate(prevDateStr);
-      if (prevShift && prevShift.type === 'night') {
-        return true;
-      }
-    }
-    
-    if (acceptableShiftTypes.night) {
-      // Get same day
-      const sameShift = getShiftForDate(dateStr);
-      if (sameShift && sameShift.type === 'day') {
-        return true;
-      }
-    }
-    
-    return false;
   };
 
   return {
