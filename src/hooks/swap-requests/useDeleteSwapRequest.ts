@@ -1,3 +1,4 @@
+
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { SwapRequest } from './types';
@@ -68,10 +69,10 @@ export const useDeleteSwapRequest = (
     try {
       console.log('Deleting preferred date:', dateStr, 'from request:', requestId);
       
-      // First, check how many preferred dates exist for this request
-      const { data: preferredDates, error: countError } = await supabase
+      // First, get the current count of preferred dates for this request
+      const { data: preferredDatesCount, error: countError } = await supabase
         .from('shift_swap_preferred_dates')
-        .select('id')
+        .select('id', { count: 'exact' })
         .eq('request_id', requestId);
         
       if (countError) {
@@ -79,45 +80,64 @@ export const useDeleteSwapRequest = (
         throw countError;
       }
       
-      // If this is the last preferred date, delete the entire swap request
-      if (preferredDates && preferredDates.length <= 1) {
-        console.log('Last preferred date being removed, deleting entire swap request');
-        return handleDeleteSwapRequest(requestId);
-      }
+      const count = preferredDatesCount?.length || 0;
+      console.log(`Found ${count} preferred dates for request ${requestId}`);
       
-      // Otherwise, just delete the specific preferred date
-      const { error } = await supabase
+      // Delete the specific preferred date
+      const { error: deletePreferredDateError } = await supabase
         .from('shift_swap_preferred_dates')
         .delete()
         .eq('request_id', requestId)
         .eq('date', dateStr);
         
-      if (error) {
-        console.error('Database delete error:', error);
-        throw error;
+      if (deletePreferredDateError) {
+        console.error('Database delete error:', deletePreferredDateError);
+        throw deletePreferredDateError;
       }
       
-      console.log('Preferred date deleted successfully');
-      
-      // Update local state after successful deletion
-      setSwapRequests(prev => {
-        return prev.map(req => {
-          if (req.id === requestId) {
-            return {
-              ...req,
-              preferredDates: req.preferredDates.filter(
-                date => date.date !== dateStr
-              )
-            };
-          }
-          return req;
+      // If this was the last preferred date, also delete the swap request
+      if (count <= 1) {
+        console.log('Last preferred date removed, deleting entire swap request');
+        const { error: deleteRequestError } = await supabase
+          .from('shift_swap_requests')
+          .delete()
+          .eq('id', requestId);
+          
+        if (deleteRequestError) {
+          console.error('Error deleting swap request:', deleteRequestError);
+          throw deleteRequestError;
+        }
+        
+        // Update local state to remove the entire request
+        setSwapRequests(prev => prev.filter(req => req.id !== requestId));
+        
+        toast({
+          title: "Swap Request Deleted",
+          description: "Your swap request has been deleted as it had no remaining preferred dates."
         });
-      });
-      
-      toast({
-        title: "Preferred Date Removed",
-        description: "The selected date has been removed from your swap request.",
-      });
+      } else {
+        console.log('Preferred date deleted successfully, updating local state');
+        
+        // Update local state to remove just the preferred date
+        setSwapRequests(prev => {
+          return prev.map(req => {
+            if (req.id === requestId) {
+              return {
+                ...req,
+                preferredDates: req.preferredDates.filter(
+                  date => date.date !== dateStr
+                )
+              };
+            }
+            return req;
+          });
+        });
+        
+        toast({
+          title: "Preferred Date Removed",
+          description: "The selected date has been removed from your swap request."
+        });
+      }
       
     } catch (error) {
       console.error('Error deleting preferred date:', error);
