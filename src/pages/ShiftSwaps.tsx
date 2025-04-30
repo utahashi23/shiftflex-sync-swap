@@ -22,27 +22,29 @@ const ShiftSwaps = () => {
         </p>
       </div>
 
-      <Tabs 
-        defaultValue="calendar" 
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="w-full"
-      >
-        <TabsList className="grid grid-cols-3 mb-8">
-          <TabsTrigger value="calendar">Calendar</TabsTrigger>
-          <TabsTrigger value="requested">Requested Swaps</TabsTrigger>
-          <TabsTrigger value="matched">Matched Swaps</TabsTrigger>
-        </TabsList>
-        <TabsContent value="calendar">
-          <ShiftSwapCalendar />
-        </TabsContent>
-        <TabsContent value="requested">
-          <RequestedSwaps />
-        </TabsContent>
-        <TabsContent value="matched">
-          <MatchedSwaps />
-        </TabsContent>
-      </Tabs>
+      <TooltipProvider>
+        <Tabs 
+          defaultValue="calendar" 
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="w-full"
+        >
+          <TabsList className="grid grid-cols-3 mb-8">
+            <TabsTrigger value="calendar">Calendar</TabsTrigger>
+            <TabsTrigger value="requested">Requested Swaps</TabsTrigger>
+            <TabsTrigger value="matched">Matched Swaps</TabsTrigger>
+          </TabsList>
+          <TabsContent value="calendar">
+            <ShiftSwapCalendar />
+          </TabsContent>
+          <TabsContent value="requested">
+            <RequestedSwaps />
+          </TabsContent>
+          <TabsContent value="matched">
+            <MatchedSwaps />
+          </TabsContent>
+        </Tabs>
+      </TooltipProvider>
     </AppLayout>
   );
 };

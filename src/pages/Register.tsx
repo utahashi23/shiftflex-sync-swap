@@ -74,14 +74,22 @@ const Register = () => {
   });
 
   const onSubmitOrgForm = async (data: z.infer<typeof organizationSchema>) => {
-    const isValid = await checkOrganizationCode(data.code);
-    if (isValid) {
-      setSelectedOrg(data.organization);
-      setStep('registration');
-    } else {
+    try {
+      const isValid = await checkOrganizationCode(data.code);
+      if (isValid) {
+        setSelectedOrg(data.organization);
+        setStep('registration');
+      } else {
+        toast({
+          title: "Invalid Organization Code",
+          description: "The organization code you entered is invalid. Please reach out to AV Shift Swap pages for the correct code.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
       toast({
-        title: "Invalid Organization Code",
-        description: "The organization code you entered is invalid. Please reach out to AV Shift Swap pages for the correct code.",
+        title: "Verification Error",
+        description: "There was a problem verifying your organization code. Please try again.",
         variant: "destructive",
       });
     }
@@ -214,7 +222,11 @@ const Register = () => {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="Enter your email" {...field} />
+                    <Input 
+                      type="email" 
+                      placeholder="Enter your email" 
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
