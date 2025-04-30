@@ -6,7 +6,21 @@ import { useAuth } from '@/hooks/useAuth';
 
 export const useSwapMatching = () => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [testMode, setTestMode] = useState(false);
   const { user } = useAuth();
+
+  /**
+   * Toggle test mode on/off
+   */
+  const toggleTestMode = () => {
+    setTestMode(prev => !prev);
+    toast({
+      title: testMode ? "Test mode disabled" : "Test mode enabled",
+      description: testMode 
+        ? "Now only matching with other users' requests" 
+        : "Now allowing matches between your own requests for testing",
+    });
+  };
 
   /**
    * Find potential matches for a user's swap requests
@@ -26,6 +40,7 @@ export const useSwapMatching = () => {
     try {
       console.log('----------- SWAP MATCHING STARTED -----------');
       console.log('Current user ID:', user.id);
+      console.log('Test mode:', testMode ? 'ON - allowing self-matches' : 'OFF - only matching with other users');
       
       // Get ALL pending swap requests
       const { data: allRequests, error: requestsError } = await supabase
@@ -57,10 +72,14 @@ export const useSwapMatching = () => {
       
       // Separate my requests from other users' requests
       const myRequests = allRequests.filter(req => req.requester_id === user.id);
-      const otherUsersRequests = allRequests.filter(req => req.requester_id !== user.id);
+      
+      // In test mode, treat your own requests as "other users" for matching
+      const otherUsersRequests = testMode 
+        ? allRequests // In test mode, consider all requests
+        : allRequests.filter(req => req.requester_id !== user.id);
       
       console.log('My requests:', myRequests);
-      console.log('Other users requests:', otherUsersRequests);
+      console.log('Requests to match against:', otherUsersRequests);
       
       if (myRequests.length === 0) {
         toast({
@@ -74,7 +93,9 @@ export const useSwapMatching = () => {
       if (otherUsersRequests.length === 0) {
         toast({
           title: "No potential matches",
-          description: "No other users currently have pending swap requests.",
+          description: testMode 
+            ? "No requests available for matching." 
+            : "No other users currently have pending swap requests.",
         });
         setIsProcessing(false);
         return;
@@ -160,6 +181,18 @@ export const useSwapMatching = () => {
         
         // Check each other user's request for potential matches
         for (const otherRequest of otherUsersRequests) {
+          // Skip self-matching in non-test mode
+          if (!testMode && otherRequest.requester_id === user.id) {
+            console.log('Skipping self-match in normal mode');
+            continue;
+          }
+          
+          // Skip comparing the same request with itself even in test mode
+          if (myRequest.id === otherRequest.id) {
+            console.log('Skipping matching request with itself');
+            continue;
+          }
+          
           // Get other user's shift details
           const otherShift = allShifts.find(s => s.id === otherRequest.requester_shift_id);
           if (!otherShift) {
@@ -342,6 +375,8 @@ export const useSwapMatching = () => {
 
   return {
     findSwapMatches,
-    isProcessing
+    isProcessing,
+    testMode,
+    toggleTestMode
   };
 };
