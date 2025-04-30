@@ -1,0 +1,22 @@
+
+.calendar-cell {
+  min-height: 80px;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.calendar-cell.selected {
+  border-color: #9b87f5;
+  box-shadow: 0 0 0 1px #9b87f5;
+}
+
+.calendar-cell .shift-detail {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.calendar-cell.has-shift:hover {
+  background-color: rgba(226, 232, 240, 0.5);
+}
