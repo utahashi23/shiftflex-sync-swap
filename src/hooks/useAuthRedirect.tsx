@@ -22,8 +22,23 @@ export const useAuthRedirect = ({
   const location = useLocation();
 
   useEffect(() => {
+    // Set a safety timeout to prevent infinite loading
+    const safetyTimeout = setTimeout(() => {
+      console.log("Auth redirect safety timeout triggered");
+      // If still loading after 5 seconds, assume there's an issue and redirect to login
+      if (protectedRoute && isLoading) {
+        console.log("Redirecting to login due to timeout");
+        navigate('/login', { state: { returnUrl: location.pathname } });
+      }
+    }, 5000);
+
     // Wait until auth state is loaded
-    if (isLoading) return;
+    if (isLoading) {
+      console.log("Auth state still loading, waiting...");
+      return () => clearTimeout(safetyTimeout);
+    }
+
+    clearTimeout(safetyTimeout);
 
     console.log("Auth redirect check:", { 
       path: location.pathname,

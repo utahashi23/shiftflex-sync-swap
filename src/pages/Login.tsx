@@ -27,6 +27,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { toast } from '@/hooks/use-toast';
 import { createAdminUser } from '@/hooks/auth/auth-utils';
+import LoadingState from '@/components/LoadingState';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required'),
@@ -38,9 +39,8 @@ const resetSchema = z.object({
 });
 
 const Login = () => {
-  useAuthRedirect({ authRoutes: true });
-  
-  const { signIn, resetPassword } = useAuth();
+  const [pageLoading, setPageLoading] = useState(true);
+  const { isLoading: authLoading, session, signIn, resetPassword } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const returnUrl = (location.state as any)?.returnUrl || '/dashboard';
@@ -49,17 +49,49 @@ const Login = () => {
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [adminCreated, setAdminCreated] = useState(false);
   
+  // Set a timeout to stop showing the loading state if it persists for too long
+  useEffect(() => {
+    console.log("Login page mounted", { authLoading, session });
+    
+    // Safety timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      setPageLoading(false);
+      console.log("Safety timeout triggered - forcing loading to complete");
+    }, 3000);
+
+    // If auth is already loaded, don't wait
+    if (!authLoading) {
+      clearTimeout(timeout);
+      setPageLoading(false);
+      console.log("Auth loading complete");
+    }
+
+    return () => clearTimeout(timeout);
+  }, [authLoading, session]);
+  
+  // Handle redirection if user is already logged in
+  useEffect(() => {
+    if (session && session.user) {
+      console.log("User already logged in, redirecting to:", returnUrl);
+      navigate(returnUrl);
+    }
+  }, [session, navigate, returnUrl]);
+
   // Ensure admin user exists on component mount
   useEffect(() => {
     const ensureAdminExists = async () => {
-      const result = await createAdminUser();
-      setAdminCreated(result.exists || !!result.user);
-      
-      if (!result.exists && result.user) {
-        toast({
-          title: "Admin Account Created",
-          description: "Admin user has been set up successfully.",
-        });
+      try {
+        const result = await createAdminUser();
+        setAdminCreated(result.exists || !!result.user);
+        
+        if (!result.exists && result.user) {
+          toast({
+            title: "Admin Account Created",
+            description: "Admin user has been set up successfully.",
+          });
+        }
+      } catch (error) {
+        console.error("Error checking admin user:", error);
       }
     };
     
@@ -87,24 +119,29 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      const { error } = await signIn(data.email, data.password);
+      console.log("Attempting login with:", data.email);
+      const { success, error } = await signIn(data.email, data.password);
 
-      if (error) {
-        if (error.message.includes('not verified')) {
+      if (!success && error) {
+        if (error.message && error.message.includes('not verified')) {
           navigate('/verify-email', { state: { email: data.email } });
           return;
         }
-        throw new Error(error.message);
+        throw new Error(error.message || "Unknown error");
       }
 
-      toast({
-        title: "Login Successful",
-        description: "You have successfully logged in.",
-      });
-      
-      navigate(returnUrl);
+      if (success) {
+        console.log("Login successful, will redirect to:", returnUrl);
+        toast({
+          title: "Login Successful",
+          description: "You have successfully logged in.",
+        });
+        
+        navigate(returnUrl);
+      }
       
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Login Failed",
         description: error.message || "Invalid email or password. Please try again.",
@@ -142,6 +179,11 @@ const Login = () => {
     form.setValue('email', 'sfadmin');
     form.setValue('password', 'EzySodha1623%');
   };
+
+  // Show loading state if needed
+  if (pageLoading) {
+    return <LoadingState fullScreen message="Preparing login..." debugInfo={`Auth state: ${authLoading ? 'loading' : 'loaded'}`} />;
+  }
 
   return (
     <AuthLayout title="Log in to your account">
