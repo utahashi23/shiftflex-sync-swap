@@ -6,6 +6,8 @@ import AppLayout from '@/layouts/AppLayout';
 import ShiftSwapCalendar from '@/components/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
+import { Button } from '@/components/ui/button';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
