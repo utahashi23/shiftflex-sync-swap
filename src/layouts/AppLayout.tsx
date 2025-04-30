@@ -1,4 +1,3 @@
-
 import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,9 @@ const AppLayout = ({ children }: AppLayoutProps) => {
   const { user, signOut, isAdmin } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Get user's first name from user_metadata, fallback to email if not available
+  const userFirstName = user?.user_metadata?.first_name || 'User';
 
   const handleSignOut = async () => {
     try {
@@ -75,7 +77,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
 
         <div className="mb-6 px-2">
           <div className="text-sm font-medium text-gray-400 mb-2">Welcome</div>
-          <div className="font-medium">{user?.email}</div>
+          <div className="font-medium">{userFirstName}</div>
         </div>
 
         <nav className="flex-1">
