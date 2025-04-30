@@ -3,7 +3,7 @@ import { Shift } from '@/hooks/useShiftData';
 
 export interface PreferredDate {
   date: string;
-  acceptedTypes: string[];
+  acceptedTypes: ("day" | "afternoon" | "night")[];
 }
 
 export interface SwapRequest {

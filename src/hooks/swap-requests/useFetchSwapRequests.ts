@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -56,7 +57,7 @@ export const useFetchSwapRequests = (user: User | null) => {
         if (!shiftData) continue;
         
         // Determine shift type based on start time
-        let shiftType: string = 'day';
+        let shiftType: "day" | "afternoon" | "night" = 'day';
         const startHour = new Date(`2000-01-01T${shiftData.start_time}`).getHours();
         
         if (startHour <= 8) {
