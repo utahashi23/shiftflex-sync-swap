@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
@@ -57,104 +58,104 @@ const RequestedSwaps = () => {
 
   // Fetch swap requests from the database
   useEffect(() => {
-    const fetchSwapRequests = async () => {
-      if (!user) return;
-      
-      setIsLoading(true);
-      
-      try {
-        // Fetch swap requests where the user is the requester
-        const { data: swapRequestsData, error: swapError } = await supabase
-          .from('shift_swap_requests')
-          .select(`
-            id,
-            status,
-            requester_shift_id,
-            created_at
-          `)
-          .eq('requester_id', user.id)
-          .eq('status', 'pending');
-          
-        if (swapError) throw swapError;
-        
-        if (!swapRequestsData || swapRequestsData.length === 0) {
-          setSwapRequests([]);
-          setIsLoading(false);
-          return;
-        }
-        
-        // Get all the shift IDs to fetch their details
-        const shiftIds = swapRequestsData.map(req => req.requester_shift_id);
-        
-        // Fetch details for all the original shifts
-        const { data: shiftsData, error: shiftsError } = await supabase
-          .from('shifts')
-          .select('*')
-          .in('id', shiftIds);
-          
-        if (shiftsError) throw shiftsError;
-        
-        // Map the data to our UI format
-        const formattedRequests: SwapRequest[] = swapRequestsData.map(request => {
-          // Find the corresponding shift
-          const shift = shiftsData?.find(s => s.id === request.requester_shift_id);
-          
-          if (!shift) {
-            console.error(`Shift not found for request ${request.id}`);
-            return null;
-          }
-          
-          // Determine shift type based on start time
-          let type = 'day';
-          const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
-          
-          if (startHour <= 8) {
-            type = 'day';
-          } else if (startHour > 8 && startHour < 16) {
-            type = 'afternoon';
-          } else {
-            type = 'night';
-          }
-          
-          // For now, we'll use the same date as the preferred date
-          // In a real app with a separate table for preferred dates, we would fetch those
-          const preferredDates = [
-            { 
-              date: new Date(shift.date).toISOString().split('T')[0], 
-              acceptedTypes: [type] 
-            }
-          ];
-          
-          return {
-            id: request.id,
-            originalShift: {
-              id: shift.id,
-              date: shift.date,
-              title: shift.truck_name || `Shift-${shift.id.substring(0, 5)}`,
-              startTime: shift.start_time.substring(0, 5),
-              endTime: shift.end_time.substring(0, 5),
-              type
-            },
-            preferredDates,
-            status: request.status
-          };
-        }).filter(Boolean) as SwapRequest[];
-        
-        setSwapRequests(formattedRequests);
-      } catch (error) {
-        console.error('Error fetching swap requests:', error);
-        toast({
-          title: "Failed to load swap requests",
-          description: "There was a problem loading your swap requests. Please try again later.",
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchSwapRequests();
   }, [user]);
+  
+  const fetchSwapRequests = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Fetch swap requests where the user is the requester
+      const { data: swapRequestsData, error: swapError } = await supabase
+        .from('shift_swap_requests')
+        .select(`
+          id,
+          status,
+          requester_shift_id,
+          created_at
+        `)
+        .eq('requester_id', user.id)
+        .eq('status', 'pending');
+        
+      if (swapError) throw swapError;
+      
+      if (!swapRequestsData || swapRequestsData.length === 0) {
+        setSwapRequests([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Get all the shift IDs to fetch their details
+      const shiftIds = swapRequestsData.map(req => req.requester_shift_id);
+      
+      // Fetch details for all the original shifts
+      const { data: shiftsData, error: shiftsError } = await supabase
+        .from('shifts')
+        .select('*')
+        .in('id', shiftIds);
+        
+      if (shiftsError) throw shiftsError;
+      
+      // Map the data to our UI format
+      const formattedRequests: SwapRequest[] = swapRequestsData.map(request => {
+        // Find the corresponding shift
+        const shift = shiftsData?.find(s => s.id === request.requester_shift_id);
+        
+        if (!shift) {
+          console.error(`Shift not found for request ${request.id}`);
+          return null;
+        }
+        
+        // Determine shift type based on start time
+        let type = 'day';
+        const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
+        
+        if (startHour <= 8) {
+          type = 'day';
+        } else if (startHour > 8 && startHour < 16) {
+          type = 'afternoon';
+        } else {
+          type = 'night';
+        }
+        
+        // For now, we'll use the same date as the preferred date
+        // In a real app with a separate table for preferred dates, we would fetch those
+        const preferredDates = [
+          { 
+            date: new Date(shift.date).toISOString().split('T')[0], 
+            acceptedTypes: [type] 
+          }
+        ];
+        
+        return {
+          id: request.id,
+          originalShift: {
+            id: shift.id,
+            date: shift.date,
+            title: shift.truck_name || `Shift-${shift.id.substring(0, 5)}`,
+            startTime: shift.start_time.substring(0, 5),
+            endTime: shift.end_time.substring(0, 5),
+            type
+          },
+          preferredDates,
+          status: request.status
+        };
+      }).filter(Boolean) as SwapRequest[];
+      
+      setSwapRequests(formattedRequests);
+    } catch (error) {
+      console.error('Error fetching swap requests:', error);
+      toast({
+        title: "Failed to load swap requests",
+        description: "There was a problem loading your swap requests. Please try again later.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Delete an entire swap request
   const handleDeleteSwapRequest = async () => {
@@ -163,13 +164,21 @@ const RequestedSwaps = () => {
     setIsLoading(true);
     
     try {
+      console.log('Deleting swap request with ID:', deleteDialog.requestId);
+      
       const { error } = await supabase
         .from('shift_swap_requests')
         .delete()
         .eq('id', deleteDialog.requestId);
         
-      if (error) throw error;
+      if (error) {
+        console.error('Database delete error:', error);
+        throw error;
+      }
       
+      console.log('Swap request deleted successfully from the database');
+      
+      // Update local state after successful deletion
       setSwapRequests(prev => prev.filter(req => req.id !== deleteDialog.requestId));
       
       toast({
