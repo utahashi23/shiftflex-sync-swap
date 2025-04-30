@@ -6,21 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export const useSwapMatching = () => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [testMode, setTestMode] = useState(false);
   const { user } = useAuth();
-
-  /**
-   * Toggle test mode on/off
-   */
-  const toggleTestMode = () => {
-    setTestMode(prev => !prev);
-    toast({
-      title: testMode ? "Test mode disabled" : "Test mode enabled",
-      description: testMode 
-        ? "Now only matching with other users' requests" 
-        : "Now allowing matches between your own requests for testing",
-    });
-  };
 
   /**
    * Find potential matches for a user's swap requests
@@ -40,9 +26,8 @@ export const useSwapMatching = () => {
     try {
       console.log('----------- SWAP MATCHING STARTED -----------');
       console.log('Current user ID:', user.id);
-      console.log('Test mode:', testMode ? 'ON - allowing self-matches' : 'OFF - only matching with other users');
       
-      // Get ALL pending swap requests - THIS IS THE KEY CHANGE - FETCH ALL REQUESTS FIRST
+      // Get ALL pending swap requests from all users
       const { data: allRequests, error: requestsError } = await supabase
         .from('shift_swap_requests')
         .select(`
@@ -72,15 +57,10 @@ export const useSwapMatching = () => {
       
       // Separate my requests from other users' requests
       const myRequests = allRequests.filter(req => req.requester_id === user.id);
-      
-      // In test mode, treat your own requests as "other users" for matching
-      // FIXED: Don't filter out other users' requests in normal mode
-      const otherUsersRequests = testMode 
-        ? allRequests // In test mode, consider all requests
-        : allRequests.filter(req => req.requester_id !== user.id);
+      const otherUsersRequests = allRequests.filter(req => req.requester_id !== user.id);
       
       console.log('My requests:', myRequests);
-      console.log('Requests to match against:', otherUsersRequests);
+      console.log('Other users requests:', otherUsersRequests);
       
       if (myRequests.length === 0) {
         toast({
@@ -94,17 +74,17 @@ export const useSwapMatching = () => {
       if (otherUsersRequests.length === 0) {
         toast({
           title: "No potential matches",
-          description: testMode 
-            ? "No requests available for matching." 
-            : "No other users currently have pending swap requests.",
+          description: "No other users currently have pending swap requests.",
         });
         setIsProcessing(false);
         return;
       }
       
       // Get all the shift IDs from all requests
-      const allShiftIds = [...myRequests.map(req => req.requester_shift_id), 
-                        ...otherUsersRequests.map(req => req.requester_shift_id)];
+      const allShiftIds = [
+        ...myRequests.map(req => req.requester_shift_id), 
+        ...otherUsersRequests.map(req => req.requester_shift_id)
+      ];
       
       console.log('All shift IDs to fetch:', allShiftIds);
       
@@ -182,18 +162,6 @@ export const useSwapMatching = () => {
         
         // Check each other user's request for potential matches
         for (const otherRequest of otherUsersRequests) {
-          // Skip self-matching in non-test mode
-          if (!testMode && otherRequest.requester_id === user.id) {
-            console.log('Skipping self-match in normal mode');
-            continue;
-          }
-          
-          // Skip comparing the same request with itself even in test mode
-          if (myRequest.id === otherRequest.id) {
-            console.log('Skipping matching request with itself');
-            continue;
-          }
-          
           // Get other user's shift details
           const otherShift = allShifts.find(s => s.id === otherRequest.requester_shift_id);
           if (!otherShift) {
@@ -240,7 +208,7 @@ export const useSwapMatching = () => {
               console.log(`My accepted types for this date:`, myPref.accepted_types);
               console.log(`Checking if I accept their shift type (${otherShiftType})`);
               
-              if (myPref.accepted_types.includes(otherShiftType)) {
+              if (myPref.accepted_types && myPref.accepted_types.includes(otherShiftType)) {
                 iWantTheirShiftType = true;
                 console.log(`Type match: I want their shift type (${otherShiftType})`);
               } else {
@@ -270,7 +238,7 @@ export const useSwapMatching = () => {
               console.log(`Their accepted types for this date:`, otherPref.accepted_types);
               console.log(`Checking if they accept my shift type (${myShiftType})`);
               
-              if (otherPref.accepted_types.includes(myShiftType)) {
+              if (otherPref.accepted_types && otherPref.accepted_types.includes(myShiftType)) {
                 theyWantMyShiftType = true;
                 console.log(`Type match: They want my shift type (${myShiftType})`);
               } else {
@@ -376,8 +344,6 @@ export const useSwapMatching = () => {
 
   return {
     findSwapMatches,
-    isProcessing,
-    testMode,
-    toggleTestMode
+    isProcessing
   };
 };

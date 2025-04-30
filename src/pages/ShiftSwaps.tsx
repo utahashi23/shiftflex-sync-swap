@@ -9,13 +9,13 @@ import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useSwapMatching } from '@/hooks/useSwapMatching';
-import { RefreshCw, Wrench } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
   const [activeTab, setActiveTab] = useState('calendar');
-  const { findSwapMatches, isProcessing, testMode, toggleTestMode } = useSwapMatching();
+  const { findSwapMatches, isProcessing } = useSwapMatching();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Force tab refresh when coming back to this page or after finding matches
@@ -45,17 +45,7 @@ const ShiftSwaps = () => {
         </p>
       </div>
 
-      <div className="flex justify-between items-center mb-4">
-        <Button 
-          onClick={toggleTestMode}
-          variant="outline"
-          className={`border ${testMode ? 'border-amber-500 bg-amber-50 text-amber-800' : 'border-gray-200'}`}
-          size="sm"
-        >
-          <Wrench className="h-4 w-4 mr-2" />
-          {testMode ? 'Disable Test Mode' : 'Enable Test Mode'}
-        </Button>
-
+      <div className="flex justify-end items-center mb-4">
         <Button 
           onClick={handleFindMatches}
           disabled={isProcessing}
@@ -65,12 +55,6 @@ const ShiftSwaps = () => {
           {isProcessing ? 'Finding Matches...' : 'Find Matches'}
         </Button>
       </div>
-
-      {testMode && (
-        <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mb-4 text-amber-800 text-sm">
-          <strong>Test Mode Active:</strong> In this mode, your own swap requests can match with each other, allowing you to test the matching system without needing another user.
-        </div>
-      )}
 
       <TooltipProvider>
         <Tabs 
