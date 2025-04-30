@@ -3,16 +3,16 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Shift } from '@/hooks/useShiftData';
-import { SwapCalendarState, SwapCalendarHelpers } from './types';
+import { SwapCalendarState, SwapCalendarHelpers, AcceptableShiftTypes } from './types';
 
 export const useSwapCalendarActions = (
   state: SwapCalendarState,
   setState: {
     setSelectedShift: (shift: Shift | null) => void;
     setSwapMode: (mode: boolean) => void;
-    setSelectedSwapDates: (dates: string[]) => void;
+    setSelectedSwapDates: React.Dispatch<React.SetStateAction<string[]>>;
     setCurrentDate: (date: Date) => void;
-    setAcceptableShiftTypes: React.Dispatch<React.SetStateAction<{ day: boolean; afternoon: boolean; night: boolean; }>>;
+    setAcceptableShiftTypes: React.Dispatch<React.SetStateAction<AcceptableShiftTypes>>;
   },
   helpers: SwapCalendarHelpers,
   userId?: string
