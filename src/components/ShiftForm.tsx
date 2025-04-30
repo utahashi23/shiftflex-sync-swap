@@ -75,11 +75,20 @@ const ShiftForm = ({
       setColleagueType(selectedShift.colleagueType);
       setShiftLength('custom');
     } else if (selectedDate) {
-      // Adding new shift
+      // Adding new shift - ensure correct timezone handling
       setFormTitle('Add Shift to Calendar');
       setTruckName('');
       setSearchTerm('');
-      setShiftDate(selectedDate.toISOString().split('T')[0]);
+      
+      // Format the date correctly in local timezone
+      const year = selectedDate.getFullYear();
+      const month = selectedDate.getMonth();
+      const day = selectedDate.getDate();
+      
+      // Use local components to create the date string
+      const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      setShiftDate(formattedDate);
+      
       setShiftStartTime('');
       setShiftEndTime('');
       setShiftType('day');

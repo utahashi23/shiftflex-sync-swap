@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { Shift } from '@/hooks/useShiftData';
@@ -244,6 +243,7 @@ export const useSwapCalendarState = () => {
     
     // Add cells for each day of the month
     for (let day = 1; day <= days; day++) {
+      // Create the date in the local timezone
       const dateStr = formatDateString(year, month, day);
       const shift = getShiftForDate(dateStr);
       const isSelected = selectedShift?.date === dateStr;

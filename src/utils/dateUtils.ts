@@ -1,6 +1,14 @@
+
 export const formatDateString = (year: number, month: number, day: number) => {
   const date = new Date(year, month, day);
-  return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  // Ensure we're using the local timezone for the date string
+  const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  
+  // Format as YYYY-MM-DD using local timezone components
+  const y = localDate.getFullYear();
+  const m = String(localDate.getMonth() + 1).padStart(2, '0');
+  const d = String(localDate.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 };
 
 export const getDaysInMonth = (year: number, month: number) => {

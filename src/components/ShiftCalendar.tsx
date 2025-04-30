@@ -55,8 +55,10 @@ const ShiftCalendar = ({
     
     // Add cells for each day of the month
     for (let day = 1; day <= days; day++) {
+      // Create the date in the local timezone
       const dateStr = formatDateString(year, month, day);
-      const dateObj = new Date(dateStr);
+      const dateObj = new Date(year, month, day);
+      
       const shift = getShiftForDate(shifts, dateStr);
       
       const isSelected = selectedShift?.date === dateStr || 
