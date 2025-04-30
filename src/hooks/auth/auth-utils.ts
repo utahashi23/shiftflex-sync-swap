@@ -3,8 +3,13 @@ import { supabase } from "./supabase-client";
 
 // Check organization code validity
 export const checkOrganizationCode = async (code: string): Promise<boolean> => {
-  // For now, hardcode the validation
-  return code === "AV-SS25";
+  // Simulate a network request with a small delay for UX
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // For now, hardcode the validation
+      resolve(code === "AV-SS25");
+    }, 500);
+  });
 };
 
 // Sign up function
