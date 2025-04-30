@@ -32,7 +32,7 @@ export const useAuthRedirect = ({
 
     // For admin-only routes
     if (adminRoute && (!user || !isAdmin)) {
-      navigate('/dashboard');
+      navigate('/login', { state: { returnUrl: location.pathname } });
       return;
     }
 

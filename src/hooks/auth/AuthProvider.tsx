@@ -45,12 +45,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setIsEmailVerified(extendedUser.email_confirmed_at !== null);
           
           // Check if user is admin
-          setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+          if (extendedUser.email === 'admin@shiftflex.com') {
+            const { data, error } = await supabase.rpc('has_role', { 
+              _user_id: extendedUser.id,
+              _role: 'admin'
+            });
+            
+            setIsAdmin(!!data && !error);
+          } else {
+            setIsAdmin(false);
+          }
 
           // Handle authentication events
           if (event === 'SIGNED_IN') {
-            // For admin user (sfadmin), check if they're in the user_roles table
-            if (extendedUser.email === 'sfadmin') {
+            // For admin user, check if they're in the user_roles table
+            if (extendedUser.email === 'admin@shiftflex.com') {
               try {
                 // Use type assertions to work around TypeScript errors with Supabase client
                 const { data, error } = await supabase.rpc('has_role', { 
@@ -107,7 +116,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const extendedUser = currentSession.user as unknown as ExtendedUser;
         setUser(extendedUser);
         setIsEmailVerified(extendedUser.email_confirmed_at !== null);
-        setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+        
+        // Check admin status properly
+        if (extendedUser.email === 'admin@shiftflex.com') {
+          supabase.rpc('has_role', { 
+            _user_id: extendedUser.id,
+            _role: 'admin'
+          }).then(({ data, error }) => {
+            setIsAdmin(!!data && !error);
+          }).catch(() => {
+            setIsAdmin(false);
+          });
+        } else {
+          setIsAdmin(false);
+        }
       }
       
       setIsLoading(false);
@@ -146,7 +168,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const extendedUser = userData.user as unknown as ExtendedUser;
           setUser(extendedUser);
           setIsEmailVerified(extendedUser.email_confirmed_at !== null);
-          setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+          
+          // Check admin status properly
+          if (extendedUser.email === 'admin@shiftflex.com') {
+            const { data, error } = await supabase.rpc('has_role', { 
+              _user_id: extendedUser.id,
+              _role: 'admin'
+            });
+            
+            setIsAdmin(!!data && !error);
+          } else {
+            setIsAdmin(false);
+          }
         }
       } else {
         setUser(null);
