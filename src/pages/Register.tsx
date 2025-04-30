@@ -26,14 +26,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { toast } from '@/hooks/use-toast';
 
-// Schema for organization step
-const organizationSchema = z.object({
-  organization: z.string().min(1, 'Please select an organization'),
-  code: z.string().min(1, 'Organization code is required'),
-});
-
-// Schema for registration step
+// Combined schema for all registration fields
 const registrationSchema = z.object({
+  // Organization fields
+  organization: z.string().min(1, 'Please select an organization'),
+  organizationCode: z.string().min(1, 'Organization code is required'),
+  
+  // User fields
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email address'),
@@ -50,40 +49,44 @@ const Register = () => {
   useAuthRedirect({ authRoutes: true });
   
   const { checkOrganizationCode, signUp } = useAuth();
-  const [step, setStep] = useState<'organization' | 'registration'>('organization');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedOrg, setSelectedOrg] = useState<string>('');
+  const [codeVerified, setCodeVerified] = useState(false);
   
-  // Organization form
-  const orgForm = useForm<z.infer<typeof organizationSchema>>({
-    resolver: zodResolver(organizationSchema),
-    defaultValues: {
-      organization: '',
-      code: '',
-    },
-  });
-
-  // Registration form with its own separate state
-  const registrationForm = useForm<z.infer<typeof registrationSchema>>({
+  // Single form for all fields
+  const form = useForm<z.infer<typeof registrationSchema>>({
     resolver: zodResolver(registrationSchema),
     defaultValues: {
+      organization: '',
+      organizationCode: '',
       firstName: '',
       lastName: '',
       email: '',
       password: '',
       employeeId: '',
     },
+    mode: 'onChange',
   });
 
-  const onSubmitOrgForm = async (data: z.infer<typeof organizationSchema>) => {
+  // Function to verify organization code
+  const verifyOrganizationCode = async () => {
+    const organizationCode = form.getValues('organizationCode');
+    if (!organizationCode) {
+      toast({
+        title: "Code Required",
+        description: "Please enter an organization code to verify.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const isValid = await checkOrganizationCode(data.code);
+      const isValid = await checkOrganizationCode(organizationCode);
       if (isValid) {
-        // Only store organization name for later use
-        setSelectedOrg(data.organization);
-        
-        // Move to registration step
-        setStep('registration');
+        setCodeVerified(true);
+        toast({
+          title: "Code Verified",
+          description: "Your organization code has been verified.",
+        });
       } else {
         toast({
           title: "Invalid Organization Code",
@@ -100,7 +103,29 @@ const Register = () => {
     }
   };
 
-  const onSubmitRegistrationForm = async (data: z.infer<typeof registrationSchema>) => {
+  const onSubmit = async (data: z.infer<typeof registrationSchema>) => {
+    // Verify the code first if not already verified
+    if (!codeVerified) {
+      try {
+        const isValid = await checkOrganizationCode(data.organizationCode);
+        if (!isValid) {
+          toast({
+            title: "Invalid Organization Code",
+            description: "Please verify your organization code before registering.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch (error) {
+        toast({
+          title: "Verification Error",
+          description: "There was a problem verifying your organization code. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     setIsLoading(true);
     
     try {
@@ -108,7 +133,7 @@ const Register = () => {
         firstName: data.firstName,
         lastName: data.lastName,
         employeeId: data.employeeId,
-        organization: selectedOrg,
+        organization: data.organization,
       });
 
       if (!success) {
@@ -120,10 +145,9 @@ const Register = () => {
         description: "Please check your email to verify your account before logging in.",
       });
       
-      // Reset forms and go back to the first step
-      registrationForm.reset();
-      orgForm.reset();
-      setStep('organization');
+      // Reset form
+      form.reset();
+      setCodeVerified(false);
       
     } catch (error: any) {
       toast({
@@ -137,12 +161,14 @@ const Register = () => {
   };
 
   return (
-    <AuthLayout title={step === 'organization' ? "Select Your Organization" : "Create Your Account"}>
-      {step === 'organization' ? (
-        <Form {...orgForm}>
-          <form onSubmit={orgForm.handleSubmit(onSubmitOrgForm)} className="space-y-6">
+    <AuthLayout title="Create Your Account">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium">Organization Details</h3>
+            
             <FormField
-              control={orgForm.control}
+              control={form.control}
               name="organization"
               render={({ field }) => (
                 <FormItem>
@@ -163,36 +189,41 @@ const Register = () => {
               )}
             />
             
-            <FormField
-              control={orgForm.control}
-              name="code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Organization Code</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter your organization code" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <Button type="submit" className="w-full">Continue</Button>
-            
-            <div className="text-center text-sm">
-              Already have an account?{" "}
-              <Link to="/login" className="text-primary hover:underline">
-                Log in
-              </Link>
+            <div className="flex space-x-2">
+              <div className="flex-1">
+                <FormField
+                  control={form.control}
+                  name="organizationCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Organization Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter your organization code" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={verifyOrganizationCode}
+                  disabled={isLoading}
+                >
+                  Verify Code
+                </Button>
+              </div>
             </div>
-          </form>
-        </Form>
-      ) : (
-        <Form {...registrationForm}>
-          <form onSubmit={registrationForm.handleSubmit(onSubmitRegistrationForm)} className="space-y-4">
+          </div>
+          
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium">Personal Information</h3>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
-                control={registrationForm.control}
+                control={form.control}
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
@@ -206,7 +237,7 @@ const Register = () => {
               />
               
               <FormField
-                control={registrationForm.control}
+                control={form.control}
                 name="lastName"
                 render={({ field }) => (
                   <FormItem>
@@ -221,7 +252,7 @@ const Register = () => {
             </div>
             
             <FormField
-              control={registrationForm.control}
+              control={form.control}
               name="email"
               render={({ field }) => (
                 <FormItem>
@@ -239,7 +270,7 @@ const Register = () => {
             />
             
             <FormField
-              control={registrationForm.control}
+              control={form.control}
               name="password"
               render={({ field }) => (
                 <FormItem>
@@ -257,7 +288,7 @@ const Register = () => {
             />
             
             <FormField
-              control={registrationForm.control}
+              control={form.control}
               name="employeeId"
               render={({ field }) => (
                 <FormItem>
@@ -269,35 +300,24 @@ const Register = () => {
                 </FormItem>
               )}
             />
+          </div>
 
-            <div className="flex flex-col gap-4 pt-2">
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={isLoading}
-              >
-                {isLoading ? "Registering..." : "Register"}
-              </Button>
-              
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setStep('organization')}
-                disabled={isLoading}
-              >
-                Back
-              </Button>
-            </div>
-
-            <div className="text-center text-sm">
-              Already have an account?{" "}
-              <Link to="/login" className="text-primary hover:underline">
-                Log in
-              </Link>
-            </div>
-          </form>
-        </Form>
-      )}
+          <Button 
+            type="submit" 
+            className="w-full" 
+            disabled={isLoading}
+          >
+            {isLoading ? "Registering..." : "Register"}
+          </Button>
+          
+          <div className="text-center text-sm">
+            Already have an account?{" "}
+            <Link to="/login" className="text-primary hover:underline">
+              Log in
+            </Link>
+          </div>
+        </form>
+      </Form>
     </AuthLayout>
   );
 };
