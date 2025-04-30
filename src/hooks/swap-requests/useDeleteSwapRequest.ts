@@ -7,41 +7,30 @@ export const useDeleteSwapRequest = (
   setSwapRequests: React.Dispatch<React.SetStateAction<SwapRequest[]>>,
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>
 ) => {
-  // Delete an entire swap request
-  const handleDeleteSwapRequest = async (requestId: string) => {
-    if (!requestId) return;
+  // Delete all preferred dates for a specific shift
+  const handleDeleteSwapRequest = async (shiftId: string) => {
+    if (!shiftId) return;
     
     setIsLoading(true);
     
     try {
-      console.log('Deleting swap request with ID:', requestId);
+      console.log('Deleting all swap requests for shift:', shiftId);
       
-      // First, delete all preferred dates associated with this request
-      const { error: preferredDatesError } = await supabase
+      // Delete all preferred dates for this shift
+      const { error } = await supabase
         .from('shift_swap_preferred_dates')
         .delete()
-        .eq('request_id', requestId);
-        
-      if (preferredDatesError) {
-        console.error('Error deleting preferred dates:', preferredDatesError);
-        throw preferredDatesError;
-      }
-      
-      // Then, delete the swap request itself
-      const { error } = await supabase
-        .from('shift_swap_requests')
-        .delete()
-        .eq('id', requestId);
+        .eq('shifts.id', shiftId);
         
       if (error) {
         console.error('Database delete error:', error);
         throw error;
       }
       
-      console.log('Swap request deleted successfully');
+      console.log('All preferred dates deleted successfully');
       
       // Update local state after successful deletion
-      setSwapRequests(prev => prev.filter(req => req.id !== requestId));
+      setSwapRequests(prev => prev.filter(req => req.originalShift.id !== shiftId));
       
       toast({
         title: "Swap Request Deleted",
@@ -60,73 +49,59 @@ export const useDeleteSwapRequest = (
     }
   };
 
-  // Delete a single preferred date from a swap request
-  const handleDeletePreferredDate = async (requestId: string, dateStr: string) => {
-    if (!requestId || !dateStr) return;
+  // Delete a single preferred date
+  const handleDeletePreferredDate = async (dateId: string, shiftId: string) => {
+    if (!dateId || !shiftId) return;
     
     setIsLoading(true);
     
     try {
-      console.log('Deleting preferred date:', dateStr, 'from request:', requestId);
+      console.log('Deleting preferred date with id:', dateId);
       
-      // First, get the current count of preferred dates for this request
-      const { data: preferredDatesCount, error: countError } = await supabase
+      // First, check how many preferred dates exist for this shift
+      const { data: preferredDates, error: countError } = await supabase
         .from('shift_swap_preferred_dates')
-        .select('id', { count: 'exact' })
-        .eq('request_id', requestId);
+        .select('id')
+        .eq('shifts.id', shiftId);
         
       if (countError) {
         console.error('Error counting preferred dates:', countError);
         throw countError;
       }
       
-      const count = preferredDatesCount?.length || 0;
-      console.log(`Found ${count} preferred dates for request ${requestId}`);
+      const count = preferredDates?.length || 0;
+      console.log(`Found ${count} preferred dates for shift ${shiftId}`);
       
       // Delete the specific preferred date
-      const { error: deletePreferredDateError } = await supabase
+      const { error } = await supabase
         .from('shift_swap_preferred_dates')
         .delete()
-        .eq('request_id', requestId)
-        .eq('date', dateStr);
+        .eq('id', dateId);
         
-      if (deletePreferredDateError) {
-        console.error('Database delete error:', deletePreferredDateError);
-        throw deletePreferredDateError;
+      if (error) {
+        console.error('Database delete error:', error);
+        throw error;
       }
       
-      // If this was the last preferred date, also delete the swap request
+      console.log('Preferred date deleted successfully');
+      
+      // If this was the last preferred date, remove the entire request from state
       if (count <= 1) {
-        console.log('Last preferred date removed, deleting entire swap request');
-        const { error: deleteRequestError } = await supabase
-          .from('shift_swap_requests')
-          .delete()
-          .eq('id', requestId);
-          
-        if (deleteRequestError) {
-          console.error('Error deleting swap request:', deleteRequestError);
-          throw deleteRequestError;
-        }
-        
         // Update local state to remove the entire request
-        setSwapRequests(prev => prev.filter(req => req.id !== requestId));
+        setSwapRequests(prev => prev.filter(req => req.originalShift.id !== shiftId));
         
         toast({
           title: "Swap Request Deleted",
           description: "Your swap request has been deleted as it had no remaining preferred dates."
         });
       } else {
-        console.log('Preferred date deleted successfully, updating local state');
-        
         // Update local state to remove just the preferred date
         setSwapRequests(prev => {
           return prev.map(req => {
-            if (req.id === requestId) {
+            if (req.originalShift.id === shiftId) {
               return {
                 ...req,
-                preferredDates: req.preferredDates.filter(
-                  date => date.date !== dateStr
-                )
+                preferredDates: req.preferredDates.filter(date => date.id !== dateId)
               };
             }
             return req;

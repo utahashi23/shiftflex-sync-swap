@@ -22,7 +22,7 @@ export const useSwapRequests = (): UseSwapRequestsReturn => {
 
   useEffect(() => {
     fetchSwapRequests();
-  }, [user]);
+  }, [user, fetchSwapRequests]);
 
   return {
     swapRequests,

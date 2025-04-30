@@ -56,28 +56,11 @@ export const useSwapCalendarActions = (
     
     try {
       console.log('Creating swap request with:', {
-        requester_id: userId,
-        requester_shift_id: selectedShift.id,
+        user_id: userId,
+        shift_id: selectedShift.id,
         selected_dates: selectedSwapDates,
         acceptable_types: acceptableShiftTypes
       });
-      
-      // Create the swap request in the database
-      const { data: swapRequestData, error: swapRequestError } = await supabase
-        .from('shift_swap_requests')
-        .insert({
-          requester_id: userId,
-          requester_shift_id: selectedShift.id,
-          status: 'pending'
-        })
-        .select('id')
-        .single();
-        
-      if (swapRequestError) throw swapRequestError;
-      
-      if (!swapRequestData || !swapRequestData.id) {
-        throw new Error('Failed to get ID for new swap request');
-      }
       
       // Convert acceptableShiftTypes object to array for each date
       const acceptedTypesArray: ("day" | "afternoon" | "night")[] = [];
@@ -85,11 +68,11 @@ export const useSwapCalendarActions = (
       if (acceptableShiftTypes.afternoon) acceptedTypesArray.push("afternoon");
       if (acceptableShiftTypes.night) acceptedTypesArray.push("night");
       
-      // Now store each preferred date in the preferred_dates table
+      // Store each preferred date directly in the preferred_dates table
       const preferredDatesInserts = selectedSwapDates.map(dateStr => ({
-        request_id: swapRequestData.id,
         date: dateStr,
-        accepted_types: acceptedTypesArray
+        accepted_types: acceptedTypesArray,
+        shifts: selectedShift.id
       }));
       
       const { error: preferredDatesError } = await supabase
@@ -98,7 +81,7 @@ export const useSwapCalendarActions = (
         
       if (preferredDatesError) throw preferredDatesError;
       
-      console.log('Created swap request with ID:', swapRequestData.id);
+      console.log('Created swap request for shift:', selectedShift.id);
       console.log('Stored preferred dates:', preferredDatesInserts);
       
       toast({

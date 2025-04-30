@@ -1,7 +1,6 @@
 
-import { Shift } from '@/hooks/useShiftData';
-
 export interface PreferredDate {
+  id: string;
   date: string;
   acceptedTypes: ("day" | "afternoon" | "night")[];
 }
@@ -9,8 +8,16 @@ export interface PreferredDate {
 export interface SwapRequest {
   id: string;
   status: string;
-  originalShift: Omit<Shift, 'colleagueType'>;
+  originalShift: {
+    id: string;
+    date: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+    type: string;
+  };
   preferredDates: PreferredDate[];
+  requesterId: string;
 }
 
 export interface UseSwapRequestsReturn {
@@ -18,5 +25,5 @@ export interface UseSwapRequestsReturn {
   isLoading: boolean;
   fetchSwapRequests: () => Promise<void>;
   handleDeleteSwapRequest: (requestId: string) => Promise<void>;
-  handleDeletePreferredDate: (requestId: string, dateStr: string) => Promise<void>;
+  handleDeletePreferredDate: (dateId: string, requestId: string) => Promise<void>;
 }

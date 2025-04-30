@@ -16,49 +16,42 @@ export const useFetchSwapRequests = (user: User | null) => {
     try {
       console.log('Fetching swap requests for user:', user.id);
       
-      // First, fetch the swap requests
-      const { data: swapRequestsData, error: swapRequestsError } = await supabase
-        .from('shift_swap_requests')
+      // Fetch all preferred dates for this user's shifts
+      const { data: preferredDates, error: preferredDatesError } = await supabase
+        .from('shift_swap_preferred_dates')
         .select(`
-          id,
-          status,
-          requester_id,
-          requester_shift_id
+          id, 
+          date, 
+          accepted_types, 
+          request_id, 
+          shifts!inner (
+            id, 
+            date, 
+            start_time, 
+            end_time, 
+            truck_name,
+            user_id
+          )
         `)
-        .eq('requester_id', user.id)
-        .eq('status', 'pending');
+        .eq('shifts.user_id', user.id);
       
-      if (swapRequestsError) throw swapRequestsError;
+      if (preferredDatesError) throw preferredDatesError;
       
-      console.log('Fetched swap requests:', swapRequestsData);
+      console.log('Fetched preferred dates:', preferredDates);
       
-      if (!swapRequestsData || swapRequestsData.length === 0) {
+      if (!preferredDates || preferredDates.length === 0) {
         setSwapRequests([]);
         setIsLoading(false);
         return;
       }
       
-      // Then, fetch the shift details for each swap request
-      const formattedRequests: SwapRequest[] = [];
-      
-      for (const request of swapRequestsData) {
-        // Get the shift details for this request
-        const { data: shiftData, error: shiftError } = await supabase
-          .from('shifts')
-          .select('*')
-          .eq('id', request.requester_shift_id)
-          .single();
-        
-        if (shiftError) {
-          console.error('Error fetching shift:', shiftError);
-          continue;
-        }
-        
-        if (!shiftData) continue;
+      // Group by shift id
+      const groupedByShift = preferredDates.reduce((acc, item) => {
+        const shiftId = item.shifts.id;
         
         // Determine shift type based on start time
         let shiftType: "day" | "afternoon" | "night" = 'day';
-        const startHour = new Date(`2000-01-01T${shiftData.start_time}`).getHours();
+        const startHour = new Date(`2000-01-01T${item.shifts.start_time}`).getHours();
         
         if (startHour <= 8) {
           shiftType = 'day';
@@ -68,38 +61,34 @@ export const useFetchSwapRequests = (user: User | null) => {
           shiftType = 'night';
         }
         
-        // Fetch preferred dates for this request
-        const { data: preferredDatesData, error: preferredDatesError } = await supabase
-          .from('shift_swap_preferred_dates')
-          .select('*')
-          .eq('request_id', request.id);
-          
-        if (preferredDatesError) {
-          console.error('Error fetching preferred dates:', preferredDatesError);
-          continue;
+        if (!acc[shiftId]) {
+          acc[shiftId] = {
+            id: shiftId,
+            requesterId: item.shifts.user_id,
+            status: 'pending',
+            originalShift: {
+              id: item.shifts.id,
+              date: item.shifts.date,
+              title: item.shifts.truck_name || `Shift-${item.shifts.id.substring(0, 5)}`,
+              startTime: item.shifts.start_time.substring(0, 5), // Format as HH:MM
+              endTime: item.shifts.end_time.substring(0, 5),     // Format as HH:MM
+              type: shiftType
+            },
+            preferredDates: []
+          };
         }
         
-        // Format the preferred dates
-        const preferredDates = preferredDatesData?.map(date => ({
-          date: date.date,
-          acceptedTypes: date.accepted_types as ("day" | "afternoon" | "night")[]
-        })) || [];
-        
-        // Create the formatted request
-        formattedRequests.push({
-          id: request.id,
-          status: request.status,
-          originalShift: {
-            id: shiftData.id,
-            date: shiftData.date,
-            title: shiftData.truck_name || `Shift-${shiftData.id.substring(0, 5)}`,
-            startTime: shiftData.start_time.substring(0, 5), // Format as HH:MM
-            endTime: shiftData.end_time.substring(0, 5),    // Format as HH:MM
-            type: shiftType
-          },
-          preferredDates: preferredDates
+        acc[shiftId].preferredDates.push({
+          id: item.id,
+          date: item.date,
+          acceptedTypes: item.accepted_types as ("day" | "afternoon" | "night")[]
         });
-      }
+        
+        return acc;
+      }, {} as Record<string, SwapRequest>);
+      
+      // Convert to array
+      const formattedRequests = Object.values(groupedByShift);
       
       console.log('Formatted requests:', formattedRequests);
       setSwapRequests(formattedRequests);
