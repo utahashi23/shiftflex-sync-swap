@@ -20,7 +20,7 @@ export const useDeleteSwapRequest = (
       const { error } = await supabase
         .from('shift_swap_preferred_dates')
         .delete()
-        .eq('shifts.id', shiftId);
+        .eq('shift_id', shiftId);
         
       if (error) {
         console.error('Database delete error:', error);
@@ -62,7 +62,7 @@ export const useDeleteSwapRequest = (
       const { data: preferredDates, error: countError } = await supabase
         .from('shift_swap_preferred_dates')
         .select('id')
-        .eq('shifts.id', shiftId);
+        .eq('shift_id', shiftId);
         
       if (countError) {
         console.error('Error counting preferred dates:', countError);

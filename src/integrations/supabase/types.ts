@@ -46,6 +46,7 @@ export type Database = {
           date: string
           id: string
           request_id: string
+          shift_id: string | null
         }
         Insert: {
           accepted_types: string[]
@@ -53,6 +54,7 @@ export type Database = {
           date: string
           id?: string
           request_id: string
+          shift_id?: string | null
         }
         Update: {
           accepted_types?: string[]
@@ -60,6 +62,7 @@ export type Database = {
           date?: string
           id?: string
           request_id?: string
+          shift_id?: string | null
         }
         Relationships: [
           {
@@ -67,6 +70,13 @@ export type Database = {
             columns: ["request_id"]
             isOneToOne: false
             referencedRelation: "shift_swap_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_preferred_dates_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
             referencedColumns: ["id"]
           },
         ]

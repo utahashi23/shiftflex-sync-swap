@@ -68,11 +68,11 @@ export const useSwapCalendarActions = (
       if (acceptableShiftTypes.afternoon) acceptedTypesArray.push("afternoon");
       if (acceptableShiftTypes.night) acceptedTypesArray.push("night");
       
-      // Store each preferred date directly in the preferred_dates table
+      // Store each preferred date directly in the preferred_dates table with the new schema
       const preferredDatesInserts = selectedSwapDates.map(dateStr => ({
         date: dateStr,
         accepted_types: acceptedTypesArray,
-        shifts: selectedShift.id
+        shift_id: selectedShift.id // Using shift_id instead of shifts or request_id
       }));
       
       const { error: preferredDatesError } = await supabase

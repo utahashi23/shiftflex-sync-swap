@@ -16,15 +16,14 @@ export const useFetchSwapRequests = (user: User | null) => {
     try {
       console.log('Fetching swap requests for user:', user.id);
       
-      // Fetch all preferred dates for this user's shifts
+      // Modified query to use the direct relationship between shift_swap_preferred_dates and shifts
       const { data: preferredDates, error: preferredDatesError } = await supabase
         .from('shift_swap_preferred_dates')
         .select(`
           id, 
           date, 
           accepted_types, 
-          request_id, 
-          shifts!inner (
+          shifts:shift_id (
             id, 
             date, 
             start_time, 
