@@ -1,6 +1,6 @@
 
 import { ReactNode, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -10,10 +10,19 @@ import {
   LogOut,
   Menu,
   X,
-  ShieldCheck
+  ShieldCheck,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 type AppLayoutProps = {
   children: ReactNode;
@@ -22,7 +31,9 @@ type AppLayoutProps = {
 const AppLayout = ({ children }: AppLayoutProps) => {
   const { user, signOut, isAdmin } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [forceLogoutDialogOpen, setForceLogoutDialogOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -31,12 +42,38 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         title: "Signed out successfully",
         description: "You have been logged out of your account.",
       });
+      navigate('/login');
     } catch (error) {
       toast({
         title: "Sign out failed",
-        description: "There was a problem signing you out.",
+        description: "There was a problem signing you out. Try force logout instead.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleForceLogout = async () => {
+    try {
+      // Clear browser storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Attempt to sign out
+      await signOut();
+      
+      toast({
+        title: "Force logout successful",
+        description: "Your session has been reset.",
+      });
+      
+      // Force a page reload to clear React state
+      window.location.href = '/login';
+    } catch (error) {
+      console.error("Force logout failed:", error);
+      // Hard redirect as a fallback
+      window.location.href = '/login';
+    } finally {
+      setForceLogoutDialogOpen(false);
     }
   };
 
@@ -98,7 +135,15 @@ const AppLayout = ({ children }: AppLayoutProps) => {
           </ul>
         </nav>
 
-        <div className="mt-auto pt-4">
+        <div className="mt-auto pt-4 space-y-2">
+          <Button 
+            variant="outline" 
+            className="w-full justify-start text-gray-700 hover:text-primary" 
+            onClick={() => setForceLogoutDialogOpen(true)}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" /> Force Logout
+          </Button>
+          
           <Button 
             variant="outline" 
             className="w-full justify-start text-gray-700 hover:text-primary" 
@@ -123,6 +168,27 @@ const AppLayout = ({ children }: AppLayoutProps) => {
           onClick={() => setSidebarOpen(false)}
         />
       )}
+      
+      {/* Force Logout Dialog */}
+      <Dialog open={forceLogoutDialogOpen} onOpenChange={setForceLogoutDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Force Logout</DialogTitle>
+            <DialogDescription>
+              This will clear all authentication data and reset your session. Use this if you're experiencing authentication issues.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0 mt-4">
+            <Button variant="outline" onClick={() => setForceLogoutDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleForceLogout}>
+              Force Logout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
