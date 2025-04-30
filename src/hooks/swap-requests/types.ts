@@ -1,8 +1,10 @@
 
+import { ShiftType } from './shiftTypes';
+
 export interface PreferredDate {
   id: string;
   date: string;
-  acceptedTypes: ("day" | "afternoon" | "night")[];
+  acceptedTypes: ShiftType[];
 }
 
 export interface SwapRequest {
