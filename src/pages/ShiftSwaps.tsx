@@ -26,6 +26,7 @@ const ShiftSwaps = () => {
   }, [refreshTrigger]);
   
   const handleFindMatches = async () => {
+    console.log('Find Matches button clicked');
     await findSwapMatches();
     // Refresh the tabs to show updated data
     setRefreshTrigger(prev => prev + 1);
@@ -44,6 +45,17 @@ const ShiftSwaps = () => {
         </p>
       </div>
 
+      <div className="flex justify-end mb-4">
+        <Button 
+          onClick={handleFindMatches}
+          disabled={isProcessing}
+          className="bg-green-500 hover:bg-green-600 text-white"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
+          {isProcessing ? 'Finding Matches...' : 'Find Matches'}
+        </Button>
+      </div>
+
       <TooltipProvider>
         <Tabs 
           defaultValue="calendar" 
@@ -55,24 +67,11 @@ const ShiftSwaps = () => {
           }}
           className="w-full"
         >
-          <div className="flex items-center justify-between mb-8">
-            <TabsList className="grid grid-cols-3">
-              <TabsTrigger value="calendar">Calendar</TabsTrigger>
-              <TabsTrigger value="requested">Requested Swaps</TabsTrigger>
-              <TabsTrigger value="matched">Matched Swaps</TabsTrigger>
-            </TabsList>
-            
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleFindMatches}
-              disabled={isProcessing}
-              className="ml-4"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
-              {isProcessing ? 'Finding Matches...' : 'Find Matches'}
-            </Button>
-          </div>
+          <TabsList className="grid grid-cols-3 mb-8">
+            <TabsTrigger value="calendar">Calendar</TabsTrigger>
+            <TabsTrigger value="requested">Requested Swaps</TabsTrigger>
+            <TabsTrigger value="matched">Matched Swaps</TabsTrigger>
+          </TabsList>
           
           <TabsContent value="calendar">
             <ShiftSwapCalendar key={`calendar-${refreshTrigger}`} />
