@@ -5,9 +5,14 @@ import SwapRequestSkeleton from './swaps/SwapRequestSkeleton';
 import EmptySwapRequests from './swaps/EmptySwapRequests';
 import SwapDeleteDialog from './swaps/SwapDeleteDialog';
 import { useSwapRequests } from '@/hooks/useSwapRequests';
+import { SwapRequest } from '@/hooks/swap-requests/types';
 
 const RequestedSwaps = () => {
-  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean, requestId: string | null, dateOnly: string | null }>({
+  const [deleteDialog, setDeleteDialog] = useState<{ 
+    isOpen: boolean, 
+    requestId: string | null, 
+    dateOnly: string | null 
+  }>({
     isOpen: false,
     requestId: null,
     dateOnly: null
@@ -20,6 +25,7 @@ const RequestedSwaps = () => {
     handleDeletePreferredDate
   } = useSwapRequests();
 
+  // Handler for opening delete dialog for an entire swap request
   const onDeleteRequest = (requestId: string) => {
     setDeleteDialog({
       isOpen: true,
@@ -28,6 +34,7 @@ const RequestedSwaps = () => {
     });
   };
 
+  // Handler for opening delete dialog for a single preferred date
   const onDeletePreferredDate = (requestId: string, dateOnly: string) => {
     setDeleteDialog({
       isOpen: true,
@@ -36,12 +43,19 @@ const RequestedSwaps = () => {
     });
   };
 
+  // Handler for confirming deletion
   const handleConfirmDelete = () => {
+    if (!deleteDialog.requestId) return;
+    
     if (deleteDialog.dateOnly) {
-      handleDeletePreferredDate(deleteDialog.requestId!, deleteDialog.dateOnly);
+      // Delete a single preferred date
+      handleDeletePreferredDate(deleteDialog.requestId, deleteDialog.dateOnly);
     } else {
-      handleDeleteSwapRequest(deleteDialog.requestId!);
+      // Delete the entire swap request
+      handleDeleteSwapRequest(deleteDialog.requestId);
     }
+    
+    // Reset dialog state after action
     setDeleteDialog({ isOpen: false, requestId: null, dateOnly: null });
   };
   
