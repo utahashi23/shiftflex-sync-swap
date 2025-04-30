@@ -37,3 +37,18 @@ export const getMonthDateRange = (date: Date): { startDate: string, endDate: str
   
   return { startDate, endDate };
 };
+
+/**
+ * Check if a shift start time falls within a specific shift type based on hour
+ */
+export const getShiftType = (startTime: string): 'day' | 'afternoon' | 'night' => {
+  const startHour = new Date(`2000-01-01T${startTime}`).getHours();
+  
+  if (startHour <= 8) {
+    return 'day';
+  } else if (startHour > 8 && startHour < 16) {
+    return 'afternoon';
+  } else {
+    return 'night';
+  }
+};
