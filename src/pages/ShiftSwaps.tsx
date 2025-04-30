@@ -8,14 +8,14 @@ import ShiftSwapCalendar from '@/components/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useSwapMatcher } from '@/hooks/useSwapMatcher'; // Make sure we're using the correct hook
+import { useSwapMatcher } from '@/hooks/useSwapMatcher';
 import { RefreshCw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
   const [activeTab, setActiveTab] = useState('calendar');
-  const { findSwapMatches, isProcessing } = useSwapMatcher(); // Using the primary hook
+  const { findSwapMatches, isProcessing } = useSwapMatcher();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Force tab refresh when coming back to this page or after finding matches
