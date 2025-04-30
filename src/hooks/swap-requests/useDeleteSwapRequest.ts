@@ -16,7 +16,7 @@ export const useDeleteSwapRequest = (
     try {
       console.log('Deleting swap request with ID:', requestId);
       
-      // Fixed: Removed .select('count') which was causing the issue
+      // Execute the delete operation - removing .select('count') which was causing issues
       const { error } = await supabase
         .from('shift_swap_requests')
         .delete()
