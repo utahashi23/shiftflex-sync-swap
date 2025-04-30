@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
@@ -15,6 +15,13 @@ const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
   const [activeTab, setActiveTab] = useState('calendar');
   const { findSwapMatches, isProcessing } = useSwapMatching();
+  
+  // Force tab refresh when coming back to this page
+  useEffect(() => {
+    const currentTab = activeTab;
+    setActiveTab('');
+    setTimeout(() => setActiveTab(currentTab), 10);
+  }, []);
   
   return (
     <AppLayout>

@@ -24,6 +24,8 @@ export const useSwapMatching = () => {
     setIsProcessing(true);
     
     try {
+      console.log('Starting to find matches for user:', user.id);
+      
       // Step 1: Get all pending swap requests made by the current user
       const { data: myPendingRequests, error: requestsError } = await supabase
         .from('shift_swap_requests')
@@ -47,6 +49,8 @@ export const useSwapMatching = () => {
         return;
       }
       
+      console.log('Found pending requests:', myPendingRequests);
+      
       // Get all shift IDs from my pending requests
       const myShiftIds = myPendingRequests.map(req => req.requester_shift_id);
       
@@ -58,9 +62,12 @@ export const useSwapMatching = () => {
         
       if (shiftsError) throw shiftsError;
       
-      if (!myShifts) {
+      if (!myShifts || myShifts.length === 0) {
+        console.log('No shift details found');
         throw new Error('Failed to fetch shift details');
       }
+      
+      console.log('Found my shifts:', myShifts);
       
       // Step 3: Get all my preferred dates for these requests
       const { data: myPreferredDates, error: preferredDatesError } = await supabase
@@ -70,9 +77,12 @@ export const useSwapMatching = () => {
         
       if (preferredDatesError) throw preferredDatesError;
       
-      if (!myPreferredDates) {
+      if (!myPreferredDates || myPreferredDates.length === 0) {
+        console.log('No preferred dates found');
         throw new Error('Failed to fetch preferred dates');
       }
+      
+      console.log('Found my preferred dates:', myPreferredDates);
       
       // Map requests to their preferred dates
       const requestsWithPreferences = myPendingRequests.map(request => {
@@ -89,118 +99,160 @@ export const useSwapMatching = () => {
         };
       });
       
-      // Step 4: Find other users' shifts that match my preferred dates
+      console.log('Mapped requests with preferences:', requestsWithPreferences);
+      
+      // Step 4: Find potential matches
       let matchesFound = false;
       
+      // Get all other users' pending swap requests (excluding mine)
+      const { data: otherUsersRequests, error: otherRequestsError } = await supabase
+        .from('shift_swap_requests')
+        .select(`
+          id,
+          requester_id,
+          requester_shift_id,
+          status
+        `)
+        .neq('requester_id', user.id)
+        .eq('status', 'pending');
+        
+      if (otherRequestsError) throw otherRequestsError;
+      
+      if (!otherUsersRequests || otherUsersRequests.length === 0) {
+        console.log('No other users have pending requests');
+        toast({
+          title: "No potential matches",
+          description: "No other users currently have pending swap requests.",
+        });
+        setIsProcessing(false);
+        return;
+      }
+      
+      console.log('Found other users requests:', otherUsersRequests);
+      
+      // Get all other users' shifts
+      const otherShiftIds = otherUsersRequests.map(req => req.requester_shift_id);
+      
+      const { data: otherShifts, error: otherShiftsError } = await supabase
+        .from('shifts')
+        .select('*')
+        .in('id', otherShiftIds);
+        
+      if (otherShiftsError) throw otherShiftsError;
+      
+      if (!otherShifts || otherShifts.length === 0) {
+        console.log('No shift details found for other users');
+        setIsProcessing(false);
+        return;
+      }
+      
+      console.log('Found other users shifts:', otherShifts);
+      
+      // Get all other users' preferred dates
+      const { data: otherPreferredDates, error: otherPreferredDatesError } = await supabase
+        .from('shift_swap_preferred_dates')
+        .select('*')
+        .in('shift_id', otherShiftIds);
+        
+      if (otherPreferredDatesError) throw otherPreferredDatesError;
+      
+      if (!otherPreferredDates || otherPreferredDates.length === 0) {
+        console.log('No preferred dates found for other users');
+        setIsProcessing(false);
+        return;
+      }
+      
+      console.log('Found other users preferred dates:', otherPreferredDates);
+      
       // Process each of my requests
-      for (const requestData of requestsWithPreferences) {
-        const { requestId, shift: myShift, preferredDates } = requestData;
+      for (const myRequest of requestsWithPreferences) {
+        if (!myRequest.shift) {
+          console.log('Missing shift data for request:', myRequest.requestId);
+          continue;
+        }
         
-        if (!myShift || !preferredDates.length) continue;
+        const myShift = myRequest.shift;
+        console.log('Processing my shift:', myShift);
         
-        // Extract dates and shift types I'm willing to accept
-        const dateStrings = preferredDates.map(pd => pd.date);
-        const allAcceptedTypes = preferredDates.flatMap(pd => pd.accepted_types);
+        // Determine my shift type
+        let myShiftType = getShiftType(myShift.start_time);
+        console.log('My shift type:', myShiftType);
         
-        // Find other users' shifts on those dates
-        const { data: otherShifts, error: otherShiftsError } = await supabase
-          .from('shifts')
-          .select('*')
-          .in('date', dateStrings)
-          .neq('user_id', user.id);
+        // For each other user request, check if there's a match
+        for (const otherRequest of otherUsersRequests) {
+          // Find the other user's shift
+          const otherShift = otherShifts.find(s => s.id === otherRequest.requester_shift_id);
+          if (!otherShift) continue;
           
-        if (otherShiftsError) throw otherShiftsError;
-        
-        if (!otherShifts || otherShifts.length === 0) continue;
-        
-        // Check each potential matching shift to see if it fits my criteria
-        for (const otherShift of otherShifts) {
-          // Determine shift type based on start time
-          let shiftType: "day" | "afternoon" | "night" = 'day';
-          const startHour = new Date(`2000-01-01T${otherShift.start_time}`).getHours();
+          console.log('Checking potential match with shift:', otherShift);
           
-          if (startHour <= 8) {
-            shiftType = 'day';
-          } else if (startHour > 8 && startHour < 16) {
-            shiftType = 'afternoon';
-          } else {
-            shiftType = 'night';
-          }
-          
-          // Check if this shift's type is in my accepted types
-          const matchingPreferredDate = preferredDates.find(pd => 
-            pd.date === otherShift.date && 
-            pd.accepted_types.includes(shiftType)
+          // Find the other user's preferred dates
+          const theirPreferredDates = otherPreferredDates.filter(
+            date => date.shift_id === otherRequest.requester_shift_id
           );
           
-          if (!matchingPreferredDate) continue;
-          
-          // Step 5: Check if the owner of this shift also wants MY shift
-          // Find if the other user has a swap request
-          const { data: otherUserRequests, error: otherRequestsError } = await supabase
-            .from('shift_swap_requests')
-            .select('*')
-            .eq('requester_id', otherShift.user_id)
-            .eq('status', 'pending');
-            
-          if (otherRequestsError) throw otherRequestsError;
-          
-          if (!otherUserRequests || otherUserRequests.length === 0) continue;
-          
-          // Get their preferred dates
-          const otherShiftIds = otherUserRequests.map(req => req.requester_shift_id);
-          
-          const { data: otherPreferredDates, error: otherPreferredError } = await supabase
-            .from('shift_swap_preferred_dates')
-            .select('*')
-            .in('shift_id', otherShiftIds);
-            
-          if (otherPreferredError) throw otherPreferredError;
-          
-          if (!otherPreferredDates || otherPreferredDates.length === 0) continue;
-          
           // Check if they want my shift date and type
-          let myShiftType: "day" | "afternoon" | "night" = 'day';
-          const myStartHour = new Date(`2000-01-01T${myShift.start_time}`).getHours();
+          const theyWantMyShiftDate = theirPreferredDates.some(pd => 
+            pd.date === myShift.date
+          );
           
-          if (myStartHour <= 8) {
-            myShiftType = 'day';
-          } else if (myStartHour > 8 && myStartHour < 16) {
-            myShiftType = 'afternoon';
-          } else {
-            myShiftType = 'night';
+          if (!theyWantMyShiftDate) {
+            console.log('They don\'t want my shift date');
+            continue;
           }
           
-          // Check if any of their preferred dates match my shift
-          const theyWantMyShift = otherPreferredDates.some(pd => 
+          const theyWantMyShiftType = theirPreferredDates.some(pd => 
             pd.date === myShift.date && 
             pd.accepted_types.includes(myShiftType)
           );
           
-          if (!theyWantMyShift) continue;
+          if (!theyWantMyShiftType) {
+            console.log('They don\'t want my shift type');
+            continue;
+          }
           
-          // Find the specific request from the other user that matches
-          const matchingOtherRequest = otherUserRequests.find(req => {
-            return otherPreferredDates.some(pd => 
-              pd.shift_id === req.requester_shift_id && 
-              pd.date === myShift.date && 
-              pd.accepted_types.includes(myShiftType)
-            );
-          });
+          console.log('They want my shift date and type');
           
-          if (!matchingOtherRequest) continue;
+          // Check if I want their shift date and type
+          const otherShiftType = getShiftType(otherShift.start_time);
+          console.log('Their shift type:', otherShiftType);
+          
+          const iWantTheirShiftDate = myRequest.preferredDates.some(pd =>
+            pd.date === otherShift.date
+          );
+          
+          if (!iWantTheirShiftDate) {
+            console.log('I don\'t want their shift date');
+            continue;
+          }
+          
+          const iWantTheirShiftType = myRequest.preferredDates.some(pd =>
+            pd.date === otherShift.date &&
+            pd.accepted_types.includes(otherShiftType)
+          );
+          
+          if (!iWantTheirShiftType) {
+            console.log('I don\'t want their shift type');
+            continue;
+          }
+          
+          console.log('I want their shift date and type - WE HAVE A MATCH!');
+          console.log('Match found between my shift', myShift.id, 'and their shift', otherShift.id);
           
           // We found a mutual match! Update both swap requests to "matched" status
-          const { error: updateError } = await supabase
+          const { error: updateMyError } = await supabase
             .from('shift_swap_requests')
             .update({ 
               status: 'matched',
               acceptor_id: otherShift.user_id,
               acceptor_shift_id: otherShift.id
             })
-            .eq('id', requestId);
+            .eq('id', myRequest.requestId);
             
-          if (updateError) throw updateError;
+          if (updateMyError) {
+            console.error('Error updating my request:', updateMyError);
+            throw updateMyError;
+          }
           
           const { error: updateOtherError } = await supabase
             .from('shift_swap_requests')
@@ -209,9 +261,12 @@ export const useSwapMatching = () => {
               acceptor_id: user.id,
               acceptor_shift_id: myShift.id
             })
-            .eq('id', matchingOtherRequest.id);
+            .eq('id', otherRequest.id);
             
-          if (updateOtherError) throw updateOtherError;
+          if (updateOtherError) {
+            console.error('Error updating other request:', updateOtherError);
+            throw updateOtherError;
+          }
           
           matchesFound = true;
           
@@ -223,6 +278,8 @@ export const useSwapMatching = () => {
           // Break out of the loop after finding a match for this request
           break;
         }
+        
+        if (matchesFound) break; // Exit the outer loop if a match was already found
       }
       
       if (!matchesFound) {
@@ -241,6 +298,19 @@ export const useSwapMatching = () => {
       });
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  // Helper function to determine shift type based on start time
+  const getShiftType = (startTime: string): "day" | "afternoon" | "night" => {
+    const startHour = new Date(`2000-01-01T${startTime}`).getHours();
+    
+    if (startHour <= 8) {
+      return 'day';
+    } else if (startHour > 8 && startHour < 16) {
+      return 'afternoon';
+    } else {
+      return 'night';
     }
   };
 
