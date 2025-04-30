@@ -19,19 +19,13 @@ import {
 import { Combobox } from '@/components/ui/combobox';
 import { toast } from '@/hooks/use-toast';
 import { AlertCircle, Clock, Sun, Sunrise, Moon } from 'lucide-react';
-
-// Mock truck names
-const truckNames = [
-  "02-MAT01", "02-MAT02", "04-MAT03", "04-MAT04", "04-MAT05", 
-  "04-MAT06", "04-MAT17", "06-MAT07", "06-MAT08", "06-MAT09", 
-  "08-MAT11", "08-MAT16", "08-MAT17", "08-MAT18", "08-MAT19", 
-  "08\\MAT10", "09-MAT12", "09-MAT13", "10-MAT14", "10-MAT15",
-  // Add more truck names as needed
-];
+import { useTruckNames } from '@/hooks/useTruckNames';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 // Types
 interface Shift {
-  id?: number;
+  id?: string;
   date: string;
   title: string;
   startTime: string;
@@ -53,6 +47,10 @@ const ShiftForm = ({
   setSelectedShift,
   resetSelection
 }: ShiftFormProps) => {
+  // Use our custom hook for truck names
+  const { truckNames, isLoading: isLoadingTrucks } = useTruckNames();
+  const { user } = useAuth();
+  
   const [formTitle, setFormTitle] = useState('Add Shift to Calendar');
   const [isLoading, setIsLoading] = useState(false);
   const [truckName, setTruckName] = useState('');
@@ -135,9 +133,9 @@ const ShiftForm = ({
     
     // Update shift type based on start time
     const [hours] = time.split(':').map(Number);
-    if (hours < 8) {
+    if (hours >= 5 && hours < 13) {
       setShiftType('day');
-    } else if (hours < 15) {
+    } else if (hours >= 13 && hours < 21) {
       setShiftType('afternoon');
     } else {
       setShiftType('night');
@@ -162,7 +160,7 @@ const ShiftForm = ({
   };
   
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!truckName || !shiftDate || !shiftStartTime || !shiftEndTime) {
@@ -173,28 +171,51 @@ const ShiftForm = ({
       });
       return;
     }
+
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to save shifts.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setIsLoading(true);
     
-    // Create shift object
-    const shift: Shift = {
-      id: selectedShift?.id,
-      date: shiftDate,
-      title: truckName,
-      startTime: shiftStartTime,
-      endTime: shiftEndTime,
-      type: shiftType,
-      colleagueType: colleagueType,
-    };
-    
-    // In a real app, this would save to the database
-    setTimeout(() => {
-      if (selectedShift) {
+    try {
+      // Prepare data for database
+      const shiftData = {
+        user_id: user.id,
+        date: shiftDate,
+        truck_name: truckName,
+        start_time: shiftStartTime,
+        end_time: shiftEndTime,
+      };
+      
+      let result;
+      
+      if (selectedShift?.id) {
+        // Update existing shift
+        result = await supabase
+          .from('shifts')
+          .update(shiftData)
+          .eq('id', selectedShift.id);
+          
+        if (result.error) throw result.error;
+        
         toast({
           title: "Shift Updated",
           description: `Your ${shiftType} shift on ${new Date(shiftDate).toLocaleDateString()} has been updated.`,
         });
       } else {
+        // Add new shift
+        result = await supabase
+          .from('shifts')
+          .insert(shiftData);
+          
+        if (result.error) throw result.error;
+        
         toast({
           title: "Shift Added",
           description: `Your ${shiftType} shift on ${new Date(shiftDate).toLocaleDateString()} has been added.`,
@@ -203,18 +224,32 @@ const ShiftForm = ({
       
       resetSelection();
       resetForm();
+    } catch (error) {
+      console.error("Error saving shift:", error);
+      toast({
+        title: "Error",
+        description: "There was a problem saving your shift. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
   
   // Handle shift deletion
-  const handleDelete = () => {
-    if (!selectedShift) return;
+  const handleDelete = async () => {
+    if (!selectedShift?.id) return;
     
     setIsLoading(true);
     
-    // In a real app, this would delete from the database
-    setTimeout(() => {
+    try {
+      const { error } = await supabase
+        .from('shifts')
+        .delete()
+        .eq('id', selectedShift.id);
+        
+      if (error) throw error;
+      
       toast({
         title: "Shift Deleted",
         description: `Your shift on ${new Date(selectedShift.date).toLocaleDateString()} has been removed.`,
@@ -222,12 +257,35 @@ const ShiftForm = ({
       
       resetSelection();
       resetForm();
+    } catch (error) {
+      console.error("Error deleting shift:", error);
+      toast({
+        title: "Error",
+        description: "There was a problem deleting your shift. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
   
   // Check if form is complete
   const isFormComplete = truckName && shiftDate && shiftStartTime && shiftEndTime;
+  
+  // Format truck names for combobox
+  const formattedTruckNames = truckNames.map(name => ({
+    value: name,
+    label: name
+  }));
+  
+  // Handle truck name change safely
+  const handleTruckNameChange = (value: string) => {
+    try {
+      setTruckName(value);
+    } catch (error) {
+      console.error("Error changing truck name:", error);
+    }
+  };
   
   return (
     <div className="flex flex-col">
@@ -275,12 +333,18 @@ const ShiftForm = ({
               </Tooltip>
             </TooltipProvider>
           </div>
-          <Combobox
-            items={truckNames.map(name => ({ value: name, label: name }))}
-            value={truckName}
-            onChange={setTruckName}
-            placeholder="Select or search for a truck name"
-          />
+          {isLoadingTrucks ? (
+            <div className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm flex items-center">
+              Loading truck names...
+            </div>
+          ) : (
+            <Combobox
+              items={formattedTruckNames}
+              value={truckName}
+              onChange={handleTruckNameChange}
+              placeholder="Select or search for a truck name"
+            />
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
