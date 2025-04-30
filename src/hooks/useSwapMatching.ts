@@ -42,7 +42,7 @@ export const useSwapMatching = () => {
       console.log('Current user ID:', user.id);
       console.log('Test mode:', testMode ? 'ON - allowing self-matches' : 'OFF - only matching with other users');
       
-      // Get ALL pending swap requests
+      // Get ALL pending swap requests - THIS IS THE KEY CHANGE - FETCH ALL REQUESTS FIRST
       const { data: allRequests, error: requestsError } = await supabase
         .from('shift_swap_requests')
         .select(`
@@ -74,6 +74,7 @@ export const useSwapMatching = () => {
       const myRequests = allRequests.filter(req => req.requester_id === user.id);
       
       // In test mode, treat your own requests as "other users" for matching
+      // FIXED: Don't filter out other users' requests in normal mode
       const otherUsersRequests = testMode 
         ? allRequests // In test mode, consider all requests
         : allRequests.filter(req => req.requester_id !== user.id);
