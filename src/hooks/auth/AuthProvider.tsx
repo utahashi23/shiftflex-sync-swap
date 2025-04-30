@@ -117,14 +117,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(extendedUser);
         setIsEmailVerified(extendedUser.email_confirmed_at !== null);
         
-        // Check admin status properly
+        // Check admin status properly - FIX: Use proper Promise handling
         if (extendedUser.email === 'admin@shiftflex.com') {
           supabase.rpc('has_role', { 
             _user_id: extendedUser.id,
             _role: 'admin'
           }).then(({ data, error }) => {
             setIsAdmin(!!data && !error);
-          }).catch(() => {
+          }).catch((error) => { // Now properly typed as a catch handler
+            console.error("Error checking admin role:", error);
             setIsAdmin(false);
           });
         } else {
