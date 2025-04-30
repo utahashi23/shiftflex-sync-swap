@@ -1,32 +1,20 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Calendar, Sun, Sunrise, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-// Mock shift data with proper type annotations
-const mockShifts = [
-  { id: 1, date: '2025-05-01', title: '02-MAT01', startTime: '07:00', endTime: '15:00', type: 'day' as const, colleagueType: 'Qualified' as const },
-  { id: 2, date: '2025-05-03', title: '04-MAT03', startTime: '15:00', endTime: '23:00', type: 'afternoon' as const, colleagueType: 'Graduate' as const },
-  { id: 3, date: '2025-05-05', title: '09-MAT12', startTime: '23:00', endTime: '07:00', type: 'night' as const, colleagueType: 'ACO' as const },
-  { id: 4, date: '2025-05-07', title: '06-MAT07', startTime: '07:00', endTime: '15:00', type: 'day' as const, colleagueType: 'Qualified' as const },
-  { id: 5, date: '2025-05-10', title: '08-MAT11', startTime: '23:00', endTime: '07:00', type: 'night' as const, colleagueType: 'Unknown' as const },
-  { id: 6, date: '2025-05-13', title: '02-MAT01', startTime: '15:00', endTime: '23:00', type: 'afternoon' as const, colleagueType: 'ACO' as const },
-  { id: 7, date: '2025-05-18', title: '09-MAT12', startTime: '07:00', endTime: '15:00', type: 'day' as const, colleagueType: 'Graduate' as const },
-  { id: 8, date: '2025-05-21', title: '04-MAT03', startTime: '23:00', endTime: '07:00', type: 'night' as const, colleagueType: 'Qualified' as const },
-  { id: 9, date: '2025-05-25', title: '06-MAT07', startTime: '15:00', endTime: '23:00', type: 'afternoon' as const, colleagueType: 'Unknown' as const },
-  { id: 10, date: '2025-05-28', title: '08-MAT11', startTime: '07:00', endTime: '15:00', type: 'day' as const, colleagueType: 'Qualified' as const },
-];
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 
 // Types
 interface Shift {
-  id: number;
+  id: string;
   date: string;
   title: string;
   startTime: string;
   endTime: string;
   type: 'day' | 'afternoon' | 'night';
-  colleagueType: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown';
+  colleagueType?: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown';
 }
 
 interface ShiftCalendarProps {
@@ -43,20 +31,80 @@ const ShiftCalendar = ({
   setSelectedShift 
 }: ShiftCalendarProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [shifts, setShifts] = useState<Shift[]>(mockShifts);
+  const [shifts, setShifts] = useState<Shift[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+  const { user } = useAuth();
+
   useEffect(() => {
-    // Simulate loading data from database
-    setIsLoading(true);
-    
-    const timer = setTimeout(() => {
-      setShifts(mockShifts);
-      setIsLoading(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, []);
+    const fetchShifts = async () => {
+      if (!user) return;
+      
+      setIsLoading(true);
+      
+      try {
+        // Get the year and month from the current date
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1; // JavaScript months are 0-based
+        
+        // Create date range for the current month
+        const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+        const lastDay = new Date(year, month, 0).getDate();
+        const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
+        
+        // Fetch shifts for the current month
+        const { data, error } = await supabase
+          .from('shifts')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('date', startDate)
+          .lte('date', endDate)
+          .order('date', { ascending: true });
+          
+        if (error) throw error;
+        
+        // Format the shifts for the calendar
+        const formattedShifts: Shift[] = data?.map(shift => {
+          // Determine shift type based on start time
+          let type: 'day' | 'afternoon' | 'night' = 'day';
+          const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
+          
+          if (startHour >= 5 && startHour < 13) {
+            type = 'day';
+          } else if (startHour >= 13 && startHour < 21) {
+            type = 'afternoon';
+          } else {
+            type = 'night';
+          }
+          
+          // Create title from truck name or use default format
+          const title = shift.truck_name || `Shift-${shift.id.substring(0, 5)}`;
+          
+          return {
+            id: shift.id,
+            date: shift.date,
+            title,
+            startTime: shift.start_time.substring(0, 5), // Format as HH:MM
+            endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
+            type,
+            colleagueType: 'Unknown'  // Default value as we don't have colleague type in the database yet
+          };
+        }) || [];
+        
+        setShifts(formattedShifts);
+      } catch (error) {
+        console.error('Error fetching shifts:', error);
+        toast({
+          title: "Failed to load shifts",
+          description: "There was a problem loading your shifts. Please try again later.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchShifts();
+  }, [currentDate, user]);
 
   const daysInMonth = (year: number, month: number) => {
     return new Date(year, month + 1, 0).getDate();

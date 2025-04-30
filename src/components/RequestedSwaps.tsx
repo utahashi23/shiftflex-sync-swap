@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,69 +20,142 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Trash2, Calendar, Sun, Sunrise, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
-// Mock data
-const mockSwapRequests = [
-  {
-    id: 1,
-    originalShift: {
-      id: 101,
-      date: '2025-05-03',
-      title: '04-MAT03',
-      startTime: '15:00',
-      endTime: '23:00',
-      type: 'afternoon',
-    },
-    preferredDates: [
-      { date: '2025-05-04', acceptedTypes: ['afternoon'] },
-      { date: '2025-05-06', acceptedTypes: ['afternoon', 'night'] },
-      { date: '2025-05-09', acceptedTypes: ['afternoon'] },
-    ],
-    status: 'pending'
-  },
-  {
-    id: 2,
-    originalShift: {
-      id: 102,
-      date: '2025-05-07',
-      title: '06-MAT07',
-      startTime: '07:00',
-      endTime: '15:00',
-      type: 'day',
-    },
-    preferredDates: [
-      { date: '2025-05-08', acceptedTypes: ['day'] },
-      { date: '2025-05-12', acceptedTypes: ['day', 'afternoon'] },
-    ],
-    status: 'pending'
-  },
-  {
-    id: 3,
-    originalShift: {
-      id: 103,
-      date: '2025-05-10',
-      title: '08-MAT11',
-      startTime: '23:00',
-      endTime: '07:00',
-      type: 'night',
-    },
-    preferredDates: [
-      { date: '2025-05-11', acceptedTypes: ['night'] },
-      { date: '2025-05-14', acceptedTypes: ['night'] },
-      { date: '2025-05-17', acceptedTypes: ['night', 'afternoon'] },
-    ],
-    status: 'pending'
-  }
-];
+// Types for swap requests
+interface ShiftDetails {
+  id: string;
+  date: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  type: string;
+}
+
+interface PreferredDate {
+  date: string;
+  acceptedTypes: string[];
+}
+
+interface SwapRequest {
+  id: string;
+  originalShift: ShiftDetails;
+  preferredDates: PreferredDate[];
+  status: string;
+}
 
 const RequestedSwaps = () => {
-  const [swapRequests, setSwapRequests] = useState(mockSwapRequests);
-  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean, requestId: number | null, dateOnly: string | null }>({
+  const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean, requestId: string | null, dateOnly: string | null }>({
     isOpen: false,
     requestId: null,
     dateOnly: null
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+
+  // Fetch swap requests from the database
+  useEffect(() => {
+    const fetchSwapRequests = async () => {
+      if (!user) return;
+      
+      setIsLoading(true);
+      
+      try {
+        // Fetch swap requests where the user is the requester
+        const { data: swapRequestsData, error: swapError } = await supabase
+          .from('shift_swap_requests')
+          .select(`
+            id,
+            status,
+            requester_shift_id,
+            created_at
+          `)
+          .eq('requester_id', user.id)
+          .eq('status', 'pending');
+          
+        if (swapError) throw swapError;
+        
+        if (!swapRequestsData || swapRequestsData.length === 0) {
+          setSwapRequests([]);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Get all the shift IDs to fetch their details
+        const shiftIds = swapRequestsData.map(req => req.requester_shift_id);
+        
+        // Fetch details for all the original shifts
+        const { data: shiftsData, error: shiftsError } = await supabase
+          .from('shifts')
+          .select('*')
+          .in('id', shiftIds);
+          
+        if (shiftsError) throw shiftsError;
+        
+        // Map the data to our UI format
+        const formattedRequests: SwapRequest[] = swapRequestsData.map(request => {
+          // Find the corresponding shift
+          const shift = shiftsData?.find(s => s.id === request.requester_shift_id);
+          
+          if (!shift) {
+            console.error(`Shift not found for request ${request.id}`);
+            return null;
+          }
+          
+          // Determine shift type based on start time
+          let type = 'day';
+          const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
+          
+          if (startHour >= 5 && startHour < 13) {
+            type = 'day';
+          } else if (startHour >= 13 && startHour < 21) {
+            type = 'afternoon';
+          } else {
+            type = 'night';
+          }
+          
+          // For now, we'll use mock preferred dates since we haven't implemented this in the database yet
+          // In a real implementation, you would fetch these from a separate table
+          const preferredDates = [
+            { date: new Date(shift.date).toISOString().split('T')[0], acceptedTypes: [type] },
+            { 
+              date: new Date(new Date(shift.date).getTime() + 86400000).toISOString().split('T')[0], 
+              acceptedTypes: [type] 
+            }
+          ];
+          
+          return {
+            id: request.id,
+            originalShift: {
+              id: shift.id,
+              date: shift.date,
+              title: shift.truck_name || `Shift-${shift.id.substring(0, 5)}`,
+              startTime: shift.start_time.substring(0, 5),
+              endTime: shift.end_time.substring(0, 5),
+              type
+            },
+            preferredDates,
+            status: request.status
+          };
+        }).filter(Boolean) as SwapRequest[];
+        
+        setSwapRequests(formattedRequests);
+      } catch (error) {
+        console.error('Error fetching swap requests:', error);
+        toast({
+          title: "Failed to load swap requests",
+          description: "There was a problem loading your swap requests. Please try again later.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSwapRequests();
+  }, [user]);
 
   // Get shift icon based on type
   const getShiftIcon = (type: string) => {
@@ -114,23 +186,36 @@ const RequestedSwaps = () => {
   };
 
   // Delete an entire swap request
-  const handleDeleteSwapRequest = () => {
+  const handleDeleteSwapRequest = async () => {
     if (!deleteDialog.requestId) return;
     
     setIsLoading(true);
     
-    // In a real app, this would make an API call
-    setTimeout(() => {
+    try {
+      const { error } = await supabase
+        .from('shift_swap_requests')
+        .delete()
+        .eq('id', deleteDialog.requestId);
+        
+      if (error) throw error;
+      
       setSwapRequests(prev => prev.filter(req => req.id !== deleteDialog.requestId));
       
       toast({
         title: "Swap Request Deleted",
         description: "Your swap request has been deleted.",
       });
-      
+    } catch (error) {
+      console.error('Error deleting swap request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete the swap request. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
       setDeleteDialog({ isOpen: false, requestId: null, dateOnly: null });
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   // Delete a single preferred date from a swap request
@@ -139,7 +224,8 @@ const RequestedSwaps = () => {
     
     setIsLoading(true);
     
-    // In a real app, this would make an API call
+    // In a real app, this would make an API call to update the preferred dates
+    // For now, we'll just update the UI
     setTimeout(() => {
       setSwapRequests(prev => 
         prev.map(req => {
@@ -159,7 +245,7 @@ const RequestedSwaps = () => {
             };
           }
           return req;
-        }).filter(Boolean) as typeof mockSwapRequests
+        }).filter(Boolean) as SwapRequest[]
       );
       
       toast({
@@ -172,9 +258,27 @@ const RequestedSwaps = () => {
     }, 1000);
   };
 
+  
   return (
     <div className="space-y-6">
-      {swapRequests.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, index) => (
+            <Card key={index} className="animate-pulse">
+              <CardHeader className="bg-gray-100 h-16"></CardHeader>
+              <CardContent className="py-8">
+                <div className="space-y-4">
+                  <div className="h-12 bg-gray-100 rounded"></div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    <div className="h-20 bg-gray-100 rounded"></div>
+                    <div className="h-20 bg-gray-100 rounded"></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : swapRequests.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Calendar className="h-12 w-12 text-gray-300 mb-3" />

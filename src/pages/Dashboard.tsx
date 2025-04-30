@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,41 +6,170 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
 import { Clock, Repeat, Check, Calendar, CalendarClock } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
-// Mock shift data
-const mockShiftData = {
-  totalShifts: 22,
-  activeSwaps: 3,
-  matchedSwaps: 1,
-  completedSwaps: 5,
-  upcomingShifts: [
-    { id: 1, date: '2025-05-02', title: '02-MAT01', startTime: '07:00', endTime: '15:00', type: 'day' },
-    { id: 2, date: '2025-05-03', title: '04-MAT03', startTime: '15:00', endTime: '23:00', type: 'afternoon' },
-    { id: 3, date: '2025-05-05', title: '09-MAT12', startTime: '23:00', endTime: '07:00', type: 'night' },
-    { id: 4, date: '2025-05-07', title: '06-MAT07', startTime: '07:00', endTime: '15:00', type: 'day' },
-  ],
-  recentActivity: [
-    { id: 1, date: '2025-04-28', action: 'Created swap request', shift: '02-MAT01', status: 'Pending' },
-    { id: 2, date: '2025-04-27', action: 'Accepted swap', shift: '04-MAT03', status: 'Matched' },
-    { id: 3, date: '2025-04-25', action: 'Swap completed', shift: '10-MAT15', status: 'Completed' },
-  ]
-};
+// Type definitions for the data
+interface Shift {
+  id: string;
+  date: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  type: 'day' | 'afternoon' | 'night';
+}
+
+interface Activity {
+  id: string;
+  date: string;
+  action: string;
+  shift: string;
+  status: string;
+}
+
+interface DashboardStats {
+  totalShifts: number;
+  activeSwaps: number;
+  matchedSwaps: number;
+  completedSwaps: number;
+  upcomingShifts: Shift[];
+  recentActivity: Activity[];
+}
 
 const Dashboard = () => {
   useAuthRedirect({ protectedRoute: true });
   
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState(mockShiftData);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalShifts: 0,
+    activeSwaps: 0,
+    matchedSwaps: 0,
+    completedSwaps: 0,
+    upcomingShifts: [],
+    recentActivity: []
+  });
 
   useEffect(() => {
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+    const fetchDashboardData = async () => {
+      setIsLoading(true);
+      
+      try {
+        // Fetch the user's shifts
+        const { data: shiftsData, error: shiftsError } = await supabase
+          .from('shifts')
+          .select('*')
+          .eq('user_id', user?.id)
+          .order('date', { ascending: true });
+          
+        if (shiftsError) throw shiftsError;
+        
+        // Fetch swap requests where the user is the requester
+        const { data: swapRequests, error: swapRequestsError } = await supabase
+          .from('shift_swap_requests')
+          .select('*')
+          .eq('requester_id', user?.id);
+          
+        if (swapRequestsError) throw swapRequestsError;
+        
+        // Fetch swap requests where the user is the acceptor
+        const { data: swapAccepts, error: swapAcceptsError } = await supabase
+          .from('shift_swap_requests')
+          .select('*')
+          .eq('acceptor_id', user?.id);
+          
+        if (swapAcceptsError) throw swapAcceptsError;
+        
+        // Format the shifts for display
+        const upcomingShifts = shiftsData?.map(shift => {
+          // Create a title from the truck name or use a default
+          const title = shift.truck_name ? shift.truck_name : `Shift-${shift.id.substring(0, 5)}`;
+          
+          // Determine the shift type based on start time
+          let type: 'day' | 'afternoon' | 'night' = 'day';
+          const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
+          
+          if (startHour >= 5 && startHour < 13) {
+            type = 'day';
+          } else if (startHour >= 13 && startHour < 21) {
+            type = 'afternoon';
+          } else {
+            type = 'night';
+          }
+          
+          return {
+            id: shift.id,
+            date: shift.date,
+            title,
+            startTime: shift.start_time.substring(0, 5), // Format as HH:MM
+            endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
+            type
+          };
+        }) || [];
+        
+        // Count the different types of swap requests
+        const activeSwaps = swapRequests?.filter(req => req.status === 'pending').length || 0;
+        const matchedSwaps = swapRequests?.filter(req => req.status === 'matched').length || 0;
+        const completedSwaps = swapRequests?.filter(req => req.status === 'completed').length || 0;
+        
+        // Combine all swap requests for activity feed
+        const allSwaps = [...(swapRequests || []), ...(swapAccepts || [])];
+        
+        // Sort by created_at date (newest first)
+        allSwaps.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        
+        // Format the recent activity
+        const recentActivity = allSwaps.slice(0, 5).map(swap => {
+          let action = "";
+          let status = swap.status;
+          
+          if (swap.requester_id === user?.id) {
+            action = "Created swap request";
+          } else {
+            action = "Received swap request";
+          }
+          
+          // Try to get the shift title from our shifts
+          const shiftInfo = shiftsData?.find(s => s.id === swap.requester_shift_id);
+          const shift = shiftInfo ? 
+            (shiftInfo.truck_name || `Shift-${shiftInfo.id.substring(0, 5)}`) : 
+            `Unknown Shift`;
+          
+          return {
+            id: swap.id,
+            date: new Date(swap.created_at).toISOString().split('T')[0],
+            action,
+            shift,
+            status: status.charAt(0).toUpperCase() + status.slice(1) // Capitalize the first letter
+          };
+        });
+        
+        setStats({
+          totalShifts: shiftsData?.length || 0,
+          activeSwaps,
+          matchedSwaps,
+          completedSwaps,
+          upcomingShifts: upcomingShifts.slice(0, 4), // Limit to 4 upcoming shifts
+          recentActivity
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        toast({
+          title: "Error loading dashboard",
+          description: "Could not load your dashboard data. Please try again later.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    return () => clearTimeout(timer);
-  }, []);
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
 
   // Get shift color class based on shift type
   const getShiftTypeClass = (type: string) => {
@@ -149,6 +277,14 @@ const Dashboard = () => {
                   <div key={index} className="h-16 bg-gray-100 animate-pulse rounded-md" />
                 ))}
               </div>
+            ) : stats.upcomingShifts.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p>No upcoming shifts scheduled</p>
+                <Button variant="outline" className="mt-4">
+                  View Calendar
+                </Button>
+              </div>
             ) : (
               <div className="space-y-3">
                 {stats.upcomingShifts.map(shift => (
@@ -200,6 +336,11 @@ const Dashboard = () => {
                       <div key={index} className="h-16 bg-gray-100 animate-pulse rounded-md" />
                     ))}
                   </div>
+                ) : stats.recentActivity.length === 0 ? (
+                  <div className="py-8 text-center text-gray-500">
+                    <Repeat className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p>No recent activity to display</p>
+                  </div>
                 ) : (
                   <div className="space-y-3 mt-3">
                     {stats.recentActivity.map(activity => (
@@ -228,19 +369,16 @@ const Dashboard = () => {
                 )}
               </TabsContent>
               <TabsContent value="pending">
-                {/* Filtered content would go here */}
                 <div className="py-8 text-center text-gray-500">
                   No pending activities to display
                 </div>
               </TabsContent>
               <TabsContent value="matched">
-                {/* Filtered content would go here */}
                 <div className="py-8 text-center text-gray-500">
                   No matched activities to display
                 </div>
               </TabsContent>
               <TabsContent value="completed">
-                {/* Filtered content would go here */}
                 <div className="py-8 text-center text-gray-500">
                   No completed activities to display
                 </div>
