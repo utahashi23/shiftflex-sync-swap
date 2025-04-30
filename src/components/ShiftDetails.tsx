@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,19 +13,11 @@ import {
   DialogTitle 
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { CalendarShift } from '@/types/calendarTypes';
 
 // Types
 export interface ShiftDetailsProps {
-  shift: {
-    id: number | string;
-    date: string;
-    title: string;
-    startTime: string;
-    endTime: string;
-    type: 'day' | 'afternoon' | 'night';
-    colleagueType: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown';
-    location?: string;
-  };
+  shift: CalendarShift;
   onEdit?: () => void;
   onDelete?: () => void;
   onRequestSwap?: () => void;

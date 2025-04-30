@@ -9,23 +9,12 @@ import ShiftDetails from './ShiftDetails';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/hooks/auth/supabase-client';
 import { useAuth } from '@/hooks/useAuth';
-
-// Types
-interface Shift {
-  id: number | string;
-  date: string;
-  title: string;
-  startTime: string;
-  endTime: string;
-  type: 'day' | 'afternoon' | 'night';
-  colleagueType?: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown';
-  location?: string;
-}
+import { CalendarShift } from '@/types/calendarTypes';
 
 const ShiftSwapCalendar = () => {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+  const [selectedShift, setSelectedShift] = useState<CalendarShift | null>(null);
   const [swapMode, setSwapMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -47,7 +36,7 @@ const ShiftSwapCalendar = () => {
   });
 
   // Mock shift data with proper type annotations
-  const mockShifts: Shift[] = [
+  const mockShifts: CalendarShift[] = [
     { id: 1, date: '2025-05-01', title: '02-MAT01', startTime: '07:00', endTime: '15:00', type: 'day', colleagueType: 'Qualified' },
     { id: 2, date: '2025-05-03', title: '04-MAT03', startTime: '15:00', endTime: '23:00', type: 'afternoon', colleagueType: 'Graduate' },
     { id: 3, date: '2025-05-05', title: '09-MAT12', startTime: '23:00', endTime: '07:00', type: 'night', colleagueType: 'ACO' },
@@ -81,8 +70,8 @@ const ShiftSwapCalendar = () => {
   const formatDateString = (year: number, month: number, day: number) => {
     return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   };
-
-  const handleShiftClick = (shift: Shift) => {
+  
+  const handleShiftClick = (shift: CalendarShift) => {
     if (swapMode) return; // Do nothing if already in swap mode
     setSelectedShift(shift);
   };

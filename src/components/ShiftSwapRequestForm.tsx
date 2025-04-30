@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -9,19 +8,10 @@ import { supabase } from '@/hooks/auth/supabase-client';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
-
-interface Shift {
-  id: number | string;
-  date: string;
-  title: string;
-  startTime: string;
-  endTime: string;
-  type: 'day' | 'afternoon' | 'night';
-  colleagueType?: string;
-}
+import { CalendarShift } from '@/types/calendarTypes';
 
 interface ShiftSwapRequestFormProps {
-  shift: Shift;
+  shift: CalendarShift;
   onCancel: () => void;
   onComplete: () => void;
   className?: string;
