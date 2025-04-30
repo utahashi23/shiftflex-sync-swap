@@ -116,7 +116,7 @@ export const useSwapRequests = () => {
     try {
       console.log('Deleting swap request with ID:', requestId);
       
-      // First delete without trying to get the count - fixed the error
+      // Fixed: Removed .select('count') which was causing the issue
       const { error } = await supabase
         .from('shift_swap_requests')
         .delete()
@@ -136,9 +136,6 @@ export const useSwapRequests = () => {
         title: "Swap Request Deleted",
         description: "Your swap request has been deleted."
       });
-      
-      // Refresh the data from the database to ensure UI is in sync
-      fetchSwapRequests();
       
     } catch (error) {
       console.error('Error deleting swap request:', error);
