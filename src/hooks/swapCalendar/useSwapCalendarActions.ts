@@ -68,11 +68,31 @@ export const useSwapCalendarActions = (
       if (acceptableShiftTypes.afternoon) acceptedTypesArray.push("afternoon");
       if (acceptableShiftTypes.night) acceptedTypesArray.push("night");
       
-      // Store each preferred date directly in the preferred_dates table with the new schema
+      // First create a swap request to get an ID
+      const { data: swapRequest, error: swapRequestError } = await supabase
+        .from('shift_swap_requests')
+        .insert({
+          requester_id: userId,
+          requester_shift_id: selectedShift.id,
+          status: 'pending'
+        })
+        .select('id')
+        .single();
+        
+      if (swapRequestError) throw swapRequestError;
+      
+      if (!swapRequest || !swapRequest.id) {
+        throw new Error('Failed to create swap request');
+      }
+      
+      console.log('Created swap request with ID:', swapRequest.id);
+      
+      // Now store each preferred date with the request_id and shift_id
       const preferredDatesInserts = selectedSwapDates.map(dateStr => ({
         date: dateStr,
         accepted_types: acceptedTypesArray,
-        shift_id: selectedShift.id // Using shift_id instead of shifts or request_id
+        shift_id: selectedShift.id,
+        request_id: swapRequest.id
       }));
       
       const { error: preferredDatesError } = await supabase
@@ -81,7 +101,6 @@ export const useSwapCalendarActions = (
         
       if (preferredDatesError) throw preferredDatesError;
       
-      console.log('Created swap request for shift:', selectedShift.id);
       console.log('Stored preferred dates:', preferredDatesInserts);
       
       toast({
