@@ -42,7 +42,7 @@ export const useSwapMatcher = () => {
     try {
       console.log('----------- SWAP MATCHING STARTED -----------');
       
-      // Step 1: Get ALL pending swap requests
+      // Step 1: Get ALL pending swap requests (not filtered by user)
       const { data: allRequests, error: requestsError } = await supabase
         .from('shift_swap_requests')
         .select('*')
@@ -118,13 +118,15 @@ export const useSwapMatcher = () => {
       
       console.log(`Found ${preferredDates.length} preferred dates:`, preferredDates);
       
-      // Step 4: Get all user shifts to check for conflicts
+      // Step 4: Get all shifts from all users to check for conflicts
       const { data: userShifts, error: userShiftsError } = await supabase
         .from('shifts')
         .select('*')
         .in('user_id', userIds);
         
       if (userShiftsError) throw userShiftsError;
+      
+      console.log('All user shifts found for conflict checking:', userShifts);
       
       // Create lookup maps for efficient access
       const shifts = allShifts.reduce((acc, shift) => {
@@ -238,7 +240,7 @@ export const useSwapMatcher = () => {
               // We have a match!
               console.log(`MATCH FOUND between users ${userId1} and ${userId2}!`);
               
-              // First record the match in potential_matches
+              // Record the match in potential_matches
               const { data: matchData, error: matchError } = await supabase
                 .from('shift_swap_potential_matches')
                 .insert({
@@ -246,8 +248,7 @@ export const useSwapMatcher = () => {
                   acceptor_request_id: request2.id,
                   requester_shift_id: request1.shiftId,
                   acceptor_shift_id: request2.shiftId,
-                  match_date: new Date().toISOString(),
-                  status: 'pending'
+                  match_date: new Date().toISOString().split('T')[0]
                 })
                 .select()
                 .single();
