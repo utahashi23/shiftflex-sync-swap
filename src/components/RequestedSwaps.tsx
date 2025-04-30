@@ -1,345 +1,256 @@
 
 import { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { toast } from '@/hooks/use-toast';
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Trash2, Calendar, Sun, Sunrise, Moon } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ArrowRightLeft, Calendar, CalendarClock, Clock, Loader2, Truck, X, Check } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/hooks/auth/supabase-client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-// Mock data
-const mockSwapRequests = [
-  {
-    id: 1,
-    originalShift: {
-      id: 101,
-      date: '2025-05-03',
-      title: '04-MAT03',
-      startTime: '15:00',
-      endTime: '23:00',
-      type: 'afternoon',
-    },
-    preferredDates: [
-      { date: '2025-05-04', acceptedTypes: ['afternoon'] },
-      { date: '2025-05-06', acceptedTypes: ['afternoon', 'night'] },
-      { date: '2025-05-09', acceptedTypes: ['afternoon'] },
-    ],
-    status: 'pending'
-  },
-  {
-    id: 2,
-    originalShift: {
-      id: 102,
-      date: '2025-05-07',
-      title: '06-MAT07',
-      startTime: '07:00',
-      endTime: '15:00',
-      type: 'day',
-    },
-    preferredDates: [
-      { date: '2025-05-08', acceptedTypes: ['day'] },
-      { date: '2025-05-12', acceptedTypes: ['day', 'afternoon'] },
-    ],
-    status: 'pending'
-  },
-  {
-    id: 3,
-    originalShift: {
-      id: 103,
-      date: '2025-05-10',
-      title: '08-MAT11',
-      startTime: '23:00',
-      endTime: '07:00',
-      type: 'night',
-    },
-    preferredDates: [
-      { date: '2025-05-11', acceptedTypes: ['night'] },
-      { date: '2025-05-14', acceptedTypes: ['night'] },
-      { date: '2025-05-17', acceptedTypes: ['night', 'afternoon'] },
-    ],
-    status: 'pending'
-  }
-];
+// Types
+interface SwapRequest {
+  id: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+  requestDate: string;
+  requesterShift: {
+    id: string;
+    date: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+    type: 'day' | 'afternoon' | 'night';
+  };
+  acceptableShifts: {
+    types: string[];
+    dates: string[];
+  };
+}
 
 const RequestedSwaps = () => {
-  const [swapRequests, setSwapRequests] = useState(mockSwapRequests);
-  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean, requestId: number | null, dateOnly: string | null }>({
-    isOpen: false,
-    requestId: null,
-    dateOnly: null
-  });
-  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Mock data for demonstration
+  const mockSwaps: SwapRequest[] = [
+    {
+      id: '1',
+      status: 'pending',
+      requestDate: '2025-04-29',
+      requesterShift: {
+        id: '101',
+        date: '2025-05-15',
+        title: '02-MAT01',
+        startTime: '07:00',
+        endTime: '15:00',
+        type: 'day',
+      },
+      acceptableShifts: {
+        types: ['day', 'afternoon'],
+        dates: ['2025-05-18', '2025-05-20', '2025-05-22'],
+      },
+    },
+    {
+      id: '2',
+      status: 'pending',
+      requestDate: '2025-04-28',
+      requesterShift: {
+        id: '102',
+        date: '2025-05-20',
+        title: '06-MAT07',
+        startTime: '23:00',
+        endTime: '07:00',
+        type: 'night',
+      },
+      acceptableShifts: {
+        types: ['night'],
+        dates: ['2025-05-21', '2025-05-22', '2025-05-23', '2025-05-24'],
+      },
+    },
+  ];
 
-  // Get shift icon based on type
-  const getShiftIcon = (type: string) => {
-    switch(type) {
-      case 'day':
-        return <Sunrise className="h-4 w-4" />;
-      case 'afternoon':
-        return <Sun className="h-4 w-4" />;
-      case 'night':
-        return <Moon className="h-4 w-4" />;
-      default:
-        return null;
+  // Fetch swap requests
+  const { data: swapRequests, isLoading } = useQuery({
+    queryKey: ['swap-requests'],
+    queryFn: async () => {
+      // In a real app, we'd fetch from Supabase
+      // const { data, error } = await supabase
+      //   .from('shift_swap_requests')
+      //   .select('*')
+      //   .eq('requester_id', user?.id);
+      
+      // Simulate API request
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return mockSwaps;
+    },
+    enabled: !!user,
+  });
+  
+  // Cancel swap request mutation
+  const cancelSwapMutation = useMutation({
+    mutationFn: async (swapId: string) => {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 800));
+      return swapId;
+    },
+    onSuccess: (swapId) => {
+      toast({
+        title: "Swap Request Cancelled",
+        description: "Your swap request has been successfully cancelled.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['swap-requests'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Action Failed",
+        description: "There was a problem cancelling your request.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  
+  const getStatusBadgeColor = (status: SwapRequest['status']) => {
+    switch (status) {
+      case 'pending': return "bg-yellow-100 text-yellow-800 hover:bg-yellow-100";
+      case 'accepted': return "bg-green-100 text-green-800 hover:bg-green-100";
+      case 'rejected': return "bg-red-100 text-red-800 hover:bg-red-100";
+      case 'cancelled': return "bg-gray-100 text-gray-800 hover:bg-gray-100";
+      default: return "";
     }
   };
 
-  // Format date to user-friendly string
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric'
-    });
+  const handleCancelSwap = (swapId: string) => {
+    cancelSwapMutation.mutate(swapId);
   };
 
-  // Get shift type label
-  const getShiftTypeLabel = (type: string) => {
-    return type.charAt(0).toUpperCase() + type.slice(1);
-  };
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+          <p className="text-gray-500">Loading your swap requests...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Delete an entire swap request
-  const handleDeleteSwapRequest = () => {
-    if (!deleteDialog.requestId) return;
-    
-    setIsLoading(true);
-    
-    // In a real app, this would make an API call
-    setTimeout(() => {
-      setSwapRequests(prev => prev.filter(req => req.id !== deleteDialog.requestId));
-      
-      toast({
-        title: "Swap Request Deleted",
-        description: "Your swap request has been deleted.",
-      });
-      
-      setDeleteDialog({ isOpen: false, requestId: null, dateOnly: null });
-      setIsLoading(false);
-    }, 1000);
-  };
-
-  // Delete a single preferred date from a swap request
-  const handleDeletePreferredDate = () => {
-    if (!deleteDialog.requestId || !deleteDialog.dateOnly) return;
-    
-    setIsLoading(true);
-    
-    // In a real app, this would make an API call
-    setTimeout(() => {
-      setSwapRequests(prev => 
-        prev.map(req => {
-          if (req.id === deleteDialog.requestId) {
-            const updatedPreferredDates = req.preferredDates.filter(
-              date => date.date !== deleteDialog.dateOnly
-            );
-            
-            // If no preferred dates left, remove the whole request
-            if (updatedPreferredDates.length === 0) {
-              return null;
-            }
-            
-            return {
-              ...req,
-              preferredDates: updatedPreferredDates
-            };
-          }
-          return req;
-        }).filter(Boolean) as typeof mockSwapRequests
-      );
-      
-      toast({
-        title: "Preferred Date Removed",
-        description: "The selected date has been removed from your swap request.",
-      });
-      
-      setDeleteDialog({ isOpen: false, requestId: null, dateOnly: null });
-      setIsLoading(false);
-    }, 1000);
-  };
+  if (!swapRequests || swapRequests.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <div className="bg-muted/30 p-6 rounded-full mb-4">
+          <ArrowRightLeft className="h-12 w-12 text-muted-foreground" />
+        </div>
+        <h3 className="text-lg font-medium mb-2">No Swap Requests</h3>
+        <p className="text-muted-foreground mb-6">
+          You haven't requested any shift swaps yet.
+        </p>
+        <Button onClick={() => window.location.href = '/shifts'}>
+          <Calendar className="h-4 w-4 mr-2" />
+          Go to Calendar
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {swapRequests.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Calendar className="h-12 w-12 text-gray-300 mb-3" />
-            <h3 className="text-xl font-medium">No Swap Requests</h3>
-            <p className="text-muted-foreground mt-2">
-              You haven't requested any shift swaps yet.
-            </p>
+      {swapRequests.map((swap) => (
+        <Card key={swap.id} className="overflow-hidden">
+          <div className="bg-muted/20 px-6 py-4 flex justify-between items-center border-b">
+            <div className="flex items-center space-x-4">
+              <Badge variant="outline" className={getStatusBadgeColor(swap.status)}>
+                {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
+              </Badge>
+              <div className="text-sm text-muted-foreground">
+                Requested on {formatDate(swap.requestDate)}
+              </div>
+            </div>
+            {swap.status === 'pending' && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => handleCancelSwap(swap.id)}
+                disabled={cancelSwapMutation.isPending}
+              >
+                {cancelSwapMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <X className="h-4 w-4 mr-1" />
+                )}
+                Cancel
+              </Button>
+            )}
+          </div>
+          
+          <CardContent className="p-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Original Shift */}
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground mb-2">Your Shift:</h4>
+                <div className="bg-primary/5 rounded-md p-4 border border-primary/10">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="font-medium">{formatDate(swap.requesterShift.date)}</div>
+                      <div className="text-sm text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5 inline mr-1" />
+                        {swap.requesterShift.startTime} - {swap.requesterShift.endTime}
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="font-medium">
+                      <Truck className="h-3 w-3 mr-1" />
+                      {swap.requesterShift.title}
+                    </Badge>
+                  </div>
+                  <div className="text-sm">
+                    <Badge variant={swap.requesterShift.type === 'day' ? 'yellow' : 
+                           swap.requesterShift.type === 'afternoon' ? 'orange' : 'blue'}>
+                      {swap.requesterShift.type.charAt(0).toUpperCase() + swap.requesterShift.type.slice(1)} Shift
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Requested Swap Options */}
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground mb-2">Will Accept:</h4>
+                <div className="bg-muted/20 rounded-md p-4 border border-muted">
+                  <div className="mb-3">
+                    <div className="text-sm font-medium">Acceptable Shift Types:</div>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {swap.acceptableShifts.types.map(type => (
+                        <Badge key={type} variant="outline">
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm font-medium">Acceptable Dates:</div>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {swap.acceptableShifts.dates.map(date => (
+                        <Badge key={date} variant="outline" className="flex items-center">
+                          <CalendarClock className="h-3 w-3 mr-1" />
+                          {formatDate(date)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
-      ) : (
-        swapRequests.map(request => (
-          <Card key={request.id} className="relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-4 right-4 h-8 w-8 text-gray-500 hover:text-red-600"
-              onClick={() => setDeleteDialog({
-                isOpen: true,
-                requestId: request.id,
-                dateOnly: null
-              })}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-            
-            <CardHeader>
-              <CardTitle className="text-lg">
-                <div className="flex items-center">
-                  <div className={cn(
-                    "p-1.5 rounded-md mr-2",
-                    request.originalShift.type === 'day' ? "bg-yellow-100 text-yellow-600" :
-                    request.originalShift.type === 'afternoon' ? "bg-orange-100 text-orange-600" :
-                    "bg-blue-100 text-blue-600"
-                  )}>
-                    {getShiftIcon(request.originalShift.type)}
-                  </div>
-                  <div>
-                    {request.originalShift.title} ({formatDate(request.originalShift.date)})
-                  </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-muted-foreground">Original Shift</div>
-                    <div className="font-medium">
-                      {formatDate(request.originalShift.date)}
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-muted-foreground">Shift Type</div>
-                    <div className={cn(
-                      "px-3 py-1 rounded-full text-xs font-medium inline-flex items-center",
-                      request.originalShift.type === 'day' ? "bg-yellow-100 text-yellow-800" : 
-                      request.originalShift.type === 'afternoon' ? "bg-orange-100 text-orange-800" : 
-                      "bg-blue-100 text-blue-800"
-                    )}>
-                      {getShiftIcon(request.originalShift.type)}
-                      <span className="ml-1">{getShiftTypeLabel(request.originalShift.type)} Shift</span>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-muted-foreground">Time</div>
-                    <div className="font-medium">{request.originalShift.startTime} - {request.originalShift.endTime}</div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground mb-2">Preferred Swap Dates</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
-                    {request.preferredDates.map((preferredDate, index) => (
-                      <div 
-                        key={index} 
-                        className="flex items-center justify-between p-3 border rounded-md bg-secondary/20"
-                      >
-                        <div>
-                          <div className="font-medium">{formatDate(preferredDate.date)}</div>
-                          <div className="text-xs text-gray-500 mt-0.5 flex flex-wrap gap-1">
-                            {preferredDate.acceptedTypes.map(type => (
-                              <span
-                                key={type}
-                                className={cn(
-                                  "inline-flex items-center px-2 py-0.5 rounded text-xs",
-                                  type === 'day' ? "bg-yellow-100 text-yellow-800" :
-                                  type === 'afternoon' ? "bg-orange-100 text-orange-800" :
-                                  "bg-blue-100 text-blue-800"
-                                )}
-                              >
-                                {getShiftTypeLabel(type)}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        {request.preferredDates.length > 1 && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-gray-400 hover:text-red-600"
-                            onClick={() => setDeleteDialog({
-                              isOpen: true,
-                              requestId: request.id,
-                              dateOnly: preferredDate.date
-                            })}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-
-            <CardFooter className="bg-secondary/20 border-t px-6">
-              <div className="flex justify-between items-center w-full py-2">
-                <div className="text-sm">Status:</div>
-                <div className="px-3 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
-                  Pending
-                </div>
-              </div>
-            </CardFooter>
-          </Card>
-        ))
-      )}
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        open={deleteDialog.isOpen}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setDeleteDialog({ isOpen: false, requestId: null, dateOnly: null });
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {deleteDialog.dateOnly ? "Remove Preferred Date?" : "Delete Swap Request?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteDialog.dateOnly
-                ? "Are you sure you want to remove this preferred date from your swap request?"
-                : "Are you sure you want to delete this entire swap request?"
-              }
-              <br />
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-              onClick={deleteDialog.dateOnly ? handleDeletePreferredDate : handleDeleteSwapRequest}
-              disabled={isLoading}
-            >
-              {isLoading ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      ))}
     </div>
   );
 };
