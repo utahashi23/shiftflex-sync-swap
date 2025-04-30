@@ -84,6 +84,68 @@ export type Database = {
           },
         ]
       }
+      shift_swap_potential_matches: {
+        Row: {
+          acceptor_request_id: string
+          acceptor_shift_id: string
+          created_at: string
+          id: string
+          match_date: string
+          requester_request_id: string
+          requester_shift_id: string
+          status: string
+        }
+        Insert: {
+          acceptor_request_id: string
+          acceptor_shift_id: string
+          created_at?: string
+          id?: string
+          match_date: string
+          requester_request_id: string
+          requester_shift_id: string
+          status?: string
+        }
+        Update: {
+          acceptor_request_id?: string
+          acceptor_shift_id?: string
+          created_at?: string
+          id?: string
+          match_date?: string
+          requester_request_id?: string
+          requester_shift_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_swap_potential_matches_acceptor_request_id_fkey"
+            columns: ["acceptor_request_id"]
+            isOneToOne: false
+            referencedRelation: "shift_swap_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_potential_matches_acceptor_shift_id_fkey"
+            columns: ["acceptor_shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_potential_matches_requester_request_id_fkey"
+            columns: ["requester_request_id"]
+            isOneToOne: false
+            referencedRelation: "shift_swap_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_potential_matches_requester_shift_id_fkey"
+            columns: ["requester_shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shift_swap_preferred_dates: {
         Row: {
           accepted_types: string[]
@@ -132,6 +194,7 @@ export type Database = {
           acceptor_shift_id: string | null
           created_at: string
           id: string
+          preferred_dates_count: number | null
           requester_id: string
           requester_shift_id: string
           status: string
@@ -142,6 +205,7 @@ export type Database = {
           acceptor_shift_id?: string | null
           created_at?: string
           id?: string
+          preferred_dates_count?: number | null
           requester_id: string
           requester_shift_id: string
           status?: string
@@ -152,6 +216,7 @@ export type Database = {
           acceptor_shift_id?: string | null
           created_at?: string
           id?: string
+          preferred_dates_count?: number | null
           requester_id?: string
           requester_shift_id?: string
           status?: string
