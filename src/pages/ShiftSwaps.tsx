@@ -10,18 +10,30 @@ import MatchedSwaps from '@/components/MatchedSwaps';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useSwapMatching } from '@/hooks/useSwapMatching';
 import { RefreshCw } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
   const [activeTab, setActiveTab] = useState('calendar');
   const { findSwapMatches, isProcessing } = useSwapMatching();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
-  // Force tab refresh when coming back to this page
+  // Force tab refresh when coming back to this page or after finding matches
   useEffect(() => {
     const currentTab = activeTab;
     setActiveTab('');
     setTimeout(() => setActiveTab(currentTab), 10);
-  }, []);
+  }, [refreshTrigger]);
+  
+  const handleFindMatches = async () => {
+    await findSwapMatches();
+    // Refresh the tabs to show updated data
+    setRefreshTrigger(prev => prev + 1);
+    toast({
+      title: "Refresh complete",
+      description: "The swap data has been refreshed.",
+    });
+  };
   
   return (
     <AppLayout>
@@ -38,7 +50,6 @@ const ShiftSwaps = () => {
           value={activeTab}
           onValueChange={(value) => {
             // Force a refresh of the components when switching tabs
-            // by setting active tab to an empty string first
             setActiveTab('');
             setTimeout(() => setActiveTab(value), 10);
           }}
@@ -54,7 +65,7 @@ const ShiftSwaps = () => {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={findSwapMatches}
+              onClick={handleFindMatches}
               disabled={isProcessing}
               className="ml-4"
             >
@@ -64,13 +75,13 @@ const ShiftSwaps = () => {
           </div>
           
           <TabsContent value="calendar">
-            <ShiftSwapCalendar />
+            <ShiftSwapCalendar key={`calendar-${refreshTrigger}`} />
           </TabsContent>
           <TabsContent value="requested">
-            <RequestedSwaps />
+            <RequestedSwaps key={`requested-${refreshTrigger}`} />
           </TabsContent>
           <TabsContent value="matched">
-            <MatchedSwaps />
+            <MatchedSwaps key={`matched-${refreshTrigger}`} />
           </TabsContent>
         </Tabs>
       </TooltipProvider>
