@@ -270,7 +270,7 @@ const ShiftCalendar = ({
           <div className="p-1 bg-orange-100 rounded-full mr-1">
             <Sun className="h-3.5 w-3.5 text-orange-800" />
           </div>
-          <span className="text-xs">Afternoon Shift (> 8am & < 4pm)</span>
+          <span className="text-xs">Afternoon Shift (&gt; 8am &amp; &lt; 4pm)</span>
         </div>
         <div className="flex items-center">
           <div className="p-1 bg-blue-100 rounded-full mr-1">
