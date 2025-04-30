@@ -162,8 +162,8 @@ export const useSwapRequests = () => {
     
     // In a real app, this would make an API call to update the preferred dates
     setTimeout(() => {
-      setSwapRequests(prev => 
-        prev.map(req => {
+      setSwapRequests(prev => {
+        const updated = prev.map(req => {
           if (req.id === requestId) {
             const updatedPreferredDates = req.preferredDates.filter(
               date => date.date !== dateStr
@@ -181,7 +181,9 @@ export const useSwapRequests = () => {
           }
           return req;
         }).filter(Boolean) as SwapRequest[];
-      );
+        
+        return updated;
+      });
       
       toast({
         title: "Preferred Date Removed",
