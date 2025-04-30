@@ -15,7 +15,18 @@ export const useDeleteSwapRequest = (
     try {
       console.log('Deleting swap request with ID:', requestId);
       
-      // Execute the delete operation
+      // First, delete all preferred dates associated with this request
+      const { error: preferredDatesError } = await supabase
+        .from('shift_swap_preferred_dates')
+        .delete()
+        .eq('request_id', requestId);
+        
+      if (preferredDatesError) {
+        console.error('Error deleting preferred dates:', preferredDatesError);
+        throw preferredDatesError;
+      }
+      
+      // Then, delete the swap request itself
       const { error } = await supabase
         .from('shift_swap_requests')
         .delete()
@@ -57,7 +68,24 @@ export const useDeleteSwapRequest = (
     try {
       console.log('Deleting preferred date:', dateStr, 'from request:', requestId);
       
-      // Delete the preferred date from the database
+      // First, check how many preferred dates exist for this request
+      const { data: preferredDates, error: countError } = await supabase
+        .from('shift_swap_preferred_dates')
+        .select('id')
+        .eq('request_id', requestId);
+        
+      if (countError) {
+        console.error('Error counting preferred dates:', countError);
+        throw countError;
+      }
+      
+      // If this is the last preferred date, delete the entire swap request
+      if (preferredDates && preferredDates.length <= 1) {
+        console.log('Last preferred date being removed, deleting entire swap request');
+        return handleDeleteSwapRequest(requestId);
+      }
+      
+      // Otherwise, just delete the specific preferred date
       const { error } = await supabase
         .from('shift_swap_preferred_dates')
         .delete()
@@ -75,24 +103,15 @@ export const useDeleteSwapRequest = (
       setSwapRequests(prev => {
         return prev.map(req => {
           if (req.id === requestId) {
-            // Check if this was the last preferred date
-            const updatedPreferredDates = req.preferredDates.filter(
-              date => date.date !== dateStr
-            );
-            
-            // If no preferred dates left, remove the whole request
-            if (updatedPreferredDates.length === 0) {
-              return null;
-            }
-            
-            // Otherwise update the request with remaining preferred dates
             return {
               ...req,
-              preferredDates: updatedPreferredDates
+              preferredDates: req.preferredDates.filter(
+                date => date.date !== dateStr
+              )
             };
           }
           return req;
-        }).filter(Boolean) as SwapRequest[];
+        });
       });
       
       toast({
