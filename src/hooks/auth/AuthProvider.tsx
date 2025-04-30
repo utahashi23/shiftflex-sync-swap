@@ -1,4 +1,3 @@
-
 import { 
   createContext, 
   useContext, 
@@ -32,53 +31,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Initialize auth state
   useEffect(() => {
-    const initializeAuth = async () => {
-      setIsLoading(true);
-      
-      try {
-        // Get current session
-        const { data: sessionData } = await supabase.auth.getSession();
-        setSession(sessionData.session);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        setSession(newSession);
         
-        if (sessionData.session) {
-          // Get user data
-          const { data: userData } = await supabase.auth.getUser();
-          
-          if (userData.user) {
-            // Ensure we're using ExtendedUser type
-            const extendedUser = userData.user as ExtendedUser;
-            setUser(extendedUser);
-            setIsEmailVerified(extendedUser.email_verified || false);
-            
-            // Check if user is admin
-            setIsAdmin(extendedUser.app_metadata?.role === 'admin');
-          }
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-        toast({
-          title: "Authentication Error",
-          description: "There was a problem retrieving your login status.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initializeAuth();
-    
-    // Listen for auth changes
-    const { data } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        
-        if (session?.user) {
+        if (newSession?.user) {
           // Ensure we're using ExtendedUser type
-          const extendedUser = session.user as ExtendedUser;
+          const extendedUser = newSession.user as ExtendedUser;
           setUser(extendedUser);
-          setIsEmailVerified(extendedUser.email_verified || false);
+          setIsEmailVerified(extendedUser.email_confirmed_at !== null);
+          
+          // Check if user is admin
           setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+
+          // Handle authentication events
+          if (event === 'SIGNED_IN') {
+            // For admin user (sfadmin), check if they're in the user_roles table
+            if (extendedUser.email === 'sfadmin') {
+              try {
+                // Check user roles using the has_role function via RPC
+                const { data, error } = await supabase.rpc('has_role', { 
+                  _user_id: extendedUser.id,
+                  _role: 'admin'
+                });
+                
+                if (!error && !data) {
+                  // Add admin role if not already present
+                  await supabase.from('user_roles').insert({
+                    user_id: extendedUser.id,
+                    role: 'admin'
+                  });
+                }
+              } catch (error) {
+                console.error("Error checking admin role:", error);
+              }
+            }
+          }
         } else {
           setUser(null);
           setIsEmailVerified(false);
@@ -88,7 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Handle authentication events
         switch (event) {
           case 'SIGNED_IN':
-            // For demo purposes, we'll navigate to dashboard on sign in
+            // Navigate to dashboard on sign in
             navigate('/dashboard');
             break;
           case 'SIGNED_OUT':
@@ -106,8 +95,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      
+      if (currentSession?.user) {
+        // Ensure we're using ExtendedUser type
+        const extendedUser = currentSession.user as ExtendedUser;
+        setUser(extendedUser);
+        setIsEmailVerified(extendedUser.email_confirmed_at !== null);
+        setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+      }
+      
+      setIsLoading(false);
+    }).catch(error => {
+      console.error('Error getting session:', error);
+      setIsLoading(false);
+    });
+
     return () => {
-      data.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, [navigate]);
 

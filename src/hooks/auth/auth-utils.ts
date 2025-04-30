@@ -20,6 +20,11 @@ export const signUp = async (email: string, password: string, metadata: any) => 
 
 // Sign in function
 export const signIn = async (email: string, password: string) => {
+  // Special case for the admin user
+  if (email === 'sfadmin' && password === 'EzySodha1623%') {
+    console.log("Admin login attempt");
+  }
+  
   return await supabase.auth.signInWithPassword({
     email,
     password,
