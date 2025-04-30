@@ -108,20 +108,19 @@ const RequestedSwaps = () => {
           let type = 'day';
           const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
           
-          if (startHour >= 5 && startHour < 13) {
+          if (startHour <= 8) {
             type = 'day';
-          } else if (startHour >= 13 && startHour < 21) {
+          } else if (startHour > 8 && startHour < 16) {
             type = 'afternoon';
           } else {
             type = 'night';
           }
           
-          // For now, we'll use mock preferred dates since we haven't implemented this in the database yet
-          // In a real implementation, you would fetch these from a separate table
+          // For now, we'll use the same date as the preferred date
+          // In a real app with a separate table for preferred dates, we would fetch those
           const preferredDates = [
-            { date: new Date(shift.date).toISOString().split('T')[0], acceptedTypes: [type] },
             { 
-              date: new Date(new Date(shift.date).getTime() + 86400000).toISOString().split('T')[0], 
+              date: new Date(shift.date).toISOString().split('T')[0], 
               acceptedTypes: [type] 
             }
           ];
@@ -157,34 +156,6 @@ const RequestedSwaps = () => {
     fetchSwapRequests();
   }, [user]);
 
-  // Get shift icon based on type
-  const getShiftIcon = (type: string) => {
-    switch(type) {
-      case 'day':
-        return <Sunrise className="h-4 w-4" />;
-      case 'afternoon':
-        return <Sun className="h-4 w-4" />;
-      case 'night':
-        return <Moon className="h-4 w-4" />;
-      default:
-        return null;
-    }
-  };
-
-  // Format date to user-friendly string
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  // Get shift type label
-  const getShiftTypeLabel = (type: string) => {
-    return type.charAt(0).toUpperCase() + type.slice(1);
-  };
-
   // Delete an entire swap request
   const handleDeleteSwapRequest = async () => {
     if (!deleteDialog.requestId) return;
@@ -219,13 +190,14 @@ const RequestedSwaps = () => {
   };
 
   // Delete a single preferred date from a swap request
-  const handleDeletePreferredDate = () => {
+  const handleDeletePreferredDate = async () => {
+    // This functionality would require a separate table for preferred dates
+    // For now, we'll just handle the UI aspect
     if (!deleteDialog.requestId || !deleteDialog.dateOnly) return;
     
     setIsLoading(true);
     
     // In a real app, this would make an API call to update the preferred dates
-    // For now, we'll just update the UI
     setTimeout(() => {
       setSwapRequests(prev => 
         prev.map(req => {
@@ -255,9 +227,36 @@ const RequestedSwaps = () => {
       
       setDeleteDialog({ isOpen: false, requestId: null, dateOnly: null });
       setIsLoading(false);
-    }, 1000);
+    }, 500);
   };
 
+  // Get shift icon based on type
+  const getShiftIcon = (type: string) => {
+    switch(type) {
+      case 'day':
+        return <Sunrise className="h-4 w-4" />;
+      case 'afternoon':
+        return <Sun className="h-4 w-4" />;
+      case 'night':
+        return <Moon className="h-4 w-4" />;
+      default:
+        return null;
+    }
+  };
+
+  // Format date to user-friendly string
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Get shift type label
+  const getShiftTypeLabel = (type: string) => {
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  };
   
   return (
     <div className="space-y-6">

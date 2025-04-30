@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,115 +23,235 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { ArrowRight, Check, Clock, Filter, Sunrise, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
-// Mock data
-const mockMatchedSwaps = [
-  {
-    id: 1,
-    originalShift: {
-      id: 101,
-      date: '2025-05-03',
-      title: '04-MAT03',
-      startTime: '15:00',
-      endTime: '23:00',
-      type: 'afternoon',
-      colleagueType: 'Qualified'
-    },
-    matchedShift: {
-      id: 201,
-      date: '2025-05-06',
-      title: '06-MAT07',
-      startTime: '15:00',
-      endTime: '23:00',
-      type: 'afternoon',
-      colleagueType: 'Graduate',
-      colleague: 'Sarah Johnson'
-    },
-    status: 'matched'
-  },
-  {
-    id: 2,
-    originalShift: {
-      id: 102,
-      date: '2025-05-10',
-      title: '08-MAT11',
-      startTime: '23:00',
-      endTime: '07:00',
-      type: 'night',
-      colleagueType: 'ACO'
-    },
-    matchedShift: {
-      id: 202,
-      date: '2025-05-14',
-      title: '09-MAT12',
-      startTime: '23:00',
-      endTime: '07:00',
-      type: 'night',
-      colleagueType: 'ACO',
-      colleague: 'Michael Chen'
-    },
-    status: 'matched'
-  }
-];
+// Types
+interface ShiftDetail {
+  id: string;
+  date: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  type: string;
+  colleagueType?: string;
+  colleague?: string;
+}
 
-const mockPastSwaps = [
-  {
-    id: 3,
-    originalShift: {
-      id: 103,
-      date: '2025-04-18',
-      title: '02-MAT01',
-      startTime: '07:00',
-      endTime: '15:00',
-      type: 'day',
-      colleagueType: 'Qualified'
-    },
-    matchedShift: {
-      id: 203,
-      date: '2025-04-21',
-      title: '04-MAT03',
-      startTime: '07:00',
-      endTime: '15:00',
-      type: 'day',
-      colleagueType: 'Qualified',
-      colleague: 'Alex Wong'
-    },
-    status: 'completed'
-  },
-  {
-    id: 4,
-    originalShift: {
-      id: 104,
-      date: '2025-04-25',
-      title: '06-MAT07',
-      startTime: '15:00',
-      endTime: '23:00',
-      type: 'afternoon',
-      colleagueType: 'Graduate'
-    },
-    matchedShift: {
-      id: 204,
-      date: '2025-04-28',
-      title: '08-MAT11',
-      startTime: '15:00',
-      endTime: '23:00',
-      type: 'afternoon',
-      colleagueType: 'Qualified',
-      colleague: 'Jamie Rodriguez'
-    },
-    status: 'completed'
-  }
-];
+interface MatchedSwap {
+  id: string;
+  originalShift: ShiftDetail;
+  matchedShift: ShiftDetail;
+  status: string;
+}
 
-const MatchedSwaps = () => {
-  const [swapRequests, setSwapRequests] = useState(mockMatchedSwaps);
-  const [pastSwaps, setPastSwaps] = useState(mockPastSwaps);
+const MatchedSwapsComponent = () => {
+  const [swapRequests, setSwapRequests] = useState<MatchedSwap[]>([]);
+  const [pastSwaps, setPastSwaps] = useState<MatchedSwap[]>([]);
   const [activeTab, setActiveTab] = useState('active');
-  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean, swapId: number | null }>({
+  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean, swapId: string | null }>({
     isOpen: false,
     swapId: null
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const fetchMatchedSwaps = async () => {
+      if (!user) return;
+      
+      setIsLoading(true);
+      
+      try {
+        // Fetch active matched swaps
+        const { data: activeMatches, error: activeError } = await supabase
+          .from('shift_swap_requests')
+          .select(`
+            id,
+            status,
+            requester_id,
+            requester_shift_id,
+            acceptor_id,
+            acceptor_shift_id
+          `)
+          .or(`requester_id.eq.${user.id},acceptor_id.eq.${user.id}`)
+          .eq('status', 'matched');
+          
+        if (activeError) throw activeError;
+        
+        // Fetch completed swaps
+        const { data: completedMatches, error: completedError } = await supabase
+          .from('shift_swap_requests')
+          .select(`
+            id,
+            status,
+            requester_id,
+            requester_shift_id,
+            acceptor_id,
+            acceptor_shift_id
+          `)
+          .or(`requester_id.eq.${user.id},acceptor_id.eq.${user.id}`)
+          .eq('status', 'completed');
+          
+        if (completedError) throw completedError;
+        
+        // If no data, set empty arrays and return
+        if ((!activeMatches || activeMatches.length === 0) && 
+            (!completedMatches || completedMatches.length === 0)) {
+          setSwapRequests([]);
+          setPastSwaps([]);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Get all shift IDs to fetch in one query
+        const allShiftIds = [
+          ...(activeMatches || []).map(m => m.requester_shift_id),
+          ...(activeMatches || []).map(m => m.acceptor_shift_id).filter(Boolean),
+          ...(completedMatches || []).map(m => m.requester_shift_id),
+          ...(completedMatches || []).map(m => m.acceptor_shift_id).filter(Boolean)
+        ].filter(Boolean) as string[];
+        
+        if (allShiftIds.length === 0) {
+          setSwapRequests([]);
+          setPastSwaps([]);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Fetch all shift details
+        const { data: shiftsData, error: shiftsError } = await supabase
+          .from('shifts')
+          .select('*, profiles(first_name, last_name)')
+          .in('id', allShiftIds);
+          
+        if (shiftsError) throw shiftsError;
+        
+        // Process active matches
+        const formattedActiveMatches = processSwapRequests(activeMatches || [], shiftsData || [], user.id);
+        setSwapRequests(formattedActiveMatches);
+        
+        // Process completed matches
+        const formattedCompletedMatches = processSwapRequests(completedMatches || [], shiftsData || [], user.id);
+        setPastSwaps(formattedCompletedMatches);
+      } catch (error) {
+        console.error('Error fetching matched swaps:', error);
+        toast({
+          title: "Failed to load matched swaps",
+          description: "There was a problem loading your matched swaps. Please try again later.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMatchedSwaps();
+  }, [user]);
+
+  // Helper function to process swap requests data
+  const processSwapRequests = (
+    requests: any[], 
+    shifts: any[], 
+    currentUserId: string
+  ): MatchedSwap[] => {
+    return requests
+      .map(request => {
+        // Find the shifts
+        const requesterShift = shifts.find(s => s.id === request.requester_shift_id);
+        const acceptorShift = shifts.find(s => s.id === request.acceptor_shift_id);
+        
+        if (!requesterShift || !acceptorShift) return null;
+        
+        // Determine which shift is "mine" vs "theirs" based on who's viewing
+        const isRequester = request.requester_id === currentUserId;
+        const myShift = isRequester ? requesterShift : acceptorShift;
+        const theirShift = isRequester ? acceptorShift : requesterShift;
+        
+        // Format the shift details
+        const formatShift = (shift: any, isOriginal: boolean): ShiftDetail => {
+          // Determine shift type
+          let type = 'day';
+          const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
+          
+          if (startHour <= 8) {
+            type = 'day';
+          } else if (startHour > 8 && startHour < 16) {
+            type = 'afternoon';
+          } else {
+            type = 'night';
+          }
+          
+          // Get colleague name if available
+          const hasProfile = shift.profiles && (shift.profiles.first_name || shift.profiles.last_name);
+          const colleague = hasProfile 
+            ? `${shift.profiles.first_name || ''} ${shift.profiles.last_name || ''}`.trim()
+            : 'Unnamed Colleague';
+            
+          return {
+            id: shift.id,
+            date: shift.date,
+            title: shift.truck_name || `Shift-${shift.id.substring(0, 5)}`,
+            startTime: shift.start_time.substring(0, 5),
+            endTime: shift.end_time.substring(0, 5),
+            type,
+            colleagueType: 'Unknown', // We don't have this info in the DB yet
+            ...(isOriginal ? {} : { colleague })
+          };
+        };
+        
+        return {
+          id: request.id,
+          originalShift: formatShift(myShift, true),
+          matchedShift: formatShift(theirShift, false),
+          status: request.status
+        };
+      })
+      .filter(Boolean) as MatchedSwap[];
+  };
+
+  // Accept swap
+  const handleAcceptSwap = async () => {
+    if (!confirmDialog.swapId || !user) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Update the swap request status in the database
+      const { error } = await supabase
+        .from('shift_swap_requests')
+        .update({ status: 'completed' })
+        .eq('id', confirmDialog.swapId);
+        
+      if (error) throw error;
+      
+      // Update the UI
+      const completedSwap = swapRequests.find(s => s.id === confirmDialog.swapId);
+      if (completedSwap) {
+        // Move from active to completed
+        setSwapRequests(prev => prev.filter(s => s.id !== confirmDialog.swapId));
+        setPastSwaps(prev => [
+          ...prev, 
+          { ...completedSwap, status: 'completed' }
+        ]);
+      }
+      
+      toast({
+        title: "Swap Accepted",
+        description: "The shift swap has been successfully accepted.",
+      });
+    } catch (error) {
+      console.error('Error accepting swap:', error);
+      toast({
+        title: "Failed to accept swap",
+        description: "There was a problem accepting the swap. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setConfirmDialog({ isOpen: false, swapId: null });
+      setIsLoading(false);
+    }
+  };
 
   // Get shift icon based on type
   const getShiftIcon = (type: string) => {
@@ -161,40 +280,7 @@ const MatchedSwaps = () => {
   const getShiftTypeLabel = (type: string) => {
     return type.charAt(0).toUpperCase() + type.slice(1);
   };
-
-  // Accept swap
-  const handleAcceptSwap = () => {
-    if (!confirmDialog.swapId) return;
-    
-    setIsLoading(true);
-    
-    // In a real app, this would make an API call
-    setTimeout(() => {
-      setSwapRequests(prev => 
-        prev.map(swap => 
-          swap.id === confirmDialog.swapId ? { ...swap, status: 'completed' } : swap
-        )
-      );
-      
-      toast({
-        title: "Swap Accepted",
-        description: "The shift swap has been successfully accepted.",
-      });
-      
-      setTimeout(() => {
-        // In a real app, we would move completed swaps to the past swaps list
-        setSwapRequests(prev => prev.filter(swap => swap.id !== confirmDialog.swapId));
-        setPastSwaps(prev => [
-          ...prev, 
-          {...swapRequests.find(swap => swap.id === confirmDialog.swapId)!, status: 'completed'}
-        ]);
-      }, 500);
-      
-      setConfirmDialog({ isOpen: false, swapId: null });
-      setIsLoading(false);
-    }, 1000);
-  };
-
+  
   return (
     <div className="space-y-6">
       <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
@@ -528,4 +614,4 @@ const MatchedSwaps = () => {
   );
 };
 
-export default MatchedSwaps;
+export default MatchedSwapsComponent;
