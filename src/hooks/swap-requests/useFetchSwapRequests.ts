@@ -1,115 +1,110 @@
 
-import { useState } from 'react';
-import { toast } from '@/hooks/use-toast';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+import { User } from '@supabase/supabase-js';
 import { SwapRequest } from './types';
-import { ExtendedUser } from '@/hooks/useAuth';
 
-export const useFetchSwapRequests = (user: ExtendedUser | null) => {
+export const useFetchSwapRequests = (user: User | null) => {
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const fetchSwapRequests = async () => {
+  const fetchSwapRequests = useCallback(async () => {
     if (!user) return;
     
     setIsLoading(true);
-    
     try {
-      // Fetch swap requests where the user is the requester
-      const { data: swapRequestsData, error: swapError } = await supabase
+      console.log('Fetching swap requests for user:', user.id);
+      
+      const { data: requests, error } = await supabase
         .from('shift_swap_requests')
         .select(`
           id,
           status,
-          requester_shift_id,
-          created_at
+          requester_id,
+          requester_shift:requester_shift_id (
+            id,
+            date,
+            start_time,
+            end_time,
+            truck_name
+          )
         `)
         .eq('requester_id', user.id)
         .eq('status', 'pending');
-        
-      if (swapError) throw swapError;
       
-      if (!swapRequestsData || swapRequestsData.length === 0) {
-        setSwapRequests([]);
-        setIsLoading(false);
-        return;
-      }
+      if (error) throw error;
       
-      // Get all the shift IDs to fetch their details
-      const shiftIds = swapRequestsData.map(req => req.requester_shift_id);
+      console.log('Fetched swap requests:', requests);
       
-      // Fetch details for all the original shifts
-      const { data: shiftsData, error: shiftsError } = await supabase
-        .from('shifts')
-        .select('*')
-        .in('id', shiftIds);
-        
-      if (shiftsError) throw shiftsError;
-      
-      // Map the data to our UI format
-      const formattedRequests: SwapRequest[] = swapRequestsData.map(request => {
-        // Find the corresponding shift
-        const shift = shiftsData?.find(s => s.id === request.requester_shift_id);
-        
-        if (!shift) {
-          console.error(`Shift not found for request ${request.id}`);
-          return null;
-        }
-        
+      // Transform the data to match our client-side model
+      const formattedRequests: SwapRequest[] = requests.map(req => {
         // Determine shift type based on start time
-        let type = 'day';
-        const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
-        
-        if (startHour <= 8) {
-          type = 'day';
-        } else if (startHour > 8 && startHour < 16) {
-          type = 'afternoon';
-        } else {
-          type = 'night';
-        }
-        
-        // For now, we'll use the same date as the preferred date
-        // In a real app with a separate table for preferred dates, we would fetch those
-        const preferredDates = [
-          { 
-            date: new Date(shift.date).toISOString().split('T')[0], 
-            acceptedTypes: [type] 
+        const shift = req.requester_shift;
+        let shiftType: string = 'day';
+        if (shift) {
+          const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
+          
+          if (startHour <= 8) {
+            shiftType = 'day';
+          } else if (startHour > 8 && startHour < 16) {
+            shiftType = 'afternoon';
+          } else {
+            shiftType = 'night';
           }
-        ];
+        }
         
         return {
-          id: request.id,
-          originalShift: {
+          id: req.id,
+          status: req.status,
+          originalShift: shift ? {
             id: shift.id,
             date: shift.date,
             title: shift.truck_name || `Shift-${shift.id.substring(0, 5)}`,
-            startTime: shift.start_time.substring(0, 5),
-            endTime: shift.end_time.substring(0, 5),
-            type
+            startTime: shift.start_time.substring(0, 5), // Format as HH:MM
+            endTime: shift.end_time.substring(0, 5),    // Format as HH:MM
+            type: shiftType
+          } : {
+            id: 'unknown',
+            date: 'unknown',
+            title: 'Unknown Shift',
+            startTime: '00:00',
+            endTime: '00:00',
+            type: 'day'
           },
-          preferredDates,
-          status: request.status
+          preferredDates: [
+            // Add preferred dates
+            // In a real app, you would fetch these from a separate table
+            // For now, we're mocking it with the shift date + 1 day
+            {
+              date: shift ? 
+                new Date(new Date(shift.date).getTime() + 86400000).toISOString().split('T')[0] : 
+                new Date().toISOString().split('T')[0],
+              acceptedTypes: [shiftType]
+            }
+          ]
         };
-      }).filter(Boolean) as SwapRequest[];
+      });
       
       setSwapRequests(formattedRequests);
+      
     } catch (error) {
       console.error('Error fetching swap requests:', error);
       toast({
-        title: "Failed to load swap requests",
-        description: "There was a problem loading your swap requests. Please try again later.",
+        title: "Error",
+        description: "Failed to load swap requests. Please try again.",
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
-  return {
-    swapRequests,
-    setSwapRequests,
-    isLoading,
-    setIsLoading,
-    fetchSwapRequests
+  return { 
+    swapRequests, 
+    setSwapRequests, 
+    isLoading, 
+    setIsLoading, 
+    fetchSwapRequests 
   };
 };

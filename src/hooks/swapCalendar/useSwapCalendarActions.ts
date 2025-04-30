@@ -19,7 +19,7 @@ export const useSwapCalendarActions = (
 ) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const { isDateDisabled } = helpers;
-  const { selectedShift, selectedSwapDates } = state;
+  const { selectedShift, selectedSwapDates, acceptableShiftTypes } = state;
 
   const toggleDateSelection = (dateStr: string) => {
     if (!state.swapMode || isDateDisabled(dateStr)) return;
@@ -55,6 +55,13 @@ export const useSwapCalendarActions = (
     setIsActionLoading(true);
     
     try {
+      console.log('Creating swap request with:', {
+        requester_id: userId,
+        requester_shift_id: selectedShift.id,
+        selected_dates: selectedSwapDates,
+        acceptable_types: acceptableShiftTypes
+      });
+      
       // Create the swap request in the database
       const { data, error } = await supabase
         .from('shift_swap_requests')
@@ -68,8 +75,14 @@ export const useSwapCalendarActions = (
         
       if (error) throw error;
       
-      // In a real app, we would store preferred dates in a separate table
-      // For this implementation, we'll show a success toast
+      if (!data || !data.id) {
+        throw new Error('Failed to get ID for new swap request');
+      }
+      
+      // Now let's store the preferred dates in some way
+      // In a real production app, you would have a separate table for this
+      // For now, we'll just show a success message
+      console.log('Created swap request with ID:', data.id);
       
       toast({
         title: "Swap Request Created",

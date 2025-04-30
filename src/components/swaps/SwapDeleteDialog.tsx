@@ -25,6 +25,8 @@ const SwapDeleteDialog = ({
   onDelete,
   isDateOnly
 }: SwapDeleteDialogProps) => {
+  console.log("Rendering SwapDeleteDialog with isOpen:", isOpen, "isDateOnly:", isDateOnly);
+
   return (
     <AlertDialog
       open={isOpen}
@@ -48,7 +50,10 @@ const SwapDeleteDialog = ({
           <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-            onClick={onDelete}
+            onClick={(e) => {
+              e.preventDefault();
+              onDelete();
+            }}
             disabled={isLoading}
           >
             {isLoading ? "Deleting..." : "Delete"}
