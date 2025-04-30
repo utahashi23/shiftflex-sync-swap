@@ -61,7 +61,7 @@ const Register = () => {
     },
   });
 
-  // Registration form
+  // Registration form - Initialize with empty values to prevent field pre-population
   const registrationForm = useForm<z.infer<typeof registrationSchema>>({
     resolver: zodResolver(registrationSchema),
     defaultValues: {
@@ -77,7 +77,19 @@ const Register = () => {
     try {
       const isValid = await checkOrganizationCode(data.code);
       if (isValid) {
+        // Store organization but DO NOT transfer the code to any registration form fields
         setSelectedOrg(data.organization);
+        
+        // Reset registration form to ensure clean state
+        registrationForm.reset({
+          firstName: '',
+          lastName: '',
+          email: '',
+          password: '',
+          employeeId: '',
+        });
+        
+        // Move to registration step
         setStep('registration');
       } else {
         toast({

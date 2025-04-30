@@ -2,7 +2,7 @@
 import { supabase } from "./supabase-client";
 
 // Check organization code validity
-export const checkOrganizationCode = (code: string): boolean => {
+export const checkOrganizationCode = async (code: string): Promise<boolean> => {
   // For now, hardcode the validation
   return code === "AV-SS25";
 };
