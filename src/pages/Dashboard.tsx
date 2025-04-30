@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -85,13 +86,13 @@ const Dashboard = () => {
           // Create a title from the truck name or use a default
           const title = shift.truck_name ? shift.truck_name : `Shift-${shift.id.substring(0, 5)}`;
           
-          // Determine the shift type based on start time
+          // Determine the shift type based on start time - UPDATED LOGIC
           let type: 'day' | 'afternoon' | 'night' = 'day';
           const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
           
-          if (startHour >= 5 && startHour < 13) {
+          if (startHour <= 8) {
             type = 'day';
-          } else if (startHour >= 13 && startHour < 21) {
+          } else if (startHour > 8 && startHour < 16) {
             type = 'afternoon';
           } else {
             type = 'night';
