@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { Shift } from '@/hooks/useShiftData';
-import { getDaysInMonth, getFirstDayOfMonth, formatDateString } from '@/utils/dateUtils';
+import { getDaysInMonth, getFirstDayOfMonth, formatDateString, getMonthDateRange } from '@/utils/dateUtils';
 import { SwapCalendarCell } from '@/components/calendar/SwapCalendarCell';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,12 +26,13 @@ export const useSwapCalendarState = () => {
     const fetchShifts = async () => {
       if (!user) return;
       
+      setIsLoading(true);
+      
       try {
         // Get date range for the current month
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth();
-        const startDate = formatDateString(year, month, 1);
-        const endDate = formatDateString(year, month + 1, 0);
+        const { startDate, endDate } = getMonthDateRange(currentDate);
+        
+        console.log('Fetching shifts with date range:', { startDate, endDate, userId: user.id });
         
         const { data, error } = await supabase
           .from('shifts')
@@ -42,6 +43,8 @@ export const useSwapCalendarState = () => {
           .order('date', { ascending: true });
           
         if (error) throw error;
+        
+        console.log('Shifts fetched:', data);
         
         // Format the shifts for the calendar
         const formattedShifts: Shift[] = data?.map(shift => {
@@ -76,6 +79,8 @@ export const useSwapCalendarState = () => {
           description: "There was a problem loading your shifts. Please try again later.",
           variant: "destructive"
         });
+      } finally {
+        setIsLoading(false);
       }
     };
 
