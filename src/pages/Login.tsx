@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -26,9 +26,6 @@ import AuthLayout from '@/layouts/AuthLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { toast } from '@/hooks/use-toast';
-import { createAdminUser } from '@/hooks/auth/auth-utils';
-import LoadingState from '@/components/LoadingState';
-import { supabase } from '@/hooks/auth/supabase-client';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required'),
@@ -40,129 +37,15 @@ const resetSchema = z.object({
 });
 
 const Login = () => {
-  const [pageLoading, setPageLoading] = useState(true);
-  const { isLoading: authLoading, session, signIn, resetPassword, signOut } = useAuth();
+  useAuthRedirect({ authRoutes: true });
+  
+  const { signIn, resetPassword } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const returnUrl = (location.state as any)?.returnUrl || '/dashboard';
   
   const [isLoading, setIsLoading] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  const [adminCreated, setAdminCreated] = useState(false);
-  const [forceLogoutDialogOpen, setForceLogoutDialogOpen] = useState(false);
-  
-  // Clear any potentially corrupted auth state on mount
-  useEffect(() => {
-    const clearStaleAuth = async () => {
-      try {
-        // Check for URL parameter indicating force logout
-        const url = new URL(window.location.href);
-        const forceLogout = url.searchParams.get('force_logout');
-        
-        if (forceLogout === 'true') {
-          console.log("Force logout requested via URL parameter");
-          await handleForceLogout();
-          // Remove the parameter
-          url.searchParams.delete('force_logout');
-          window.history.replaceState({}, '', url.toString());
-          return;
-        }
-        
-        console.log("Login page mounted", { authLoading, session });
-      } catch (error) {
-        console.error("Error in auth cleanup:", error);
-      }
-    };
-    
-    clearStaleAuth();
-    
-    // Safety timeout to prevent infinite loading
-    const timeout = setTimeout(() => {
-      setPageLoading(false);
-      console.log("Safety timeout triggered - forcing loading to complete");
-    }, 3000);
-
-    // If auth is already loaded, don't wait
-    if (!authLoading) {
-      clearTimeout(timeout);
-      setPageLoading(false);
-      console.log("Auth loading complete");
-    }
-
-    return () => clearTimeout(timeout);
-  }, [authLoading, session]);
-  
-  // Handle redirection if user is already logged in
-  useEffect(() => {
-    if (session && session.user) {
-      console.log("User already logged in, redirecting to:", returnUrl);
-      navigate(returnUrl);
-    }
-  }, [session, navigate, returnUrl]);
-
-  // Ensure admin user exists on component mount
-  useEffect(() => {
-    const ensureAdminExists = async () => {
-      try {
-        const result = await createAdminUser();
-        setAdminCreated(result.exists || !!result.user);
-        
-        if (!result.exists && result.user) {
-          toast({
-            title: "Admin Account Created",
-            description: "Admin user has been set up successfully.",
-          });
-        }
-      } catch (error) {
-        console.error("Error checking admin user:", error);
-      }
-    };
-    
-    ensureAdminExists();
-  }, []);
-  
-  const handleForceLogout = async () => {
-    try {
-      console.log("Performing force logout");
-      
-      // Clear local storage and session storage
-      localStorage.clear();
-      sessionStorage.clear();
-      console.log("Browser storage cleared");
-      
-      // Sign out from Supabase - this may fail if the token is invalid
-      try {
-        await supabase.auth.signOut();
-        console.log("Supabase signOut completed");
-      } catch (signOutError) {
-        console.error("Supabase signOut failed:", signOutError);
-        // Continue anyway as we're doing a force logout
-      }
-      
-      // Use our signOut method as fallback
-      try {
-        await signOut();
-        console.log("App signOut completed");
-      } catch (appSignOutError) {
-        console.error("App signOut failed:", appSignOutError);
-        // Continue anyway
-      }
-      
-      toast({
-        title: "Force Logout Complete",
-        description: "Your session has been reset. Please sign in again.",
-      });
-      
-      // Force reload the page to clear any React state
-      window.location.href = '/login';
-    } catch (error) {
-      console.error("Force logout error:", error);
-      // Hard reload as a last resort
-      window.location.href = '/login';
-    } finally {
-      setForceLogoutDialogOpen(false);
-    }
-  };
   
   // Login form
   const form = useForm<z.infer<typeof loginSchema>>({
@@ -185,29 +68,24 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      console.log("Attempting login with:", data.email);
-      const { success, error } = await signIn(data.email, data.password);
+      const { error } = await signIn(data.email, data.password);
 
-      if (!success && error) {
-        if (error.message && error.message.includes('not verified')) {
+      if (error) {
+        if (error.message.includes('not verified')) {
           navigate('/verify-email', { state: { email: data.email } });
           return;
         }
-        throw new Error(error.message || "Unknown error");
+        throw new Error(error.message);
       }
 
-      if (success) {
-        console.log("Login successful, will redirect to:", returnUrl);
-        toast({
-          title: "Login Successful",
-          description: "You have successfully logged in.",
-        });
-        
-        navigate(returnUrl);
-      }
+      toast({
+        title: "Login Successful",
+        description: "You have successfully logged in.",
+      });
+      
+      navigate(returnUrl);
       
     } catch (error: any) {
-      console.error("Login error:", error);
       toast({
         title: "Login Failed",
         description: error.message || "Invalid email or password. Please try again.",
@@ -241,34 +119,8 @@ const Login = () => {
     }
   };
 
-  const useAdminLogin = () => {
-    form.setValue('email', 'sfadmin');
-    form.setValue('password', 'EzySodha1623%');
-  };
-
-  // Show loading state if needed
-  if (pageLoading) {
-    return <LoadingState 
-      fullScreen 
-      message="Preparing login..." 
-      debugInfo={`Auth state: ${authLoading ? 'loading' : 'loaded'}`}
-      showForceLogout={false}
-    />;
-  }
-
   return (
     <AuthLayout title="Log in to your account">
-      <div className="mb-4 flex justify-end">
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => setForceLogoutDialogOpen(true)}
-          className="text-xs"
-        >
-          Force Logout
-        </Button>
-      </div>
-      
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
@@ -317,25 +169,11 @@ const Login = () => {
             {isLoading ? "Logging in..." : "Log in"}
           </Button>
           
-          <div className="flex justify-between items-center text-sm">
-            <span>Don't have an account?{" "}
-              <Link to="/register" className="text-primary hover:underline">
-                Sign up
-              </Link>
-            </span>
-            <Button 
-              type="button" 
-              variant="ghost" 
-              size="sm" 
-              onClick={useAdminLogin} 
-              className="text-xs text-gray-500"
-            >
-              Use Admin Login
-            </Button>
-          </div>
-          
-          <div className="pt-2 text-xs text-gray-500 text-center">
-            Admin credentials: sfadmin / EzySodha1623%
+          <div className="text-center text-sm">
+            Don't have an account?{" "}
+            <Link to="/register" className="text-primary hover:underline">
+              Sign up
+            </Link>
           </div>
         </form>
       </Form>
@@ -376,27 +214,6 @@ const Login = () => {
               </DialogFooter>
             </form>
           </Form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Force Logout Dialog */}
-      <Dialog open={forceLogoutDialogOpen} onOpenChange={setForceLogoutDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Force Logout</DialogTitle>
-            <DialogDescription>
-              This will clear all authentication data and reset your session. Use this if you're experiencing login issues.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0 mt-4">
-            <Button variant="outline" onClick={() => setForceLogoutDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleForceLogout}>
-              Force Logout
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AuthLayout>

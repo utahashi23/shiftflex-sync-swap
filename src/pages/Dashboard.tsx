@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,8 +7,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
 import { Clock, Repeat, Check, Calendar, CalendarClock } from 'lucide-react';
-import LoadingState from '@/components/LoadingState';
-import { toast } from '@/hooks/use-toast';
 
 // Mock shift data
 const mockShiftData = {
@@ -29,61 +28,21 @@ const mockShiftData = {
 };
 
 const Dashboard = () => {
-  const { isLoading, user, signOut } = useAuth();
-  const { isAuthenticated } = useAuthRedirect({ protectedRoute: true });
-  const [pageLoaded, setPageLoaded] = useState(false);
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  useAuthRedirect({ protectedRoute: true });
+  
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState(mockShiftData);
 
   useEffect(() => {
-    // Log authentication state for debugging
-    console.log("Dashboard mounted - Auth state:", { 
-      isLoading, 
-      isAuthenticated, 
-      user: !!user,
-      userId: user?.id,
-      email: user?.email
-    });
-    
     // Simulate loading data
-    const dataTimer = setTimeout(() => {
-      setPageLoaded(true);
-      console.log("Dashboard data loading complete");
+    const timer = setTimeout(() => {
+      setIsLoading(false);
     }, 1000);
-    
-    // Safety timeout - if we're still in loading state after 8 seconds, show force logout option
-    const safetyTimer = setTimeout(() => {
-      console.log("Dashboard safety timeout triggered - loading took too long");
-      setLoadingTimeout(true);
-      toast({
-        title: "Loading is taking longer than expected",
-        description: "You can force logout to reset your session.",
-        variant: "destructive",
-      });
-    }, 8000);
-    
-    return () => {
-      clearTimeout(dataTimer);
-      clearTimeout(safetyTimer);
-    };
-  }, [isLoading, user, isAuthenticated]);
 
-  const handleForceLogout = async () => {
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-      await signOut();
-      toast({
-        title: "Force logout successful",
-        description: "You have been logged out. Please sign in again.",
-      });
-      window.location.href = '/login';
-    } catch (error) {
-      console.error("Force logout failed:", error);
-      window.location.href = '/login';
-    }
-  };
-  
+    return () => clearTimeout(timer);
+  }, []);
+
   // Get shift color class based on shift type
   const getShiftTypeClass = (type: string) => {
     switch (type) {
@@ -103,30 +62,6 @@ const Dashboard = () => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   };
-
-  if (isLoading && !pageLoaded) {
-    return (
-      <LoadingState 
-        fullScreen 
-        message="Loading dashboard..." 
-        debugInfo={`Auth state: ${isLoading ? 'loading' : 'loaded'}, User: ${user ? 'present' : 'missing'}`}
-        showForceLogout={loadingTimeout}
-      />
-    );
-  }
-
-  // Don't render the content until we're authorized
-  if (!isAuthenticated && !user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <LoadingState 
-          message="Authentication required" 
-          debugInfo="Waiting for authentication or redirect"
-          showForceLogout={true}
-        />
-      </div>
-    );
-  }
 
   return (
     <AppLayout>

@@ -36,7 +36,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        console.log("Auth state changed:", event);
         setSession(newSession);
         
         if (newSession?.user) {
@@ -46,26 +45,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setIsEmailVerified(extendedUser.email_confirmed_at !== null);
           
           // Check if user is admin
-          if (extendedUser.email === 'admin@shiftflex.com') {
-            try {
-              const { data, error } = await supabase.rpc('has_role', { 
-                _user_id: extendedUser.id,
-                _role: 'admin'
-              });
-              
-              setIsAdmin(!!data && !error);
-            } catch (error) {
-              console.error("Error checking admin role:", error);
-              setIsAdmin(false);
-            }
-          } else {
-            setIsAdmin(false);
-          }
+          setIsAdmin(extendedUser.app_metadata?.role === 'admin');
 
           // Handle authentication events
           if (event === 'SIGNED_IN') {
-            // For admin user, check if they're in the user_roles table
-            if (extendedUser.email === 'admin@shiftflex.com') {
+            // For admin user (sfadmin), check if they're in the user_roles table
+            if (extendedUser.email === 'sfadmin') {
               try {
                 // Use type assertions to work around TypeScript errors with Supabase client
                 const { data, error } = await supabase.rpc('has_role', { 
@@ -85,9 +70,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 console.error("Error checking admin role:", error);
               }
             }
-            
-            // Navigate to dashboard on sign in
-            navigate('/dashboard');
           }
         } else {
           setUser(null);
@@ -98,7 +80,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Handle authentication events
         switch (event) {
           case 'SIGNED_IN':
-            // Already handled above
+            // Navigate to dashboard on sign in
+            navigate('/dashboard');
             break;
           case 'SIGNED_OUT':
             // Redirect to login on sign out
@@ -117,7 +100,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      console.log("Getting initial session:", currentSession ? "Found" : "Not found");
       setSession(currentSession);
       
       if (currentSession?.user) {
@@ -125,24 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const extendedUser = currentSession.user as unknown as ExtendedUser;
         setUser(extendedUser);
         setIsEmailVerified(extendedUser.email_confirmed_at !== null);
-        
-        // Check admin status properly - FIX: Use proper Promise handling
-        if (extendedUser.email === 'admin@shiftflex.com') {
-          // Convert the PromiseLike to a Promise explicitly to use catch
-          Promise.resolve(
-            supabase.rpc('has_role', { 
-              _user_id: extendedUser.id,
-              _role: 'admin'
-            })
-          ).then(({ data, error }) => {
-            setIsAdmin(!!data && !error);
-          }).catch((error: any) => { // Now properly typed as a catch handler
-            console.error("Error checking admin role:", error);
-            setIsAdmin(false);
-          });
-        } else {
-          setIsAdmin(false);
-        }
+        setIsAdmin(extendedUser.app_metadata?.role === 'admin');
       }
       
       setIsLoading(false);
@@ -181,18 +146,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const extendedUser = userData.user as unknown as ExtendedUser;
           setUser(extendedUser);
           setIsEmailVerified(extendedUser.email_confirmed_at !== null);
-          
-          // Check admin status properly
-          if (extendedUser.email === 'admin@shiftflex.com') {
-            const { data, error } = await supabase.rpc('has_role', { 
-              _user_id: extendedUser.id,
-              _role: 'admin'
-            });
-            
-            setIsAdmin(!!data && !error);
-          } else {
-            setIsAdmin(false);
-          }
+          setIsAdmin(extendedUser.app_metadata?.role === 'admin');
         }
       } else {
         setUser(null);
