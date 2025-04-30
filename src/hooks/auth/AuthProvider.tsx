@@ -52,19 +52,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // For admin user (sfadmin), check if they're in the user_roles table
             if (extendedUser.email === 'sfadmin') {
               try {
-                // Check user roles using the has_role function via RPC
-                const { data, error } = await supabase.rpc('has_role', { 
+                // Use type assertions to work around TypeScript errors with Supabase client
+                const { data, error } = await (supabase.rpc as any)('has_role', { 
                   _user_id: extendedUser.id,
-                  _role: 'admin' as AppRole
+                  _role: 'admin'
                 });
                 
                 if (!error && !data) {
                   // Add admin role if not already present
-                  await supabase.from('user_roles')
+                  await (supabase.from as any)('user_roles')
                     .insert({
                       user_id: extendedUser.id,
-                      role: 'admin' as AppRole
-                    } as UserRole);
+                      role: 'admin'
+                    });
                 }
               } catch (error) {
                 console.error("Error checking admin role:", error);
