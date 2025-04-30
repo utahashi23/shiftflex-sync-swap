@@ -42,7 +42,8 @@ export const useSwapMatcher = () => {
     try {
       console.log('----------- SWAP MATCHING STARTED -----------');
       
-      // Step 1: Get ALL pending swap requests (not filtered by user)
+      // Step 1: Fetch ALL pending swap requests from ALL users
+      console.log('Fetching ALL pending swap requests from ALL users...');
       const { data: allRequests, error: requestsError } = await supabase
         .from('shift_swap_requests')
         .select('*')
@@ -60,10 +61,11 @@ export const useSwapMatcher = () => {
         return;
       }
       
-      console.log(`Found ${allRequests.length} pending swap requests with preferred dates:`, allRequests);
+      console.log(`Found ${allRequests.length} pending swap requests:`, allRequests);
       
-      // Get all the unique user IDs from the requests
+      // Extract all user IDs and shift IDs we need to fetch
       const userIds = [...new Set(allRequests.map(req => req.requester_id))];
+      const shiftIds = [...new Set(allRequests.map(req => req.requester_shift_id))];
       
       if (userIds.length < 2) {
         toast({
@@ -76,16 +78,16 @@ export const useSwapMatcher = () => {
       
       console.log(`Found ${userIds.length} users with pending requests:`, userIds);
       
-      // Step 2: Get all shifts associated with the requests
-      const shiftIds = allRequests.map(req => req.requester_shift_id);
-      const { data: allShifts, error: shiftsError } = await supabase
+      // Step 2: Fetch all shifts associated with the requests
+      console.log('Fetching shifts for all requests...');
+      const { data: requestShifts, error: shiftsError } = await supabase
         .from('shifts')
         .select('*')
         .in('id', shiftIds);
         
       if (shiftsError) throw shiftsError;
       
-      if (!allShifts || allShifts.length === 0) {
+      if (!requestShifts || requestShifts.length === 0) {
         toast({
           title: "Missing shift data",
           description: "Could not find the shifts associated with swap requests.",
@@ -95,9 +97,10 @@ export const useSwapMatcher = () => {
         return;
       }
       
-      console.log(`Found ${allShifts.length} shifts for the requests:`, allShifts);
+      console.log(`Found ${requestShifts.length} shifts for pending requests:`, requestShifts);
       
-      // Step 3: Get all preferred dates for all requests
+      // Step 3: Fetch all preferred dates for all requests
+      console.log('Fetching preferred dates for all requests...');
       const requestIds = allRequests.map(req => req.id);
       const { data: preferredDates, error: datesError } = await supabase
         .from('shift_swap_preferred_dates')
@@ -118,18 +121,25 @@ export const useSwapMatcher = () => {
       
       console.log(`Found ${preferredDates.length} preferred dates:`, preferredDates);
       
-      // Step 4: Get all shifts from all users to check for conflicts
-      const { data: userShifts, error: userShiftsError } = await supabase
+      // Step 4: Fetch ALL shifts for ALL users to check for conflicts
+      console.log('Fetching all shifts for all users to check for conflicts...');
+      const { data: allUserShifts, error: userShiftsError } = await supabase
         .from('shifts')
         .select('*')
         .in('user_id', userIds);
         
       if (userShiftsError) throw userShiftsError;
       
-      console.log('All user shifts found for conflict checking:', userShifts);
+      if (!allUserShifts) {
+        console.warn('No shifts found for conflict checking');
+      } else {
+        console.log(`Found ${allUserShifts.length} shifts for conflict checking:`, allUserShifts);
+      }
       
-      // Create lookup maps for efficient access
-      const shifts = allShifts.reduce((acc, shift) => {
+      // Build data structures for efficient matching
+      
+      // 1. Create shift lookup with type and normalized date
+      const shiftsById = requestShifts.reduce((acc, shift) => {
         acc[shift.id] = {
           ...shift,
           date: normalizeDate(shift.date),
@@ -138,180 +148,208 @@ export const useSwapMatcher = () => {
         return acc;
       }, {} as Record<string, any>);
       
-      // Map users to their rostered dates
-      const userRosteredDates = (userShifts || []).reduce((acc, shift) => {
-        if (!acc[shift.user_id]) {
-          acc[shift.user_id] = new Set();
-        }
-        acc[shift.user_id].add(normalizeDate(shift.date));
-        return acc;
-      }, {} as Record<string, Set<string>>);
-      
-      // Group requests by user
+      // 2. Group requests by user
       const requestsByUser = allRequests.reduce((acc, req) => {
         if (!acc[req.requester_id]) {
           acc[req.requester_id] = [];
         }
+        
+        const shift = shiftsById[req.requester_shift_id];
+        if (!shift) {
+          console.warn(`Missing shift data for request ${req.id}`);
+          return acc;
+        }
+        
         acc[req.requester_id].push({
           id: req.id,
           shiftId: req.requester_shift_id,
-          shift: shifts[req.requester_shift_id],
+          shift: shift,
           preferredDates: []
         });
         return acc;
       }, {} as Record<string, Array<any>>);
       
-      // Add preferred dates to each request
-      preferredDates.forEach(pref => {
+      // 3. Add preferred dates to each request
+      for (const pref of preferredDates) {
         const request = allRequests.find(r => r.id === pref.request_id);
         if (request) {
-          const normalizedDate = normalizeDate(pref.date);
           const userId = request.requester_id;
-          const requestInMap = requestsByUser[userId]?.find(r => r.id === pref.request_id);
-          if (requestInMap) {
-            requestInMap.preferredDates.push({
+          const userRequests = requestsByUser[userId];
+          if (!userRequests) continue;
+          
+          const requestObj = userRequests.find(r => r.id === pref.request_id);
+          if (requestObj) {
+            requestObj.preferredDates.push({
               id: pref.id,
-              date: normalizedDate,
+              date: normalizeDate(pref.date),
               acceptedTypes: pref.accepted_types || []
             });
           }
         }
-      });
+      }
       
-      console.log('Requests by user with preferred dates:', requestsByUser);
+      // 4. Map users to their rostered dates (for conflict checking)
+      const userRosteredDates = {};
+      if (allUserShifts) {
+        allUserShifts.forEach(shift => {
+          if (!userRosteredDates[shift.user_id]) {
+            userRosteredDates[shift.user_id] = new Set();
+          }
+          userRosteredDates[shift.user_id].add(normalizeDate(shift.date));
+        });
+      }
       
-      // Find matches
+      console.log('Data structures prepared:');
+      console.log('- Shifts by ID:', shiftsById);
+      console.log('- Requests by user:', requestsByUser);
+      console.log('- User rostered dates:', userRosteredDates);
+      
+      // MATCHING ALGORITHM
+      console.log('Starting matching algorithm...');
       let matchesFound = 0;
       
-      // For each user
-      for (const [userId1, requests1] of Object.entries(requestsByUser)) {
-        // For each request from this user
+      // Compare each user's requests with every other user's requests
+      const userIds2 = Object.keys(requestsByUser);
+      for (let i = 0; i < userIds2.length; i++) {
+        const userId1 = userIds2[i];
+        const requests1 = requestsByUser[userId1];
+        
         for (const request1 of requests1) {
-          if (!request1.shift) continue;
+          const shift1 = request1.shift;
+          if (!shift1) continue;
           
-          const offeredDate1 = request1.shift.date;
-          const offeredType1 = request1.shift.type;
+          const offeredDate1 = shift1.date;
+          const offeredType1 = shift1.type;
           
-          // For each other user
-          for (const [userId2, requests2] of Object.entries(requestsByUser)) {
-            // Skip self-matching
-            if (userId1 === userId2) continue;
+          console.log(`\nChecking request from user ${userId1} offering ${offeredDate1} (${offeredType1}) shift`);
+          
+          // Compare with all other users
+          for (let j = 0; j < userIds2.length; j++) {
+            if (i === j) continue; // Skip self comparison
             
-            // For each request from other user
+            const userId2 = userIds2[j];
+            const requests2 = requestsByUser[userId2];
+            
             for (const request2 of requests2) {
-              if (!request2.shift) continue;
+              const shift2 = request2.shift;
+              if (!shift2) continue;
               
-              const offeredDate2 = request2.shift.date;
-              const offeredType2 = request2.shift.type;
+              const offeredDate2 = shift2.date;
+              const offeredType2 = shift2.type;
               
-              console.log(`\nComparing requests:\nUser ${userId1} offering ${offeredDate1} (${offeredType1})\nUser ${userId2} offering ${offeredDate2} (${offeredType2})`);
+              console.log(`Comparing with user ${userId2} offering ${offeredDate2} (${offeredType2}) shift`);
               
-              // Check if user1 wants user2's shift
+              // Check if user1 wants user2's shift (date and type)
               const user1WantsUser2Shift = request1.preferredDates.some(
                 pref => pref.date === offeredDate2 && pref.acceptedTypes.includes(offeredType2)
               );
               
               if (!user1WantsUser2Shift) {
-                console.log(`No match: User ${userId1} doesn't want user ${userId2}'s shift`);
+                console.log(`- No match: User ${userId1} doesn't want user ${userId2}'s shift`);
                 continue;
               }
               
-              // Check if user2 wants user1's shift
+              // Check if user2 wants user1's shift (date and type)
               const user2WantsUser1Shift = request2.preferredDates.some(
                 pref => pref.date === offeredDate1 && pref.acceptedTypes.includes(offeredType1)
               );
               
               if (!user2WantsUser1Shift) {
-                console.log(`No match: User ${userId2} doesn't want user ${userId1}'s shift`);
+                console.log(`- No match: User ${userId2} doesn't want user ${userId1}'s shift`);
                 continue;
               }
               
               // Check for roster conflicts
-              if (userRosteredDates[userId1]?.has(offeredDate2)) {
-                console.log(`Conflict: User ${userId1} is already rostered on ${offeredDate2}`);
+              const user1HasConflict = userRosteredDates[userId1] && userRosteredDates[userId1].has(offeredDate2);
+              if (user1HasConflict) {
+                console.log(`- Conflict: User ${userId1} is already rostered on ${offeredDate2}`);
                 continue;
               }
               
-              if (userRosteredDates[userId2]?.has(offeredDate1)) {
-                console.log(`Conflict: User ${userId2} is already rostered on ${offeredDate1}`);
+              const user2HasConflict = userRosteredDates[userId2] && userRosteredDates[userId2].has(offeredDate1);
+              if (user2HasConflict) {
+                console.log(`- Conflict: User ${userId2} is already rostered on ${offeredDate1}`);
                 continue;
               }
               
               // We have a match!
-              console.log(`MATCH FOUND between users ${userId1} and ${userId2}!`);
+              console.log(`🎉 MATCH FOUND between users ${userId1} and ${userId2}!`);
               
-              // Record the match in potential_matches
-              const { data: matchData, error: matchError } = await supabase
-                .from('shift_swap_potential_matches')
-                .insert({
-                  requester_request_id: request1.id,
-                  acceptor_request_id: request2.id,
-                  requester_shift_id: request1.shiftId,
-                  acceptor_shift_id: request2.shiftId,
-                  match_date: new Date().toISOString().split('T')[0]
-                })
-                .select()
-                .single();
+              try {
+                // Record the match in potential_matches table
+                const { data: matchData, error: matchError } = await supabase
+                  .from('shift_swap_potential_matches')
+                  .insert({
+                    requester_request_id: request1.id,
+                    acceptor_request_id: request2.id,
+                    requester_shift_id: request1.shiftId,
+                    acceptor_shift_id: request2.shiftId,
+                    match_date: new Date().toISOString().split('T')[0]
+                  })
+                  .select()
+                  .single();
+                  
+                if (matchError) {
+                  console.error('Error recording match:', matchError);
+                  continue;
+                }
                 
-              if (matchError) {
-                // Skip if there was an error (likely duplicate match)
-                console.error('Error recording match:', matchError);
-                continue;
-              }
-              
-              console.log('Match recorded:', matchData);
-              
-              // Update the first request
-              const { error: error1 } = await supabase
-                .from('shift_swap_requests')
-                .update({
-                  status: 'matched',
-                  acceptor_id: userId2,
-                  acceptor_shift_id: request2.shiftId
-                })
-                .eq('id', request1.id);
+                console.log('Match recorded:', matchData);
                 
-              if (error1) {
-                console.error('Error updating first request:', error1);
-                continue;
-              }
-              
-              // Update the second request
-              const { error: error2 } = await supabase
-                .from('shift_swap_requests')
-                .update({
-                  status: 'matched',
-                  acceptor_id: userId1,
-                  acceptor_shift_id: request1.shiftId
-                })
-                .eq('id', request2.id);
-                
-              if (error2) {
-                console.error('Error updating second request:', error2);
-                // Try to rollback the first update
-                await supabase
+                // Update the first request to matched status
+                const { error: error1 } = await supabase
                   .from('shift_swap_requests')
                   .update({
-                    status: 'pending',
-                    acceptor_id: null,
-                    acceptor_shift_id: null
+                    status: 'matched',
+                    acceptor_id: userId2,
+                    acceptor_shift_id: request2.shiftId
                   })
                   .eq('id', request1.id);
-                continue;
+                  
+                if (error1) {
+                  console.error('Error updating first request:', error1);
+                  continue;
+                }
+                
+                // Update the second request to matched status
+                const { error: error2 } = await supabase
+                  .from('shift_swap_requests')
+                  .update({
+                    status: 'matched',
+                    acceptor_id: userId1,
+                    acceptor_shift_id: request1.shiftId
+                  })
+                  .eq('id', request2.id);
+                  
+                if (error2) {
+                  console.error('Error updating second request:', error2);
+                  // Try to rollback the first update
+                  await supabase
+                    .from('shift_swap_requests')
+                    .update({
+                      status: 'pending',
+                      acceptor_id: null,
+                      acceptor_shift_id: null
+                    })
+                    .eq('id', request1.id);
+                  continue;
+                }
+                
+                matchesFound++;
+                
+                // Notify the user if they're involved in the match
+                if (userId1 === user.id || userId2 === user.id) {
+                  toast({
+                    title: "Match Found!",
+                    description: `Your shift swap request has been matched.`,
+                  });
+                }
+                
+                // Only match each request once
+                break;
+              } catch (error) {
+                console.error('Error processing match:', error);
               }
-              
-              matchesFound++;
-              
-              // Notify the user if they're involved in the match
-              if (userId1 === user.id || userId2 === user.id) {
-                toast({
-                  title: "Match Found!",
-                  description: `Your shift swap request has been matched.`,
-                });
-              }
-              
-              // Break this inner loop as each request should only be matched once
-              break;
             }
           }
         }
