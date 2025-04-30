@@ -66,7 +66,7 @@ export const useSwapMatcher = () => {
     try {
       console.log('----------- NEW SWAP MATCHING STARTED -----------');
       
-      // Step 1: Get ALL pending swap requests from ALL users
+      // Step 1: Get ALL pending swap requests
       const { data: pendingRequests, error: requestsError } = await supabase
         .from('shift_swap_requests')
         .select('*')
@@ -114,7 +114,7 @@ export const useSwapMatcher = () => {
       
       console.log(`Found ${shiftsData.length} shifts for the pending requests:`, shiftsData);
       
-      // Step 3: Get all preferred dates for ALL users with pending requests
+      // Step 3: Get all preferred dates for ALL requests
       const requestIds = pendingRequests.map(req => req.id);
       const { data: allPreferredDates, error: prefsError } = await supabase
         .from('shift_swap_preferred_dates')

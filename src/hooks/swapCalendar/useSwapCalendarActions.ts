@@ -1,18 +1,9 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Shift } from '@/hooks/useShiftData';
 import { SwapCalendarState, SwapCalendarHelpers, AcceptableShiftTypes } from './types';
-
-// Helper function to normalize date format to YYYY-MM-DD in local timezone
-const normalizeDate = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+import { normalizeDate } from '@/utils/dateUtils';
 
 export const useSwapCalendarActions = (
   state: SwapCalendarState,
