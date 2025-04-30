@@ -22,6 +22,6 @@ export interface AuthContextType {
   resetPassword: (email: string) => Promise<{ success: boolean; error?: any }>;
   updateUser: (data: { firstName?: string; lastName?: string; employeeId?: string; }) => Promise<{ success: boolean; error?: any }>;
   updatePassword: (password: string) => Promise<{ success: boolean; error?: any }>;
-  refreshSession: () => Promise<void>;
+  refreshSession: () => Promise<{ session: Session | null; user: User | null } | void>;
   checkOrganizationCode: (code: string) => Promise<boolean>;
 }
