@@ -2,7 +2,7 @@
 import { User, Session } from '@supabase/supabase-js';
 import { AppRole } from '@/types/database';
 
-export interface ExtendedUser extends User {
+export interface ExtendedUser extends Omit<User, 'app_metadata'> {
   app_metadata?: {
     role?: AppRole;
   };

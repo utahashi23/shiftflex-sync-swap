@@ -2,9 +2,9 @@
 import { supabase } from "./supabase-client";
 
 // Check organization code validity
-export const checkOrganizationCode = (organization: string, code: string): boolean => {
+export const checkOrganizationCode = (code: string): boolean => {
   // For now, hardcode the validation
-  return organization === "Ambulance Victoria" && code === "AV-SS25";
+  return code === "AV-SS25";
 };
 
 // Sign up function

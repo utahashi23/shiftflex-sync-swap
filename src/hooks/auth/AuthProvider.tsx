@@ -13,7 +13,7 @@ import { AuthContextType } from "./types";
 import { ExtendedUser, supabase } from "./supabase-client";
 import { AppRole } from "@/types/database";
 import { 
-  checkOrganizationCode, 
+  checkOrganizationCode as checkOrgCode, 
   signUp as authSignUp, 
   signIn as authSignIn,
   resetPassword as authResetPassword,
@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         if (newSession?.user) {
           // Ensure we're using ExtendedUser type
-          const extendedUser = newSession.user as ExtendedUser;
+          const extendedUser = newSession.user as unknown as ExtendedUser;
           setUser(extendedUser);
           setIsEmailVerified(extendedUser.email_confirmed_at !== null);
           
@@ -104,7 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (currentSession?.user) {
         // Ensure we're using ExtendedUser type
-        const extendedUser = currentSession.user as ExtendedUser;
+        const extendedUser = currentSession.user as unknown as ExtendedUser;
         setUser(extendedUser);
         setIsEmailVerified(extendedUser.email_confirmed_at !== null);
         setIsAdmin(extendedUser.app_metadata?.role === 'admin');
@@ -143,9 +143,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const { data: userData } = await supabase.auth.getUser();
         if (userData.user) {
           // Ensure we're using ExtendedUser type
-          const extendedUser = userData.user as ExtendedUser;
+          const extendedUser = userData.user as unknown as ExtendedUser;
           setUser(extendedUser);
-          setIsEmailVerified(extendedUser.email_verified || false);
+          setIsEmailVerified(extendedUser.email_confirmed_at !== null);
           setIsAdmin(extendedUser.app_metadata?.role === 'admin');
         }
       } else {
@@ -163,20 +163,99 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const value = {
+  // Sign up implementation
+  const signUp = async (email: string, password: string, metadata?: { firstName?: string, lastName?: string, organization?: string, organizationCode?: string, employeeId?: string }) => {
+    try {
+      // Transform the metadata to match what the backend expects
+      const transformedMetadata = {
+        first_name: metadata?.firstName,
+        last_name: metadata?.lastName,
+        organization: metadata?.organization,
+        employee_id: metadata?.employeeId
+      };
+      
+      const { error } = await authSignUp(email, password, transformedMetadata);
+      
+      if (error) {
+        return { success: false, error };
+      }
+      
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error };
+    }
+  };
+
+  // Update user implementation
+  const updateUser = async (data: { firstName?: string; lastName?: string; employeeId?: string; }) => {
+    try {
+      // Transform the data to match what the backend expects
+      const updates = {
+        data: {
+          first_name: data.firstName,
+          last_name: data.lastName,
+          employee_id: data.employeeId
+        }
+      };
+      
+      const { error } = await authUpdateUser(updates);
+      
+      if (error) {
+        return { success: false, error };
+      }
+      
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error };
+    }
+  };
+
+  const value: AuthContextType = {
     user,
     session,
     isLoading,
     isAdmin,
     isEmailVerified,
-    signUp: authSignUp,
-    signIn: authSignIn,
+    signUp,
+    signIn: async (email: string, password: string) => {
+      try {
+        const { error } = await authSignIn(email, password);
+        if (error) {
+          return { success: false, error };
+        }
+        return { success: true };
+      } catch (error: any) {
+        return { success: false, error };
+      }
+    },
     signOut,
-    resetPassword: authResetPassword,
-    updateUser: authUpdateUser,
-    updatePassword: authUpdatePassword,
+    resetPassword: async (email: string) => {
+      try {
+        const { error } = await authResetPassword(email);
+        if (error) {
+          return { success: false, error };
+        }
+        return { success: true };
+      } catch (error: any) {
+        return { success: false, error };
+      }
+    },
+    updateUser,
+    updatePassword: async (password: string) => {
+      try {
+        const { error } = await authUpdatePassword(password);
+        if (error) {
+          return { success: false, error };
+        }
+        return { success: true };
+      } catch (error: any) {
+        return { success: false, error };
+      }
+    },
     refreshSession,
-    checkOrganizationCode,
+    checkOrganizationCode: async (code: string) => {
+      return Promise.resolve(checkOrgCode(code));
+    },
   };
 
   return (

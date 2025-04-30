@@ -50,6 +50,7 @@ const Register = () => {
   const { checkOrganizationCode, signUp } = useAuth();
   const [step, setStep] = useState<'organization' | 'registration'>('organization');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedOrg, setSelectedOrg] = useState<string>('');
   
   // Organization form
   const orgForm = useForm<z.infer<typeof organizationSchema>>({
@@ -72,8 +73,10 @@ const Register = () => {
     },
   });
 
-  const onSubmitOrgForm = (data: z.infer<typeof organizationSchema>) => {
-    if (checkOrganizationCode(data.organization, data.code)) {
+  const onSubmitOrgForm = async (data: z.infer<typeof organizationSchema>) => {
+    const isValid = await checkOrganizationCode(data.code);
+    if (isValid) {
+      setSelectedOrg(data.organization);
       setStep('registration');
     } else {
       toast({
@@ -88,14 +91,15 @@ const Register = () => {
     setIsLoading(true);
     
     try {
-      const { error } = await signUp(data.email, data.password, {
-        first_name: data.firstName,
-        last_name: data.lastName,
-        employee_id: data.employeeId,
+      const { success, error } = await signUp(data.email, data.password, {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        employeeId: data.employeeId,
+        organization: selectedOrg,
       });
 
-      if (error) {
-        throw new Error(error.message);
+      if (!success) {
+        throw new Error(error?.message || "Registration failed");
       }
 
       toast({
