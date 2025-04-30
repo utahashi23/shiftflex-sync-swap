@@ -2,14 +2,26 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
+import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/layouts/AppLayout';
 import ShiftSwapCalendar from '@/components/calendar/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
+import LoadingState from '@/components/LoadingState';
 
 const ShiftSwaps = () => {
-  useAuthRedirect({ protectedRoute: true });
+  const { isLoading } = useAuth();
+  const { isAuthenticated } = useAuthRedirect({ protectedRoute: true });
   const [activeTab, setActiveTab] = useState('calendar');
+  
+  if (isLoading) {
+    return <LoadingState fullScreen message="Loading shift management..." />;
+  }
+
+  // Don't render the content until we're authorized
+  if (!isAuthenticated) {
+    return null; // The redirect will happen via useAuthRedirect
+  }
   
   return (
     <AppLayout>

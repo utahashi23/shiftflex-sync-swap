@@ -36,6 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
+        console.log("Auth state changed:", event);
         setSession(newSession);
         
         if (newSession?.user) {
@@ -46,12 +47,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           
           // Check if user is admin
           if (extendedUser.email === 'admin@shiftflex.com') {
-            const { data, error } = await supabase.rpc('has_role', { 
-              _user_id: extendedUser.id,
-              _role: 'admin'
-            });
-            
-            setIsAdmin(!!data && !error);
+            try {
+              const { data, error } = await supabase.rpc('has_role', { 
+                _user_id: extendedUser.id,
+                _role: 'admin'
+              });
+              
+              setIsAdmin(!!data && !error);
+            } catch (error) {
+              console.error("Error checking admin role:", error);
+              setIsAdmin(false);
+            }
           } else {
             setIsAdmin(false);
           }
@@ -79,6 +85,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 console.error("Error checking admin role:", error);
               }
             }
+            
+            // Navigate to dashboard on sign in
+            navigate('/dashboard');
           }
         } else {
           setUser(null);
@@ -89,8 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Handle authentication events
         switch (event) {
           case 'SIGNED_IN':
-            // Navigate to dashboard on sign in
-            navigate('/dashboard');
+            // Already handled above
             break;
           case 'SIGNED_OUT':
             // Redirect to login on sign out
@@ -109,6 +117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      console.log("Getting initial session:", currentSession ? "Found" : "Not found");
       setSession(currentSession);
       
       if (currentSession?.user) {
