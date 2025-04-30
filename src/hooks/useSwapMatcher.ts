@@ -84,7 +84,7 @@ export const useSwapMatcher = () => {
         return;
       }
       
-      console.log(`Found ${pendingRequests.length} pending swap requests`);
+      console.log(`Found ${pendingRequests.length} pending swap requests:`, pendingRequests);
       
       // Step 2: Get all shifts associated with the requests
       const shiftIds = pendingRequests.map(req => req.requester_shift_id);
@@ -107,11 +107,14 @@ export const useSwapMatcher = () => {
         return;
       }
       
+      console.log(`Found ${shiftsData.length} shifts for the pending requests:`, shiftsData);
+      
       // Step 3: Get all preferred dates for the pending requests
+      const requestIds = pendingRequests.map(req => req.id);
       const { data: allPreferredDates, error: prefsError } = await supabase
         .from('shift_swap_preferred_dates')
         .select('*')
-        .in('shift_id', shiftIds);
+        .in('request_id', requestIds);
         
       if (prefsError) {
         throw prefsError;
@@ -126,6 +129,8 @@ export const useSwapMatcher = () => {
         setIsProcessing(false);
         return;
       }
+      
+      console.log(`Found ${allPreferredDates.length} preferred dates:`, allPreferredDates);
       
       // Step 4: Get all shifts to check roster conflicts
       const { data: allUserShifts, error: allShiftsError } = await supabase
@@ -152,9 +157,20 @@ export const useSwapMatcher = () => {
         userShifts[shift.user_id].add(shift.date);
       });
       
+      console.log('User shifts map built:', Object.keys(userShifts).length);
+      
       // Step 5: Index all swap requests by desired day
       // Mapping from desired date -> array of requests wanting that date
       const requestsByDesiredDay: Record<string, IndexedRequest[]> = {};
+      
+      // Create a map of request_id to its preferred dates for easier access
+      const preferencesByRequest: Record<string, PreferredDate[]> = {};
+      allPreferredDates.forEach(pref => {
+        if (!preferencesByRequest[pref.request_id]) {
+          preferencesByRequest[pref.request_id] = [];
+        }
+        preferencesByRequest[pref.request_id].push(pref);
+      });
       
       // Process each request
       for (const request of pendingRequests) {
@@ -169,9 +185,7 @@ export const useSwapMatcher = () => {
         const offeredShiftType = getShiftType(offeredShift.start_time);
         
         // Get this user's preferred dates
-        const userPreferences = allPreferredDates.filter(
-          pref => pref.shift_id === request.requester_shift_id
-        );
+        const userPreferences = preferencesByRequest[request.id] || [];
         
         // For each preferred date, add to the index
         userPreferences.forEach(pref => {
@@ -219,9 +233,10 @@ export const useSwapMatcher = () => {
         console.log(`Found ${potentialMatches.length} potential users wanting date ${offeredDate}`);
         
         // Get this user's desired dates
-        const userPreferences = allPreferredDates.filter(
-          pref => pref.shift_id === offeredShiftId
-        );
+        const userPreferences = preferencesByRequest[request.id] || [];
+        
+        // Print debug info about user preferences
+        console.log(`User ${requesterId} preferences:`, userPreferences);
         
         for (const potentialMatch of potentialMatches) {
           // Skip if it's the same user
@@ -235,6 +250,7 @@ export const useSwapMatcher = () => {
           const matchDate = potentialMatch.offeredDate;
           const matchShiftType = potentialMatch.offeredShiftType;
           
+          // Find if any of this user's preferences match the potential match's offered date
           const matchingPref = userPreferences.find(pref => 
             pref.date === matchDate && pref.accepted_types.includes(matchShiftType)
           );
@@ -243,6 +259,8 @@ export const useSwapMatcher = () => {
             console.log(`User ${requesterId} doesn't want date ${matchDate} or shift type ${matchShiftType}`);
             continue;
           }
+          
+          console.log(`Found a preference match! User ${requesterId} wants ${matchDate} (${matchShiftType})`);
           
           // Validate: ensure neither user is already rostered on their desired swap days
           // Check if requester is already rostered on the day they want
@@ -286,12 +304,14 @@ export const useSwapMatcher = () => {
         }
       }
       
-      console.log(`Found ${matches.length} mutual matches`);
+      console.log(`Found ${matches.length} mutual matches:`, matches);
       
       // Step 7: Update the database with matches
       let successfulMatches = 0;
       
       for (const match of matches) {
+        console.log(`Processing match:`, match);
+        
         // Update first user's request
         const { error: error1 } = await supabase
           .from('shift_swap_requests')
@@ -332,18 +352,22 @@ export const useSwapMatcher = () => {
         }
         
         // Record the match in our new table
-        const { error: matchError } = await supabase
+        const { data: matchData, error: matchError } = await supabase
           .from('shift_swap_matches')
           .insert({
             requester_id: match.requester.id,
             requester_shift_id: match.requester.shiftId,
             acceptor_id: match.acceptor.id,
             acceptor_shift_id: match.acceptor.shiftId,
-          });
+          })
+          .select()
+          .single();
           
         if (matchError) {
           console.warn(`Could not record match in history: ${matchError.message}`);
           // Non-critical error, we already updated the swap requests
+        } else {
+          console.log(`Successfully recorded match in history:`, matchData);
         }
         
         successfulMatches++;
