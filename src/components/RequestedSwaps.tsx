@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
@@ -166,38 +165,30 @@ const RequestedSwaps = () => {
     try {
       console.log('Deleting swap request with ID:', deleteDialog.requestId);
       
-      // Perform the deletion
-      const { error, count } = await supabase
+      // First delete without trying to get the count - fixed the error
+      const { error } = await supabase
         .from('shift_swap_requests')
         .delete()
-        .eq('id', deleteDialog.requestId)
-        .select('count');
+        .eq('id', deleteDialog.requestId);
         
       if (error) {
         console.error('Database delete error:', error);
         throw error;
       }
       
-      console.log(`Deleted ${count} swap request(s) from the database`);
+      console.log('Swap request deleted successfully');
       
-      if (count === 0) {
-        console.warn('No swap requests were deleted. The record might not exist or you might not have permission.');
-        toast({
-          title: "No Changes",
-          description: "The swap request could not be found or you don't have permission to delete it.",
-          variant: "default"
-        });
-      } else {
-        console.log('Swap request deleted successfully from the database');
-        
-        // Update local state after successful deletion
-        setSwapRequests(prev => prev.filter(req => req.id !== deleteDialog.requestId));
-        
-        toast({
-          title: "Swap Request Deleted",
-          description: "Your swap request has been deleted.",
-        });
-      }
+      // Update local state after successful deletion
+      setSwapRequests(prev => prev.filter(req => req.id !== deleteDialog.requestId));
+      
+      toast({
+        title: "Swap Request Deleted",
+        description: "Your swap request has been deleted."
+      });
+      
+      // Refresh the data from the database to ensure UI is in sync
+      fetchSwapRequests();
+      
     } catch (error) {
       console.error('Error deleting swap request:', error);
       toast({
