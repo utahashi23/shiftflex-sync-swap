@@ -1,4 +1,3 @@
-
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { SwapRequest } from './types';
@@ -51,17 +50,32 @@ export const useDeleteSwapRequest = (
 
   // Delete a single preferred date from a swap request
   const handleDeletePreferredDate = async (requestId: string, dateStr: string) => {
-    // This functionality would require a separate table for preferred dates
-    // For now, we'll just handle the UI aspect
     if (!requestId || !dateStr) return;
     
     setIsLoading(true);
     
-    // In a real app, this would make an API call to update the preferred dates
-    setTimeout(() => {
+    try {
+      console.log('Deleting preferred date:', dateStr, 'from request:', requestId);
+      
+      // Delete the preferred date from the database
+      const { error } = await supabase
+        .from('shift_swap_preferred_dates')
+        .delete()
+        .eq('request_id', requestId)
+        .eq('date', dateStr);
+        
+      if (error) {
+        console.error('Database delete error:', error);
+        throw error;
+      }
+      
+      console.log('Preferred date deleted successfully');
+      
+      // Update local state after successful deletion
       setSwapRequests(prev => {
-        const updated = prev.map(req => {
+        return prev.map(req => {
           if (req.id === requestId) {
+            // Check if this was the last preferred date
             const updatedPreferredDates = req.preferredDates.filter(
               date => date.date !== dateStr
             );
@@ -71,6 +85,7 @@ export const useDeleteSwapRequest = (
               return null;
             }
             
+            // Otherwise update the request with remaining preferred dates
             return {
               ...req,
               preferredDates: updatedPreferredDates
@@ -78,8 +93,6 @@ export const useDeleteSwapRequest = (
           }
           return req;
         }).filter(Boolean) as SwapRequest[];
-        
-        return updated;
       });
       
       toast({
@@ -87,8 +100,16 @@ export const useDeleteSwapRequest = (
         description: "The selected date has been removed from your swap request.",
       });
       
+    } catch (error) {
+      console.error('Error deleting preferred date:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete the preferred date. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return {

@@ -63,7 +63,7 @@ export const useSwapCalendarActions = (
       });
       
       // Create the swap request in the database
-      const { data, error } = await supabase
+      const { data: swapRequestData, error: swapRequestError } = await supabase
         .from('shift_swap_requests')
         .insert({
           requester_id: userId,
@@ -73,17 +73,33 @@ export const useSwapCalendarActions = (
         .select('id')
         .single();
         
-      if (error) throw error;
+      if (swapRequestError) throw swapRequestError;
       
-      if (!data || !data.id) {
+      if (!swapRequestData || !swapRequestData.id) {
         throw new Error('Failed to get ID for new swap request');
       }
       
-      // Now we would store the preferred dates in a separate table
-      // For now, we'll create a separate table to store the preferred dates
-      // This is just a placeholder until we implement the actual database schema
-      console.log('Created swap request with ID:', data.id);
-      console.log('Selected swap dates:', selectedSwapDates);
+      // Convert acceptableShiftTypes object to array for each date
+      const acceptedTypesArray: ("day" | "afternoon" | "night")[] = [];
+      if (acceptableShiftTypes.day) acceptedTypesArray.push("day");
+      if (acceptableShiftTypes.afternoon) acceptedTypesArray.push("afternoon");
+      if (acceptableShiftTypes.night) acceptedTypesArray.push("night");
+      
+      // Now store each preferred date in the preferred_dates table
+      const preferredDatesInserts = selectedSwapDates.map(dateStr => ({
+        request_id: swapRequestData.id,
+        date: dateStr,
+        accepted_types: acceptedTypesArray
+      }));
+      
+      const { error: preferredDatesError } = await supabase
+        .from('shift_swap_preferred_dates')
+        .insert(preferredDatesInserts);
+        
+      if (preferredDatesError) throw preferredDatesError;
+      
+      console.log('Created swap request with ID:', swapRequestData.id);
+      console.log('Stored preferred dates:', preferredDatesInserts);
       
       toast({
         title: "Swap Request Created",

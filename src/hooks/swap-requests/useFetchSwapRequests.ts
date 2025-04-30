@@ -68,10 +68,24 @@ export const useFetchSwapRequests = (user: User | null) => {
           shiftType = 'night';
         }
         
+        // Fetch preferred dates for this request
+        const { data: preferredDatesData, error: preferredDatesError } = await supabase
+          .from('shift_swap_preferred_dates')
+          .select('*')
+          .eq('request_id', request.id);
+          
+        if (preferredDatesError) {
+          console.error('Error fetching preferred dates:', preferredDatesError);
+          continue;
+        }
+        
+        // Format the preferred dates
+        const preferredDates = preferredDatesData?.map(date => ({
+          date: date.date,
+          acceptedTypes: date.accepted_types as ("day" | "afternoon" | "night")[]
+        })) || [];
+        
         // Create the formatted request
-        // Use the user-selected dates (if they exist)
-        // For now, since we're not storing selected dates yet, we'll keep the next day logic
-        // In a real implementation, we would fetch these from a separate table
         formattedRequests.push({
           id: request.id,
           status: request.status,
@@ -83,14 +97,7 @@ export const useFetchSwapRequests = (user: User | null) => {
             endTime: shiftData.end_time.substring(0, 5),    // Format as HH:MM
             type: shiftType
           },
-          preferredDates: [
-            // This would come from a separate table in a full implementation
-            // For demonstration purposes, using the shift date + 1 day
-            {
-              date: new Date(new Date(shiftData.date).getTime() + 86400000).toISOString().split('T')[0],
-              acceptedTypes: [shiftType]
-            }
-          ]
+          preferredDates: preferredDates
         });
       }
       
