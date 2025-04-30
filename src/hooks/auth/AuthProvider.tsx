@@ -119,12 +119,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         // Check admin status properly - FIX: Use proper Promise handling
         if (extendedUser.email === 'admin@shiftflex.com') {
-          supabase.rpc('has_role', { 
-            _user_id: extendedUser.id,
-            _role: 'admin'
-          }).then(({ data, error }) => {
+          // Convert the PromiseLike to a Promise explicitly to use catch
+          Promise.resolve(
+            supabase.rpc('has_role', { 
+              _user_id: extendedUser.id,
+              _role: 'admin'
+            })
+          ).then(({ data, error }) => {
             setIsAdmin(!!data && !error);
-          }).catch((error) => { // Now properly typed as a catch handler
+          }).catch((error: any) => { // Now properly typed as a catch handler
             console.error("Error checking admin role:", error);
             setIsAdmin(false);
           });
