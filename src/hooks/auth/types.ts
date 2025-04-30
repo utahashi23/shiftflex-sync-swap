@@ -1,6 +1,7 @@
 
 import { Session, User, UserResponse, AuthError, AuthTokenResponse } from "@supabase/supabase-js";
 import { ExtendedUser } from "./supabase-client";
+import { AppRole } from "@/types/database";
 
 export type AuthContextType = {
   user: ExtendedUser | null;

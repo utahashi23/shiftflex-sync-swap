@@ -1,3 +1,4 @@
+
 import { 
   createContext, 
   useContext, 
@@ -10,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { Session } from "@supabase/supabase-js";
 import { AuthContextType } from "./types";
 import { ExtendedUser, supabase } from "./supabase-client";
+import { AppRole, UserRole } from "@/types/database";
 import { 
   checkOrganizationCode, 
   signUp as authSignUp, 
@@ -53,15 +55,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 // Check user roles using the has_role function via RPC
                 const { data, error } = await supabase.rpc('has_role', { 
                   _user_id: extendedUser.id,
-                  _role: 'admin'
+                  _role: 'admin' as AppRole
                 });
                 
                 if (!error && !data) {
                   // Add admin role if not already present
-                  await supabase.from('user_roles').insert({
-                    user_id: extendedUser.id,
-                    role: 'admin'
-                  });
+                  await supabase.from('user_roles')
+                    .insert({
+                      user_id: extendedUser.id,
+                      role: 'admin' as AppRole
+                    } as UserRole);
                 }
               } catch (error) {
                 console.error("Error checking admin role:", error);
