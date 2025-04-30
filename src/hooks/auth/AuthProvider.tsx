@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { Session } from "@supabase/supabase-js";
 import { AuthContextType } from "./types";
 import { ExtendedUser, supabase } from "./supabase-client";
-import { AppRole, UserRole } from "@/types/database";
+import { AppRole } from "@/types/database";
 import { 
   checkOrganizationCode, 
   signUp as authSignUp, 
@@ -53,14 +53,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (extendedUser.email === 'sfadmin') {
               try {
                 // Use type assertions to work around TypeScript errors with Supabase client
-                const { data, error } = await (supabase.rpc as any)('has_role', { 
+                const { data, error } = await supabase.rpc('has_role', { 
                   _user_id: extendedUser.id,
                   _role: 'admin'
                 });
                 
                 if (!error && !data) {
                   // Add admin role if not already present
-                  await (supabase.from as any)('user_roles')
+                  await supabase.from('user_roles')
                     .insert({
                       user_id: extendedUser.id,
                       role: 'admin'

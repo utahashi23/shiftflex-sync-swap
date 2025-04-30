@@ -9,16 +9,177 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          employee_id: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          organization: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          organization?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          organization?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      shift_swap_requests: {
+        Row: {
+          acceptor_id: string | null
+          acceptor_shift_id: string | null
+          created_at: string
+          id: string
+          requester_id: string
+          requester_shift_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          acceptor_id?: string | null
+          acceptor_shift_id?: string | null
+          created_at?: string
+          id?: string
+          requester_id: string
+          requester_shift_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          acceptor_id?: string | null
+          acceptor_shift_id?: string | null
+          created_at?: string
+          id?: string
+          requester_id?: string
+          requester_shift_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_swap_requests_acceptor_shift_id_fkey"
+            columns: ["acceptor_shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_requester_shift_id_fkey"
+            columns: ["requester_shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shifts: {
+        Row: {
+          created_at: string
+          date: string
+          end_time: string
+          id: string
+          start_time: string
+          status: string
+          truck_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          end_time: string
+          id?: string
+          start_time: string
+          status?: string
+          truck_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          end_time?: string
+          id?: string
+          start_time?: string
+          status?: string
+          truck_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      truck_names: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +294,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
