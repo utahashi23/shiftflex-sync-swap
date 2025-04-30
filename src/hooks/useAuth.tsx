@@ -19,8 +19,8 @@ import {
 } from "@supabase/supabase-js";
 
 // In a real app, these would come from environment variables
-const supabaseUrl = "https://your-supabase-url.supabase.co";
-const supabaseAnonKey = "your-supabase-anon-key";
+const supabaseUrl = "https://ponhfgbpxehsdlxjpszg.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvbmhmZ2JweGVoc2RseGpwc3pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5ODM0NDcsImV4cCI6MjA2MTU1OTQ0N30.-n7sUFjxDJUCpMMA0AGnXlQCkaVt31dER91ZQLO3jDs";
 
 // Extended User type to include the properties we need
 interface ExtendedUser extends User {
@@ -133,7 +133,7 @@ const createMockSupabaseClient = () => {
         }
         
         // For demo - Reject if user hasn't verified email
-        if (!currentUser?.email_verified) {
+        if (currentUser && !currentUser.email_verified) {
           return { 
             data: { user: currentUser, session: null },
             error: { message: 'Email not verified' } as AuthError 
@@ -206,11 +206,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const { data: userData } = await supabase.auth.getUser();
           
           if (userData.user) {
-            setUser(userData.user);
-            setIsEmailVerified(userData.user.email_verified || false);
+            // Ensure we're using ExtendedUser type
+            const extendedUser = userData.user as ExtendedUser;
+            setUser(extendedUser);
+            setIsEmailVerified(extendedUser.email_verified || false);
             
             // Check if user is admin
-            setIsAdmin(userData.user.app_metadata?.role === 'admin');
+            setIsAdmin(extendedUser.app_metadata?.role === 'admin');
           }
         }
       } catch (error) {
@@ -231,12 +233,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
-        setUser(session?.user || null);
         
         if (session?.user) {
-          setIsEmailVerified(session.user.email_verified || false);
-          setIsAdmin(session.user.app_metadata?.role === 'admin');
+          // Ensure we're using ExtendedUser type
+          const extendedUser = session.user as ExtendedUser;
+          setUser(extendedUser);
+          setIsEmailVerified(extendedUser.email_verified || false);
+          setIsAdmin(extendedUser.app_metadata?.role === 'admin');
         } else {
+          setUser(null);
           setIsEmailVerified(false);
           setIsAdmin(false);
         }
@@ -330,9 +335,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (sessionData.session) {
         const { data: userData } = await supabase.auth.getUser();
         if (userData.user) {
-          setUser(userData.user);
-          setIsEmailVerified(userData.user.email_verified || false);
-          setIsAdmin(userData.user.app_metadata?.role === 'admin');
+          // Ensure we're using ExtendedUser type
+          const extendedUser = userData.user as ExtendedUser;
+          setUser(extendedUser);
+          setIsEmailVerified(extendedUser.email_verified || false);
+          setIsAdmin(extendedUser.app_metadata?.role === 'admin');
         }
       } else {
         setUser(null);
