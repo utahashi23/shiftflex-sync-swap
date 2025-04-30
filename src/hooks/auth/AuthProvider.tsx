@@ -9,8 +9,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { Session } from "@supabase/supabase-js";
-import { AuthContextType } from "./types";
-import { ExtendedUser, supabase } from "./supabase-client";
+import { AuthContextType, ExtendedUser } from "./types";
+import { supabase } from "./supabase-client";
 import { AppRole } from "@/types/database";
 import { 
   checkOrganizationCode as checkOrgCode, 
