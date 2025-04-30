@@ -21,7 +21,7 @@ interface SwapRequest {
 
 interface PreferredDate {
   id: string;
-  shift_id: string;
+  request_id: string;
   date: string;
   accepted_types: string[];
 }
@@ -110,6 +110,7 @@ export const useSwapMatcher = () => {
       console.log(`Found ${shiftsData.length} shifts for the pending requests:`, shiftsData);
       
       // Step 3: Get all preferred dates for the pending requests
+      // FIXED: Use request_id instead of shift_id to fetch preferred dates
       const requestIds = pendingRequests.map(req => req.id);
       const { data: allPreferredDates, error: prefsError } = await supabase
         .from('shift_swap_preferred_dates')
@@ -177,7 +178,7 @@ export const useSwapMatcher = () => {
         const offeredShift = shifts[request.requester_shift_id];
         
         if (!offeredShift) {
-          console.log(`Could not find shift data for request ${request.id}`);
+          console.error(`Could not find shift data for request ${request.id}`);
           continue;
         }
         
@@ -220,6 +221,7 @@ export const useSwapMatcher = () => {
         const offeredShift = shifts[offeredShiftId];
         
         if (!offeredShift) {
+          console.error(`Could not find shift data for requestId ${request.id}`);
           continue;
         }
         
@@ -228,9 +230,15 @@ export const useSwapMatcher = () => {
         
         console.log(`\nChecking request ${request.id} offering ${offeredDate} (${offeredShiftType})`);
         
-        // Find all requests wanting this user's offered day
+        // FIXED: This was the key issue - we need to check all dates, not just the offered date
+        // Check if anyone wants the date this user is offering
         const potentialMatches = requestsByDesiredDay[offeredDate] || [];
-        console.log(`Found ${potentialMatches.length} potential users wanting date ${offeredDate}`);
+        console.log(`Found ${potentialMatches.length} potential users wanting date ${offeredDate}:`, potentialMatches);
+        
+        if (potentialMatches.length === 0) {
+          console.log(`No users want the date ${offeredDate}`);
+          continue;
+        }
         
         // Get this user's desired dates
         const userPreferences = preferencesByRequest[request.id] || [];
@@ -241,19 +249,26 @@ export const useSwapMatcher = () => {
         for (const potentialMatch of potentialMatches) {
           // Skip if it's the same user
           if (potentialMatch.requesterId === requesterId) {
+            console.log(`Skipping self-match for user ${requesterId}`);
             continue;
           }
           
-          console.log(`Checking potential match with user ${potentialMatch.requesterId}`);
+          console.log(`Checking potential match with user ${potentialMatch.requesterId} offering ${potentialMatch.offeredDate} (${potentialMatch.offeredShiftType})`);
           
           // Check if this user wants any of the potential match's offered days
           const matchDate = potentialMatch.offeredDate;
           const matchShiftType = potentialMatch.offeredShiftType;
           
           // Find if any of this user's preferences match the potential match's offered date
-          const matchingPref = userPreferences.find(pref => 
-            pref.date === matchDate && pref.accepted_types.includes(matchShiftType)
-          );
+          const matchingPref = userPreferences.find(pref => {
+            const preferenceDate = pref.date;
+            const acceptedTypes = pref.accepted_types || [];
+            
+            console.log(`Comparing user preference date ${preferenceDate} to potential match date ${matchDate}`);
+            console.log(`User's accepted shift types for this date:`, acceptedTypes);
+            
+            return preferenceDate === matchDate && acceptedTypes.includes(matchShiftType);
+          });
           
           if (!matchingPref) {
             console.log(`User ${requesterId} doesn't want date ${matchDate} or shift type ${matchShiftType}`);
@@ -279,6 +294,9 @@ export const useSwapMatcher = () => {
           // We have a match!
           console.log(`MATCH FOUND! User ${requesterId} and User ${potentialMatch.requesterId}`);
           
+          // Get the potential match's request ID
+          const potentialMatchRequestId = potentialMatch.requestId;
+          
           // Record the match
           matches.push({
             requester: {
@@ -289,7 +307,7 @@ export const useSwapMatcher = () => {
             },
             acceptor: {
               id: potentialMatch.requesterId,
-              requestId: potentialMatch.requestId,
+              requestId: potentialMatchRequestId,
               shiftId: potentialMatch.offeredShiftId,
               date: matchDate
             }
@@ -297,7 +315,7 @@ export const useSwapMatcher = () => {
           
           // Mark both requests as processed
           processedRequests.add(request.id);
-          processedRequests.add(potentialMatch.requestId);
+          processedRequests.add(potentialMatchRequestId);
           
           // No need to check other potential matches for this request
           break;
