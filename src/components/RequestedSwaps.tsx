@@ -211,8 +211,11 @@ const RequestedSwaps = () => {
                     </Badge>
                   </div>
                   <div className="text-sm">
-                    <Badge variant={swap.requesterShift.type === 'day' ? 'yellow' : 
-                           swap.requesterShift.type === 'afternoon' ? 'orange' : 'blue'}>
+                    <Badge variant="secondary" className={
+                      swap.requesterShift.type === 'day' ? "bg-yellow-100 text-yellow-800" : 
+                      swap.requesterShift.type === 'afternoon' ? "bg-orange-100 text-orange-800" : 
+                      "bg-blue-100 text-blue-800"
+                    }>
                       {swap.requesterShift.type.charAt(0).toUpperCase() + swap.requesterShift.type.slice(1)} Shift
                     </Badge>
                   </div>
