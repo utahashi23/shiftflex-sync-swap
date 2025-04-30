@@ -166,25 +166,38 @@ const RequestedSwaps = () => {
     try {
       console.log('Deleting swap request with ID:', deleteDialog.requestId);
       
-      const { error } = await supabase
+      // Perform the deletion
+      const { error, count } = await supabase
         .from('shift_swap_requests')
         .delete()
-        .eq('id', deleteDialog.requestId);
+        .eq('id', deleteDialog.requestId)
+        .select('count');
         
       if (error) {
         console.error('Database delete error:', error);
         throw error;
       }
       
-      console.log('Swap request deleted successfully from the database');
+      console.log(`Deleted ${count} swap request(s) from the database`);
       
-      // Update local state after successful deletion
-      setSwapRequests(prev => prev.filter(req => req.id !== deleteDialog.requestId));
-      
-      toast({
-        title: "Swap Request Deleted",
-        description: "Your swap request has been deleted.",
-      });
+      if (count === 0) {
+        console.warn('No swap requests were deleted. The record might not exist or you might not have permission.');
+        toast({
+          title: "No Changes",
+          description: "The swap request could not be found or you don't have permission to delete it.",
+          variant: "default"
+        });
+      } else {
+        console.log('Swap request deleted successfully from the database');
+        
+        // Update local state after successful deletion
+        setSwapRequests(prev => prev.filter(req => req.id !== deleteDialog.requestId));
+        
+        toast({
+          title: "Swap Request Deleted",
+          description: "Your swap request has been deleted.",
+        });
+      }
     } catch (error) {
       console.error('Error deleting swap request:', error);
       toast({

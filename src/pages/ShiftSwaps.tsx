@@ -25,7 +25,12 @@ const ShiftSwaps = () => {
         <Tabs 
           defaultValue="calendar" 
           value={activeTab}
-          onValueChange={setActiveTab}
+          onValueChange={(value) => {
+            // Force a refresh of the components when switching tabs
+            // by setting active tab to an empty string first
+            setActiveTab('');
+            setTimeout(() => setActiveTab(value), 10);
+          }}
           className="w-full"
         >
           <TabsList className="grid grid-cols-3 mb-8">
