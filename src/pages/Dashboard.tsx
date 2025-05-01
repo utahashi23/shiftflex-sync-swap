@@ -140,7 +140,7 @@ const Dashboard = () => {
             console.log('RPC admin test result:', rpcData);
             setRlsTestData(prev => ({
               ...prev,
-              rpcQuery: rpcData || []
+              rpcQuery: rpcData ? rpcData : []
             }));
           }
         } catch (rpcErr: any) {
