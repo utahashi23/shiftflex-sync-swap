@@ -37,8 +37,8 @@ const Dashboard = () => {
         isLoading={isLoading} 
       />
 
-      {/* Enhanced Debug Test Block - Will be removed after testing */}
-      <DashboardDebug />
+      {/* Debug panel is hidden */}
+      <DashboardDebug isVisible={false} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <UpcomingShifts 
