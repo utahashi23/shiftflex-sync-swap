@@ -16,11 +16,11 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 
 const Dashboard = () => {
   useAuthRedirect({ protectedRoute: true });
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { stats, isLoading } = useDashboardData(user);
   const [totalUsers, setTotalUsers] = useState<number>(0);
   const [isLoadingUsers, setIsLoadingUsers] = useState<boolean>(true);
-  const [profiles, setProfiles] = useState<Array<{ id: string, first_name: string | null, last_name: string | null }>>([]);
+  const [profiles, setProfiles] = useState<Array<{ id: string, first_name: string | null, last_name: string | null, email?: string }>>([]); 
   const [isLoadingProfiles, setIsLoadingProfiles] = useState<boolean>(true);
 
   useEffect(() => {
@@ -48,17 +48,48 @@ const Dashboard = () => {
     const fetchProfiles = async () => {
       setIsLoadingProfiles(true);
       try {
-        // Fetch all profiles without any filters
+        // Fetch all profiles without any filters - RLS policies will control access
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name');
+          .select('id, first_name, last_name')
+          .order('created_at', { ascending: false });
 
         if (error) {
           console.error('Error fetching profiles:', error);
         } else {
           console.log('Fetched profiles:', data);
           console.log('Total number of profiles fetched:', data?.length || 0);
-          setProfiles(data || []);
+          
+          // If admin, we can fetch email addresses from auth.users for better profile display
+          if (isAdmin && data && data.length > 0) {
+            const userIds = data.map(profile => profile.id);
+            
+            // This will only work for admins due to RLS policies
+            const { data: usersData, error: usersError } = await supabase
+              .from('users')
+              .select('id, email')
+              .in('id', userIds);
+              
+            if (!usersError && usersData) {
+              // Create a map of user IDs to emails
+              const emailMap = usersData.reduce((acc, user) => {
+                acc[user.id] = user.email;
+                return acc;
+              }, {});
+              
+              // Add emails to profiles
+              const profilesWithEmail = data.map(profile => ({
+                ...profile,
+                email: emailMap[profile.id]
+              }));
+              
+              setProfiles(profilesWithEmail);
+            } else {
+              setProfiles(data);
+            }
+          } else {
+            setProfiles(data);
+          }
         }
       } catch (error) {
         console.error('Error fetching profiles:', error);
@@ -69,7 +100,7 @@ const Dashboard = () => {
 
     fetchUserCount();
     fetchProfiles();
-  }, []);
+  }, [isAdmin, user]);
 
   return (
     <AppLayout>
@@ -144,6 +175,7 @@ const Dashboard = () => {
                     <TableHead>User ID</TableHead>
                     <TableHead>First Name</TableHead>
                     <TableHead>Last Name</TableHead>
+                    {isAdmin && <TableHead>Email</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -152,6 +184,7 @@ const Dashboard = () => {
                       <TableCell className="font-mono text-xs">{profile.id.substring(0, 8)}...</TableCell>
                       <TableCell>{profile.first_name || 'N/A'}</TableCell>
                       <TableCell>{profile.last_name || 'N/A'}</TableCell>
+                      {isAdmin && <TableCell>{profile.email || 'N/A'}</TableCell>}
                     </TableRow>
                   ))}
                 </TableBody>
