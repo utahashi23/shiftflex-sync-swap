@@ -1,9 +1,11 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { fetchAllShifts, fetchAllPreferredDates, fetchAllSwapRequests } from '@/utils/rls-bypass';
 import { createLookupMaps } from '@/utils/shiftUtils';
-import { checkSwapCompatibility, recordShiftMatch } from '@/utils/swapMatchingLogic';
+import { 
+  checkSwapCompatibility, 
+  recordShiftMatch 
+} from '@/utils/swap-matching';
 
 /**
  * Fetch all necessary data for swap matching
