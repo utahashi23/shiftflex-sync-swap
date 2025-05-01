@@ -122,16 +122,10 @@ export const useSwapCalendarActions = (
     }
   };
   
-  const changeMonth = (direction: 'prev' | 'next') => {
+  // Updated to accept a number parameter instead of 'prev' | 'next'
+  const changeMonth = (increment: number) => {
     const currentDate = new Date(state.currentDate);
-    let newDate;
-    
-    if (direction === 'prev') {
-      newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-    } else {
-      newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-    }
-    
+    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + increment, 1);
     setCurrentDate(newDate);
   };
   
