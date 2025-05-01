@@ -91,7 +91,7 @@ const Dashboard = () => {
           <div className="flex items-center gap-2 bg-secondary/60 px-4 py-2 rounded-lg">
             <FileText className="h-5 w-5 text-primary" />
             <div>
-              <span className="text-sm text-gray-500">Active Swap Requests</span>
+              <span className="text-sm text-gray-500">Active Swap Requests (All Users)</span>
               <p className="font-medium">{isLoadingSwaps ? '...' : totalActiveSwaps}</p>
             </div>
           </div>
