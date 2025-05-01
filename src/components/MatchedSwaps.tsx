@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
@@ -50,9 +49,12 @@ interface MatchedSwap {
 
 interface UserProfile {
   id: string;
-  first_name?: string;
-  last_name?: string;
   email?: string;
+  user_metadata?: {
+    first_name?: string;
+    last_name?: string;
+  };
+  created_at?: string;
 }
 
 interface MatchedSwapsProps {
@@ -86,31 +88,81 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
     setIsLoading(true);
     
     try {
-      console.log('TEST MODE: Fetching all users');
+      console.log('TEST MODE: Fetching all users from auth');
       
-      // Fetch profiles for all users
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name');
+      // Fetch all users from auth.users via admin API
+      const { data: authUsers, error: authUsersError } = await supabase.auth.admin.listUsers();
         
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-        throw profilesError;
+      if (authUsersError) {
+        console.error('Error fetching auth users:', authUsersError);
+        
+        // Fallback to profiles if we can't access auth users (common for non-admin users)
+        console.log('Falling back to profiles table');
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name');
+          
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+          throw profilesError;
+        }
+        
+        console.log('TEST MODE: Found profiles:', profiles?.length || 0);
+        
+        // Convert profiles to user profiles for display
+        const userProfiles: UserProfile[] = profiles?.map(profile => ({
+          id: profile.id,
+          user_metadata: {
+            first_name: profile.first_name || 'Unknown',
+            last_name: profile.last_name || 'User',
+          }
+        })) || [];
+        
+        setUsers(userProfiles);
+        return;
       }
       
-      console.log('TEST MODE: Found profiles:', profiles?.length || 0);
-      
-      // Convert to user profiles for display
-      const userProfiles: UserProfile[] = profiles?.map(profile => ({
-        id: profile.id,
-        first_name: profile.first_name || 'Unknown',
-        last_name: profile.last_name || 'User',
-      })) || [];
-      
-      setUsers(userProfiles);
+      if (authUsers?.users) {
+        console.log('TEST MODE: Found auth users:', authUsers.users.length);
+        setUsers(authUsers.users);
+      } else {
+        console.log('No auth users found in response');
+        setUsers([]);
+      }
       
     } catch (error) {
       console.error('Error fetching users:', error);
+      
+      // Try one more alternative approach - fetch users who have shifts
+      try {
+        console.log('Attempting to fetch users who have shifts');
+        const { data: shiftUsers, error: shiftUsersError } = await supabase
+          .from('shifts')
+          .select('user_id')
+          .distinct();
+          
+        if (shiftUsersError) {
+          console.error('Error fetching users with shifts:', shiftUsersError);
+          throw shiftUsersError;
+        }
+        
+        if (shiftUsers && shiftUsers.length > 0) {
+          const usersList: UserProfile[] = shiftUsers.map(u => ({
+            id: u.user_id,
+            email: `user-${u.user_id.substring(0, 6)}@example.com`,
+          }));
+          
+          console.log('Found users with shifts:', usersList.length);
+          setUsers(usersList);
+        } else {
+          // Last resort - set empty array
+          setUsers([]);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback users fetch failed:', fallbackError);
+        setUsers([]);
+      }
+      
       toast({
         title: "Test Mode Error",
         description: "There was a problem loading user data. " + (error instanceof Error ? error.message : ''),
@@ -178,21 +230,27 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
       
       console.log('TEST MODE: Found shifts:', shiftsData?.length || 0);
       
-      // Separately fetch profiles to get names
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*');
+      // Separately fetch profiles to get names - using users endpoint in Supabase
+      let userProfilesMap: Record<string, any> = {};
       
-      if (profilesError) {
-        console.log('Note: Could not fetch profiles, will use placeholder names:', profilesError);
-      }
-      
-      // Create a profiles lookup for easy access
-      const profilesMap: Record<string, any> = {};
-      if (profilesData) {
-        profilesData.forEach(profile => {
-          profilesMap[profile.id] = profile;
-        });
+      try {
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name');
+        
+        if (!userError && userData) {
+          userData.forEach(profile => {
+            userProfilesMap[profile.id] = {
+              first_name: profile.first_name || 'Unknown',
+              last_name: profile.last_name || 'User'
+            };
+          });
+          console.log('Found user profiles:', userData.length);
+        } else {
+          console.log('Note: Could not fetch profiles:', userError);
+        }
+      } catch (profileError) {
+        console.log('Error fetching profiles:', profileError);
       }
       
       // Process all requests for display
@@ -240,9 +298,13 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
           // Get user name if available
           let userName = 'Unknown User';
           const userId = isOriginal ? request.requester_id : (request.acceptor_id || '');
-          if (userId && profilesMap[userId]) {
-            const profile = profilesMap[userId];
+          
+          if (userId && userProfilesMap[userId]) {
+            const profile = userProfilesMap[userId];
             userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unnamed User';
+          } else if (userId) {
+            // If no profile found, just use truncated user ID
+            userName = `User ${userId.substring(0, 6)}`;
           }
             
           return {
@@ -346,17 +408,38 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
       // Fetch all shift details
       const { data: shiftsData, error: shiftsError } = await supabase
         .from('shifts')
-        .select('*, profiles(first_name, last_name)')
+        .select('*')
         .in('id', allShiftIds);
         
       if (shiftsError) throw shiftsError;
       
+      // Get profiles data separately to avoid foreign key error
+      const userIds = [
+        ...(activeMatches || []).map(m => m.requester_id),
+        ...(activeMatches || []).map(m => m.acceptor_id).filter(Boolean),
+        ...(completedMatches || []).map(m => m.requester_id),
+        ...(completedMatches || []).map(m => m.acceptor_id).filter(Boolean)
+      ].filter(Boolean) as string[];
+      
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', userIds);
+        
+      // Create profiles lookup
+      const profilesMap: Record<string, any> = {};
+      if (!profilesError && profilesData) {
+        profilesData.forEach(profile => {
+          profilesMap[profile.id] = profile;
+        });
+      }
+      
       // Process active matches
-      const formattedActiveMatches = processSwapRequests(activeMatches || [], shiftsData || [], user.id);
+      const formattedActiveMatches = processSwapRequests(activeMatches || [], shiftsData || [], user.id, profilesMap);
       setSwapRequests(formattedActiveMatches);
       
       // Process completed matches
-      const formattedCompletedMatches = processSwapRequests(completedMatches || [], shiftsData || [], user.id);
+      const formattedCompletedMatches = processSwapRequests(completedMatches || [], shiftsData || [], user.id, profilesMap);
       setPastSwaps(formattedCompletedMatches);
     } catch (error) {
       console.error('Error fetching matched swaps:', error);
@@ -374,7 +457,8 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
   const processSwapRequests = (
     requests: any[], 
     shifts: any[], 
-    currentUserId: string
+    currentUserId: string,
+    profilesMap: Record<string, any> = {}
   ): MatchedSwap[] => {
     return requests
       .map(request => {
@@ -403,11 +487,14 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
             type = 'night';
           }
           
-          // Get colleague name if available
-          const hasProfile = shift.profiles && (shift.profiles.first_name || shift.profiles.last_name);
-          const colleague = hasProfile 
-            ? `${shift.profiles.first_name || ''} ${shift.profiles.last_name || ''}`.trim()
-            : 'Unnamed Colleague';
+          // Get colleague name from profiles map
+          let colleague = 'Unknown User';
+          const userId = isOriginal ? request.requester_id : request.acceptor_id;
+          
+          if (userId && profilesMap[userId]) {
+            const profile = profilesMap[userId];
+            colleague = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unnamed User';
+          }
             
           return {
             id: shift.id,
@@ -416,7 +503,7 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
             startTime: shift.start_time.substring(0, 5),
             endTime: shift.end_time.substring(0, 5),
             type,
-            colleagueType: 'Unknown', // We don't have this info in the DB yet
+            colleagueType: 'Unknown',
             ...(isOriginal ? {} : { colleague })
           };
         };
@@ -431,7 +518,6 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
       .filter(Boolean) as MatchedSwap[];
   };
 
-  // Accept swap
   const handleAcceptSwap = async () => {
     if (!confirmDialog.swapId || !user) return;
     
@@ -561,7 +647,10 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
               <Users className="h-12 w-12 text-gray-300 mb-3" />
               <h3 className="text-xl font-medium">No Users Found</h3>
-              <p className="text-muted-foreground mt-2">There are no users in the database.</p>
+              <p className="text-muted-foreground mt-2">
+                No users found in the system. This could be because the Auth API access 
+                is restricted or there are no users registered yet.
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -574,7 +663,7 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
                       <Users className="h-4 w-4 text-gray-600" />
                     </div>
                     <div className="truncate">
-                      {user.first_name} {user.last_name}
+                      {user.user_metadata?.first_name || user.email?.split('@')[0] || 'User'} {user.user_metadata?.last_name || ''}
                     </div>
                   </CardTitle>
                 </CardHeader>
@@ -586,6 +675,18 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
                         <div className="text-muted-foreground">User ID</div>
                         <div className="truncate font-mono text-xs">{user.id}</div>
                       </div>
+                      {user.email && (
+                        <div>
+                          <div className="text-muted-foreground">Email</div>
+                          <div className="truncate">{user.email}</div>
+                        </div>
+                      )}
+                      {user.created_at && (
+                        <div>
+                          <div className="text-muted-foreground">Created</div>
+                          <div>{new Date(user.created_at).toLocaleDateString()}</div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -766,76 +867,4 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
                 <div className="flex justify-between items-center pt-2">
                   <div className="flex items-center">
                     <div className={cn(
-                      "px-2 py-1 text-xs font-medium rounded-full",
-                      swap.status === 'pending' ? "bg-blue-100 text-blue-800" : 
-                      swap.status === 'matched' ? "bg-yellow-100 text-yellow-800" :
-                      "bg-green-100 text-green-800"
-                    )}>
-                      {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
-                    </div>
-                  </div>
-                  
-                  {!testMode && activeTab === 'active' ? (
-                    <Button onClick={() => setConfirmDialog({ isOpen: true, swapId: swap.id })}>
-                      <Check className="h-4 w-4 mr-1" />
-                      Accept Swap
-                    </Button>
-                  ) : !testMode && (
-                    <div className="text-xs text-muted-foreground">
-                      This swap will be removed on {formatDate('2025-05-30')}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))
-      )}
-
-      {/* Accept Swap Confirmation Dialog */}
-      <Dialog
-        open={confirmDialog.isOpen}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setConfirmDialog({ isOpen: false, swapId: null });
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Accept Shift Swap</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to accept this shift swap? This action will notify the other party and update your roster.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {confirmDialog.swapId && (
-            <div className="bg-amber-50 border border-amber-200 p-3 rounded-md">
-              <p className="text-sm text-amber-800">
-                <strong>Note:</strong> If you have a shared calendar, you'll need to manually update your external calendar to reflect this swap.
-              </p>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmDialog({ isOpen: false, swapId: null })}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAcceptSwap}
-              disabled={isLoading}
-            >
-              {isLoading ? "Accepting..." : "Accept Swap"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-export default MatchedSwapsComponent;
+                      "px-
