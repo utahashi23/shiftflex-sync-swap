@@ -3,10 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
-import { Clock, Repeat, Check, Calendar, CalendarClock, Users, User } from 'lucide-react';
+import { Clock, Repeat, Check, Calendar, CalendarClock, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 
 // Import refactored components
 import StatCard from '@/components/dashboard/StatCard';
@@ -20,8 +19,6 @@ const Dashboard = () => {
   const { stats, isLoading } = useDashboardData(user);
   const [totalUsers, setTotalUsers] = useState<number>(0);
   const [isLoadingUsers, setIsLoadingUsers] = useState<boolean>(true);
-  const [profiles, setProfiles] = useState<Array<{ id: string, first_name: string | null, last_name: string | null, email?: string }>>([]); 
-  const [isLoadingProfiles, setIsLoadingProfiles] = useState<boolean>(true);
 
   useEffect(() => {
     const fetchUserCount = async () => {
@@ -45,31 +42,7 @@ const Dashboard = () => {
       }
     };
 
-    const fetchProfiles = async () => {
-      setIsLoadingProfiles(true);
-      try {
-        // Fetch all profiles without any filters - RLS policies will control access
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, email')
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.error('Error fetching profiles:', error);
-        } else {
-          console.log('Fetched profiles:', data);
-          console.log('Total number of profiles fetched:', data?.length || 0);
-          setProfiles(data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching profiles:', error);
-      } finally {
-        setIsLoadingProfiles(false);
-      }
-    };
-
     fetchUserCount();
-    fetchProfiles();
   }, []);
 
   return (
@@ -122,46 +95,6 @@ const Dashboard = () => {
           icon={<Check className="h-5 w-5 text-primary" />}
           isLoading={isLoading}
         />
-      </div>
-
-      {/* User Profiles List */}
-      <div className="mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" />
-              User Profiles ({profiles.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingProfiles ? (
-              <div className="flex justify-center py-4">Loading profiles...</div>
-            ) : profiles.length === 0 ? (
-              <div className="text-center py-4 text-muted-foreground">No profiles found</div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User ID</TableHead>
-                    <TableHead>First Name</TableHead>
-                    <TableHead>Last Name</TableHead>
-                    {isAdmin && <TableHead>Email</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {profiles.map((profile) => (
-                    <TableRow key={profile.id}>
-                      <TableCell className="font-mono text-xs">{profile.id.substring(0, 8)}...</TableCell>
-                      <TableCell>{profile.first_name || 'N/A'}</TableCell>
-                      <TableCell>{profile.last_name || 'N/A'}</TableCell>
-                      {isAdmin && <TableCell>{profile.email || 'N/A'}</TableCell>}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
