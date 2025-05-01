@@ -1,8 +1,8 @@
+
 import { useMatchedSwaps } from './matched-swaps/useMatchedSwaps';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
 import { Button } from "./ui/button";
-import { DebugPanel } from './matched-swaps/DebugPanel';
 import {
   Tabs,
   TabsContent,
@@ -21,7 +21,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   const {
     matches,
     pastMatches,
-    rawApiData,
     isLoading,
     error,
     fetchMatches
@@ -93,15 +92,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           />
         </TabsContent>
       </Tabs>
-
-      {/* Debug panel */}
-      <DebugPanel
-        matches={matches}
-        rawData={rawApiData}
-        error={error}
-        onRefresh={handleFindMatches}
-        isLoading={isLoading}
-      />
 
       <SwapConfirmDialog
         open={confirmDialog.isOpen}
