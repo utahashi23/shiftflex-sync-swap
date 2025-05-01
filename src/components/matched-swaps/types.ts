@@ -1,23 +1,58 @@
 
-export interface ShiftDetail {
-  id: string;
-  date: string;
-  title: string;
-  startTime: string;
-  endTime: string;
-  type: string;
-  colleagueType?: string;
-  colleague?: string;
-}
+// Type definitions for the matched swaps functionality
 
-export interface MatchedSwap {
+export interface SwapMatch {
   id: string;
-  originalShift: ShiftDetail;
-  matchedShift: ShiftDetail;
   status: string;
+  myShift: {
+    id: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    truckName: string | null;
+    type: string;
+  };
+  otherShift: {
+    id: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    truckName: string | null;
+    type: string;
+    userId: string;
+    userName: string;
+  };
+  myRequestId: string;
+  otherRequestId: string;
+  createdAt: string;
 }
 
 export interface ConfirmDialogState {
   isOpen: boolean;
-  swapId: string | null;
+  matchId: string | null;
+}
+
+// Define a type for matched swaps used in older files (for compatibility)
+export type MatchedSwap = {
+  id: string;
+  originalShift: {
+    id: string;
+    date: string;
+    type: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+    colleagueType: string;
+  };
+  matchedShift: {
+    id: string;
+    date: string;
+    type: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+    colleagueType: string;
+    colleague: string;
+  };
+  status: string;
 }
