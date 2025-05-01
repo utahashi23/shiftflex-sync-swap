@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { getMonthDateRange } from '@/utils/dateUtils';
-import { getShiftType } from '@/utils/shiftUtils';
 
 export interface Shift {
   id: string;
@@ -45,8 +44,17 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
         
         // Format the shifts for the calendar with updated shift type logic
         const formattedShifts: Shift[] = data?.map(shift => {
-          // Use the common getShiftType function for consistency
-          const type = getShiftType(shift.start_time);
+          // Determine shift type based on start time - UPDATED LOGIC
+          let type: 'day' | 'afternoon' | 'night' = 'day';
+          const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
+          
+          if (startHour <= 8) {
+            type = 'day';
+          } else if (startHour > 8 && startHour < 16) {
+            type = 'afternoon';
+          } else {
+            type = 'night';
+          }
           
           // Create title from truck name or use default format
           const title = shift.truck_name || `Shift-${shift.id.substring(0, 5)}`;

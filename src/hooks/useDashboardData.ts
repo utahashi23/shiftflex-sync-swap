@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ExtendedUser } from '@/hooks/useAuth';
 import { Shift } from '@/hooks/useShiftData';
-import { getShiftType } from '@/utils/shiftUtils';
 
 export interface Activity {
   id: string;
@@ -44,41 +43,47 @@ export const useDashboardData = (user: ExtendedUser | null) => {
       setIsLoading(true);
       
       try {
-        console.log('Fetching dashboard data for user:', user.id);
-        
         // Fetch the user's shifts
         const { data: shiftsData, error: shiftsError } = await supabase
-          .rpc('get_all_shifts');
+          .from('shifts')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('date', { ascending: true });
           
-        if (shiftsError) {
-          console.error('Error fetching shifts:', shiftsError);
-          throw shiftsError;
-        }
-        
-        // Filter shifts for current user
-        const userShifts = shiftsData?.filter(shift => shift.user_id === user.id) || [];
-        console.log(`Found ${userShifts.length} shifts for user`);
+        if (shiftsError) throw shiftsError;
         
         // Fetch swap requests where the user is the requester
         const { data: swapRequests, error: swapRequestsError } = await supabase
-          .rpc('get_all_swap_requests');
+          .from('shift_swap_requests')
+          .select('*')
+          .eq('requester_id', user.id);
           
-        if (swapRequestsError) {
-          console.error('Error fetching swap requests:', swapRequestsError);
-          throw swapRequestsError;
-        }
+        if (swapRequestsError) throw swapRequestsError;
         
-        // Filter requests for current user
-        const userRequests = swapRequests?.filter(req => req.requester_id === user.id) || [];
-        console.log(`Found ${userRequests.length} swap requests for user`);
+        // Fetch swap requests where the user is the acceptor
+        const { data: swapAccepts, error: swapAcceptsError } = await supabase
+          .from('shift_swap_requests')
+          .select('*')
+          .eq('acceptor_id', user.id);
+          
+        if (swapAcceptsError) throw swapAcceptsError;
         
         // Format the shifts for display
-        const upcomingShifts = userShifts.map(shift => {
+        const upcomingShifts = shiftsData?.map(shift => {
           // Create a title from the truck name or use a default
           const title = shift.truck_name ? shift.truck_name : `Shift-${shift.id.substring(0, 5)}`;
           
-          // Determine the shift type using our common utility
-          const type = getShiftType(shift.start_time);
+          // Determine the shift type based on start time
+          let type: 'day' | 'afternoon' | 'night' = 'day';
+          const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
+          
+          if (startHour <= 8) {
+            type = 'day';
+          } else if (startHour > 8 && startHour < 16) {
+            type = 'afternoon';
+          } else {
+            type = 'night';
+          }
           
           return {
             id: shift.id,
@@ -88,43 +93,53 @@ export const useDashboardData = (user: ExtendedUser | null) => {
             endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
             type
           };
-        });
-        
-        // Sort upcoming shifts by date
-        upcomingShifts.sort((a, b) => 
-          new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
+        }) || [];
         
         // Count the different types of swap requests
         // Only count requests with preferred dates as "active"
-        const activeSwaps = userRequests.filter(
+        const activeSwaps = swapRequests?.filter(
           req => req.status === 'pending' && req.preferred_dates_count > 0
         ).length || 0;
         
-        const matchedSwaps = userRequests.filter(req => req.status === 'matched').length || 0;
-        const completedSwaps = userRequests.filter(req => req.status === 'completed').length || 0;
+        const matchedSwaps = swapRequests?.filter(req => req.status === 'matched').length || 0;
+        const completedSwaps = swapRequests?.filter(req => req.status === 'completed').length || 0;
         
-        // Format the recent activity (up to 5 items)
-        const recentActivity: Activity[] = userRequests
-          .slice(0, 5)
-          .map(swap => {
-            // Try to get the shift title from our shifts
-            const shiftInfo = userShifts.find(s => s.id === swap.requester_shift_id);
-            const shift = shiftInfo ? 
-              (shiftInfo.truck_name || `Shift-${shiftInfo.id.substring(0, 5)}`) : 
-              `Unknown Shift`;
-            
-            return {
-              id: swap.id,
-              date: new Date(swap.created_at).toISOString().split('T')[0],
-              action: "Created swap request",
-              shift,
-              status: swap.status.charAt(0).toUpperCase() + swap.status.slice(1) // Capitalize the first letter
-            };
-          });
+        // Combine all swap requests for activity feed
+        const allSwaps = [...(swapRequests || []), ...(swapAccepts || [])];
+        
+        // Sort by created_at date (newest first)
+        allSwaps.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        
+        // Format the recent activity
+        const recentActivity = allSwaps.slice(0, 5).map(swap => {
+          let action = "";
+          let status = swap.status;
+          
+          if (swap.requester_id === user.id) {
+            action = "Created swap request";
+          } else {
+            action = "Received swap request";
+          }
+          
+          // Try to get the shift title from our shifts
+          const shiftInfo = shiftsData?.find(s => s.id === swap.requester_shift_id);
+          const shift = shiftInfo ? 
+            (shiftInfo.truck_name || `Shift-${shiftInfo.id.substring(0, 5)}`) : 
+            `Unknown Shift`;
+          
+          return {
+            id: swap.id,
+            date: new Date(swap.created_at).toISOString().split('T')[0],
+            action,
+            shift,
+            status: status.charAt(0).toUpperCase() + status.slice(1) // Capitalize the first letter
+          };
+        });
         
         setStats({
-          totalShifts: userShifts.length || 0,
+          totalShifts: shiftsData?.length || 0,
           activeSwaps,
           matchedSwaps,
           completedSwaps,

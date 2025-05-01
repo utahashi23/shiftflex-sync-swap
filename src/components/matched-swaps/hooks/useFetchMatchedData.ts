@@ -2,8 +2,8 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { SwapMatch } from '../types';
-import { getShiftType } from '@/utils/shiftUtils';
+import { MatchedSwap } from '../types';
+import { processSwapRequests } from '../utils';
 
 /**
  * Hook for fetching matched swaps data
@@ -22,76 +22,94 @@ export const useFetchMatchedData = () => {
     try {
       console.log('Fetching matched swaps for user', userId);
       
-      // Call the get_user_matches function
-      const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
-        body: { user_id: userId }
-      });
+      // Fetch matched swap requests - simplified query for better reliability
+      const { data: matchedRequests, error: matchedError } = await supabase
+        .from('shift_swap_requests')
+        .select('id, status, requester_id, requester_shift_id, acceptor_id, acceptor_shift_id')
+        .eq('status', 'matched')
+        .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`);
         
-      if (matchesError) {
-        console.error('Error fetching matches:', matchesError);
-        throw matchesError;
+      if (matchedError) {
+        console.error('Error fetching matched swaps:', matchedError);
+        throw matchedError;
       }
       
-      console.log('Raw matches data:', matchesData);
+      console.log('Active matched swaps raw data:', matchedRequests);
       
-      if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
-        console.log('No matches found');
+      // Fetch completed swaps
+      const { data: completedRequests, error: completedError } = await supabase
+        .from('shift_swap_requests')
+        .select('id, status, requester_id, requester_shift_id, acceptor_id, acceptor_shift_id')
+        .eq('status', 'completed')
+        .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`);
+        
+      if (completedError) {
+        console.error('Error fetching completed swaps:', completedError);
+        throw completedError;
+      }
+      
+      console.log('Completed swaps raw data:', completedRequests);
+      
+      // If no data, return empty arrays
+      if ((!matchedRequests || matchedRequests.length === 0) && 
+          (!completedRequests || completedRequests.length === 0)) {
+        console.log('No matched or completed swaps found');
         return { matchedSwaps: [], completedSwaps: [] };
       }
       
-      // Get unique matches only
-      const uniqueMatchIds = new Set();
-      const uniqueMatches = matchesData.filter((match: any) => {
-        if (uniqueMatchIds.has(match.match_id)) {
-          return false;
+      // Get ALL relevant shift IDs for fetching shifts data
+      const shiftIds = new Set<string>();
+      
+      matchedRequests?.forEach(req => {
+        if (req.requester_shift_id) shiftIds.add(req.requester_shift_id);
+        if (req.acceptor_shift_id) shiftIds.add(req.acceptor_shift_id);
+      });
+      
+      completedRequests?.forEach(req => {
+        if (req.requester_shift_id) shiftIds.add(req.requester_shift_id);
+        if (req.acceptor_shift_id) shiftIds.add(req.acceptor_shift_id);
+      });
+      
+      // Convert Set to Array
+      const shiftIdArray = Array.from(shiftIds).filter(id => id !== null);
+      console.log('Fetching additional shift data for IDs:', shiftIdArray);
+      
+      // Get shifts data using our function that bypasses RLS
+      const shiftsData = [];
+      for (const shiftId of shiftIdArray) {
+        const { data, error } = await supabase.rpc('get_shift_by_id', { shift_id: shiftId });
+        if (error) {
+          console.error(`Error fetching shift ${shiftId}:`, error);
+          continue;
         }
-        uniqueMatchIds.add(match.match_id);
-        return true;
-      });
+        if (data && data.length > 0) {
+          shiftsData.push(...data);
+        }
+      }
       
-      // Process and format the matches data
-      const formattedMatches = (uniqueMatches as any[]).map(match => {
-        return {
-          id: match.match_id,
-          status: match.match_status,
-          myShift: {
-            id: match.my_shift_id,
-            date: match.my_shift_date,
-            startTime: match.my_shift_start_time,
-            endTime: match.my_shift_end_time,
-            truckName: match.my_shift_truck,
-            type: getShiftType(match.my_shift_start_time)
-          },
-          otherShift: {
-            id: match.other_shift_id,
-            date: match.other_shift_date,
-            startTime: match.other_shift_start_time,
-            endTime: match.other_shift_end_time,
-            truckName: match.other_shift_truck,
-            type: getShiftType(match.other_shift_start_time),
-            userId: match.other_user_id,
-            userName: match.other_user_id // We'll update this with profile data
-          },
-          myRequestId: match.my_request_id,
-          otherRequestId: match.other_request_id,
-          createdAt: new Date(match.created_at).toISOString()
-        };
-      });
+      console.log('Fetched additional shifts data:', shiftsData.length);
       
-      // Get user IDs involved in swaps for profile info
+      // Get user IDs involved in swaps
       const userIds = new Set<string>();
-      formattedMatches.forEach(match => {
-        if (match.otherShift.userId) userIds.add(match.otherShift.userId);
+      
+      matchedRequests?.forEach(req => {
+        if (req.requester_id) userIds.add(req.requester_id);
+        if (req.acceptor_id) userIds.add(req.acceptor_id);
+      });
+      
+      completedRequests?.forEach(req => {
+        if (req.requester_id) userIds.add(req.requester_id);
+        if (req.acceptor_id) userIds.add(req.acceptor_id);
       });
       
       // Remove null values
-      const filteredUserIds = Array.from(userIds).filter(Boolean);
+      const filteredUserIds = Array.from(userIds).filter(id => id !== null);
       console.log('Fetching profiles for user IDs:', filteredUserIds);
       
       // Fetch user profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name')
+        .select('*')
         .in('id', filteredUserIds);
         
       if (profilesError) {
@@ -99,37 +117,40 @@ export const useFetchMatchedData = () => {
         throw profilesError;
       }
       
+      console.log('Fetched profiles data:', profilesData?.length || 0);
+      
       // Create profiles map for quick lookup
-      const profilesMap: Record<string, any> = {};
-      profilesData?.forEach(profile => {
-        profilesMap[profile.id] = profile;
-      });
+      const profilesMap = (profilesData || []).reduce((map, profile) => {
+        map[profile.id] = profile;
+        return map;
+      }, {} as Record<string, any>);
       
-      // Update matches with user names
-      formattedMatches.forEach(match => {
-        const userId = match.otherShift.userId;
-        if (userId && profilesMap[userId]) {
-          const profile = profilesMap[userId];
-          match.otherShift.userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User';
-        } else {
-          match.otherShift.userName = 'Unknown User';
-        }
-      });
+      console.log('Number of matched requests before processing:', matchedRequests?.length || 0);
+      console.log('Number of completed requests before processing:', completedRequests?.length || 0);
       
-      // Separate active and past matches
-      const activeMatches = formattedMatches.filter(match => 
-        match.status === 'pending' || match.status === 'accepted'
+      // Process matched swaps
+      const formattedActiveMatches = processSwapRequests(
+        matchedRequests || [], 
+        shiftsData, 
+        userId, 
+        profilesMap
       );
       
-      const pastMatches = formattedMatches.filter(match => 
-        match.status === 'completed'
+      // Process completed matches
+      const formattedCompletedMatches = processSwapRequests(
+        completedRequests || [], 
+        shiftsData, 
+        userId, 
+        profilesMap
       );
       
-      console.log(`Processed ${activeMatches.length} active matches and ${pastMatches.length} past matches`);
+      // Log the processed matches
+      console.log(`Processed ${formattedActiveMatches.length} active matches`);
+      console.log(`Processed ${formattedCompletedMatches.length} completed matches`);
       
       return {
-        matchedSwaps: activeMatches,
-        completedSwaps: pastMatches
+        matchedSwaps: formattedActiveMatches,
+        completedSwaps: formattedCompletedMatches
       };
       
     } catch (error) {

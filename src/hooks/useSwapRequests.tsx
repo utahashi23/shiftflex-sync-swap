@@ -1,4 +1,36 @@
 
-// This file is kept for backward compatibility
-// New code should import from src/hooks/swap-requests directly
-export * from './swap-requests';
+import { useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { useFetchSwapRequests } from './swap-requests/useFetchSwapRequests';
+import { useDeleteSwapRequest } from './swap-requests/useDeleteSwapRequest';
+import { UseSwapRequestsReturn } from './swap-requests/types';
+
+export const useSwapRequests = (): UseSwapRequestsReturn => {
+  const { user } = useAuth();
+  const { 
+    swapRequests, 
+    setSwapRequests, 
+    isLoading, 
+    setIsLoading, 
+    fetchSwapRequests 
+  } = useFetchSwapRequests(user);
+
+  const {
+    handleDeleteSwapRequest,
+    handleDeletePreferredDate
+  } = useDeleteSwapRequest(setSwapRequests, setIsLoading);
+
+  useEffect(() => {
+    if (user) {
+      fetchSwapRequests();
+    }
+  }, [user, fetchSwapRequests]);
+
+  return {
+    swapRequests,
+    isLoading,
+    fetchSwapRequests,
+    handleDeleteSwapRequest,
+    handleDeletePreferredDate
+  };
+};

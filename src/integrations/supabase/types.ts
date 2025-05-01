@@ -385,29 +385,6 @@ export type Database = {
           user_id: string
         }[]
       }
-      get_user_matches_with_rls: {
-        Args: { user_id: string }
-        Returns: {
-          match_id: string
-          match_status: string
-          created_at: string
-          match_date: string
-          my_request_id: string
-          other_request_id: string
-          my_shift_id: string
-          my_shift_date: string
-          my_shift_start_time: string
-          my_shift_end_time: string
-          my_shift_truck: string
-          other_shift_id: string
-          other_shift_date: string
-          other_shift_start_time: string
-          other_shift_end_time: string
-          other_shift_truck: string
-          other_user_id: string
-          other_user_name: string
-        }[]
-      }
       has_role: {
         Args: {
           _user_id: string

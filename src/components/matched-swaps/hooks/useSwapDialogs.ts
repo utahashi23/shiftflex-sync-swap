@@ -8,7 +8,7 @@ import { ConfirmDialogState } from '../types';
 export const useSwapDialogs = () => {
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
     isOpen: false,
-    matchId: null
+    swapId: null
   });
 
   return {

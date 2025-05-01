@@ -4,61 +4,64 @@ import SwapRequestCard from './swaps/SwapRequestCard';
 import SwapRequestSkeleton from './swaps/SwapRequestSkeleton';
 import EmptySwapRequests from './swaps/EmptySwapRequests';
 import SwapDeleteDialog from './swaps/SwapDeleteDialog';
-import { useSwapRequests } from '@/hooks/swap-requests/useSwapRequests';
+import { useSwapRequests } from '@/hooks/useSwapRequests';
 
 const RequestedSwaps = () => {
-  const { 
-    swapRequests, 
-    isLoading, 
-    deleteSwapRequest, 
-    deletePreferredDay 
-  } = useSwapRequests();
-  
   const [deleteDialog, setDeleteDialog] = useState<{ 
     isOpen: boolean, 
-    requestId: string | null, 
-    dayId: string | null 
+    shiftId: string | null, 
+    dateId: string | null 
   }>({
     isOpen: false,
-    requestId: null,
-    dayId: null
+    shiftId: null,
+    dateId: null
   });
   
+  const {
+    swapRequests,
+    isLoading,
+    handleDeleteSwapRequest,
+    handleDeletePreferredDate
+  } = useSwapRequests();
+
   // Handler for opening delete dialog for an entire swap request
-  const onDeleteRequest = (requestId: string) => {
-    console.log("Opening delete dialog for request:", requestId);
+  const onDeleteRequest = (shiftId: string) => {
+    console.log("Opening delete dialog for shift:", shiftId);
     setDeleteDialog({
       isOpen: true,
-      requestId,
-      dayId: null
+      shiftId,
+      dateId: null
     });
   };
 
   // Handler for opening delete dialog for a single preferred date
-  const onDeletePreferredDate = (dayId: string, requestId: string) => {
-    console.log("Opening delete dialog for day:", dayId, "in request:", requestId);
+  const onDeletePreferredDate = (dateId: string, shiftId: string) => {
+    console.log("Opening delete dialog for date:", dateId, "in shift:", shiftId);
     setDeleteDialog({
       isOpen: true,
-      requestId,
-      dayId
+      shiftId,
+      dateId
     });
   };
 
   // Handler for confirming deletion
   const handleConfirmDelete = async () => {
-    if (!deleteDialog.requestId) return;
-    
-    try {
-      if (deleteDialog.dayId) {
-        // Delete a single preferred date
-        await deletePreferredDay(deleteDialog.dayId, deleteDialog.requestId);
-      } else {
-        // Delete the entire swap request
-        await deleteSwapRequest(deleteDialog.requestId);
-      }
-    } finally {
-      setDeleteDialog({ isOpen: false, requestId: null, dayId: null });
+    console.log("Confirming deletion:", deleteDialog);
+    if (!deleteDialog.shiftId) {
+      console.log("No shift ID found in delete dialog");
+      return;
     }
+    
+    if (deleteDialog.dateId) {
+      // Delete a single preferred date
+      await handleDeletePreferredDate(deleteDialog.dateId, deleteDialog.shiftId);
+    } else {
+      // Delete the entire swap request
+      await handleDeleteSwapRequest(deleteDialog.shiftId);
+    }
+    
+    // Reset dialog state after action
+    setDeleteDialog({ isOpen: false, shiftId: null, dateId: null });
   };
   
   console.log("Current swap requests:", swapRequests);
@@ -76,7 +79,7 @@ const RequestedSwaps = () => {
       ) : (
         swapRequests.map(request => (
           <SwapRequestCard 
-            key={request.id}
+            key={request.originalShift.id}
             request={request}
             onDeleteRequest={onDeleteRequest}
             onDeletePreferredDate={onDeletePreferredDate}
@@ -84,18 +87,19 @@ const RequestedSwaps = () => {
         ))
       )}
 
+      {/* Delete Confirmation Dialog */}
       <SwapDeleteDialog
         isOpen={deleteDialog.isOpen}
-        isLoading={false}
+        isLoading={isLoading}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            setDeleteDialog({ isOpen: false, requestId: null, dayId: null });
+            setDeleteDialog({ isOpen: false, shiftId: null, dateId: null });
           } else {
             setDeleteDialog(prev => ({ ...prev, isOpen: true }));
           }
         }}
         onDelete={handleConfirmDelete}
-        isDateOnly={!!deleteDialog.dayId}
+        isDateOnly={!!deleteDialog.dateId}
       />
     </div>
   );

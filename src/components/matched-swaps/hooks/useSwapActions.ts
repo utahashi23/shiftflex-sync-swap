@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { SwapMatch } from '../types';
+import { MatchedSwap } from '../types';
 
 /**
  * Hook for swap action handlers (accept, cancel)
@@ -15,17 +15,18 @@ export const useSwapActions = () => {
    */
   const handleAcceptSwap = async (
     swapId: string, 
-    onSuccess: (completedSwap: SwapMatch) => void
+    onSuccess: (completedSwap: MatchedSwap) => void
   ) => {
-    if (!swapId) return false;
+    if (!swapId) return;
     
     setIsLoading(true);
     
     try {
-      // Call the accept_swap_match function
-      const { data, error } = await supabase.functions.invoke('accept_swap_match', {
-        body: { match_id: swapId }
-      });
+      // Update swap request status in database
+      const { error } = await supabase
+        .from('shift_swap_requests')
+        .update({ status: 'completed' })
+        .eq('id', swapId);
         
       if (error) throw error;
       

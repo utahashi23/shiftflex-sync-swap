@@ -1,38 +1,20 @@
-/**
- * Determines shift type based on start time
- * Day: <= 8:00
- * Afternoon: > 8:00 and < 16:00
- * Night: >= 16:00
- */
-export const getShiftType = (startTime: string): "day" | "afternoon" | "night" => {
-  if (!startTime) {
-    console.warn('Invalid start time provided to getShiftType:', startTime);
-    return 'day'; // Default to day shift in case of errors
-  }
-
-  try {
-    // Extract hours from time string (handles both "08:00:00" and "08:00" formats)
-    const hour = parseInt(startTime.split(':')[0], 10);
-    
-    if (isNaN(hour)) {
-      console.warn('Invalid hour parsed from startTime:', startTime);
-      return 'day'; // Default to day shift in case of errors
-    }
-    
-    if (hour <= 8) {
-      return 'day';
-    } else if (hour > 8 && hour < 16) {
-      return 'afternoon';
-    } else {
-      return 'night';
-    }
-  } catch (error) {
-    console.error('Error in getShiftType:', error);
-    return 'day'; // Default to day shift in case of errors
-  }
-};
 
 import { normalizeDate } from '@/utils/dateUtils';
+
+/**
+ * Determines shift type based on start time
+ */
+export const getShiftType = (startTime: string): "day" | "afternoon" | "night" => {
+  const startHour = new Date(`2000-01-01T${startTime}`).getHours();
+  
+  if (startHour <= 8) {
+    return 'day';
+  } else if (startHour > 8 && startHour < 16) {
+    return 'afternoon';
+  } else {
+    return 'night';
+  }
+};
 
 /**
  * Creates lookup maps for efficient matching
