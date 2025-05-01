@@ -54,7 +54,7 @@ const ShiftSwaps = () => {
         
         toast({
           title: "Test Mode Enabled",
-          description: "Showing all shift swap requests and users in Matched Swaps tab",
+          description: "Showing all shift swap requests in Matched Swaps tab",
         });
       } else {
         // If disabling test mode, refresh to show normal data
