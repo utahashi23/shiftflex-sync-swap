@@ -35,11 +35,15 @@ export const useMatchedSwaps = () => {
       console.log('Refreshing matched swaps');
       const { matchedSwaps, completedSwaps } = await fetchMatchedSwaps(user.id);
       
-      // Log the data for debugging
-      console.log(`Got ${matchedSwaps.length} matched swaps and ${completedSwaps.length} completed swaps`);
+      // Ensure we have unique swaps
+      const uniqueMatchedSwaps = getUniqueSwaps(matchedSwaps);
+      const uniqueCompletedSwaps = getUniqueSwaps(completedSwaps);
       
-      setSwapRequests(matchedSwaps);
-      setPastSwaps(completedSwaps);
+      // Log the data for debugging
+      console.log(`Got ${uniqueMatchedSwaps.length} matched swaps and ${uniqueCompletedSwaps.length} completed swaps`);
+      
+      setSwapRequests(uniqueMatchedSwaps);
+      setPastSwaps(uniqueCompletedSwaps);
     } catch (error) {
       console.error('Error refreshing matches:', error);
       toast({
@@ -50,6 +54,17 @@ export const useMatchedSwaps = () => {
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  // Helper function to ensure unique swaps by ID
+  const getUniqueSwaps = (swaps: MatchedSwap[]): MatchedSwap[] => {
+    const uniqueMap = new Map<string, MatchedSwap>();
+    swaps.forEach(swap => {
+      if (!uniqueMap.has(swap.id)) {
+        uniqueMap.set(swap.id, swap);
+      }
+    });
+    return Array.from(uniqueMap.values());
   };
 
   const handleAcceptSwap = async () => {

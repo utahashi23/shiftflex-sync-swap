@@ -59,34 +59,36 @@ export const recordShiftMatch = async (request: any, otherRequest: any, userId: 
     
     console.log('Match recorded:', matchData);
     
-    // Update both requests to matched status with transaction
-    const updates = [
-      supabase
-        .from('shift_swap_requests')
-        .update({
-          status: 'matched',
-          acceptor_id: otherRequest.requester_id,
-          acceptor_shift_id: otherRequest.requester_shift_id
-        })
-        .eq('id', request.id),
-        
-      supabase
-        .from('shift_swap_requests')
-        .update({
-          status: 'matched',
-          acceptor_id: request.requester_id,
-          acceptor_shift_id: request.requester_shift_id
-        })
-        .eq('id', otherRequest.id)
-    ];
+    // Update both requests to matched status
+    const requesterUpdate = supabase
+      .from('shift_swap_requests')
+      .update({
+        status: 'matched',
+        acceptor_id: otherRequest.requester_id,
+        acceptor_shift_id: otherRequest.requester_shift_id
+      })
+      .eq('id', request.id);
+      
+    const acceptorUpdate = supabase
+      .from('shift_swap_requests')
+      .update({
+        status: 'matched',
+        acceptor_id: request.requester_id,
+        acceptor_shift_id: request.requester_shift_id
+      })
+      .eq('id', otherRequest.id);
     
-    const results = await Promise.all(updates);
+    const [requesterResult, acceptorResult] = await Promise.all([requesterUpdate, acceptorUpdate]);
     
-    // Check for errors in the transaction
-    const errors = results.filter(r => r.error);
-    if (errors.length > 0) {
-      console.error('Error updating requests:', errors);
-      return { success: false, error: errors[0].error };
+    // Check for errors in updates
+    if (requesterResult.error) {
+      console.error('Error updating requester request:', requesterResult.error);
+      return { success: false, error: requesterResult.error };
+    }
+    
+    if (acceptorResult.error) {
+      console.error('Error updating acceptor request:', acceptorResult.error);
+      return { success: false, error: acceptorResult.error };
     }
     
     // Notify if the current user is involved

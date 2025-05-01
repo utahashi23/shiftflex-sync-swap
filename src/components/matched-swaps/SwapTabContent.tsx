@@ -19,9 +19,17 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
     );
   }
 
+  // Make sure we display each swap only once (by ID)
+  const uniqueSwaps = swaps.reduce((acc: MatchedSwap[], swap) => {
+    if (!acc.some(s => s.id === swap.id)) {
+      acc.push(swap);
+    }
+    return acc;
+  }, []);
+
   return (
     <div className="space-y-4">
-      {swaps.map(swap => (
+      {uniqueSwaps.map(swap => (
         <SwapCard 
           key={swap.id}
           swap={swap} 
