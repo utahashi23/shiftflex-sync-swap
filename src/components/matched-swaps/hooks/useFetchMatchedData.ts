@@ -154,9 +154,9 @@ export const useFetchMatchedData = () => {
         profilesMap
       );
       
-      // Process completed matches
+      // Process completed matches - fix: use completedRequests instead of undefined variable
       const formattedCompletedMatches = processSwapRequests(
-        completedRequestsWithShifts || [], 
+        completedRequests || [], 
         shiftsData, 
         userId, 
         profilesMap
