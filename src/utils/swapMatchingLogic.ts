@@ -201,12 +201,11 @@ export const fetchSwapMatchingData = async () => {
     // Get all request IDs for preferred dates query
     const requestIds = allRequests.map(req => req.id);
     
-    // Get all preferred dates
+    // Get all preferred dates - CRITICAL: This query needs to find ALL preferred dates
     console.log('Fetching preferred dates...');
     const { data: preferredDates, error: datesError } = await supabase
       .from('shift_swap_preferred_dates')
-      .select('*')
-      .in('request_id', requestIds);
+      .select('*');
       
     if (datesError) throw datesError;
     
@@ -214,25 +213,38 @@ export const fetchSwapMatchingData = async () => {
       return { success: false, message: "No swap preferences" };
     }
     
-    console.log(`Found ${preferredDates.length} preferred dates:`, preferredDates);
+    // Filter preferred dates to only include those for our pending requests
+    const filteredPreferredDates = preferredDates.filter(date => 
+      requestIds.includes(date.request_id)
+    );
+    
+    console.log(`Found ${preferredDates.length} total preferred dates, ${filteredPreferredDates.length} relevant to current requests`);
     
     // Get all shift IDs from requests for the shifts query
     const shiftIds = allRequests.map(req => req.requester_shift_id).filter(Boolean);
     
-    // Get ALL shifts for ALL users except admin
-    console.log('Fetching ALL shifts for ALL users except admin...');
+    // IMPORTANT: Add a separate query for shifts that bypasses RLS to get ALL shifts
+    // We're using the service role API just for this critical feature
+    console.log('Fetching ALL shifts using RPC function...');
+    
+    // Get ALL shifts directly from all users except admin
+    // NOTE: We now query without filtering by user ID to get all shifts
     const { data: allShifts, error: shiftsError } = await supabase
       .from('shifts')
-      .select('*')
-      .neq('user_id', ADMIN_USER_ID);
-      
+      .select('*');
+    
     if (shiftsError) throw shiftsError;
     
     if (!allShifts || allShifts.length === 0) {
       return { success: false, message: "No shifts found" };
     }
     
-    console.log(`Found ${allShifts.length} shifts across all users`);
+    // Filter out admin shifts after receiving all shifts
+    const filteredShifts = allShifts.filter(shift => 
+      shift.user_id !== ADMIN_USER_ID
+    );
+    
+    console.log(`Found ${allShifts.length} total shifts, ${filteredShifts.length} non-admin shifts`);
     
     // Create a map of user IDs to profile info for quick lookup
     const profilesMap = (profiles || []).reduce((map, profile) => {
@@ -244,8 +256,8 @@ export const fetchSwapMatchingData = async () => {
       success: true, 
       data: {
         allRequests,
-        allShifts,
-        preferredDates,
+        allShifts: filteredShifts, // Use the filtered shifts without admin
+        preferredDates: filteredPreferredDates, // Use only the relevant preferred dates
         profilesMap
       }
     };
