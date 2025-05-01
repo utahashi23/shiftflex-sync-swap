@@ -1,4 +1,3 @@
-
 import { useMatchedSwaps } from './matched-swaps/useMatchedSwaps';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
@@ -11,7 +10,7 @@ import {
   TabsTrigger,
 } from "./ui/tabs";
 import { Filter, RefreshCw } from 'lucide-react';
-import { useSwapMatches } from '@/hooks/useSwapMatches';
+import { useSwapMatches } from '@/hooks/swap-matches';
 
 interface MatchedSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
