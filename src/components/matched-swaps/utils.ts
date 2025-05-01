@@ -73,7 +73,7 @@ export const processSwapRequests = (
       colleagueType: currentUserId === request.acceptor_id ? 'Your Shift' : 'Colleague Shift'
     };
 
-    // Add colleague names if available from profiles
+    // Add colleague names using profiles data stored in the shift object
     if (requesterShift.profiles) {
       const firstName = requesterShift.profiles.first_name || '';
       const lastName = requesterShift.profiles.last_name || '';

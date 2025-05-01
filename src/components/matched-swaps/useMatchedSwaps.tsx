@@ -81,20 +81,49 @@ export const useMatchedSwaps = () => {
         return;
       }
       
-      // Fetch all shift details with profile information
+      // Fetch all shift details
       const { data: shiftsData, error: shiftsError } = await supabase
         .from('shifts')
-        .select('*, profiles(first_name, last_name)')
+        .select('*')
         .in('id', allShiftIds);
         
       if (shiftsError) throw shiftsError;
       
+      // Fetch all user profiles separately
+      const userIds = [
+        ...(activeMatches || []).map(m => m.requester_id),
+        ...(activeMatches || []).map(m => m.acceptor_id).filter(Boolean),
+        ...(completedMatches || []).map(m => m.requester_id),
+        ...(completedMatches || []).map(m => m.acceptor_id).filter(Boolean)
+      ].filter(Boolean) as string[];
+      
+      const uniqueUserIds = [...new Set(userIds)];
+      
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', uniqueUserIds);
+        
+      if (profilesError) throw profilesError;
+      
+      // Create a map of profiles by user ID
+      const profilesMap = (profilesData || []).reduce((map, profile) => {
+        map[profile.id] = profile;
+        return map;
+      }, {} as Record<string, any>);
+      
+      // Add profile data to each shift
+      const shiftsWithProfiles = shiftsData?.map(shift => ({
+        ...shift,
+        profiles: profilesMap[shift.user_id] || null
+      })) || [];
+      
       // Process active matches
-      const formattedActiveMatches = processSwapRequests(activeMatches || [], shiftsData || [], user.id);
+      const formattedActiveMatches = processSwapRequests(activeMatches || [], shiftsWithProfiles || [], user.id);
       setSwapRequests(formattedActiveMatches);
       
       // Process completed matches
-      const formattedCompletedMatches = processSwapRequests(completedMatches || [], shiftsData || [], user.id);
+      const formattedCompletedMatches = processSwapRequests(completedMatches || [], shiftsWithProfiles || [], user.id);
       setPastSwaps(formattedCompletedMatches);
     } catch (error) {
       console.error('Error fetching matched swaps:', error);

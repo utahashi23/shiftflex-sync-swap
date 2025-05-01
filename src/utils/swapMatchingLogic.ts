@@ -183,7 +183,7 @@ export const fetchSwapMatchingData = async () => {
     
     console.log(`Found ${allRequests.length} pending swap requests:`, allRequests);
     
-    // Get all requester profile information 
+    // Get all requester profile information - using the profiles table
     const requesterIds = [...new Set(allRequests.map(req => req.requester_id))];
     console.log('Fetching profiles for requesters:', requesterIds);
     
@@ -211,11 +211,11 @@ export const fetchSwapMatchingData = async () => {
     
     console.log(`Found ${preferredDates.length} preferred dates:`, preferredDates);
     
-    // Get ALL shifts for ALL users
+    // Get ALL shifts for ALL users - WITHOUT trying to join with profiles
     console.log('Fetching all shifts for all users...');
     const { data: allShifts, error: shiftsError } = await supabase
       .from('shifts')
-      .select('*, profiles(*)')
+      .select('*')
       .in('user_id', requesterIds);
       
     if (shiftsError) throw shiftsError;
