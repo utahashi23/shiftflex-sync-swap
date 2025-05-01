@@ -69,12 +69,15 @@ const PreferredDateItem = ({
   canDelete: boolean;
   onDelete: () => void;
 }) => {
+  // Check if acceptedTypes exists and is an array before using map
+  const acceptedTypes = preferredDay.acceptedTypes || [];
+  
   return (
     <div className="flex items-center justify-between p-3 border rounded-md bg-secondary/20">
       <div>
         <div className="font-medium">{formatDate(preferredDay.date)}</div>
         <div className="text-xs text-gray-500 mt-0.5 flex flex-wrap gap-1">
-          {preferredDay.acceptedTypes.map(type => (
+          {acceptedTypes.map(type => (
             <ShiftTypeBadge key={type} type={type} size="sm" />
           ))}
         </div>

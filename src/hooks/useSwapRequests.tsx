@@ -63,10 +63,17 @@ export function useSwapRequests() {
           }
         }
         
+        // Ensure preferred_days is properly mapped to preferredDays
+        const preferredDays = (request.preferred_days || []).map(day => ({
+          id: day.id,
+          date: day.date,
+          acceptedTypes: day.accepted_types || []
+        }));
+        
         return {
           ...request,
           shift: shift,
-          preferredDays: request.preferred_days || [] // Ensure consistent property naming
+          preferredDays: preferredDays
         };
       });
       
