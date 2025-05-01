@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
  */
 export const fetchAllShifts = async () => {
   try {
-    // First try the standard query which should work for admins
+    // Call the enhanced RPC function that now has SECURITY DEFINER
     const { data: shiftsData, error: shiftsError } = await supabase.rpc('get_all_shifts');
     
     if (!shiftsError && shiftsData) {
@@ -18,7 +18,7 @@ export const fetchAllShifts = async () => {
     console.error('Error using RPC to fetch shifts:', shiftsError);
     console.log('Falling back to direct query...');
     
-    // Fallback to standard query
+    // Fallback to standard query (though this should now work with our security definer function)
     const { data: directData, error: directError } = await supabase
       .from('shifts')
       .select('*');
@@ -41,6 +41,7 @@ export const fetchAllShifts = async () => {
  */
 export const fetchAllPreferredDates = async () => {
   try {
+    // Call the enhanced RPC function that now has SECURITY DEFINER
     const { data: datesData, error: datesError } = await supabase.rpc('get_all_preferred_dates');
     
     if (!datesError && datesData) {
@@ -74,6 +75,7 @@ export const fetchAllPreferredDates = async () => {
  */
 export const fetchAllSwapRequests = async () => {
   try {
+    // Call the enhanced RPC function that now has SECURITY DEFINER
     const { data: requestsData, error: requestsError } = await supabase.rpc('get_all_swap_requests');
     
     if (!requestsError && requestsData) {

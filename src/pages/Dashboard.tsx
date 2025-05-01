@@ -80,7 +80,7 @@ const Dashboard = () => {
       }
     };
 
-    // Enhanced debug function specifically targeting RLS bypass methods
+    // Enhanced debug function specifically targeting our updated RLS bypass methods
     const fetchExtendedTestData = async () => {
       setIsLoadingTestData(true);
       setRlsDebugErrors([]);
@@ -90,7 +90,7 @@ const Dashboard = () => {
         console.log(`Current user ID: ${user?.id}`);
         console.log(`Is admin: ${isAdmin}`);
         
-        // METHOD 1: Test all shifts fetching with new utility
+        // METHOD 1: Test all shifts fetching with our updated utility
         const shiftsResult = await fetchAllShifts();
         if (shiftsResult.error) {
           setRlsDebugErrors(prev => [...prev, `Error fetching shifts: ${shiftsResult.error.message}`]);
@@ -99,7 +99,7 @@ const Dashboard = () => {
           setAllShifts(shiftsResult.data || []);
         }
         
-        // METHOD 2: Test preferred dates fetching with new utility
+        // METHOD 2: Test preferred dates fetching with our updated utility
         const datesResult = await fetchAllPreferredDates();
         if (datesResult.error) {
           setRlsDebugErrors(prev => [...prev, `Error fetching preferred dates: ${datesResult.error.message}`]);
@@ -108,7 +108,7 @@ const Dashboard = () => {
           setAllPreferredDates(datesResult.data || []);
         }
         
-        // METHOD 3: Test swap requests fetching with new utility
+        // METHOD 3: Test swap requests fetching with our updated utility
         const requestsResult = await fetchAllSwapRequests();
         if (requestsResult.error) {
           setRlsDebugErrors(prev => [...prev, `Error fetching swap requests: ${requestsResult.error.message}`]);
@@ -130,7 +130,7 @@ const Dashboard = () => {
           }
         }
         
-        // Special admin RPC test
+        // Special admin RPC test using our new function
         try {
           const { data: rpcData, error: rpcError } = await supabase
             .rpc('test_admin_access');
@@ -304,6 +304,13 @@ const Dashboard = () => {
               <p className="text-sm font-medium">
                 Current User ID: {user?.id?.substring(0, 8) || 'Not logged in'} | Admin: {isAdmin ? 'Yes' : 'No'}
               </p>
+            </div>
+            
+            <div className="mt-4 p-3 bg-green-50 border border-green-300 rounded-lg">
+              <h3 className="font-semibold text-green-800">Admin RPC Test Results</h3>
+              <pre className="text-xs overflow-x-auto mt-2">
+                {JSON.stringify(rlsTestData.rpcQuery, null, 2)}
+              </pre>
             </div>
           </div>
         )}
