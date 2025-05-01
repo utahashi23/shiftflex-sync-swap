@@ -7,7 +7,7 @@ import { CalendarLegend } from './calendar/CalendarLegend';
 import { useSwapCalendarState } from '@/hooks/useSwapCalendarState';
 import { Button } from './ui/button';
 import { RefreshCw } from 'lucide-react';
-import { useSwapMatcher } from '@/hooks/useSwapMatcher';
+import { useSwapMatcher } from '@/hooks/swap-matching';
 
 const ShiftSwapCalendar = () => {
   const {
