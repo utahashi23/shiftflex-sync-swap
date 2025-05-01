@@ -27,7 +27,7 @@ const Dashboard = () => {
     const fetchUserCount = async () => {
       setIsLoadingUsers(true);
       try {
-        // Use a simple count query to get the total number of profiles
+        // Use a count query without any filters to get all profiles
         const { count, error } = await supabase
           .from('profiles')
           .select('*', { count: 'exact', head: true });
@@ -48,15 +48,16 @@ const Dashboard = () => {
     const fetchProfiles = async () => {
       setIsLoadingProfiles(true);
       try {
+        // Fetch all profiles without any filters
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name')
-          .order('created_at', { ascending: false });
+          .select('id, first_name, last_name');
 
         if (error) {
           console.error('Error fetching profiles:', error);
         } else {
           console.log('Fetched profiles:', data);
+          console.log('Total number of profiles fetched:', data?.length || 0);
           setProfiles(data || []);
         }
       } catch (error) {
@@ -128,7 +129,7 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5 text-primary" />
-              User Profiles
+              User Profiles ({profiles.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -140,6 +141,7 @@ const Dashboard = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>User ID</TableHead>
                     <TableHead>First Name</TableHead>
                     <TableHead>Last Name</TableHead>
                   </TableRow>
@@ -147,6 +149,7 @@ const Dashboard = () => {
                 <TableBody>
                   {profiles.map((profile) => (
                     <TableRow key={profile.id}>
+                      <TableCell className="font-mono text-xs">{profile.id.substring(0, 8)}...</TableCell>
                       <TableCell>{profile.first_name || 'N/A'}</TableCell>
                       <TableCell>{profile.last_name || 'N/A'}</TableCell>
                     </TableRow>
