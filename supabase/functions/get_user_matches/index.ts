@@ -38,17 +38,17 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    // Now get all swap matches for this user
+    // Now get all swap matches for this user - Fix column selection syntax
     const { data: matches, error: matchesError } = await supabaseClient
       .from('shift_swap_potential_matches')
       .select(`
-        id as match_id,
-        status as match_status,
+        id,
+        status,
         created_at,
-        requester_request_id as my_request_id,
-        acceptor_request_id as other_request_id,
-        requester_shift_id as my_shift_id,
-        acceptor_shift_id as other_shift_id,
+        requester_request_id,
+        acceptor_request_id,
+        requester_shift_id,
+        acceptor_shift_id,
         match_date
       `)
       .or(`requester_request_id.eq.${user_id},acceptor_request_id.eq.${user_id}`)
@@ -68,8 +68,8 @@ serve(async (req) => {
     // Now fetch details for all shifts involved in these matches
     const shiftIds = new Set();
     matches.forEach(match => {
-      shiftIds.add(match.my_shift_id);
-      shiftIds.add(match.other_shift_id);
+      shiftIds.add(match.requester_shift_id);
+      shiftIds.add(match.acceptor_shift_id);
     });
 
     const { data: shifts, error: shiftsError } = await supabaseClient
@@ -98,26 +98,34 @@ serve(async (req) => {
 
     // Enrich the matches with shift and user data
     const enrichedMatches = matches.map(match => {
-      const myShift = shiftsMap[match.my_shift_id];
-      const otherShift = shiftsMap[match.other_shift_id];
+      // Find the shifts for this match
+      const requesterShiftId = match.requester_shift_id;
+      const acceptorShiftId = match.acceptor_shift_id;
+      
+      const requesterShift = shiftsMap[requesterShiftId];
+      const acceptorShift = shiftsMap[acceptorShiftId];
 
       // Skip if we're missing shift data
-      if (!myShift || !otherShift) {
-        console.warn('Missing shift data for match:', match.match_id);
+      if (!requesterShift || !acceptorShift) {
+        console.warn('Missing shift data for match:', match.id);
         return null;
       }
 
       // Determine if the current user is the requester or acceptor
-      const isRequester = myShift.user_id === user_id;
-      const otherUserId = isRequester ? otherShift.user_id : myShift.user_id;
+      const isRequester = requesterShift.user_id === user_id;
+      
+      // Based on the user role, set my shift and other shift
+      const myShift = isRequester ? requesterShift : acceptorShift;
+      const otherShift = isRequester ? acceptorShift : requesterShift;
+      const otherUserId = otherShift.user_id;
 
       return {
-        match_id: match.match_id,
-        match_status: match.match_status,
+        match_id: match.id,
+        match_status: match.status,
         created_at: match.created_at,
         match_date: match.match_date,
-        my_request_id: isRequester ? match.my_request_id : match.other_request_id,
-        other_request_id: isRequester ? match.other_request_id : match.my_request_id,
+        my_request_id: isRequester ? match.requester_request_id : match.acceptor_request_id,
+        other_request_id: isRequester ? match.acceptor_request_id : match.requester_request_id,
         my_shift_id: myShift.id,
         my_shift_date: myShift.date,
         my_shift_start_time: myShift.start_time,
