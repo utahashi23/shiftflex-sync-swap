@@ -11,15 +11,33 @@ export const createMatches = (
   requestShifts: Record<string, any>,
   preferredDatesByRequest: Record<string, any[]>,
   shiftsByUser: Record<string, string[]>,
-  profilesMap: Record<string, any>
+  profilesMap: Record<string, any>,
+  currentUserId?: string // Add currentUserId parameter
 ): MatchEntry[] => {
   // Temporary storage for matches
   const matches: MatchEntry[] = [];
   
   console.log(`Starting to process ${pendingRequests.length} pending requests for potential matches...`);
   
+  // If currentUserId is provided, prioritize that user's requests
+  // This ensures matching works properly for non-admin users
+  const userRequests = currentUserId 
+    ? pendingRequests.filter(req => req.requester_id === currentUserId)
+    : pendingRequests;
+  
+  const otherUserRequests = currentUserId
+    ? pendingRequests.filter(req => req.requester_id !== currentUserId) 
+    : [];
+  
+  if (currentUserId) {
+    console.log(`Focusing on ${userRequests.length} requests from current user and ${otherUserRequests.length} requests from other users`);
+  }
+  
+  // The requests we'll process first (either all requests for admin or just current user's requests)
+  const requestsToProcess = currentUserId ? userRequests : pendingRequests;
+  
   // Process each request to find potential matches
-  for (const request of pendingRequests) {
+  for (const request of requestsToProcess) {
     // Get the shift for this request
     const requestShift = getRequestShift(request, requestShifts);
     
@@ -34,8 +52,14 @@ export const createMatches = (
     
     console.log(`Processing request from ${requesterName} (ID: ${request.id.substring(0, 6)})`);
     
-    // Loop through all other pending requests to check for compatibility
-    for (const otherRequest of pendingRequests) {
+    // For non-admin users, only compare against other users' requests
+    // For admins, compare against all other requests
+    const requestsToCompare = currentUserId
+      ? (request.requester_id === currentUserId ? otherUserRequests : userRequests)
+      : pendingRequests;
+    
+    // Loop through comparison requests
+    for (const otherRequest of requestsToCompare) {
       // Skip comparing the request with itself
       if (request.id === otherRequest.id || request.requester_id === otherRequest.requester_id) {
         continue; // Skip both same request and requests from the same user

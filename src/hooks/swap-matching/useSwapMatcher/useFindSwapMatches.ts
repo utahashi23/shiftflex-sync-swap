@@ -59,8 +59,8 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
         return;
       }
       
-      // Find potential matches
-      const matches = findMatches(allRequests, allShifts, preferredDates, profilesMap);
+      // Find potential matches - Pass userId to ensure it works for non-admin users
+      const matches = findMatches(allRequests, allShifts, preferredDates, profilesMap, userId);
       
       // Process matches
       if (matches.length === 0) {

@@ -4,7 +4,13 @@ import { createMatches, prepareMatchingData } from './matching';
 /**
  * Find potential matches among requests
  */
-export const findMatches = (allRequests: any[], allShifts: any[], preferredDates: any[], profilesMap: Record<string, any>) => {
+export const findMatches = (
+  allRequests: any[], 
+  allShifts: any[], 
+  preferredDates: any[], 
+  profilesMap: Record<string, any>,
+  currentUserId?: string // Add currentUserId parameter
+) => {
   // Prepare data structures for efficient matching
   const { 
     pendingRequests,
@@ -24,6 +30,7 @@ export const findMatches = (allRequests: any[], allShifts: any[], preferredDates
     requestShifts,
     preferredDatesByRequest,
     shiftsByUser,
-    profilesMap
+    profilesMap,
+    currentUserId // Pass the currentUserId
   );
 };
