@@ -28,10 +28,12 @@ const Dashboard = () => {
   const [allRequests, setAllRequests] = useState<any[]>([]);
   const [isLoadingTestData, setIsLoadingTestData] = useState<boolean>(true);
   const [rlsDebugErrors, setRlsDebugErrors] = useState<string[]>([]);
+  
+  // Fix the type definition for rlsTestData to handle JSON objects properly
   const [rlsTestData, setRlsTestData] = useState<{
     directQuery: any[],
-    rpcQuery: any[]
-  }>({ directQuery: [], rpcQuery: [] });
+    rpcQuery: any // Changed from any[] to any to handle JSON object response
+  }>({ directQuery: [], rpcQuery: {} }); // Initialize rpcQuery as empty object instead of array
 
   useEffect(() => {
     const fetchUserCount = async () => {
@@ -138,9 +140,10 @@ const Dashboard = () => {
             setRlsDebugErrors(prev => [...prev, `RPC admin test error: ${rpcError.message}`]);
           } else {
             console.log('RPC admin test result:', rpcData);
+            // Fixed type assignment - ensure we treat rpcData as a single object, not an array
             setRlsTestData(prev => ({
               ...prev,
-              rpcQuery: rpcData ? rpcData : []
+              rpcQuery: rpcData || {}  // Initialize as empty object if null
             }));
           }
         } catch (rpcErr: any) {
