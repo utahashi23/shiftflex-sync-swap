@@ -51,23 +51,32 @@ export const formatTime = (timeStr: string): string => {
   let hours: number;
   let minutes: number;
   
-  // Handle ISO date strings
-  if (timeStr.includes('T')) {
-    const date = new Date(timeStr);
-    hours = date.getHours();
-    minutes = date.getMinutes();
-  } else {
-    // Handle time strings like "09:00:00"
-    const timeParts = timeStr.split(':');
-    hours = parseInt(timeParts[0], 10);
-    minutes = parseInt(timeParts[1], 10);
+  try {
+    // Handle ISO date strings
+    if (timeStr.includes('T')) {
+      const date = new Date(timeStr);
+      hours = date.getHours();
+      minutes = date.getMinutes();
+    } else {
+      // Handle time strings like "09:00:00"
+      const timeParts = timeStr.split(':');
+      hours = parseInt(timeParts[0], 10);
+      minutes = parseInt(timeParts[1], 10);
+    }
+    
+    // Validate hours and minutes
+    if (isNaN(hours) || hours < 0 || hours > 23) hours = 0;
+    if (isNaN(minutes) || minutes < 0 || minutes > 59) minutes = 0;
+    
+    // Convert to 12 hour format with AM/PM
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12;
+    const formattedHours = displayHours === 0 ? 12 : displayHours; // Handle midnight (0) as 12
+    const minutesStr = minutes < 10 ? '0' + minutes : minutes.toString();
+    
+    return `${formattedHours}:${minutesStr} ${ampm}`;
+  } catch (error) {
+    console.error("Error formatting time:", error);
+    return "Invalid Time";
   }
-  
-  // Convert to 12 hour format with AM/PM
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  const displayHours = hours % 12;
-  const formattedHours = displayHours === 0 ? 12 : displayHours; // Handle midnight (0) as 12
-  const minutesStr = minutes < 10 ? '0' + minutes : minutes.toString();
-  
-  return `${formattedHours}:${minutesStr} ${ampm}`;
 };

@@ -22,7 +22,7 @@ export const useFetchMatchedData = () => {
     try {
       console.log('Fetching matched swaps for user', userId);
       
-      // Fetch matched swap requests with complete shift data included
+      // Fetch matched swap requests with properly joined shift data
       const { data: matchedRequests, error: matchedError } = await supabase
         .from('shift_swap_requests')
         .select(`
@@ -36,16 +36,17 @@ export const useFetchMatchedData = () => {
           acceptor_shift:acceptor_shift_id(id, date, start_time, end_time, truck_name)
         `)
         .eq('status', 'matched')
-        .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`);
+        .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`)
+        .order('id', { ascending: true });
         
       if (matchedError) {
         console.error('Error fetching matched swaps:', matchedError);
         throw matchedError;
       }
       
-      console.log('Active matched swaps:', matchedRequests);
+      console.log('Active matched swaps raw data:', matchedRequests);
       
-      // Fetch completed swaps with complete shift data included
+      // Fetch completed swaps with properly joined shift data
       const { data: completedRequests, error: completedError } = await supabase
         .from('shift_swap_requests')
         .select(`
@@ -59,14 +60,15 @@ export const useFetchMatchedData = () => {
           acceptor_shift:acceptor_shift_id(id, date, start_time, end_time, truck_name)
         `)
         .eq('status', 'completed')
-        .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`);
+        .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`)
+        .order('id', { ascending: true });
         
       if (completedError) {
         console.error('Error fetching completed swaps:', completedError);
         throw completedError;
       }
       
-      console.log('Completed swaps:', completedRequests);
+      console.log('Completed swaps raw data:', completedRequests);
       
       // If no data, return empty arrays
       if ((!matchedRequests || matchedRequests.length === 0) && 
@@ -146,6 +148,9 @@ export const useFetchMatchedData = () => {
         return map;
       }, {} as Record<string, any>);
       
+      console.log('Number of matched requests before processing:', matchedRequests?.length || 0);
+      console.log('Number of completed requests before processing:', completedRequests?.length || 0);
+      
       // Process matches to avoid duplicates - using our improved processSwapRequests function
       const formattedActiveMatches = processSwapRequests(
         matchedRequests || [], 
@@ -154,7 +159,7 @@ export const useFetchMatchedData = () => {
         profilesMap
       );
       
-      // Process completed matches - fix: use completedRequests instead of undefined variable
+      // Process completed matches
       const formattedCompletedMatches = processSwapRequests(
         completedRequests || [], 
         shiftsData, 
