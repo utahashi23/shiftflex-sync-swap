@@ -91,7 +91,7 @@ const Dashboard = () => {
           <div className="flex items-center gap-2 bg-secondary/60 px-4 py-2 rounded-lg">
             <FileText className="h-5 w-5 text-primary" />
             <div>
-              <span className="text-sm text-gray-500">Active Swap Requests (All Users)</span>
+              <span className="text-sm text-gray-500">All Active Requests</span>
               <p className="font-medium">{isLoadingSwaps ? '...' : totalActiveSwaps}</p>
             </div>
           </div>
@@ -100,7 +100,7 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard 
-          title="Total Rostered Shifts"
+          title="My Total Rostered Shifts"
           value={stats.totalShifts}
           description="For the current month"
           icon={<CalendarClock className="h-5 w-5 text-primary" />}
@@ -108,7 +108,7 @@ const Dashboard = () => {
         />
         
         <StatCard 
-          title="Active Swap Requests"
+          title="My Active Swap Requests"
           value={stats.activeSwaps}
           description="Pending approval or match"
           icon={<Repeat className="h-5 w-5 text-primary" />}
@@ -116,7 +116,7 @@ const Dashboard = () => {
         />
         
         <StatCard 
-          title="Matched Swaps"
+          title="My Matched Swaps"
           value={stats.matchedSwaps}
           description="Ready for approval"
           icon={<Clock className="h-5 w-5 text-primary" />}
@@ -124,7 +124,7 @@ const Dashboard = () => {
         />
         
         <StatCard 
-          title="Completed Swaps"
+          title="My Completed Swaps"
           value={stats.completedSwaps}
           description="Successfully exchanged"
           icon={<Check className="h-5 w-5 text-primary" />}
