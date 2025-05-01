@@ -4,18 +4,11 @@ import { getShiftType } from "@/utils/shiftUtils";
 import { formatTime } from "@/utils/dateUtils";
 
 export const formatDate = (dateStr: string) => {
-  if (!dateStr) return 'Unknown date';
-  
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric'
-    });
-  } catch (e) {
-    console.error('Error formatting date:', e);
-    return 'Invalid date';
-  }
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric'
+  });
 };
 
 export const getShiftTypeLabel = (type: string) => {
@@ -32,82 +25,93 @@ export const getShiftTypeLabel = (type: string) => {
 };
 
 export const getColleagueName = (profilesMap: Record<string, any>, userId: string) => {
-  if (!userId || !profilesMap[userId]) return 'Unknown';
+  if (!profilesMap[userId]) return 'Unknown';
   return `${profilesMap[userId].first_name || ''} ${profilesMap[userId].last_name || ''}`.trim() || 'Unknown';
 };
 
 export const processSwapRequests = (
   requests: any[], 
-  shiftsMap: Record<string, any>, 
+  shifts: any[], 
   currentUserId: string,
   profilesMap: Record<string, any>
 ): MatchedSwap[] => {
-  // Log the incoming data for debugging
+  // Log the incoming data to help with debugging
   console.log('Processing swap requests:', {
     requestsCount: requests.length,
-    shiftsMapKeys: Object.keys(shiftsMap),
+    shiftsCount: shifts.length,
     profilesMapKeys: Object.keys(profilesMap),
     currentUserId
   });
 
-  // Track unique requests by ID to avoid duplicates
-  const processedRequests = new Set<string>();
+  // Create a hash map to track unique swap combinations
+  // This is more reliable than just tracking IDs
+  const uniqueSwapMap = new Map<string, MatchedSwap>();
   const result: MatchedSwap[] = [];
 
   for (const request of requests) {
     try {
-      // Skip if we've already processed this request
-      if (processedRequests.has(request.id)) {
-        console.log(`Skipping duplicate request ID: ${request.id}`);
-        continue;
-      }
-      
-      console.log(`Processing request: ${request.id}, status: ${request.status}`);
-      
-      // Mark this request as processed
-      processedRequests.add(request.id);
-      
       // Determine if the current user is the requester or acceptor
       const isRequester = request.requester_id === currentUserId;
       
-      // Get shift IDs based on user role in this swap
+      // Extract shift data from the joined request data
+      const myShiftData = isRequester ? request.requester_shift : request.acceptor_shift;
+      const theirShiftData = isRequester ? request.acceptor_shift : request.requester_shift;
+      
       const myShiftId = isRequester ? request.requester_shift_id : request.acceptor_shift_id;
       const theirShiftId = isRequester ? request.acceptor_shift_id : request.requester_shift_id;
-      const theirUserId = isRequester ? request.acceptor_id : request.requester_id;
       
-      // Log the shift IDs we're looking for
-      console.log(`Request ${request.id} - Looking for shifts:`, {
+      console.log('Processing request:', {
+        requestId: request.id,
+        isRequester,
         myShiftId,
         theirShiftId,
-        myShiftExists: shiftsMap[myShiftId] ? 'yes' : 'no',
-        theirShiftExists: shiftsMap[theirShiftId] ? 'yes' : 'no',
-        isRequester
+        myShiftData: myShiftData ? 'present' : 'missing',
+        theirShiftData: theirShiftData ? 'present' : 'missing'
       });
       
-      // Get shifts from the shifts map
-      const myShift = shiftsMap[myShiftId];
-      const theirShift = shiftsMap[theirShiftId];
+      // Try to find the shifts in the shifts array if they're not in the request
+      const myShiftFromArray = shifts.find(s => s.id === myShiftId);
+      const theirShiftFromArray = shifts.find(s => s.id === theirShiftId);
       
-      // Skip if essential shift data is missing
-      if (!myShift || !theirShift) {
-        console.log(`Skipping request ${request.id} due to missing shift data:`, {
-          myShiftMissing: !myShift,
-          theirShiftMissing: !theirShift
-        });
-        continue;
-      }
+      // Use the available shift data or create default placeholder if missing
+      const myShift = myShiftData || myShiftFromArray || {
+        id: myShiftId,
+        date: new Date().toISOString().split('T')[0],
+        start_time: "09:00:00",
+        end_time: "17:00:00",
+        truck_name: "Unknown Truck"
+      };
       
-      // Log the shift data for debugging
-      console.log(`Found shift data for request ${request.id}:`, {
-        myShiftDate: myShift.date,
-        myShiftTime: `${myShift.start_time}-${myShift.end_time}`,
-        theirShiftDate: theirShift.date,
-        theirShiftTime: `${theirShift.start_time}-${theirShift.end_time}`
+      const theirShift = theirShiftData || theirShiftFromArray || {
+        id: theirShiftId,
+        date: new Date().toISOString().split('T')[0],
+        start_time: "09:00:00",
+        end_time: "17:00:00",
+        truck_name: "Unknown Truck"
+      };
+      
+      const myUserId = isRequester ? request.requester_id : request.acceptor_id;
+      const theirUserId = isRequester ? request.acceptor_id : request.requester_id;
+      
+      // Log the shift data we're using
+      console.log('Using shift data:', {
+        myShift: {
+          id: myShift.id,
+          date: myShift.date,
+          start_time: myShift.start_time,
+          end_time: myShift.end_time
+        },
+        theirShift: {
+          id: theirShift.id,
+          date: theirShift.date,
+          start_time: theirShift.start_time,
+          end_time: theirShift.end_time
+        }
       });
       
-      // Process my shift
+      // Process my shift data
       const processedMyShift = {
-        id: myShift.id,
+        id: myShift.id || myShiftId || 'unknown',
         date: myShift.date,
         type: getShiftType(myShift.start_time),
         title: myShift.truck_name || "Your Shift",
@@ -116,9 +120,9 @@ export const processSwapRequests = (
         colleagueType: isRequester ? "Requester" : "Acceptor",
       };
       
-      // Process their shift
+      // Process their shift data
       const processedTheirShift = {
-        id: theirShift.id,
+        id: theirShift.id || theirShiftId || 'unknown',
         date: theirShift.date,
         type: getShiftType(theirShift.start_time),
         title: theirShift.truck_name || "Their Shift",
@@ -128,25 +132,34 @@ export const processSwapRequests = (
         colleague: getColleagueName(profilesMap, theirUserId || 'unknown')
       };
       
-      // Create the matched swap entry
-      const matchedSwap: MatchedSwap = {
-        id: request.id,
-        originalShift: processedMyShift,
-        matchedShift: processedTheirShift,
-        status: request.status
-      };
+      // Create a unique key for this swap based on the shift IDs, not the request ID
+      // This ensures true uniqueness based on the actual shift data
+      const swapKey = `${myShiftId}-${theirShiftId}`;
       
-      result.push(matchedSwap);
-      
-      console.log('Successfully processed match:', {
-        id: request.id,
-        originalShiftDate: processedMyShift.date,
-        matchedShiftDate: processedTheirShift.date,
-        originalShiftTime: `${processedMyShift.startTime}-${processedMyShift.endTime}`,
-        matchedShiftTime: `${processedTheirShift.startTime}-${processedTheirShift.endTime}`
-      });
+      // Only add this swap if we haven't processed this shift pair yet
+      if (!uniqueSwapMap.has(swapKey)) {
+        const matchedSwap = {
+          id: request.id,
+          originalShift: processedMyShift,
+          matchedShift: processedTheirShift,
+          status: request.status
+        };
+        
+        uniqueSwapMap.set(swapKey, matchedSwap);
+        result.push(matchedSwap);
+        
+        console.log('Successfully processed match:', {
+          id: request.id,
+          originalShiftDate: processedMyShift.date,
+          matchedShiftDate: processedTheirShift.date,
+          originalShiftTime: `${processedMyShift.startTime}-${processedMyShift.endTime}`,
+          matchedShiftTime: `${processedTheirShift.startTime}-${processedTheirShift.endTime}`
+        });
+      } else {
+        console.log(`Skipping duplicate swap for shift pair: ${swapKey}`);
+      }
     } catch (error) {
-      console.error(`Error processing request ${request?.id}:`, error);
+      console.error(`Error processing request ${request.id}:`, error);
     }
   }
   

@@ -1,10 +1,10 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { MatchedSwap } from '../types';
-import { useFetchMatchedData } from './useFetchMatchedData';
-import { useSwapActions } from './useSwapActions';
-import { useSwapDialogs } from './useSwapDialogs';
+import { MatchedSwap } from './types';
+import { useFetchMatchedData } from './hooks/useFetchMatchedData';
+import { useSwapActions } from './hooks/useSwapActions';
+import { useSwapDialogs } from './hooks/useSwapDialogs';
 
 export const useMatchedSwaps = () => {
   const [swapRequests, setSwapRequests] = useState<MatchedSwap[]>([]);
@@ -30,10 +30,6 @@ export const useMatchedSwaps = () => {
     
     console.log('Refreshing matched swaps');
     const { matchedSwaps, completedSwaps } = await fetchMatchedSwaps(user.id);
-    
-    // Log the data for debugging
-    console.log(`Got ${matchedSwaps.length} matched swaps and ${completedSwaps.length} completed swaps`);
-    
     setSwapRequests(matchedSwaps);
     setPastSwaps(completedSwaps);
   };
