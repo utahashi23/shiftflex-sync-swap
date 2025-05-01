@@ -215,7 +215,7 @@ export const fetchSwapMatchingData = async () => {
     console.log('Fetching all shifts for all users...');
     const { data: allShifts, error: shiftsError } = await supabase
       .from('shifts')
-      .select('*')
+      .select('*, profiles(*)')
       .in('user_id', requesterIds);
       
     if (shiftsError) throw shiftsError;

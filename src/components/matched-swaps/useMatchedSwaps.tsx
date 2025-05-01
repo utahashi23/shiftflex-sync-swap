@@ -27,7 +27,7 @@ export const useMatchedSwaps = () => {
     setIsLoading(true);
     
     try {
-      // Fetch active matched swaps
+      // Fetch active matched swaps - get ALL matched swaps in the system
       const { data: activeMatches, error: activeError } = await supabase
         .from('shift_swap_requests')
         .select(`
@@ -38,12 +38,11 @@ export const useMatchedSwaps = () => {
           acceptor_id,
           acceptor_shift_id
         `)
-        .or(`requester_id.eq.${user.id},acceptor_id.eq.${user.id}`)
         .eq('status', 'matched');
         
       if (activeError) throw activeError;
       
-      // Fetch completed swaps
+      // Fetch completed swaps - get ALL completed swaps in the system
       const { data: completedMatches, error: completedError } = await supabase
         .from('shift_swap_requests')
         .select(`
@@ -54,7 +53,6 @@ export const useMatchedSwaps = () => {
           acceptor_id,
           acceptor_shift_id
         `)
-        .or(`requester_id.eq.${user.id},acceptor_id.eq.${user.id}`)
         .eq('status', 'completed');
         
       if (completedError) throw completedError;
@@ -83,7 +81,7 @@ export const useMatchedSwaps = () => {
         return;
       }
       
-      // Fetch all shift details
+      // Fetch all shift details with profile information
       const { data: shiftsData, error: shiftsError } = await supabase
         .from('shifts')
         .select('*, profiles(first_name, last_name)')
