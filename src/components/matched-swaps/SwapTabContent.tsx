@@ -10,17 +10,17 @@ interface SwapTabContentProps {
 }
 
 export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabContentProps) => {
-  if (swaps.length === 0) {
+  if (!swaps || swaps.length === 0) {
     return (
       <EmptySwapState 
-        message={isPast ? "No Past Swaps" : "No Matched Swaps"}
+        message={isPast ? "No Past Swaps" : "No Matched Swaps"} 
         subtitle={isPast ? "You don't have any completed swaps yet." : "You don't have any matched swap requests yet."}
       />
     );
   }
 
   return (
-    <>
+    <div className="space-y-4">
       {swaps.map(swap => (
         <SwapCard 
           key={swap.id}
@@ -29,6 +29,6 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
           onAccept={onAcceptSwap}
         />
       ))}
-    </>
+    </div>
   );
 };

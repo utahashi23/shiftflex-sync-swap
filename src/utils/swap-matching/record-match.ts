@@ -7,13 +7,12 @@ import { toast } from '@/hooks/use-toast';
  */
 export const recordShiftMatch = async (request: any, otherRequest: any, userId: string) => {
   try {
-    // First check if this match already exists to avoid duplicate key errors
+    // First check if this match already exists using our new helper function
     const { data: existingMatch, error: checkError } = await supabase
-      .from('shift_swap_potential_matches')
-      .select('id')
-      .or(`(requester_request_id.eq.${request.id}.and.acceptor_request_id.eq.${otherRequest.id})`)
-      .or(`(requester_request_id.eq.${otherRequest.id}.and.acceptor_request_id.eq.${request.id})`)
-      .limit(1);
+      .rpc('check_existing_match', {
+        request_id1: request.id,
+        request_id2: otherRequest.id
+      });
       
     if (checkError) {
       console.error('Error checking for existing match:', checkError);

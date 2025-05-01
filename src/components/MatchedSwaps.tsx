@@ -31,7 +31,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   } = useMatchedSwaps();
 
   const { user } = useAuth();
-  const { findSwapMatches, isProcessing } = useSwapMatcher();
+  const { findSwapMatches, isFindingMatches } = useSwapMatcher();
 
   const handleAcceptClick = (swapId: string) => {
     setConfirmDialog({ isOpen: true, swapId });
@@ -63,11 +63,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           <div className="flex gap-2">
             <Button 
               onClick={handleFindMatches}
-              disabled={isProcessing}
+              disabled={isFindingMatches}
               className="bg-green-500 hover:bg-green-600 text-white"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
-              {isProcessing ? 'Finding Matches...' : 'Find Matches'}
+              <RefreshCw className={`h-4 w-4 mr-2 ${isFindingMatches ? 'animate-spin' : ''}`} />
+              {isFindingMatches ? 'Finding Matches...' : 'Find Matches'}
             </Button>
             <Button variant="outline">
               <Filter className="h-4 w-4 mr-1" /> Filter

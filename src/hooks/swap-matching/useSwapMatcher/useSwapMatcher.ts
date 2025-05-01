@@ -11,6 +11,7 @@ import { useProcessingState } from './useProcessingState';
 export const useSwapMatcher = () => {
   const { user } = useAuth();
   const { isProcessing, setIsProcessing } = useProcessingState();
+  const [isFindingMatches, setIsFindingMatches] = useState(false);
   const { findSwapMatches: executeFindMatches } = useFindSwapMatches(setIsProcessing);
   
   /**
@@ -28,11 +29,24 @@ export const useSwapMatcher = () => {
       return;
     }
     
-    await executeFindMatches(userId || user?.id, forceCheck);
+    try {
+      setIsFindingMatches(true);
+      await executeFindMatches(userId || user?.id, forceCheck);
+    } catch (error) {
+      console.error('Error in findSwapMatches:', error);
+      toast({
+        title: "Failed to find matches",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsFindingMatches(false);
+    }
   };
 
   return {
     findSwapMatches,
-    isProcessing
+    isProcessing,
+    isFindingMatches
   };
 };

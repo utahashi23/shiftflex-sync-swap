@@ -22,7 +22,8 @@ export const useFetchMatchedData = () => {
     try {
       console.log('Fetching matched swaps for user', userId);
       
-      // Fetch matched swap requests with properly joined shift data
+      // Use our new direct shift query approach for improved data access
+      // Fetch matched swap requests with robust error handling
       const { data: matchedRequests, error: matchedError } = await supabase
         .from('shift_swap_requests')
         .select(`
@@ -31,9 +32,7 @@ export const useFetchMatchedData = () => {
           requester_id,
           requester_shift_id,
           acceptor_id,
-          acceptor_shift_id,
-          requester_shift:requester_shift_id(id, date, start_time, end_time, truck_name),
-          acceptor_shift:acceptor_shift_id(id, date, start_time, end_time, truck_name)
+          acceptor_shift_id
         `)
         .eq('status', 'matched')
         .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`)
@@ -46,7 +45,7 @@ export const useFetchMatchedData = () => {
       
       console.log('Active matched swaps raw data:', matchedRequests);
       
-      // Fetch completed swaps with properly joined shift data
+      // Fetch completed swaps
       const { data: completedRequests, error: completedError } = await supabase
         .from('shift_swap_requests')
         .select(`
@@ -55,9 +54,7 @@ export const useFetchMatchedData = () => {
           requester_id,
           requester_shift_id,
           acceptor_id,
-          acceptor_shift_id,
-          requester_shift:requester_shift_id(id, date, start_time, end_time, truck_name),
-          acceptor_shift:acceptor_shift_id(id, date, start_time, end_time, truck_name)
+          acceptor_shift_id
         `)
         .eq('status', 'completed')
         .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`)
@@ -77,37 +74,36 @@ export const useFetchMatchedData = () => {
         return { matchedSwaps: [], completedSwaps: [] };
       }
       
-      // Get ALL relevant shift IDs for fetching additional shift details
+      // Get ALL relevant shift IDs for fetching using our new secure function
       const shiftIds = new Set<string>();
       
       matchedRequests?.forEach(req => {
-        if (req.requester_shift_id && !req.requester_shift) shiftIds.add(req.requester_shift_id);
-        if (req.acceptor_shift_id && !req.acceptor_shift) shiftIds.add(req.acceptor_shift_id);
+        if (req.requester_shift_id) shiftIds.add(req.requester_shift_id);
+        if (req.acceptor_shift_id) shiftIds.add(req.acceptor_shift_id);
       });
       
       completedRequests?.forEach(req => {
-        if (req.requester_shift_id && !req.requester_shift) shiftIds.add(req.requester_shift_id);
-        if (req.acceptor_shift_id && !req.acceptor_shift) shiftIds.add(req.acceptor_shift_id);
+        if (req.requester_shift_id) shiftIds.add(req.requester_shift_id);
+        if (req.acceptor_shift_id) shiftIds.add(req.acceptor_shift_id);
       });
       
-      // Only fetch additional shifts if needed (some might be missing after join)
-      let shiftsData: any[] = [];
-      if (shiftIds.size > 0) {
-        console.log('Fetching additional shift data for IDs:', Array.from(shiftIds));
-        
-        const { data: shifts, error: shiftsError } = await supabase
-          .from('shifts')
-          .select('*')
-          .in('id', Array.from(shiftIds));
+      // Get shifts data for all IDs using our new function for each shift
+      const shiftsData = [];
+      for (const shiftId of shiftIds) {
+        const { data: shiftData, error: shiftError } = await supabase
+          .rpc('get_shift_by_id', { shift_id: shiftId });
           
-        if (shiftsError) {
-          console.error('Error fetching additional shifts:', shiftsError);
-          throw shiftsError;
+        if (shiftError) {
+          console.error(`Error fetching shift ${shiftId}:`, shiftError);
+          continue;
         }
         
-        console.log('Fetched additional shifts data:', shifts?.length || 0);
-        shiftsData = shifts || [];
+        if (shiftData && shiftData.length > 0) {
+          shiftsData.push(shiftData[0]);
+        }
       }
+      
+      console.log('Fetched shifts data:', shiftsData.length);
       
       // Get user IDs involved in swaps
       const userIds = new Set<string>();
@@ -151,9 +147,32 @@ export const useFetchMatchedData = () => {
       console.log('Number of matched requests before processing:', matchedRequests?.length || 0);
       console.log('Number of completed requests before processing:', completedRequests?.length || 0);
       
-      // Process matches to avoid duplicates - using our improved processSwapRequests function
+      // Manually prepare data for better processing - adding embedded shift data
+      const matchedRequestsWithShifts = (matchedRequests || []).map(request => {
+        const requesterShift = shiftsData.find(s => s.id === request.requester_shift_id);
+        const acceptorShift = shiftsData.find(s => s.id === request.acceptor_shift_id);
+        
+        return {
+          ...request,
+          requester_shift: requesterShift,
+          acceptor_shift: acceptorShift
+        };
+      });
+      
+      const completedRequestsWithShifts = (completedRequests || []).map(request => {
+        const requesterShift = shiftsData.find(s => s.id === request.requester_shift_id);
+        const acceptorShift = shiftsData.find(s => s.id === request.acceptor_shift_id);
+        
+        return {
+          ...request,
+          requester_shift: requesterShift,
+          acceptor_shift: acceptorShift
+        };
+      });
+      
+      // Process matches with our improved data structure
       const formattedActiveMatches = processSwapRequests(
-        matchedRequests || [], 
+        matchedRequestsWithShifts, 
         shiftsData, 
         userId, 
         profilesMap
@@ -161,7 +180,7 @@ export const useFetchMatchedData = () => {
       
       // Process completed matches
       const formattedCompletedMatches = processSwapRequests(
-        completedRequests || [], 
+        completedRequestsWithShifts, 
         shiftsData, 
         userId, 
         profilesMap

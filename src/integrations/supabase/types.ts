@@ -322,6 +322,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_existing_match: {
+        Args: { request_id1: string; request_id2: string }
+        Returns: {
+          id: string
+          created_at: string
+          status: string
+          requester_request_id: string
+          acceptor_request_id: string
+        }[]
+      }
       get_all_preferred_dates: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -359,6 +369,20 @@ export type Database = {
           requester_shift_id: string
           status: string
           updated_at: string
+        }[]
+      }
+      get_shift_by_id: {
+        Args: { shift_id: string }
+        Returns: {
+          created_at: string
+          date: string
+          end_time: string
+          id: string
+          start_time: string
+          status: string
+          truck_name: string | null
+          updated_at: string
+          user_id: string
         }[]
       }
       has_role: {
