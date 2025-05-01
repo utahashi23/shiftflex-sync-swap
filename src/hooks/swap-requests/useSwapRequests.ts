@@ -21,7 +21,7 @@ export const useSwapRequests = () => {
     try {
       console.log('Fetching swap requests for user:', user.id);
       
-      // Direct database query instead of edge function to avoid RLS recursion
+      // Direct database query without using edge function
       const { data: requests, error: requestsError } = await supabase
         .from('shift_swap_requests')
         .select('id, status, requester_shift_id, created_at, requester_id')
@@ -52,10 +52,10 @@ export const useSwapRequests = () => {
       if (shiftsError) throw shiftsError;
       
       // Create a lookup for easy access
-      const shiftMap = shifts?.reduce((acc, shift) => {
+      const shiftMap = (shifts || []).reduce((acc, shift) => {
         acc[shift.id] = shift;
         return acc;
-      }, {} as Record<string, any>) || {};
+      }, {} as Record<string, any>);
       
       // Fetch the preferred dates for all requests
       const requestIds = requests.map(req => req.id);
@@ -65,15 +65,6 @@ export const useSwapRequests = () => {
         .in('request_id', requestIds);
         
       if (datesError) throw datesError;
-      
-      // Group preferred dates by request ID
-      const preferredDatesByRequest: Record<string, any[]> = {};
-      preferredDates?.forEach(date => {
-        if (!preferredDatesByRequest[date.request_id]) {
-          preferredDatesByRequest[date.request_id] = [];
-        }
-        preferredDatesByRequest[date.request_id].push(date);
-      });
       
       // Format and return the requests
       const formattedRequests = requests
@@ -96,11 +87,12 @@ export const useSwapRequests = () => {
           }
           
           // Get preferred dates for this request
-          const requestPreferredDates = (preferredDatesByRequest[request.id] || [])
+          const requestPreferredDates = (preferredDates || [])
+            .filter(pd => pd.request_id === request.id)
             .map(pd => ({
               id: pd.id,
               date: pd.date,
-              acceptedTypes: pd.accepted_types as ("day" | "afternoon" | "night")[]
+              acceptedTypes: pd.accepted_types
             }));
           
           return {
@@ -144,6 +136,8 @@ export const useSwapRequests = () => {
 
   // Function to delete a swap request
   const deleteSwapRequest = async (requestId: string) => {
+    if (!user) return false;
+    
     setIsLoading(true);
     try {
       console.log('Deleting swap request:', requestId);
@@ -153,7 +147,7 @@ export const useSwapRequests = () => {
         .from('shift_swap_requests')
         .delete()
         .eq('id', requestId)
-        .eq('requester_id', user?.id);
+        .eq('requester_id', user.id);
         
       if (error) throw error;
       
@@ -181,6 +175,8 @@ export const useSwapRequests = () => {
   
   // Function to delete a preferred day
   const deletePreferredDay = async (dayId: string, requestId: string) => {
+    if (!user) return false;
+    
     setIsLoading(true);
     try {
       console.log('Deleting preferred day:', dayId);
@@ -189,8 +185,7 @@ export const useSwapRequests = () => {
       const { error } = await supabase
         .from('shift_swap_preferred_dates')
         .delete()
-        .eq('id', dayId)
-        .eq('request_id', requestId);
+        .eq('id', dayId);
         
       if (error) throw error;
       
