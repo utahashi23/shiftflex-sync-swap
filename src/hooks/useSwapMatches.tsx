@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from './useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,6 +32,7 @@ export interface SwapMatch {
 export interface SwapMatchesState {
   matches: SwapMatch[];
   pastMatches: SwapMatch[];
+  rawApiData: any;
   isLoading: boolean;
   error: Error | null;
 }
@@ -48,6 +48,7 @@ export function useSwapMatches() {
   const [state, setState] = useState<SwapMatchesState>({
     matches: [],
     pastMatches: [],
+    rawApiData: null,
     isLoading: true,
     error: null
   });
@@ -60,6 +61,8 @@ export function useSwapMatches() {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
+      console.log('Fetching matches for user:', user.id);
+      
       // Call our Edge Function to get all user matches
       const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
         body: { user_id: user.id }
@@ -69,42 +72,23 @@ export function useSwapMatches() {
       
       console.log('Raw match data from function:', matchesData);
       
+      // Save the raw API response for debugging
+      setState(prev => ({ ...prev, rawApiData: matchesData }));
+      
       if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
+        console.log('No matches found');
         setState({
           matches: [],
           pastMatches: [],
+          rawApiData: matchesData,
           isLoading: false,
           error: null
         });
         return;
       }
       
-      // Get profiles data for all other users in one batch query
-      const userIds = Array.from(new Set(
-        (matchesData as any[])
-          .map((match: any) => match.other_user_id)
-          .filter(Boolean)
-      ));
-      
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .in('id', userIds);
-      
-      if (profilesError) throw profilesError;
-      
-      // Create a map of user IDs to names for quick lookup
-      const userNames: Record<string, string> = {};
-      profiles?.forEach(profile => {
-        const firstName = profile.first_name || '';
-        const lastName = profile.last_name || '';
-        userNames[profile.id] = `${firstName} ${lastName}`.trim() || 'Unknown User';
-      });
-      
       // Process and format the matches data
       const formattedMatches = (matchesData as any[]).map((match: any) => {
-        const userName = userNames[match.other_user_id] || 'Unknown User';
-        
         return {
           id: match.match_id,
           status: match.match_status,
@@ -124,7 +108,7 @@ export function useSwapMatches() {
             truckName: match.other_shift_truck,
             type: getShiftType(match.other_shift_start_time),
             userId: match.other_user_id,
-            userName
+            userName: match.other_user_name || 'Unknown User'
           },
           myRequestId: match.my_request_id,
           otherRequestId: match.other_request_id,
@@ -146,6 +130,7 @@ export function useSwapMatches() {
       setState({
         matches: activeMatches,
         pastMatches: pastMatches,
+        rawApiData: matchesData,
         isLoading: false,
         error: null
       });

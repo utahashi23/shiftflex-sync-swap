@@ -3,6 +3,7 @@ import { useMatchedSwaps } from './matched-swaps/useMatchedSwaps';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
 import { Button } from "./ui/button";
+import { DebugPanel } from './matched-swaps/DebugPanel';
 import {
   Tabs,
   TabsContent,
@@ -10,22 +11,29 @@ import {
   TabsTrigger,
 } from "./ui/tabs";
 import { Filter, RefreshCw } from 'lucide-react';
+import { useSwapMatches } from '@/hooks/useSwapMatches';
 
 interface MatchedSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
+  // Use the direct hook for better debugging and access to raw API data
   const {
     matches,
     pastMatches,
+    rawApiData,
+    isLoading,
+    error,
+    fetchMatches
+  } = useSwapMatches();
+
+  const {
     activeTab,
     setActiveTab,
     confirmDialog,
     setConfirmDialog,
-    isLoading,
     handleAcceptSwap,
-    refreshMatches
   } = useMatchedSwaps();
 
   const handleAcceptClick = (matchId: string) => {
@@ -33,13 +41,21 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   };
 
   const handleFindMatches = async () => {
-    await refreshMatches();
+    await fetchMatches();
     
     // If passed from parent, update the parent refresh trigger to update all tabs
     if (setRefreshTrigger) {
       setRefreshTrigger(prev => prev + 1);
     }
   };
+
+  // Log debug info
+  console.log('Matched swaps component:', {
+    matchCount: matches.length,
+    pastMatchCount: pastMatches.length,
+    isLoading,
+    hasError: !!error
+  });
 
   return (
     <div className="space-y-6">
@@ -78,6 +94,15 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Debug panel */}
+      <DebugPanel
+        matches={matches}
+        rawData={rawApiData}
+        error={error}
+        onRefresh={handleFindMatches}
+        isLoading={isLoading}
+      />
 
       <SwapConfirmDialog
         open={confirmDialog.isOpen}

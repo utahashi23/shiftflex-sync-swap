@@ -26,6 +26,8 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
+    
+    console.log(`Processing request for user_id: ${user_id}`);
 
     // Create a Supabase client with the Auth context of the logged in user
     const supabaseClient = createClient(
@@ -38,7 +40,7 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    // Now get all swap matches for this user - Fix column selection syntax
+    // Now get all swap matches for this user
     const { data: matches, error: matchesError } = await supabaseClient
       .from('shift_swap_potential_matches')
       .select(`
@@ -58,7 +60,10 @@ serve(async (req) => {
       throw matchesError;
     }
 
+    console.log(`Found ${matches?.length ?? 0} potential matches`);
+    
     if (!matches || matches.length === 0) {
+      console.log('No matches found for this user');
       return new Response(
         JSON.stringify([]),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -72,6 +77,8 @@ serve(async (req) => {
       shiftIds.add(match.acceptor_shift_id);
     });
 
+    console.log(`Fetching details for ${shiftIds.size} shifts`);
+
     const { data: shifts, error: shiftsError } = await supabaseClient
       .from('shifts')
       .select('id, date, start_time, end_time, truck_name, user_id')
@@ -81,6 +88,8 @@ serve(async (req) => {
       console.error('Error fetching shifts:', shiftsError);
       throw shiftsError;
     }
+    
+    console.log(`Retrieved ${shifts?.length ?? 0} shifts`);
 
     // Create a map for quick lookup
     const shiftsMap = {};
@@ -95,6 +104,29 @@ serve(async (req) => {
         userIds.add(shift.user_id);
       }
     });
+
+    console.log(`Found ${userIds.size} other users involved in matches`);
+
+    // Fetch user profile information
+    const { data: profiles, error: profilesError } = await supabaseClient
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .in('id', Array.from(userIds));
+      
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+      // Continue without profiles rather than failing
+    }
+    
+    console.log(`Retrieved ${profiles?.length ?? 0} user profiles`);
+    
+    // Create a map for user profiles
+    const profilesMap = {};
+    if (profiles) {
+      profiles.forEach(profile => {
+        profilesMap[profile.id] = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User';
+      });
+    }
 
     // Enrich the matches with shift and user data
     const enrichedMatches = matches.map(match => {
@@ -118,8 +150,11 @@ serve(async (req) => {
       const myShift = isRequester ? requesterShift : acceptorShift;
       const otherShift = isRequester ? acceptorShift : requesterShift;
       const otherUserId = otherShift.user_id;
+      
+      // Get the user name from profiles or default to Unknown
+      const otherUserName = profilesMap[otherUserId] || 'Unknown User';
 
-      return {
+      const result = {
         match_id: match.id,
         match_status: match.status,
         created_at: match.created_at,
@@ -136,9 +171,19 @@ serve(async (req) => {
         other_shift_start_time: otherShift.start_time,
         other_shift_end_time: otherShift.end_time,
         other_shift_truck: otherShift.truck_name,
-        other_user_id: otherUserId
+        other_user_id: otherUserId,
+        other_user_name: otherUserName
       };
+      
+      return result;
     }).filter(Boolean);
+    
+    console.log(`Returning ${enrichedMatches.length} enriched matches`);
+    
+    // DEBUG OUTPUT: Log a sample match
+    if (enrichedMatches.length > 0) {
+      console.log('Sample match structure:', JSON.stringify(enrichedMatches[0]));
+    }
 
     return new Response(
       JSON.stringify(enrichedMatches),
