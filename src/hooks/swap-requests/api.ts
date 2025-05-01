@@ -2,163 +2,129 @@
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Fetches swap requests directly from the database instead of using the edge function
- * This avoids potential RLS policy recursion issues
- * @param userId The user ID to fetch swap requests for
- * @param status The status of the swap requests to fetch
+ * Create a new swap request
  */
-export const fetchSwapRequestsApi = async (userId: string, status: string = 'pending') => {
-  if (!userId) {
-    console.error('Invalid userId provided to fetchSwapRequestsApi:', userId);
-    throw new Error('User ID is required to fetch swap requests');
+export const createSwapRequestApi = async (
+  shiftId: string, 
+  preferredDates: { date: string, acceptedTypes: string[] }[]
+) => {
+  if (!shiftId || !preferredDates || preferredDates.length === 0) {
+    throw new Error('Missing required parameters for swap request');
   }
   
-  console.log('Fetching swap requests for user:', userId);
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User is not authenticated');
+  }
   
   try {
-    // Direct database query instead of edge function
-    const { data: requests, error: requestsError } = await supabase
+    // Create the swap request
+    const { data: request, error: requestError } = await supabase
       .from('shift_swap_requests')
-      .select('id, status, requester_shift_id, created_at, requester_id')
-      .eq('requester_id', userId)
-      .eq('status', status);
-
-    if (requestsError) throw requestsError;
-    
-    console.log(`Found ${requests?.length || 0} swap requests`);
-    
-    if (!requests || requests.length === 0) {
-      return [];
-    }
-    
-    // Get all the shift IDs from the requests
-    const shiftIds = requests
-      .filter(req => req && req.requester_shift_id)
-      .map(req => req.requester_shift_id);
-    
-    if (shiftIds.length === 0) {
-      console.log('No valid shift IDs found in requests');
-      return [];
-    }
-    
-    // Fetch the shift details
-    const { data: shifts, error: shiftsError } = await supabase
-      .from('shifts')
-      .select('*')
-      .in('id', shiftIds);
+      .insert({
+        requester_id: user.id,
+        requester_shift_id: shiftId,
+        status: 'pending'
+      })
+      .select()
+      .single();
       
-    if (shiftsError) throw shiftsError;
+    if (requestError) throw requestError;
     
-    if (!shifts || shifts.length === 0) {
-      console.log('No shifts found for the request shift IDs');
-      return [];
-    }
+    // Add all preferred dates
+    const preferredDatesToInsert = preferredDates.map(pd => ({
+      request_id: request.id,
+      date: pd.date,
+      accepted_types: pd.acceptedTypes || []
+    }));
     
-    // Create a lookup for easy access
-    const shiftMap = shifts.reduce((acc, shift) => {
-      acc[shift.id] = shift;
-      return acc;
-    }, {} as Record<string, any>);
-    
-    // Fetch the preferred dates for all requests
-    const requestIds = requests.map(req => req.id);
-    const { data: preferredDates, error: datesError } = await supabase
+    const { error: datesError } = await supabase
       .from('shift_swap_preferred_dates')
-      .select('*')
-      .in('request_id', requestIds);
-      
+      .insert(preferredDatesToInsert);
+    
     if (datesError) throw datesError;
     
-    console.log('Fetched preferred dates:', preferredDates?.length || 0);
-    
-    // Format and return the requests
-    return requests.map(request => {
-      const shift = shiftMap[request.requester_shift_id];
-      
-      // Skip requests without a valid shift
-      if (!shift) return null;
-      
-      // Determine shift type based on start time
-      const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
-      let shiftType: "day" | "afternoon" | "night";
-      
-      if (startHour <= 8) {
-        shiftType = 'day';
-      } else if (startHour > 8 && startHour < 16) {
-        shiftType = 'afternoon';
-      } else {
-        shiftType = 'night';
-      }
-      
-      // Get preferred dates for this request
-      const requestPreferredDates = (preferredDates || [])
-        .filter(pd => pd.request_id === request.id)
-        .map(pd => ({
-          id: pd.id,
-          date: pd.date,
-          acceptedTypes: pd.accepted_types as ("day" | "afternoon" | "night")[]
-        }));
-      
-      return {
-        id: request.id,
-        requesterId: request.requester_id,
-        status: request.status,
-        originalShift: {
-          id: shift.id,
-          date: shift.date,
-          title: shift.truck_name || `Shift-${shift.id.substring(0, 5)}`,
-          startTime: shift.start_time.substring(0, 5),
-          endTime: shift.end_time.substring(0, 5),
-          type: shiftType
-        },
-        preferredDates: requestPreferredDates
-      };
-    }).filter(Boolean);
+    return { success: true, requestId: request.id };
   } catch (error) {
-    console.error('Error fetching swap requests:', error);
+    console.error('Error creating swap request:', error);
     throw error;
   }
 };
 
 /**
- * Deletes a swap request
- * @param requestId The ID of the request to delete
+ * Delete a swap request
  */
 export const deleteSwapRequestApi = async (requestId: string) => {
   if (!requestId) {
-    console.error('Invalid requestId provided to deleteSwapRequestApi:', requestId);
-    throw new Error('Request ID is required to delete a swap request');
+    throw new Error('Request ID is required');
   }
   
-  console.log('Deleting swap request:', requestId);
-  
-  const { data, error } = await supabase.functions.invoke('delete_swap_request', {
-    body: { request_id: requestId }
-  });
-  
-  if (error) throw error;
-  
-  return data;
+  try {
+    // Delete all preferred dates for this request first
+    const { error: datesError } = await supabase
+      .from('shift_swap_preferred_dates')
+      .delete()
+      .eq('request_id', requestId);
+      
+    if (datesError) throw datesError;
+    
+    // Then delete the request
+    const { error: requestError } = await supabase
+      .from('shift_swap_requests')
+      .delete()
+      .eq('id', requestId);
+      
+    if (requestError) throw requestError;
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting swap request:', error);
+    throw error;
+  }
 };
 
 /**
- * Deletes a preferred day from a swap request
- * @param dayId The ID of the preferred day to delete
- * @param requestId The ID of the request the day belongs to
+ * Delete a preferred date from a swap request
  */
-export const deletePreferredDayApi = async (dayId: string, requestId: string) => {
+export const deletePreferredDateApi = async (dayId: string, requestId: string) => {
   if (!dayId || !requestId) {
-    console.error('Invalid parameters provided to deletePreferredDayApi:', { dayId, requestId });
-    throw new Error('Day ID and Request ID are required to delete a preferred day');
+    throw new Error('Day ID and Request ID are required');
   }
   
-  console.log('Deleting preferred day:', dayId, 'from request:', requestId);
-  
-  const { data, error } = await supabase.functions.invoke('delete_preferred_day', {
-    body: { day_id: dayId, request_id: requestId }
-  });
-  
-  if (error) throw error;
-  
-  return data;
+  try {
+    // Delete the preferred date
+    const { error: deleteError } = await supabase
+      .from('shift_swap_preferred_dates')
+      .delete()
+      .eq('id', dayId);
+      
+    if (deleteError) throw deleteError;
+    
+    // Check if any preferred dates remain
+    const { data: remainingDays, error: countError } = await supabase
+      .from('shift_swap_preferred_dates')
+      .select('id')
+      .eq('request_id', requestId);
+      
+    if (countError) throw countError;
+    
+    // If no dates left, delete the request too
+    if (!remainingDays || remainingDays.length === 0) {
+      const { error: requestError } = await supabase
+        .from('shift_swap_requests')
+        .delete()
+        .eq('id', requestId);
+        
+      if (requestError) throw requestError;
+      
+      return { success: true, requestDeleted: true };
+    }
+    
+    return { success: true, requestDeleted: false };
+  } catch (error) {
+    console.error('Error deleting preferred date:', error);
+    throw error;
+  }
 };

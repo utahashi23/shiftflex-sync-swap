@@ -1,4 +1,4 @@
 
-export { fetchAllData } from './fetchData';
-export { findMatches } from './findMatches';
-export { processMatches } from './processMatches';
+export * from './findMatches';
+export * from './fetchAllData';
+export * from './processMatches';
