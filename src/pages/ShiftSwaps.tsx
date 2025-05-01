@@ -11,7 +11,6 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useSwapMatcher } from '@/hooks/useSwapMatcher'; 
 import { RefreshCw, Bug } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });

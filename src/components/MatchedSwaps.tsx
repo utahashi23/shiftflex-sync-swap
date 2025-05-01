@@ -189,7 +189,7 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
         };
       }).filter(Boolean) as MatchedSwap[];
       
-      console.log('TEST MODE: Formatted test data:', formattedTestData.length);
+      console.log('TEST MODE: Formatted test data:', formattedTestData.length, formattedTestData);
       setTestData(formattedTestData);
       
     } catch (error) {
@@ -454,7 +454,17 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
         </Tabs>
       )}
       
-      {displayData.length === 0 ? (
+      {isLoading ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="h-12 w-12 rounded-full border-4 border-t-blue-500 border-r-transparent border-b-blue-500 border-l-transparent animate-spin mb-3"></div>
+            <h3 className="text-xl font-medium">Loading Swap Data</h3>
+            <p className="text-muted-foreground mt-2">
+              {testMode ? "Loading all swap requests..." : "Loading matched swaps..."}
+            </p>
+          </CardContent>
+        </Card>
+      ) : displayData.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Clock className="h-12 w-12 text-gray-300 mb-3" />
@@ -477,7 +487,7 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
           <Card 
             key={swap.id} 
             className={cn(
-              swap.isTestData && swap.id === '170f792f-3de8-42de-a8e7-22fad95d91bc' || swap.id === '79b05905-1075-49f7-af87-e9fac516a7fa' 
+              swap.isTestData && (swap.id === '170f792f-3de8-42de-a8e7-22fad95d91bc' || swap.id === '79b05905-1075-49f7-af87-e9fac516a7fa') 
                 ? "border-amber-400 bg-amber-50" 
                 : "",
               activeTab === 'past' ? "opacity-80" : ""
