@@ -82,9 +82,19 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
       // Fetch ALL swap requests regardless of status
       const { data: requests, error: requestsError } = await supabase
         .from('shift_swap_requests')
-        .select('*');
+        .select(`
+          id,
+          requester_id,
+          requester_shift_id,
+          acceptor_id,
+          acceptor_shift_id,
+          status
+        `);
         
-      if (requestsError) throw requestsError;
+      if (requestsError) {
+        console.error('Error fetching swap requests:', requestsError);
+        throw requestsError;
+      }
       
       console.log('TEST MODE: Found swap requests:', requests?.length || 0, requests);
       
@@ -106,15 +116,36 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
         return;
       }
       
-      // Fetch all shift details
+      // Fetch all shift details - IMPORTANT: Removed the profiles join which was causing the error
       const { data: shiftsData, error: shiftsError } = await supabase
         .from('shifts')
-        .select('*, profiles(first_name, last_name)')
+        .select('*')
         .in('id', allShiftIds);
         
-      if (shiftsError) throw shiftsError;
+      if (shiftsError) {
+        console.error('Error fetching shifts:', shiftsError);
+        throw shiftsError;
+      }
       
       console.log('TEST MODE: Found shifts:', shiftsData?.length || 0);
+      
+      // Separately fetch profiles to get names if needed
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*');
+      
+      if (profilesError) {
+        console.log('Note: Could not fetch profiles, will use placeholder names:', profilesError);
+        // Continue without profiles data
+      }
+      
+      // Create a profiles lookup for easy access
+      const profilesMap: Record<string, any> = {};
+      if (profilesData) {
+        profilesData.forEach(profile => {
+          profilesMap[profile.id] = profile;
+        });
+      }
       
       // Process all requests as "matched" for display purposes
       const formattedTestData = requests.map(request => {
@@ -140,10 +171,7 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
             start_time: '09:00:00',
             end_time: '17:00:00',
             truck_name: 'Test Truck',
-            profiles: {
-              first_name: 'Test',
-              last_name: 'User'
-            }
+            user_id: 'placeholder-user'
           };
         }
         
@@ -161,11 +189,14 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
             type = 'night';
           }
           
-          // Get colleague name if available
-          const hasProfile = shift.profiles && (shift.profiles.first_name || shift.profiles.last_name);
-          const colleague = hasProfile 
-            ? `${shift.profiles.first_name || ''} ${shift.profiles.last_name || ''}`.trim()
-            : 'Test Colleague';
+          // Get colleague name if available from profiles map
+          let colleagueName = 'Test Colleague';
+          if (shift.user_id && !isOriginal) {
+            const profile = profilesMap[shift.user_id];
+            if (profile) {
+              colleagueName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unnamed Colleague';
+            }
+          }
             
           return {
             id: shift.id,
@@ -175,7 +206,7 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
             endTime: shift.end_time.substring(0, 5),
             type,
             colleagueType: 'Unknown',
-            ...(isOriginal ? {} : { colleague })
+            ...(isOriginal ? {} : { colleague: colleagueName })
           };
         };
         
@@ -196,7 +227,7 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
       console.error('Error fetching test data:', error);
       toast({
         title: "Test Mode Error",
-        description: "There was a problem loading test data.",
+        description: "There was a problem loading test data. " + (error instanceof Error ? error.message : ''),
         variant: "destructive"
       });
     } finally {
