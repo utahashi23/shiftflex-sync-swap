@@ -11,7 +11,7 @@ import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ShiftTypeIcon from './ShiftTypeIcon';
 import ShiftTypeBadge from './ShiftTypeBadge';
-import { SwapRequest, PreferredDay } from '@/hooks/useSwapRequests';
+import { SwapRequest, PreferredDate } from '@/hooks/swap-requests/types';
 
 interface SwapRequestCardProps {
   request: SwapRequest;
@@ -19,7 +19,7 @@ interface SwapRequestCardProps {
   onDeletePreferredDate: (dayId: string, requestId: string) => void;
 }
 
-const ShiftHeader = ({ shift }: { shift: SwapRequest['shift'] }) => {
+const ShiftHeader = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
   return (
     <div className="flex items-center">
       <div className={cn(
@@ -31,13 +31,13 @@ const ShiftHeader = ({ shift }: { shift: SwapRequest['shift'] }) => {
         <ShiftTypeIcon type={shift.type} />
       </div>
       <div>
-        {shift.truckName || `Shift-${shift.id.substring(0, 5)}`} ({formatDate(shift.date)})
+        {shift.title || `Shift-${shift.id.substring(0, 5)}`} ({formatDate(shift.date)})
       </div>
     </div>
   );
 };
 
-const OriginalShiftInfo = ({ shift }: { shift: SwapRequest['shift'] }) => {
+const OriginalShiftInfo = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
   return (
     <div className="flex justify-between">
       <div className="space-y-1">
@@ -64,7 +64,7 @@ const PreferredDateItem = ({
   canDelete, 
   onDelete 
 }: { 
-  preferredDay: PreferredDay;
+  preferredDay: PreferredDate;
   requestId: string;
   canDelete: boolean;
   onDelete: () => void;
@@ -108,12 +108,12 @@ const PreferredDatesSection = ({
     <div>
       <div className="text-sm font-medium text-muted-foreground mb-2">Preferred Swap Dates</div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
-        {request.preferredDays.map((preferredDay) => (
+        {request.preferredDates.map((preferredDay) => (
           <PreferredDateItem 
             key={preferredDay.id}
             preferredDay={preferredDay}
             requestId={request.id}
-            canDelete={request.preferredDays.length > 1}
+            canDelete={request.preferredDates.length > 1}
             onDelete={() => onDeletePreferredDate(preferredDay.id, request.id)}
           />
         ))}
@@ -145,13 +145,13 @@ const SwapRequestCard = ({ request, onDeleteRequest, onDeletePreferredDate }: Sw
       
       <CardHeader>
         <CardTitle className="text-lg">
-          <ShiftHeader shift={request.shift} />
+          <ShiftHeader shift={request.originalShift} />
         </CardTitle>
       </CardHeader>
       
       <CardContent>
         <div className="space-y-4">
-          <OriginalShiftInfo shift={request.shift} />
+          <OriginalShiftInfo shift={request.originalShift} />
           <PreferredDatesSection 
             request={request}
             onDeletePreferredDate={onDeletePreferredDate}
