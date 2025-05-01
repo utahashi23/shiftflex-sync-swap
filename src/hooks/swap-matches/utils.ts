@@ -11,21 +11,18 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
     return [];
   }
   
-  // Create a Map to track unique swap IDs to remove duplicates
-  const uniqueMatches = new Map();
-  
-  matchesData.forEach(match => {
-    // Skip if match is null or undefined
-    if (!match) return;
-    
-    // Only process each match once by match_id
-    if (!uniqueMatches.has(match.match_id)) {
+  try {
+    const formattedMatches = matchesData.map(match => {
+      if (!match) {
+        console.warn('Found null or undefined match entry');
+        return null;
+      }
+      
       try {
-        // Use the common getShiftType function for consistency
         const myShiftType = getShiftType(match.my_shift_start_time);
         const otherShiftType = getShiftType(match.other_shift_start_time);
         
-        uniqueMatches.set(match.match_id, {
+        return {
           id: match.match_id,
           status: match.match_status,
           myShift: {
@@ -49,13 +46,17 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
           myRequestId: match.my_request_id,
           otherRequestId: match.other_request_id,
           createdAt: match.created_at
-        });
+        };
       } catch (error) {
-        console.error('Error formatting match:', error);
+        console.error('Error formatting individual match:', error, match);
+        return null;
       }
-    }
-  });
-  
-  // Convert the Map values back to an array
-  return Array.from(uniqueMatches.values());
+    });
+    
+    // Filter out null entries from failed formatting
+    return formattedMatches.filter(Boolean) as SwapMatch[];
+  } catch (error) {
+    console.error('Error in formatSwapMatches:', error);
+    return [];
+  }
 };

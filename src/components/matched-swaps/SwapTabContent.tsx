@@ -1,3 +1,4 @@
+
 import { SwapMatch } from "@/hooks/useSwapMatches";
 import { SwapCard } from "./SwapCard";
 import { EmptySwapState } from "./EmptySwapState";
@@ -18,19 +19,10 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
     );
   }
 
-  // Create a Set to track seen match IDs
-  const uniqueMatchIds = new Set<string>();
-  
-  // Filter to keep only unique swaps
-  const uniqueSwaps = swaps.filter(swap => {
-    if (uniqueMatchIds.has(swap.id)) {
-      return false;
-    }
-    uniqueMatchIds.add(swap.id);
-    return true;
-  });
-
-  console.log(`Displaying ${uniqueSwaps.length} unique swaps from ${swaps.length} total swaps`);
+  // We ensure uniqueness by ID when displaying swaps
+  const uniqueSwaps = Array.from(
+    new Map(swaps.map(swap => [swap.id, swap])).values()
+  );
 
   return (
     <div className="space-y-4">

@@ -36,11 +36,10 @@ serve(async (req) => {
       // Supabase API ANON KEY - env var exposed by default when deployed
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       // Create client with Auth context of the user that called the function.
-      // This way your row-level-security (RLS) policies are applied.
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
     
-    // Use our security definer function to bypass RLS issues
+    // Use our RPC function to bypass RLS issues
     const { data: matchesData, error: matchesError } = await supabaseClient
       .rpc('get_user_matches_with_rls', { user_id });
     
@@ -52,13 +51,13 @@ serve(async (req) => {
     // Ensure we have an array to work with
     const matches = matchesData || [];
     
-    // Get only distinct matches by match_id to ensure no duplicates
-    const uniqueMatchIds = new Set<string>();
+    // Get only distinct matches by match_id
+    const seen = new Set<string>();
     const distinctMatches = matches.filter(match => {
-      if (uniqueMatchIds.has(match.match_id)) {
+      if (!match || !match.match_id || seen.has(match.match_id)) {
         return false;
       }
-      uniqueMatchIds.add(match.match_id);
+      seen.add(match.match_id);
       return true;
     });
     
