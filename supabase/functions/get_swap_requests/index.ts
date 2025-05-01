@@ -38,6 +38,8 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
+    console.log(`Fetching swap requests for user ${user_id} with status ${status}`)
+    
     // Fetch the user's pending swap requests
     const { data: requests, error: requestsError } = await supabaseClient
       .from('shift_swap_requests')
@@ -46,8 +48,11 @@ serve(async (req) => {
       .eq('status', status)
       
     if (requestsError) {
+      console.error('Error fetching swap requests:', requestsError)
       throw requestsError
     }
+    
+    console.log(`Found ${requests?.length || 0} swap requests`)
     
     if (!requests || requests.length === 0) {
       return new Response(
@@ -66,8 +71,11 @@ serve(async (req) => {
       .in('id', shiftIds)
       
     if (shiftsError) {
+      console.error('Error fetching shifts:', shiftsError)
       throw shiftsError
     }
+    
+    console.log(`Found ${shifts?.length || 0} related shifts`)
     
     // Create a map for quick lookup
     const shiftsMap = {}
@@ -102,8 +110,11 @@ serve(async (req) => {
       .in('request_id', requestIds)
       
     if (daysError) {
+      console.error('Error fetching preferred days:', daysError)
       throw daysError
     }
+    
+    console.log(`Found ${preferredDays?.length || 0} preferred days`)
     
     // Group preferred days by request ID
     const preferredDaysByRequest = {}
@@ -119,16 +130,21 @@ serve(async (req) => {
       return {
         id: request.id,
         status: request.status,
+        requester_id: request.requester_id,
+        requester_shift_id: request.requester_shift_id,
         shift: shiftsMap[request.requester_shift_id],
         preferred_days: preferredDaysByRequest[request.id] || []
       }
     })
 
+    console.log(`Returning ${result.length} formatted swap requests`)
+    
     return new Response(
       JSON.stringify(result),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
   } catch (error) {
+    console.error('Error in get_swap_requests:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }

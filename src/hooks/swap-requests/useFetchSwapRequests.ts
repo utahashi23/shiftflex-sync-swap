@@ -11,7 +11,10 @@ export const useFetchSwapRequests = (user: User | null) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchSwapRequests = useCallback(async () => {
-    if (!user) return;
+    if (!user || !user.id) {
+      console.log('No user or user ID available, skipping fetch');
+      return;
+    }
     
     setIsLoading(true);
     try {
