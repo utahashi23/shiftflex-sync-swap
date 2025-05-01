@@ -2,7 +2,7 @@
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { SwapRequest } from './types';
-import { deletePreferredDayApi, deleteSwapRequestApi } from './api';
+import { deletePreferredDateApi, deleteSwapRequestApi } from './api';
 
 export const useDeleteSwapRequest = (
   setSwapRequests: React.Dispatch<React.SetStateAction<SwapRequest[]>>,
@@ -52,7 +52,7 @@ export const useDeleteSwapRequest = (
       console.log('Deleting preferred day with id:', dayId);
       
       // Call the API to delete the preferred day
-      const result = await deletePreferredDayApi(dayId, requestId);
+      const result = await deletePreferredDateApi(dayId, requestId);
       
       // Check if the entire request was deleted (no preferred days left)
       const requestDeleted = result?.request_deleted || false;
