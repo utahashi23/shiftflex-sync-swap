@@ -19,13 +19,15 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
     );
   }
 
-  // Make sure we display each swap only once (by ID)
+  // Ensure each swap ID is unique to prevent duplicates
   const uniqueSwaps = swaps.reduce((acc: MatchedSwap[], swap) => {
     if (!acc.some(s => s.id === swap.id)) {
       acc.push(swap);
     }
     return acc;
   }, []);
+
+  console.log(`Displaying ${uniqueSwaps.length} unique swaps from ${swaps.length} total swaps`);
 
   return (
     <div className="space-y-4">

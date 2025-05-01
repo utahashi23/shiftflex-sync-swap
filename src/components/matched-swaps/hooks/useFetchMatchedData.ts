@@ -22,10 +22,10 @@ export const useFetchMatchedData = () => {
     try {
       console.log('Fetching matched swaps for user', userId);
       
-      // Fetch matched swap requests - simplified query for better reliability
+      // Fetch matched swap requests where the user is either requester or acceptor
       const { data: matchedRequests, error: matchedError } = await supabase
         .from('shift_swap_requests')
-        .select('id, status, requester_id, requester_shift_id, acceptor_id, acceptor_shift_id')
+        .select('*')
         .eq('status', 'matched')
         .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`);
         
@@ -39,7 +39,7 @@ export const useFetchMatchedData = () => {
       // Fetch completed swaps
       const { data: completedRequests, error: completedError } = await supabase
         .from('shift_swap_requests')
-        .select('id, status, requester_id, requester_shift_id, acceptor_id, acceptor_shift_id')
+        .select('*')
         .eq('status', 'completed')
         .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`);
         
@@ -70,24 +70,34 @@ export const useFetchMatchedData = () => {
         if (req.acceptor_shift_id) shiftIds.add(req.acceptor_shift_id);
       });
       
-      // Convert Set to Array
-      const shiftIdArray = Array.from(shiftIds).filter(id => id !== null);
-      console.log('Fetching additional shift data for IDs:', shiftIdArray);
+      // Convert Set to Array, removing any null or undefined values
+      const shiftIdArray = Array.from(shiftIds).filter(Boolean);
+      console.log('Fetching shift data for IDs:', shiftIdArray);
       
-      // Get shifts data using our function that bypasses RLS
-      const shiftsData = [];
-      for (const shiftId of shiftIdArray) {
-        const { data, error } = await supabase.rpc('get_shift_by_id', { shift_id: shiftId });
-        if (error) {
-          console.error(`Error fetching shift ${shiftId}:`, error);
-          continue;
-        }
-        if (data && data.length > 0) {
-          shiftsData.push(...data);
+      // Fetch all shifts data in one request
+      let shiftsData: any[] = [];
+      if (shiftIdArray.length > 0) {
+        // Batch shifts into smaller groups to prevent URL length limits
+        const batchSize = 5;
+        for (let i = 0; i < shiftIdArray.length; i += batchSize) {
+          const batch = shiftIdArray.slice(i, i + batchSize);
+          const { data: batchData, error: batchError } = await supabase
+            .from('shifts')
+            .select('*')
+            .in('id', batch);
+            
+          if (batchError) {
+            console.error(`Error fetching shifts batch ${i}:`, batchError);
+            continue;
+          }
+          
+          if (batchData) {
+            shiftsData = [...shiftsData, ...batchData];
+          }
         }
       }
       
-      console.log('Fetched additional shifts data:', shiftsData.length);
+      console.log('Fetched shifts data:', shiftsData.length);
       
       // Get user IDs involved in swaps
       const userIds = new Set<string>();
@@ -103,7 +113,7 @@ export const useFetchMatchedData = () => {
       });
       
       // Remove null values
-      const filteredUserIds = Array.from(userIds).filter(id => id !== null);
+      const filteredUserIds = Array.from(userIds).filter(Boolean);
       console.log('Fetching profiles for user IDs:', filteredUserIds);
       
       // Fetch user profiles

@@ -35,7 +35,7 @@ export const processSwapRequests = (
   currentUserId: string,
   profilesMap: Record<string, any>
 ): MatchedSwap[] => {
-  // Create a hash map to track unique swap combinations
+  // Create a hash map to track unique swap combinations to prevent duplicates
   const uniqueSwapMap = new Map<string, MatchedSwap>();
   const result: MatchedSwap[] = [];
   
@@ -47,8 +47,26 @@ export const processSwapRequests = (
     currentUserId
   });
 
+  // Create a map for quick shift lookup
+  const shiftsById = shifts.reduce((acc, shift) => {
+    acc[shift.id] = shift;
+    return acc;
+  }, {} as Record<string, any>);
+
   for (const request of requests) {
     try {
+      // Skip invalid requests
+      if (!request.requester_id || !request.requester_shift_id) {
+        console.log(`Skipping request ${request.id} - missing requester data`);
+        continue;
+      }
+
+      // For matched requests, we need acceptor data
+      if (request.status === 'matched' && (!request.acceptor_id || !request.acceptor_shift_id)) {
+        console.log(`Skipping matched request ${request.id} - missing acceptor data`);
+        continue;
+      }
+
       // Determine if the current user is the requester or acceptor
       const isRequester = request.requester_id === currentUserId;
       
@@ -63,82 +81,68 @@ export const processSwapRequests = (
         theirShiftId
       });
       
-      // Find the shift data in the shifts array
-      const myShift = shifts.find((s: any) => s.id === myShiftId);
-      const theirShift = shifts.find((s: any) => s.id === theirShiftId);
+      // Find the shift data in the shifts array using the map for better performance
+      const myShift = shiftsById[myShiftId];
+      const theirShift = shiftsById[theirShiftId];
       
-      // If we're missing shift data, use defaults
-      const myShiftData = myShift || {
-        id: myShiftId,
-        date: new Date().toISOString().split('T')[0],
-        start_time: "09:00:00",
-        end_time: "17:00:00",
-        truck_name: "Unknown Shift"
-      };
-      
-      const theirShiftData = theirShift || {
-        id: theirShiftId,
-        date: new Date().toISOString().split('T')[0],
-        start_time: "09:00:00",
-        end_time: "17:00:00",
-        truck_name: "Unknown Shift"
-      };
-      
-      // Get the user IDs
-      const myUserId = isRequester ? request.requester_id : request.acceptor_id;
-      const theirUserId = isRequester ? request.acceptor_id : request.requester_id;
-      
-      if (!theirUserId) {
-        console.log(`Skipping request ${request.id} - missing colleague ID`);
+      // Skip if we're missing required shift data
+      if (!myShift || !theirShift) {
+        console.log(`Skipping request ${request.id} - missing shift data`, { 
+          myShiftFound: !!myShift, 
+          theirShiftFound: !!theirShift 
+        });
         continue;
       }
       
       console.log('Using shift data:', {
         myShift: {
-          id: myShiftData.id,
-          date: myShiftData.date,
-          start_time: myShiftData.start_time,
-          end_time: myShiftData.end_time
+          id: myShift.id,
+          date: myShift.date,
+          start_time: myShift.start_time,
+          end_time: myShift.end_time
         },
         theirShift: {
-          id: theirShiftData.id,
-          date: theirShiftData.date,
-          start_time: theirShiftData.start_time,
-          end_time: theirShiftData.end_time
+          id: theirShift.id,
+          date: theirShift.date,
+          start_time: theirShift.start_time,
+          end_time: theirShift.end_time
         }
       });
       
+      // Get the user IDs
+      const myUserId = isRequester ? request.requester_id : request.acceptor_id;
+      const theirUserId = isRequester ? request.acceptor_id : request.requester_id;
+      
       // Process my shift data
-      const myShiftType = getShiftType(myShiftData.start_time);
+      const myShiftType = getShiftType(myShift.start_time);
       const processedMyShift = {
-        id: myShiftData.id || myShiftId || 'unknown',
-        date: myShiftData.date,
+        id: myShift.id,
+        date: myShift.date,
         type: myShiftType,
-        title: myShiftData.truck_name || "Your Shift",
-        startTime: formatTime(myShiftData.start_time),
-        endTime: formatTime(myShiftData.end_time),
+        title: myShift.truck_name || "Your Shift",
+        startTime: formatTime(myShift.start_time),
+        endTime: formatTime(myShift.end_time),
         colleagueType: isRequester ? "Requester" : "Acceptor",
       };
       
       // Process their shift data
-      const theirShiftType = getShiftType(theirShiftData.start_time);
+      const theirShiftType = getShiftType(theirShift.start_time);
       const processedTheirShift = {
-        id: theirShiftData.id || theirShiftId || 'unknown',
-        date: theirShiftData.date,
+        id: theirShift.id,
+        date: theirShift.date,
         type: theirShiftType,
-        title: theirShiftData.truck_name || "Their Shift",
-        startTime: formatTime(theirShiftData.start_time),
-        endTime: formatTime(theirShiftData.end_time),
+        title: theirShift.truck_name || "Their Shift",
+        startTime: formatTime(theirShift.start_time),
+        endTime: formatTime(theirShift.end_time),
         colleagueType: isRequester ? "Acceptor" : "Requester",
         colleague: getColleagueName(profilesMap, theirUserId)
       };
       
-      // Create a unique key for this swap based on both shift IDs
-      // Only care about the shift IDs, not who's requesting what
-      const shiftIds = [myShiftData.id, theirShiftData.id].sort();
-      const swapKey = `${shiftIds[0]}-${shiftIds[1]}`;
+      // Create a unique key for this swap based on both shift IDs and the request ID
+      // This ensures we capture all matches while preventing duplicates of the exact same match
+      const swapKey = `${request.id}-${myShift.id}-${theirShift.id}`;
       
-      // Only add this swap if we haven't processed this shift pair yet
+      // Only add this swap if we haven't processed this exact combination yet
       if (!uniqueSwapMap.has(swapKey)) {
         const matchedSwap = {
           id: request.id,
@@ -158,7 +162,7 @@ export const processSwapRequests = (
           matchedShiftTime: `${processedTheirShift.startTime}-${processedTheirShift.endTime}`
         });
       } else {
-        console.log(`Skipping duplicate swap for shift pair: ${swapKey}`);
+        console.log(`Skipping duplicate swap: ${swapKey}`);
       }
     } catch (error) {
       console.error(`Error processing request ${request.id}:`, error);

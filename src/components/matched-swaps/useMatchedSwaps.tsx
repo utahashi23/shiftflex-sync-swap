@@ -33,17 +33,14 @@ export const useMatchedSwaps = () => {
     try {
       setIsRefreshing(true);
       console.log('Refreshing matched swaps');
+      
       const { matchedSwaps, completedSwaps } = await fetchMatchedSwaps(user.id);
       
-      // Ensure we have unique swaps
-      const uniqueMatchedSwaps = getUniqueSwaps(matchedSwaps);
-      const uniqueCompletedSwaps = getUniqueSwaps(completedSwaps);
+      console.log(`Refreshed data: ${matchedSwaps.length} matched swaps and ${completedSwaps.length} completed swaps`);
       
-      // Log the data for debugging
-      console.log(`Got ${uniqueMatchedSwaps.length} matched swaps and ${uniqueCompletedSwaps.length} completed swaps`);
-      
-      setSwapRequests(uniqueMatchedSwaps);
-      setPastSwaps(uniqueCompletedSwaps);
+      // Update state with the fetched data
+      setSwapRequests(matchedSwaps);
+      setPastSwaps(completedSwaps);
     } catch (error) {
       console.error('Error refreshing matches:', error);
       toast({
@@ -54,17 +51,6 @@ export const useMatchedSwaps = () => {
     } finally {
       setIsRefreshing(false);
     }
-  };
-
-  // Helper function to ensure unique swaps by ID
-  const getUniqueSwaps = (swaps: MatchedSwap[]): MatchedSwap[] => {
-    const uniqueMap = new Map<string, MatchedSwap>();
-    swaps.forEach(swap => {
-      if (!uniqueMap.has(swap.id)) {
-        uniqueMap.set(swap.id, swap);
-      }
-    });
-    return Array.from(uniqueMap.values());
   };
 
   const handleAcceptSwap = async () => {
@@ -85,6 +71,11 @@ export const useMatchedSwaps = () => {
             ...prev, 
             { ...completedSwap, status: 'completed' }
           ]);
+          
+          toast({
+            title: "Swap Accepted",
+            description: "You have successfully accepted the swap.",
+          });
         }
       }
     } catch (error) {

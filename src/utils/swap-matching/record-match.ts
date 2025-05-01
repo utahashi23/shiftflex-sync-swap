@@ -7,22 +7,46 @@ import { toast } from '@/hooks/use-toast';
  */
 export const recordShiftMatch = async (request: any, otherRequest: any, userId: string) => {
   try {
-    // First check if this match already exists using our new helper function
-    const { data: existingMatch, error: checkError } = await supabase
-      .rpc('check_existing_match', {
-        request_id1: request.id,
-        request_id2: otherRequest.id
-      });
+    console.log('Recording match between requests:', {
+      request1: request.id,
+      request2: otherRequest.id
+    });
+
+    // First check if this match already exists using our helper function
+    try {
+      const { data: existingMatch, error: checkError } = await supabase
+        .rpc('check_existing_match', {
+          request_id1: request.id,
+          request_id2: otherRequest.id
+        });
+        
+      if (checkError) {
+        console.error('Error checking for existing match:', checkError);
+        return { success: false, error: checkError };
+      }
       
-    if (checkError) {
-      console.error('Error checking for existing match:', checkError);
-      return { success: false, error: checkError };
-    }
-    
-    // If a match already exists, just return success without trying to create a duplicate
-    if (existingMatch && existingMatch.length > 0) {
-      console.log('Match already exists, skipping creation');
-      return { success: true, alreadyExists: true };
+      // If a match already exists, just return success without trying to create a duplicate
+      if (existingMatch && existingMatch.length > 0) {
+        console.log('Match already exists, skipping creation');
+        return { success: true, alreadyExists: true };
+      }
+    } catch (error) {
+      console.error('Failed to check for existing match with RPC, trying direct query:', error);
+      
+      // Fallback to direct query if RPC fails
+      const { data: directMatch, error: directError } = await supabase
+        .from('shift_swap_potential_matches')
+        .select('id')
+        .or(`and(requester_request_id.eq.${request.id},acceptor_request_id.eq.${otherRequest.id}),and(requester_request_id.eq.${otherRequest.id},acceptor_request_id.eq.${request.id})`)
+        .limit(1);
+        
+      if (directError) {
+        console.error('Error in direct query for existing match:', directError);
+        // Continue with the process, worst case we'll get a unique constraint error
+      } else if (directMatch && directMatch.length > 0) {
+        console.log('Match found via direct query, skipping creation');
+        return { success: true, alreadyExists: true };
+      }
     }
     
     // Check if either request is already in a matched state
@@ -78,6 +102,7 @@ export const recordShiftMatch = async (request: any, otherRequest: any, userId: 
       })
       .eq('id', otherRequest.id);
     
+    // Execute both updates
     const [requesterResult, acceptorResult] = await Promise.all([requesterUpdate, acceptorUpdate]);
     
     // Check for errors in updates
