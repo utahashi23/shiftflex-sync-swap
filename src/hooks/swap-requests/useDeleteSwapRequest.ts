@@ -55,7 +55,7 @@ export const useDeleteSwapRequest = (
       const result = await deletePreferredDateApi(dayId, requestId);
       
       // Check if the entire request was deleted (no preferred days left)
-      const requestDeleted = result?.request_deleted || false;
+      const requestDeleted = result?.requestDeleted || false;
       
       if (requestDeleted) {
         // Remove the entire request from state
