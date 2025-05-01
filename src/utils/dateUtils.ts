@@ -60,13 +60,23 @@ export const formatTime = (timeStr: string): string => {
     } else {
       // Handle time strings like "09:00:00"
       const timeParts = timeStr.split(':');
+      if (timeParts.length < 2) {
+        console.error("Invalid time format:", timeStr);
+        return "Invalid Time";
+      }
       hours = parseInt(timeParts[0], 10);
       minutes = parseInt(timeParts[1], 10);
     }
     
     // Validate hours and minutes
-    if (isNaN(hours) || hours < 0 || hours > 23) hours = 0;
-    if (isNaN(minutes) || minutes < 0 || minutes > 59) minutes = 0;
+    if (isNaN(hours) || hours < 0 || hours > 23) {
+      console.error("Invalid hours:", hours, "from time string:", timeStr);
+      hours = 0;
+    }
+    if (isNaN(minutes) || minutes < 0 || minutes > 59) {
+      console.error("Invalid minutes:", minutes, "from time string:", timeStr);
+      minutes = 0;
+    }
     
     // Convert to 12 hour format with AM/PM
     const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -76,7 +86,7 @@ export const formatTime = (timeStr: string): string => {
     
     return `${formattedHours}:${minutesStr} ${ampm}`;
   } catch (error) {
-    console.error("Error formatting time:", error);
+    console.error("Error formatting time:", error, "for time string:", timeStr);
     return "Invalid Time";
   }
 };

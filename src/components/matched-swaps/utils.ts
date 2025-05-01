@@ -43,20 +43,12 @@ export const processSwapRequests = (
     currentUserId
   });
 
-  // Store already processed request IDs to prevent duplicates
-  const processedIds = new Set<string>();
+  // Create a hash map to track unique swap combinations
+  // This is more reliable than just tracking IDs
+  const uniqueSwapMap = new Map<string, MatchedSwap>();
   const result: MatchedSwap[] = [];
 
   for (const request of requests) {
-    // Skip if we've already processed this request ID
-    if (processedIds.has(request.id)) {
-      console.log(`Skipping duplicate request ID: ${request.id}`);
-      continue;
-    }
-    
-    // Mark this request as processed
-    processedIds.add(request.id);
-    
     try {
       // Determine if the current user is the requester or acceptor
       const isRequester = request.requester_id === currentUserId;
@@ -140,20 +132,32 @@ export const processSwapRequests = (
         colleague: getColleagueName(profilesMap, theirUserId || 'unknown')
       };
       
-      result.push({
-        id: request.id,
-        originalShift: processedMyShift,
-        matchedShift: processedTheirShift,
-        status: request.status
-      });
+      // Create a unique key for this swap based on the shift IDs, not the request ID
+      // This ensures true uniqueness based on the actual shift data
+      const swapKey = `${myShiftId}-${theirShiftId}`;
       
-      console.log('Successfully processed match:', {
-        id: request.id,
-        originalShiftDate: processedMyShift.date,
-        matchedShiftDate: processedTheirShift.date,
-        originalShiftTime: `${processedMyShift.startTime}-${processedMyShift.endTime}`,
-        matchedShiftTime: `${processedTheirShift.startTime}-${processedTheirShift.endTime}`
-      });
+      // Only add this swap if we haven't processed this shift pair yet
+      if (!uniqueSwapMap.has(swapKey)) {
+        const matchedSwap = {
+          id: request.id,
+          originalShift: processedMyShift,
+          matchedShift: processedTheirShift,
+          status: request.status
+        };
+        
+        uniqueSwapMap.set(swapKey, matchedSwap);
+        result.push(matchedSwap);
+        
+        console.log('Successfully processed match:', {
+          id: request.id,
+          originalShiftDate: processedMyShift.date,
+          matchedShiftDate: processedTheirShift.date,
+          originalShiftTime: `${processedMyShift.startTime}-${processedMyShift.endTime}`,
+          matchedShiftTime: `${processedTheirShift.startTime}-${processedTheirShift.endTime}`
+        });
+      } else {
+        console.log(`Skipping duplicate swap for shift pair: ${swapKey}`);
+      }
     } catch (error) {
       console.error(`Error processing request ${request.id}:`, error);
     }
