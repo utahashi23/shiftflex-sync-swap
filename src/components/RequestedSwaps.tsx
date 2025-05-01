@@ -4,14 +4,15 @@ import SwapRequestCard from './swaps/SwapRequestCard';
 import SwapRequestSkeleton from './swaps/SwapRequestSkeleton';
 import EmptySwapRequests from './swaps/EmptySwapRequests';
 import SwapDeleteDialog from './swaps/SwapDeleteDialog';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from '@/hooks/use-toast';
-import { useFetchSwapRequests } from '@/hooks/swap-requests/useFetchSwapRequests';
-import { deleteSwapRequestApi, deletePreferredDayApi } from '@/hooks/swap-requests/api';
+import { useSwapRequests } from '@/hooks/swap-requests/useSwapRequests';
 
 const RequestedSwaps = () => {
-  const { user } = useAuth();
-  const { swapRequests, setSwapRequests, isLoading, fetchSwapRequests } = useFetchSwapRequests(user);
+  const { 
+    swapRequests, 
+    isLoading, 
+    deleteSwapRequest, 
+    deletePreferredDay 
+  } = useSwapRequests();
   
   const [deleteDialog, setDeleteDialog] = useState<{ 
     isOpen: boolean, 
@@ -23,8 +24,6 @@ const RequestedSwaps = () => {
     dayId: null
   });
   
-  const [deleteLoading, setDeleteLoading] = useState(false);
-
   // Handler for opening delete dialog for an entire swap request
   const onDeleteRequest = (requestId: string) => {
     console.log("Opening delete dialog for request:", requestId);
@@ -50,52 +49,14 @@ const RequestedSwaps = () => {
     if (!deleteDialog.requestId) return;
     
     try {
-      setDeleteLoading(true);
-      
       if (deleteDialog.dayId) {
         // Delete a single preferred date
-        await deletePreferredDayApi(deleteDialog.dayId, deleteDialog.requestId);
-        
-        // Update the UI by filtering out the deleted day
-        setSwapRequests(prevRequests => 
-          prevRequests.map(req => {
-            if (req.id === deleteDialog.requestId) {
-              return {
-                ...req,
-                preferredDates: req.preferredDates.filter(day => day.id !== deleteDialog.dayId)
-              };
-            }
-            return req;
-          })
-        );
-        
-        toast({
-          title: "Date removed",
-          description: "Preferred date has been removed from your request."
-        });
+        await deletePreferredDay(deleteDialog.dayId, deleteDialog.requestId);
       } else {
         // Delete the entire swap request
-        await deleteSwapRequestApi(deleteDialog.requestId);
-        
-        // Update the UI by filtering out the deleted request
-        setSwapRequests(prevRequests => 
-          prevRequests.filter(req => req.id !== deleteDialog.requestId)
-        );
-        
-        toast({
-          title: "Request deleted",
-          description: "Swap request has been deleted."
-        });
+        await deleteSwapRequest(deleteDialog.requestId);
       }
-    } catch (error) {
-      console.error('Error deleting:', error);
-      toast({
-        title: "Deletion failed",
-        description: "There was a problem processing your request. Please try again.",
-        variant: "destructive"
-      });
     } finally {
-      setDeleteLoading(false);
       setDeleteDialog({ isOpen: false, requestId: null, dayId: null });
     }
   };
@@ -125,7 +86,7 @@ const RequestedSwaps = () => {
 
       <SwapDeleteDialog
         isOpen={deleteDialog.isOpen}
-        isLoading={deleteLoading}
+        isLoading={false}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
             setDeleteDialog({ isOpen: false, requestId: null, dayId: null });
