@@ -22,7 +22,7 @@ export const useFetchMatchedData = () => {
     try {
       console.log('Fetching matched swaps for user', userId);
       
-      // Fetch matched swap requests
+      // Fetch matched swap requests with complete shift data included
       const { data: matchedRequests, error: matchedError } = await supabase
         .from('shift_swap_requests')
         .select(`
@@ -31,7 +31,9 @@ export const useFetchMatchedData = () => {
           requester_id,
           requester_shift_id,
           acceptor_id,
-          acceptor_shift_id
+          acceptor_shift_id,
+          requester_shift:requester_shift_id(id, date, start_time, end_time, truck_name),
+          acceptor_shift:acceptor_shift_id(id, date, start_time, end_time, truck_name)
         `)
         .eq('status', 'matched')
         .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`);
@@ -43,7 +45,7 @@ export const useFetchMatchedData = () => {
       
       console.log('Active matched swaps:', matchedRequests);
       
-      // Fetch completed swaps
+      // Fetch completed swaps with complete shift data included
       const { data: completedRequests, error: completedError } = await supabase
         .from('shift_swap_requests')
         .select(`
@@ -52,7 +54,9 @@ export const useFetchMatchedData = () => {
           requester_id,
           requester_shift_id,
           acceptor_id,
-          acceptor_shift_id
+          acceptor_shift_id,
+          requester_shift:requester_shift_id(id, date, start_time, end_time, truck_name),
+          acceptor_shift:acceptor_shift_id(id, date, start_time, end_time, truck_name)
         `)
         .eq('status', 'completed')
         .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`);
@@ -71,34 +75,35 @@ export const useFetchMatchedData = () => {
         return { matchedSwaps: [], completedSwaps: [] };
       }
       
-      // Get ALL relevant shift IDs for fetching shift details
+      // Get ALL relevant shift IDs for fetching additional shift details
       const shiftIds = new Set<string>();
       
       matchedRequests?.forEach(req => {
-        if (req.requester_shift_id) shiftIds.add(req.requester_shift_id);
-        if (req.acceptor_shift_id) shiftIds.add(req.acceptor_shift_id);
+        if (req.requester_shift_id && !req.requester_shift) shiftIds.add(req.requester_shift_id);
+        if (req.acceptor_shift_id && !req.acceptor_shift) shiftIds.add(req.acceptor_shift_id);
       });
       
       completedRequests?.forEach(req => {
-        if (req.requester_shift_id) shiftIds.add(req.requester_shift_id);
-        if (req.acceptor_shift_id) shiftIds.add(req.acceptor_shift_id);
+        if (req.requester_shift_id && !req.requester_shift) shiftIds.add(req.requester_shift_id);
+        if (req.acceptor_shift_id && !req.acceptor_shift) shiftIds.add(req.acceptor_shift_id);
       });
       
-      // Only fetch shifts if we have shift IDs
+      // Only fetch additional shifts if needed (some might be missing after join)
       let shiftsData: any[] = [];
       if (shiftIds.size > 0) {
-        // Fetch shift data
+        console.log('Fetching additional shift data for IDs:', Array.from(shiftIds));
+        
         const { data: shifts, error: shiftsError } = await supabase
           .from('shifts')
           .select('*')
           .in('id', Array.from(shiftIds));
           
         if (shiftsError) {
-          console.error('Error fetching shifts:', shiftsError);
+          console.error('Error fetching additional shifts:', shiftsError);
           throw shiftsError;
         }
         
-        console.log('Fetched shifts data:', shifts);
+        console.log('Fetched additional shifts data:', shifts?.length || 0);
         shiftsData = shifts || [];
       }
       
@@ -133,7 +138,7 @@ export const useFetchMatchedData = () => {
         throw profilesError;
       }
       
-      console.log('Fetched profiles data:', profilesData);
+      console.log('Fetched profiles data:', profilesData?.length || 0);
       
       // Create profiles map for quick lookup
       const profilesMap = (profilesData || []).reduce((map, profile) => {
@@ -141,37 +146,10 @@ export const useFetchMatchedData = () => {
         return map;
       }, {} as Record<string, any>);
       
-      // Process matches to avoid duplicates
-      const processedMatchIds = new Set<string>();
-      
-      // Join shift data with request data for matched requests
-      const matchedRequestsWithShifts = matchedRequests?.map(req => {
-        const requesterShift = shiftsData?.find(s => s.id === req.requester_shift_id);
-        const acceptorShift = shiftsData?.find(s => s.id === req.acceptor_shift_id);
-        
-        return {
-          ...req,
-          requester_shift: requesterShift,
-          acceptor_shift: acceptorShift
-        };
-      });
-      
-      // Join shift data with request data for completed requests
-      const completedRequestsWithShifts = completedRequests?.map(req => {
-        const requesterShift = shiftsData?.find(s => s.id === req.requester_shift_id);
-        const acceptorShift = shiftsData?.find(s => s.id === req.acceptor_shift_id);
-        
-        return {
-          ...req,
-          requester_shift: requesterShift,
-          acceptor_shift: acceptorShift
-        };
-      });
-      
-      // Process active matches - the problem was here with duplicates
+      // Process matches to avoid duplicates - using our improved processSwapRequests function
       const formattedActiveMatches = processSwapRequests(
-        matchedRequestsWithShifts || [], 
-        shiftsData || [], 
+        matchedRequests || [], 
+        shiftsData, 
         userId, 
         profilesMap
       );
@@ -179,14 +157,14 @@ export const useFetchMatchedData = () => {
       // Process completed matches
       const formattedCompletedMatches = processSwapRequests(
         completedRequestsWithShifts || [], 
-        shiftsData || [], 
+        shiftsData, 
         userId, 
         profilesMap
       );
       
-      // Log the processed matches to debug
-      console.log('Processed active matches:', formattedActiveMatches);
-      console.log('Processed completed matches:', formattedCompletedMatches);
+      // Log the processed matches
+      console.log(`Processed ${formattedActiveMatches.length} active matches`);
+      console.log(`Processed ${formattedCompletedMatches.length} completed matches`);
       
       // Return the unique matches
       return {
