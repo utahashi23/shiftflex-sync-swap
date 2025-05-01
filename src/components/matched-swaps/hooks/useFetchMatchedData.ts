@@ -9,7 +9,7 @@ import { processSwapRequests } from '../utils';
  * Hook for fetching matched swaps data
  */
 export const useFetchMatchedData = () => {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   
   /**
    * Fetch all matched and completed swaps for a user
@@ -70,7 +70,6 @@ export const useFetchMatchedData = () => {
       if ((!matchedRequests || matchedRequests.length === 0) && 
           (!completedRequests || completedRequests.length === 0)) {
         console.log('No matched or completed swaps found');
-        setIsLoading(false);
         return { matchedSwaps: [], completedSwaps: [] };
       }
       
@@ -187,7 +186,6 @@ export const useFetchMatchedData = () => {
       console.log(`Processed ${formattedActiveMatches.length} active matches`);
       console.log(`Processed ${formattedCompletedMatches.length} completed matches`);
       
-      setIsLoading(false);
       return {
         matchedSwaps: formattedActiveMatches,
         completedSwaps: formattedCompletedMatches
@@ -200,8 +198,9 @@ export const useFetchMatchedData = () => {
         description: "There was a problem loading your matched swaps. Please try again later.",
         variant: "destructive"
       });
-      setIsLoading(false);
       return { matchedSwaps: [], completedSwaps: [] };
+    } finally {
+      setIsLoading(false);
     }
   };
   

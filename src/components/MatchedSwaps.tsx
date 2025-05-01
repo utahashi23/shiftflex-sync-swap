@@ -12,7 +12,8 @@ import {
 import { Filter, RefreshCw } from 'lucide-react';
 import { useSwapMatcher } from '@/hooks/swap-matching';
 import { useAuth } from '@/hooks/useAuth';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { toast } from '@/hooks/use-toast';
 
 interface MatchedSwapsProps {
   setRefreshTrigger: React.Dispatch<React.SetStateAction<number>>;
@@ -33,12 +34,14 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   const { user } = useAuth();
   const { findSwapMatches, isProcessing } = useSwapMatcher();
+  const [isFindingMatches, setIsFindingMatches] = useState(false);
   
   // Debug logging for matches
   console.log('Matched Swaps Component - Current matches:', { 
     active: swapRequests?.length || 0, 
     past: pastSwaps?.length || 0,
-    isLoading
+    isLoading,
+    isProcessing
   });
   
   // Ensure we refresh once on mount
@@ -56,17 +59,39 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   const handleFindMatches = async () => {
     if (!user) return;
 
-    // Force check for matches even if already matched
-    await findSwapMatches(user.id, true);
+    setIsFindingMatches(true);
     
-    // Wait a moment for the database operations to complete
-    setTimeout(() => {
-      // Refresh the matched swaps data
-      refreshMatches();
-      // Update the parent refresh trigger to update all tabs
-      setRefreshTrigger(prev => prev + 1);
-    }, 1000);
+    try {
+      // Force check for matches even if already matched
+      await findSwapMatches(user.id, true);
+      
+      // Wait a moment for the database operations to complete
+      setTimeout(() => {
+        // Refresh the matched swaps data
+        refreshMatches();
+        // Update the parent refresh trigger to update all tabs
+        setRefreshTrigger(prev => prev + 1);
+        
+        toast({
+          title: "Matches Check Complete",
+          description: "Your shift swap matches have been checked and updated.",
+        });
+        
+        setIsFindingMatches(false);
+      }, 1000);
+    } catch (error) {
+      console.error('Error finding matches:', error);
+      toast({
+        title: "Error Finding Matches",
+        description: "There was a problem checking for matches. Please try again later.",
+        variant: "destructive"
+      });
+      setIsFindingMatches(false);
+    }
   };
+
+  // Determine loading state for the Find Matches button
+  const buttonLoading = isLoading || isProcessing || isFindingMatches;
 
   return (
     <div className="space-y-6">
@@ -79,11 +104,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           <div className="flex gap-2">
             <Button 
               onClick={handleFindMatches}
-              disabled={isProcessing || isLoading}
+              disabled={buttonLoading}
               className="bg-green-500 hover:bg-green-600 text-white"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isProcessing || isLoading ? 'animate-spin' : ''}`} />
-              {isProcessing || isLoading ? 'Loading...' : 'Find Matches'}
+              <RefreshCw className={`h-4 w-4 mr-2 ${buttonLoading ? 'animate-spin' : ''}`} />
+              {buttonLoading ? 'Loading...' : 'Find Matches'}
             </Button>
             <Button variant="outline">
               <Filter className="h-4 w-4 mr-1" /> Filter
