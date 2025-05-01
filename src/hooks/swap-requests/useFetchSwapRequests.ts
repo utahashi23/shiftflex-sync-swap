@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { User } from '@supabase/supabase-js';
 import { SwapRequest } from './types';
+import { fetchSwapRequestsApi } from './api';
 
 export const useFetchSwapRequests = (user: User | null) => {
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
@@ -14,17 +15,8 @@ export const useFetchSwapRequests = (user: User | null) => {
     
     setIsLoading(true);
     try {
-      console.log('Fetching swap requests for user:', user.id);
-      
-      // First fetch the requests that have at least 1 preferred date
-      const { data: requests, error: requestsError } = await supabase
-        .from('shift_swap_requests')
-        .select('*')
-        .eq('requester_id', user.id)
-        .eq('status', 'pending')
-        .gt('preferred_dates_count', 0);
-        
-      if (requestsError) throw requestsError;
+      // Fetch raw requests data from API
+      const requests = await fetchSwapRequestsApi(user.id);
       
       if (!requests || requests.length === 0) {
         setSwapRequests([]);

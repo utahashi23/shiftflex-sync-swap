@@ -4,7 +4,7 @@ import SwapRequestCard from './swaps/SwapRequestCard';
 import SwapRequestSkeleton from './swaps/SwapRequestSkeleton';
 import EmptySwapRequests from './swaps/EmptySwapRequests';
 import SwapDeleteDialog from './swaps/SwapDeleteDialog';
-import { useSwapRequests } from '@/hooks/useSwapRequests';
+import { useSwapRequests } from '@/hooks/swap-requests';
 
 const RequestedSwaps = () => {
   const [deleteDialog, setDeleteDialog] = useState<{ 
