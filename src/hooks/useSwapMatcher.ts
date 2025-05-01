@@ -5,11 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth'; 
 import { normalizeDate } from '@/utils/dateUtils';
 import { getShiftType, createLookupMaps } from '@/utils/shiftUtils';
-import { checkSwapCompatibility, recordShiftMatch, fetchSwapMatchingData } from '@/utils/swapMatchingLogic';
+import { checkSwapCompatibility, recordShiftMatch } from '@/utils/swapMatchingLogic';
+import { fetchAllShifts, fetchAllPreferredDates, fetchAllSwapRequests } from '@/utils/rls-bypass';
 
 export const useSwapMatcher = () => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   
   // Function to find and record swap matches
   const findSwapMatches = async () => {
@@ -27,24 +28,66 @@ export const useSwapMatcher = () => {
     try {
       console.log('----------- SWAP MATCHING STARTED -----------');
       console.log('Current user ID:', user.id);
+      console.log('Is admin:', isAdmin);
       
-      // Fetch all necessary data for swap matching
-      const result = await fetchSwapMatchingData();
+      // Fetch all necessary data for swap matching using our RLS bypass utilities
+      console.log('Fetching all shifts...');
+      const shiftsResult = await fetchAllShifts();
+      if (shiftsResult.error) {
+        throw shiftsResult.error;
+      }
+      const allShifts = shiftsResult.data || [];
+      console.log(`Fetched ${allShifts.length} shifts in total`);
       
-      if (!result.success) {
-        if (result.message) {
-          console.log(result.message);
-          toast({
-            title: "No Matches Found",
-            description: result.message,
-          });
-        } else {
-          throw result.error;
-        }
+      console.log('Fetching all swap requests...');
+      const requestsResult = await fetchAllSwapRequests();
+      if (requestsResult.error) {
+        throw requestsResult.error;
+      }
+      const allRequests = requestsResult.data || [];
+      console.log(`Fetched ${allRequests.length} swap requests in total`);
+      
+      console.log('Fetching all preferred dates...');
+      const datesResult = await fetchAllPreferredDates();
+      if (datesResult.error) {
+        throw datesResult.error;
+      }
+      const preferredDates = datesResult.data || [];
+      console.log(`Fetched ${preferredDates.length} preferred dates in total`);
+      
+      if (allRequests.length === 0) {
+        console.log('No pending swap requests found in the system');
+        toast({
+          title: "No Pending Swap Requests",
+          description: "There are no pending swap requests in the system to match.",
+        });
         return;
       }
       
-      const { allRequests, allShifts, preferredDates, profilesMap } = result.data;
+      if (preferredDates.length === 0) {
+        console.log('No preferred dates found in the system');
+        toast({
+          title: "No Swap Preferences Found",
+          description: "There are no preferred dates set for any requests.",
+        });
+        return;
+      }
+      
+      // Get profiles for all users (this may be subject to RLS too, we'll need to adapt if so)
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*');
+        
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
+      
+      // Create a map of user IDs to profile info for quick lookup
+      const profilesMap = (profiles || []).reduce((map, profile) => {
+        map[profile.id] = profile;
+        return map;
+      }, {} as Record<string, any>);
       
       // Prepare data structures for efficient matching
       const { 
@@ -61,8 +104,12 @@ export const useSwapMatcher = () => {
       // Temporary storage for matches
       const matches = [];
       
+      // Filter for pending requests only 
+      const pendingRequests = allRequests.filter(req => req.status === 'pending' && req.preferred_dates_count > 0);
+      console.log(`Processing ${pendingRequests.length} pending requests with preferred dates`);
+      
       // Process each request to find potential matches
-      for (const request of allRequests) {
+      for (const request of pendingRequests) {
         const requestShift = requestShifts[request.id];
         if (!requestShift) {
           console.log(`Missing shift data for request ${request.id}`);
@@ -76,12 +123,12 @@ export const useSwapMatcher = () => {
         console.log(`Processing request ${request.id} from user ${request.requester_id} (${requesterName})`);
         
         // Get this request's preferred dates for swapping
-        const preferredDates = preferredDatesByRequest[request.id] || [];
-        console.log(`Request ${request.id} has ${preferredDates.length} preferred dates`);
+        const preferredDatesForRequest = preferredDatesByRequest[request.id] || [];
+        console.log(`Request ${request.id} has ${preferredDatesForRequest.length} preferred dates`);
         console.log(`Offering shift on ${requestShift.normalizedDate} (${requestShift.type})`);
         
-        // Loop through all other requests to check for compatibility
-        for (const otherRequest of allRequests) {
+        // Loop through all other pending requests to check for compatibility
+        for (const otherRequest of pendingRequests) {
           // Skip self-comparison
           if (otherRequest.id === request.id) continue;
           
@@ -130,11 +177,11 @@ export const useSwapMatcher = () => {
           description: "No compatible shift swaps were found at this time.",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error finding swap matches:', error);
       toast({
         title: "Error Finding Matches",
-        description: "There was a problem finding swap matches. Please try again later.",
+        description: `Problem finding matches: ${error.message || 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
