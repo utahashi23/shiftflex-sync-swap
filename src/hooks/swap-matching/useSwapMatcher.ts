@@ -15,9 +15,10 @@ export const useSwapMatcher = () => {
   
   /**
    * Find potential matches for a user's swap requests
+   * @param userId - The ID of the current user (optional for admins)
    */
-  const findSwapMatches = async () => {
-    if (!user) {
+  const findSwapMatches = async (userId?: string) => {
+    if (!user && !userId) {
       toast({
         title: "Authentication required",
         description: "You must be logged in to find swap matches.",
@@ -26,7 +27,7 @@ export const useSwapMatcher = () => {
       return;
     }
     
-    await executeFindMatches(user.id);
+    await executeFindMatches(userId || user?.id);
   };
 
   return {
