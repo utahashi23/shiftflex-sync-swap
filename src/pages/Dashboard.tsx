@@ -22,8 +22,9 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchUserCount = async () => {
+      setIsLoadingUsers(true);
       try {
-        // Use count() with no filters to get ALL users in the profiles table
+        // Use a simple count query to get the total number of profiles
         const { count, error } = await supabase
           .from('profiles')
           .select('*', { count: 'exact', head: true });
@@ -31,6 +32,7 @@ const Dashboard = () => {
         if (error) {
           console.error('Error fetching user count:', error);
         } else {
+          console.log('Total profiles count:', count);
           setTotalUsers(count || 0);
         }
       } catch (error) {
