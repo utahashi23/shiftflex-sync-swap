@@ -16,7 +16,7 @@ export const createMatches = (
   // Temporary storage for matches
   const matches: MatchEntry[] = [];
   
-  console.log(`Starting to process each request for potential matches...`);
+  console.log(`Starting to process ${pendingRequests.length} pending requests for potential matches...`);
   
   // Process each request to find potential matches
   for (const request of pendingRequests) {
@@ -76,6 +76,6 @@ export const createMatches = (
     }
   }
   
-  console.log(`Matching complete. Found ${matches.length} matches.`);
+  console.log(`Matching complete. Found ${matches.length} potential matches.`);
   return matches;
 };

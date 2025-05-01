@@ -1,4 +1,7 @@
 
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+
 /**
  * Check if two swap requests are compatible
  */
@@ -9,76 +12,101 @@ export const checkMatchCompatibility = (
   otherRequestShift: any,
   preferredDatesByRequest: Record<string, any[]>,
   shiftsByUser: Record<string, string[]>
-): { isCompatible: boolean; reason?: string; matchDate?: string } => {
-  // Cannot match with self
-  if (request.requester_id === otherRequest.requester_id) {
-    return { isCompatible: false, reason: 'Cannot match with self' };
-  }
+) => {
+  console.log(`----- MATCHING CHECK DETAILS -----`);
+  console.log(`Request ${request.id} shift: ${requestShift.normalizedDate} (${requestShift.type})`);
+  console.log(`Request ${otherRequest.id} shift: ${otherRequestShift.normalizedDate} (${otherRequestShift.type})`);
   
-  // Both requests must have preferred dates
-  const preferredDates = preferredDatesByRequest[request.id] || [];
-  const otherPreferredDates = preferredDatesByRequest[otherRequest.id] || [];
+  // Check if the first user wants the second user's shift date and type
+  let firstUserWantsSecondDate = false;
+  let firstUserWantsSecondType = false;
+  const prefDates = preferredDatesByRequest[request.id] || [];
   
-  if (preferredDates.length === 0 || otherPreferredDates.length === 0) {
-    return { isCompatible: false, reason: 'Missing preferred dates' };
-  }
-  
-  // Users must not be working on each other's preferred dates
-  const userShiftDates = shiftsByUser[otherRequest.requester_id] || [];
-  const otherUserShiftDates = shiftsByUser[request.requester_id] || [];
-  
-  // Check if any of my preferred dates match the other user's shift dates
-  let matchDate = null;
-  
-  for (const prefDate of preferredDates) {
-    // Each user must be available on the other's preferred date
-    if (!otherUserShiftDates.includes(prefDate.date)) {
-      continue; // Other user doesn't work on this day
-    }
-    
-    // Check if the preferred date's shift types match
-    if (prefDate.acceptedTypes && prefDate.acceptedTypes.includes(otherRequestShift.type)) {
-      matchDate = prefDate.date;
+  for (const prefDate of prefDates) {
+    if (prefDate.date === otherRequestShift.normalizedDate) {
+      firstUserWantsSecondDate = true;
+      console.log(`User ${request.requester_id} wants date ${otherRequestShift.normalizedDate}`);
+      
+      if (!prefDate.accepted_types || prefDate.accepted_types.length === 0 || 
+          prefDate.accepted_types.includes(otherRequestShift.type)) {
+        firstUserWantsSecondType = true;
+        console.log(`User ${request.requester_id} wants shift type ${otherRequestShift.type}`);
+      } else {
+        console.log(`User ${request.requester_id} doesn't want shift type ${otherRequestShift.type}`);
+      }
       break;
     }
   }
   
-  if (!matchDate) {
-    return { isCompatible: false, reason: 'No matching date with compatible shift types' };
-  }
-  
-  // Verify reverse compatibility
-  let reverseMatch = false;
-  for (const otherPrefDate of otherPreferredDates) {
-    // Check if other user's preferred date contains my shift
-    if (otherPrefDate.date === requestShift.normalizedDate && 
-        otherPrefDate.acceptedTypes && 
-        otherPrefDate.acceptedTypes.includes(requestShift.type)) {
-      reverseMatch = true;
-      break;
-    }
-  }
-  
-  if (!reverseMatch) {
+  if (!firstUserWantsSecondDate || !firstUserWantsSecondType) {
     return { 
       isCompatible: false, 
-      reason: 'One-way match only - other user not interested in my shift type'
+      reason: `User ${request.requester_id} doesn't want the other shift`
     };
   }
   
-  return { isCompatible: true, matchDate };
+  // Check if the second user wants the first user's shift date and type
+  let secondUserWantsFirstDate = false;
+  let secondUserWantsFirstType = false;
+  const otherPrefDates = preferredDatesByRequest[otherRequest.id] || [];
+  
+  for (const prefDate of otherPrefDates) {
+    if (prefDate.date === requestShift.normalizedDate) {
+      secondUserWantsFirstDate = true;
+      console.log(`User ${otherRequest.requester_id} wants date ${requestShift.normalizedDate}`);
+      
+      if (!prefDate.accepted_types || prefDate.accepted_types.length === 0 || 
+          prefDate.accepted_types.includes(requestShift.type)) {
+        secondUserWantsFirstType = true;
+        console.log(`User ${otherRequest.requester_id} wants shift type ${requestShift.type}`);
+      } else {
+        console.log(`User ${otherRequest.requester_id} doesn't want shift type ${requestShift.type}`);
+      }
+      break;
+    }
+  }
+  
+  if (!secondUserWantsFirstDate || !secondUserWantsFirstType) {
+    return { 
+      isCompatible: false, 
+      reason: `User ${otherRequest.requester_id} doesn't want the other shift`
+    };
+  }
+  
+  // Check if either user is already rostered on the swap date
+  const user1HasConflict = (shiftsByUser[request.requester_id] || []).includes(otherRequestShift.normalizedDate);
+  if (user1HasConflict) {
+    return { 
+      isCompatible: false, 
+      reason: `User ${request.requester_id} already has a shift on ${otherRequestShift.normalizedDate}`
+    };
+  }
+  
+  const user2HasConflict = (shiftsByUser[otherRequest.requester_id] || []).includes(requestShift.normalizedDate);
+  if (user2HasConflict) {
+    return { 
+      isCompatible: false, 
+      reason: `User ${otherRequest.requester_id} already has a shift on ${requestShift.normalizedDate}`
+    };
+  }
+  
+  // We have a match!
+  console.log(`🎉 MATCH FOUND between requests ${request.id} and ${otherRequest.id}`);
+  console.log(`User ${request.requester_id} wants to swap with User ${otherRequest.requester_id}`);
+  
+  return { isCompatible: true, reason: 'Match found' };
 };
 
 /**
- * Log match information for debugging
+ * Log info about the match for debugging
  */
 export const logMatchInfo = (
   request: any,
-  otherRequest: any, 
+  otherRequest: any,
   myShift: any,
   theirShift: any,
   isMatch: boolean,
-  reason?: string
+  reason: string
 ) => {
   if (isMatch) {
     console.log(`✅ MATCH FOUND: ${request.requester_id.substring(0, 6)} <-> ${otherRequest.requester_id.substring(0, 6)}`);
