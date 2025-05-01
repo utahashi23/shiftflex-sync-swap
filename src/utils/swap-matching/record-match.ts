@@ -26,6 +26,20 @@ export const recordShiftMatch = async (request: any, otherRequest: any, userId: 
       return { success: true, alreadyExists: true };
     }
     
+    // Check if either request is already in a matched state
+    const { data: requestStatus } = await supabase
+      .from('shift_swap_requests')
+      .select('status')
+      .in('id', [request.id, otherRequest.id]);
+      
+    const alreadyMatched = requestStatus?.some(r => r.status === 'matched' || r.status === 'completed');
+    
+    // If either request is already matched, don't create a duplicate match
+    if (alreadyMatched) {
+      console.log('One of the requests is already matched, skipping creation');
+      return { success: true, alreadyExists: true };
+    }
+    
     // Record the match in the potential_matches table
     const { data: matchData, error: matchError } = await supabase
       .from('shift_swap_potential_matches')
@@ -46,33 +60,34 @@ export const recordShiftMatch = async (request: any, otherRequest: any, userId: 
     
     console.log('Match recorded:', matchData);
     
-    // Update both requests to matched status
-    const { error: error1 } = await supabase
-      .from('shift_swap_requests')
-      .update({
-        status: 'matched',
-        acceptor_id: otherRequest.requester_id,
-        acceptor_shift_id: otherRequest.requester_shift_id
-      })
-      .eq('id', request.id);
-      
-    if (error1) {
-      console.error('Error updating first request:', error1);
-      return { success: false, error: error1 };
-    }
+    // Update both requests to matched status with transaction
+    const updates = [
+      supabase
+        .from('shift_swap_requests')
+        .update({
+          status: 'matched',
+          acceptor_id: otherRequest.requester_id,
+          acceptor_shift_id: otherRequest.requester_shift_id
+        })
+        .eq('id', request.id),
+        
+      supabase
+        .from('shift_swap_requests')
+        .update({
+          status: 'matched',
+          acceptor_id: request.requester_id,
+          acceptor_shift_id: request.requester_shift_id
+        })
+        .eq('id', otherRequest.id)
+    ];
     
-    const { error: error2 } = await supabase
-      .from('shift_swap_requests')
-      .update({
-        status: 'matched',
-        acceptor_id: request.requester_id,
-        acceptor_shift_id: request.requester_shift_id
-      })
-      .eq('id', otherRequest.id);
-      
-    if (error2) {
-      console.error('Error updating second request:', error2);
-      return { success: false, error: error2 };
+    const results = await Promise.all(updates);
+    
+    // Check for errors in the transaction
+    const errors = results.filter(r => r.error);
+    if (errors.length > 0) {
+      console.error('Error updating requests:', errors);
+      return { success: false, error: errors[0].error };
     }
     
     // Notify if the current user is involved
