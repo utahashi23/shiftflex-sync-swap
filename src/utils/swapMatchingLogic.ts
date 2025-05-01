@@ -183,14 +183,12 @@ export const fetchSwapMatchingData = async () => {
     
     console.log(`Found ${allRequests.length} pending swap requests:`, allRequests);
     
-    // Get all requester profile information - using the profiles table
-    const requesterIds = [...new Set(allRequests.map(req => req.requester_id))];
-    console.log('Fetching profiles for requesters:', requesterIds);
+    // Get all profiles - not just for requesters - we want ALL profiles
+    console.log('Fetching ALL profiles:');
     
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('*')
-      .in('id', requesterIds);
+      .select('*');
       
     if (profilesError) throw profilesError;
     console.log('Fetched profiles:', profiles?.length || 0);
@@ -211,12 +209,11 @@ export const fetchSwapMatchingData = async () => {
     
     console.log(`Found ${preferredDates.length} preferred dates:`, preferredDates);
     
-    // Get ALL shifts for ALL users - WITHOUT trying to join with profiles
-    console.log('Fetching all shifts for all users...');
+    // Get ALL shifts for ALL users - get all of them, not just for the requesters
+    console.log('Fetching ALL shifts for ALL users...');
     const { data: allShifts, error: shiftsError } = await supabase
       .from('shifts')
-      .select('*')
-      .in('user_id', requesterIds);
+      .select('*');
       
     if (shiftsError) throw shiftsError;
     
@@ -224,7 +221,7 @@ export const fetchSwapMatchingData = async () => {
       return { success: false, message: "No shifts found" };
     }
     
-    console.log(`Found ${allShifts.length} shifts across all users:`, allShifts);
+    console.log(`Found ${allShifts.length} shifts across all users`);
     
     // Create a map of user IDs to profile info for quick lookup
     const profilesMap = (profiles || []).reduce((map, profile) => {

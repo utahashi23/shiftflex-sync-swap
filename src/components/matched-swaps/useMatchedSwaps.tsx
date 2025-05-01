@@ -89,24 +89,25 @@ export const useMatchedSwaps = () => {
         
       if (shiftsError) throw shiftsError;
       
-      // Fetch all user profiles separately
+      // Get ALL user IDs involved in swaps
       const userIds = [
         ...(activeMatches || []).map(m => m.requester_id),
         ...(activeMatches || []).map(m => m.acceptor_id).filter(Boolean),
         ...(completedMatches || []).map(m => m.requester_id),
-        ...(completedMatches || []).map(m => m.acceptor_id).filter(Boolean)
-      ].filter(Boolean) as string[];
+        ...(completedMatches || []).map(m => m.acceptor_id).filter(Boolean),
+        ...(shiftsData || []).map(s => s.user_id)
+      ].filter(Boolean);
       
-      const uniqueUserIds = [...new Set(userIds)];
+      const uniqueUserIds = [...new Set(userIds)] as string[];
       
+      // Fetch ALL profiles, not just for the users involved in swaps
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('*')
-        .in('id', uniqueUserIds);
+        .select('*');
         
       if (profilesError) throw profilesError;
       
-      // Create a map of profiles by user ID
+      // Create a map of profiles by user ID for quick lookup
       const profilesMap = (profilesData || []).reduce((map, profile) => {
         map[profile.id] = profile;
         return map;
