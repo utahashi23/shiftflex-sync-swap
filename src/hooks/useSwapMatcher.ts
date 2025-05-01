@@ -84,8 +84,8 @@ export const useSwapMatcher = () => {
       
       console.log(`Found ${preferredDates.length} preferred dates:`, preferredDates);
       
-      // Step 3: Get ALL shifts for ALL users - IMPORTANT: do NOT filter by user_id
-      console.log('Fetching ALL shifts for ALL users...');
+      // Step 3: Get ALL shifts for ALL users (removed userId filter)
+      console.log('Fetching all shifts for all users...');
       const { data: allShifts, error: shiftsError } = await supabase
         .from('shifts')
         .select('*');
