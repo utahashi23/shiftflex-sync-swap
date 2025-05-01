@@ -114,17 +114,18 @@ export const useMatchedSwaps = () => {
         ...(activeMatches || []).map(m => m.acceptor_id).filter(Boolean),
         ...(completedMatches || []).map(m => m.requester_id),
         ...(completedMatches || []).map(m => m.acceptor_id).filter(Boolean),
-      ].filter(Boolean);
+      ].filter((id, index, self) => {
+        // Filter out duplicate user IDs and make sure none of them is the admin ID
+        return id && id !== '7c31ceb6-bec9-4ea8-b65a-b6629547b52e' && self.indexOf(id) === index;
+      }) as string[];
       
-      const uniqueUserIds = [...new Set(userIds)] as string[];
-      
-      console.log('Fetching profiles for user IDs:', uniqueUserIds);
+      console.log('Fetching profiles for user IDs:', userIds);
       
       // Fetch profiles for all users involved
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
-        .in('id', uniqueUserIds);
+        .in('id', userIds);
         
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);

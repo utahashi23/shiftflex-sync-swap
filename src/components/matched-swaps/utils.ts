@@ -41,6 +41,23 @@ export const getShiftType = (startTime: string): 'day' | 'afternoon' | 'night' =
   }
 };
 
+// Get a display name from a user profile
+export const getUserDisplayName = (profile: any): string => {
+  if (!profile) return 'Unknown User';
+  
+  // Skip admin user with this ID
+  if (profile.id === '7c31ceb6-bec9-4ea8-b65a-b6629547b52e') return 'System';
+  
+  const firstName = profile.first_name || '';
+  const lastName = profile.last_name || '';
+  
+  if (firstName || lastName) {
+    return `${firstName} ${lastName}`.trim();
+  } else {
+    return profile.email || 'Unknown User';
+  }
+};
+
 // Process swap requests with shift data into the format expected by the UI
 export const processSwapRequests = (
   requests: any[], 
@@ -68,9 +85,7 @@ export const processSwapRequests = (
     
     // Get the profile for the other user
     const otherProfile = profilesMap[otherUserId] || {};
-    const otherUserName = otherProfile 
-      ? `${otherProfile.first_name || ''} ${otherProfile.last_name || ''}`.trim() 
-      : 'Unknown User';
+    const otherUserName = getUserDisplayName(otherProfile);
     
     // Format the shifts for display
     const originalShift = {

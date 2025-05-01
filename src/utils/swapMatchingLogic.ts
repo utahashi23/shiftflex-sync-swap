@@ -27,7 +27,7 @@ export const checkSwapCompatibility = (
       firstUserWantsSecondDate = true;
       console.log(`User ${request.requester_id} wants date ${otherRequestShift.normalizedDate}`);
       
-      if (prefDate.acceptedTypes.length === 0 || prefDate.acceptedTypes.includes(otherRequestShift.type)) {
+      if (prefDate.accepted_types.length === 0 || prefDate.accepted_types.includes(otherRequestShift.type)) {
         firstUserWantsSecondType = true;
         console.log(`User ${request.requester_id} wants shift type ${otherRequestShift.type}`);
       } else {
@@ -52,7 +52,7 @@ export const checkSwapCompatibility = (
       secondUserWantsFirstDate = true;
       console.log(`User ${otherRequest.requester_id} wants date ${requestShift.normalizedDate}`);
       
-      if (prefDate.acceptedTypes.length === 0 || prefDate.acceptedTypes.includes(requestShift.type)) {
+      if (prefDate.accepted_types.length === 0 || prefDate.accepted_types.includes(requestShift.type)) {
         secondUserWantsFirstType = true;
         console.log(`User ${otherRequest.requester_id} wants shift type ${requestShift.type}`);
       } else {
@@ -161,7 +161,10 @@ export const recordShiftMatch = async (request: any, otherRequest: any, userId: 
  */
 export const fetchSwapMatchingData = async () => {
   try {
-    // Fetch ALL pending swap requests from ALL users
+    // Exclude admin user ID from all queries
+    const ADMIN_USER_ID = '7c31ceb6-bec9-4ea8-b65a-b6629547b52e';
+    
+    // Fetch ALL pending swap requests from ALL users except admin
     console.log('Fetching ALL pending swap requests...');
     const { data: allRequests, error: requestsError } = await supabase
       .from('shift_swap_requests')
@@ -173,7 +176,8 @@ export const fetchSwapMatchingData = async () => {
         preferred_dates_count
       `)
       .eq('status', 'pending')
-      .gt('preferred_dates_count', 0); // Only include requests with at least one preferred date
+      .gt('preferred_dates_count', 0) // Only include requests with at least one preferred date
+      .neq('requester_id', ADMIN_USER_ID); // Exclude admin user
       
     if (requestsError) throw requestsError;
     
@@ -183,18 +187,21 @@ export const fetchSwapMatchingData = async () => {
     
     console.log(`Found ${allRequests.length} pending swap requests:`, allRequests);
     
-    // Get all profiles - not just for requesters - we want ALL profiles
-    console.log('Fetching ALL profiles:');
+    // Get all profiles except admin
+    console.log('Fetching ALL profiles except admin:');
     
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('*');
+      .select('*')
+      .neq('id', ADMIN_USER_ID);
       
     if (profilesError) throw profilesError;
     console.log('Fetched profiles:', profiles?.length || 0);
     
-    // Get all preferred dates
+    // Get all request IDs for preferred dates query
     const requestIds = allRequests.map(req => req.id);
+    
+    // Get all preferred dates
     console.log('Fetching preferred dates...');
     const { data: preferredDates, error: datesError } = await supabase
       .from('shift_swap_preferred_dates')
@@ -203,17 +210,21 @@ export const fetchSwapMatchingData = async () => {
       
     if (datesError) throw datesError;
     
-    if (!preferredDates || preferredDates.length === 0) {
+    if (!preferredDates) {
       return { success: false, message: "No swap preferences" };
     }
     
     console.log(`Found ${preferredDates.length} preferred dates:`, preferredDates);
     
-    // Get ALL shifts for ALL users - get all of them, not just for the requesters
-    console.log('Fetching ALL shifts for ALL users...');
+    // Get all shift IDs from requests for the shifts query
+    const shiftIds = allRequests.map(req => req.requester_shift_id).filter(Boolean);
+    
+    // Get ALL shifts for ALL users except admin
+    console.log('Fetching ALL shifts for ALL users except admin...');
     const { data: allShifts, error: shiftsError } = await supabase
       .from('shifts')
-      .select('*');
+      .select('*')
+      .neq('user_id', ADMIN_USER_ID);
       
     if (shiftsError) throw shiftsError;
     
