@@ -40,22 +40,67 @@ serve(async (req) => {
 
     // Verify the request belongs to this user
     const { data: request, error: verifyError } = await supabaseClient
-      .from('swap_requests')
+      .from('shift_swap_requests')
       .select('id')
       .eq('id', request_id)
-      .eq('user_id', user_id)
+      .eq('requester_id', user_id)
       .single()
       
     if (verifyError || !request) {
+      // Try with admin privileges if standard query fails due to RLS
+      console.log('Standard query failed, trying with service role')
+      
+      // Create admin client with service role
+      const adminClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        { global: { headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` } } }
+      )
+      
+      // Check if request exists and belongs to user
+      const { data: adminVerify, error: adminVerifyError } = await adminClient
+        .from('shift_swap_requests')
+        .select('id')
+        .eq('id', request_id)
+        .eq('requester_id', user_id)
+        .single()
+        
+      if (adminVerifyError || !adminVerify) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized or request not found' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        )
+      }
+      
+      // Delete preferred dates first (they have a foreign key constraint)
+      const { error: adminDeleteDaysError } = await adminClient
+        .from('shift_swap_preferred_dates')
+        .delete()
+        .eq('request_id', request_id)
+      
+      if (adminDeleteDaysError) {
+        console.error('Error deleting preferred days:', adminDeleteDaysError)
+      }
+      
+      // Delete the request using service role
+      const { error: adminDeleteError } = await adminClient
+        .from('shift_swap_requests')
+        .delete()
+        .eq('id', request_id)
+        
+      if (adminDeleteError) {
+        throw adminDeleteError
+      }
+      
       return new Response(
-        JSON.stringify({ error: 'Unauthorized or request not found' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       )
     }
 
-    // Delete the request (preferred days will be cascade deleted)
+    // Standard path - delete the request (preferred days will be cascade deleted)
     const { error: deleteError } = await supabaseClient
-      .from('swap_requests')
+      .from('shift_swap_requests')
       .delete()
       .eq('id', request_id)
     
@@ -68,6 +113,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
   } catch (error) {
+    console.error('Error in delete_swap_request:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }

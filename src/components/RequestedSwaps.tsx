@@ -4,7 +4,7 @@ import SwapRequestCard from './swaps/SwapRequestCard';
 import SwapRequestSkeleton from './swaps/SwapRequestSkeleton';
 import EmptySwapRequests from './swaps/EmptySwapRequests';
 import SwapDeleteDialog from './swaps/SwapDeleteDialog';
-import { useSwapRequests } from '@/hooks/swap-requests/useSwapRequests';
+import { useSwapRequests } from '@/hooks/swap-requests';
 
 const RequestedSwaps = () => {
   const { 
@@ -17,11 +17,13 @@ const RequestedSwaps = () => {
   const [deleteDialog, setDeleteDialog] = useState<{ 
     isOpen: boolean, 
     requestId: string | null, 
-    dayId: string | null 
+    dayId: string | null,
+    isDeleting: boolean
   }>({
     isOpen: false,
     requestId: null,
-    dayId: null
+    dayId: null,
+    isDeleting: false
   });
   
   // Handler for opening delete dialog for an entire swap request
@@ -30,7 +32,8 @@ const RequestedSwaps = () => {
     setDeleteDialog({
       isOpen: true,
       requestId,
-      dayId: null
+      dayId: null,
+      isDeleting: false
     });
   };
 
@@ -40,7 +43,8 @@ const RequestedSwaps = () => {
     setDeleteDialog({
       isOpen: true,
       requestId,
-      dayId
+      dayId,
+      isDeleting: false
     });
   };
 
@@ -49,6 +53,8 @@ const RequestedSwaps = () => {
     if (!deleteDialog.requestId) return;
     
     try {
+      setDeleteDialog(prev => ({ ...prev, isDeleting: true }));
+      
       if (deleteDialog.dayId) {
         // Delete a single preferred date
         await deletePreferredDay(deleteDialog.dayId, deleteDialog.requestId);
@@ -57,7 +63,7 @@ const RequestedSwaps = () => {
         await deleteSwapRequest(deleteDialog.requestId);
       }
     } finally {
-      setDeleteDialog({ isOpen: false, requestId: null, dayId: null });
+      setDeleteDialog({ isOpen: false, requestId: null, dayId: null, isDeleting: false });
     }
   };
   
@@ -86,10 +92,10 @@ const RequestedSwaps = () => {
 
       <SwapDeleteDialog
         isOpen={deleteDialog.isOpen}
-        isLoading={false}
+        isLoading={deleteDialog.isDeleting}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            setDeleteDialog({ isOpen: false, requestId: null, dayId: null });
+            setDeleteDialog({ isOpen: false, requestId: null, dayId: null, isDeleting: false });
           } else {
             setDeleteDialog(prev => ({ ...prev, isOpen: true }));
           }

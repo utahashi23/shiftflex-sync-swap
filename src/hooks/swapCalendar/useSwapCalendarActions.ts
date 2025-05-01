@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Shift } from '@/hooks/useShiftData';
 import { AcceptableShiftTypes } from './types';
 
-// Update the useSwapCalendarActions hook to work with our Edge Functions
+// Update the useSwapCalendarActions hook to work with our database directly
 export const useSwapCalendarActions = (
   state: any, 
   setStateActions: any, 
@@ -71,19 +71,44 @@ export const useSwapCalendarActions = (
     try {
       setIsLoading(true);
       
-      // Use the Edge Function to create a swap request with preferred days
-      const { data, error } = await supabase.functions.invoke('create_swap_request', {
-        body: {
-          user_id: user.id,
-          shift_id: selectedShift.id,
-          preferred_dates: selectedSwapDates.map(date => ({
-            date: date,
-            accepted_types: acceptedTypes
-          }))
-        }
-      });
+      // First create the swap request
+      const { data: request, error: requestError } = await supabase
+        .from('shift_swap_requests')
+        .insert({
+          requester_id: user.id,
+          requester_shift_id: selectedShift.id,
+          status: 'pending'
+        })
+        .select()
+        .single();
+        
+      if (requestError) {
+        console.error('Error creating swap request:', requestError);
+        throw requestError;
+      }
       
-      if (error) throw error;
+      // Then add all preferred days
+      const preferredDaysToInsert = selectedSwapDates.map(dateStr => ({
+        request_id: request.id,
+        date: dateStr,
+        accepted_types: acceptedTypes
+      }));
+      
+      const { error: daysError } = await supabase
+        .from('shift_swap_preferred_dates')
+        .insert(preferredDaysToInsert);
+      
+      if (daysError) {
+        console.error('Error adding preferred dates:', daysError);
+        
+        // Cleanup the request if adding days failed
+        await supabase
+          .from('shift_swap_requests')
+          .delete()
+          .eq('id', request.id);
+          
+        throw daysError;
+      }
 
       toast({
         title: "Swap Request Created",

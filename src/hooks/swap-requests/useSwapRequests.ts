@@ -21,55 +21,47 @@ export const useSwapRequests = () => {
     try {
       console.log('Fetching swap requests for user:', user.id);
       
-      // Using edge function to bypass RLS issues
-      const { data, error } = await supabase.functions.invoke('get_swap_requests', {
-        body: { 
-          user_id: user.id,
-          status: 'pending'
+      // Direct database query using RPC function instead of edge function
+      const { data, error } = await supabase
+        .rpc('get_user_swap_requests_safe', {
+          p_user_id: user.id,
+          p_status: 'pending'
+        });
+      
+      if (error) {
+        console.error('Error from RPC function:', error);
+        
+        // Fall back to direct query with proper filters
+        const { data: directData, error: directError } = await supabase
+          .from('shift_swap_requests')
+          .select(`
+            id, 
+            status, 
+            requester_id,
+            requester_shift_id,
+            shifts:requester_shift_id (
+              id, date, start_time, end_time, truck_name
+            ),
+            preferred_dates:shift_swap_preferred_dates (
+              id, date, accepted_types
+            )
+          `)
+          .eq('requester_id', user.id)
+          .eq('status', 'pending');
+          
+        if (directError) {
+          console.error('Error with direct query:', directError);
+          throw directError;
         }
-      });
-      
-      if (error) throw error;
-      
-      console.log('Received response from edge function:', data);
-      
-      if (!data || data.length === 0) {
-        console.log('No swap requests found');
-        setSwapRequests([]);
+        
+        const formattedData = formatSwapRequests(directData || []);
+        setSwapRequests(formattedData);
         setIsLoading(false);
         return;
       }
       
-      // Process the data returned from the edge function
-      const formattedRequests = data.map(item => {
-        // Extract shift data
-        const shift = item.shift;
-        
-        // Format preferred days
-        const preferredDates = (item.preferred_days || []).map(day => ({
-          id: day.id,
-          date: day.date,
-          acceptedTypes: day.accepted_types
-        }));
-        
-        return {
-          id: item.id,
-          requesterId: item.requester_id,
-          status: item.status,
-          originalShift: {
-            id: shift.id,
-            date: shift.date,
-            title: shift.truckName || `Shift-${shift.id.substring(0, 5)}`,
-            startTime: shift.startTime.substring(0, 5),
-            endTime: shift.endTime.substring(0, 5),
-            type: shift.type
-          },
-          preferredDates
-        };
-      }).filter(Boolean) as SwapRequest[];
-      
-      console.log('Formatted requests:', formattedRequests);
-      setSwapRequests(formattedRequests);
+      const formattedData = formatSwapRequests(data || []);
+      setSwapRequests(formattedData);
       
     } catch (err) {
       console.error('Error fetching swap requests:', err);
@@ -82,6 +74,53 @@ export const useSwapRequests = () => {
       setIsLoading(false);
     }
   };
+  
+  // Format response data into SwapRequest objects
+  const formatSwapRequests = (data: any[]): SwapRequest[] => {
+    return data.map(item => {
+      // Extract shift data - handle both nested and flat structure
+      const shift = item.shifts || item.shift || {};
+      
+      // Format preferred days - handle both nested and flat structure
+      const preferredDatesRaw = item.preferred_dates || item.preferredDates || [];
+      const preferredDates = preferredDatesRaw.map((day: any) => ({
+        id: day.id,
+        date: day.date,
+        acceptedTypes: day.accepted_types
+      }));
+      
+      // Determine shift type based on start time if not already provided
+      let shiftType: 'day' | 'afternoon' | 'night' = 'day';
+      const startTime = shift.start_time || shift.startTime;
+      if (startTime) {
+        const startHour = parseInt(startTime.split(':')[0], 10);
+        if (startHour <= 8) {
+          shiftType = 'day';
+        } else if (startHour > 8 && startHour < 16) {
+          shiftType = 'afternoon';
+        } else {
+          shiftType = 'night';
+        }
+      } else if (shift.type) {
+        shiftType = shift.type as 'day' | 'afternoon' | 'night';
+      }
+      
+      return {
+        id: item.id,
+        requesterId: item.requester_id,
+        status: item.status,
+        originalShift: {
+          id: shift.id,
+          date: shift.date,
+          title: shift.truck_name || shift.truckName || `Shift-${shift.id?.substring(0, 5)}`,
+          startTime: (startTime || '').substring(0, 5),
+          endTime: (shift.end_time || shift.endTime || '').substring(0, 5),
+          type: shiftType
+        },
+        preferredDates
+      };
+    }).filter(Boolean) as SwapRequest[];
+  };
 
   // Load swap requests on mount or when user changes
   useEffect(() => {
@@ -92,28 +131,54 @@ export const useSwapRequests = () => {
 
   // Function to delete a swap request
   const deleteSwapRequest = async (requestId: string) => {
-    if (!user) return false;
+    if (!user || !requestId) return false;
     
     setIsLoading(true);
     try {
       console.log('Deleting swap request:', requestId);
       
-      // Use the edge function to delete the request
-      const { data, error } = await supabase.functions.invoke('delete_swap_request', {
-        body: { request_id: requestId }
-      });
+      // Try using the delete_swap_request edge function first
+      try {
+        const { data, error } = await supabase.functions.invoke('delete_swap_request', {
+          body: { 
+            request_id: requestId,
+            user_id: user.id 
+          }
+        });
+          
+        if (error) throw error;
         
-      if (error) throw error;
-      
-      // Update local state
-      setSwapRequests(prev => prev.filter(req => req.id !== requestId));
-      
-      toast({
-        title: "Request deleted",
-        description: "Swap request has been deleted."
-      });
-      
-      return true;
+        // Update local state
+        setSwapRequests(prev => prev.filter(req => req.id !== requestId));
+        
+        toast({
+          title: "Request deleted",
+          description: "Swap request has been deleted."
+        });
+        
+        return true;
+      } catch (funcError) {
+        console.error('Edge function error:', funcError);
+        
+        // Fall back to direct deletion if edge function fails
+        const { error: deleteError } = await supabase
+          .from('shift_swap_requests')
+          .delete()
+          .eq('id', requestId)
+          .eq('requester_id', user.id);
+          
+        if (deleteError) throw deleteError;
+        
+        // Update local state
+        setSwapRequests(prev => prev.filter(req => req.id !== requestId));
+        
+        toast({
+          title: "Request deleted",
+          description: "Swap request has been deleted."
+        });
+        
+        return true;
+      }
     } catch (error) {
       console.error('Error deleting swap request:', error);
       toast({
@@ -129,52 +194,84 @@ export const useSwapRequests = () => {
   
   // Function to delete a preferred day
   const deletePreferredDay = async (dayId: string, requestId: string) => {
-    if (!user) return false;
+    if (!user || !dayId || !requestId) return false;
     
     setIsLoading(true);
     try {
       console.log('Deleting preferred day:', dayId);
       
-      // Use the edge function to delete the preferred day
-      const { data, error } = await supabase.functions.invoke('delete_preferred_day', {
-        body: { 
-          day_id: dayId,
-          request_id: requestId
+      // Try using the delete_preferred_day edge function first
+      try {
+        const { data, error } = await supabase.functions.invoke('delete_preferred_day', {
+          body: { 
+            day_id: dayId,
+            request_id: requestId,
+            user_id: user.id
+          }
+        });
+          
+        if (error) throw error;
+        
+        handlePreferredDayDeletionResponse(data, requestId, dayId);
+        return true;
+      } catch (funcError) {
+        console.error('Edge function error:', funcError);
+        
+        // Fall back to direct deletion if edge function fails
+        const { error: deleteError } = await supabase
+          .from('shift_swap_preferred_dates')
+          .delete()
+          .eq('id', dayId)
+          .eq('request_id', requestId);
+          
+        if (deleteError) throw deleteError;
+        
+        // Check if any preferred days remain for this request
+        const { data: remainingDays, error: countError } = await supabase
+          .from('shift_swap_preferred_dates')
+          .select('id')
+          .eq('request_id', requestId);
+          
+        if (countError) throw countError;
+        
+        // If no days left, delete the whole request
+        if (!remainingDays || remainingDays.length === 0) {
+          const { error: deleteRequestError } = await supabase
+            .from('shift_swap_requests')
+            .delete()
+            .eq('id', requestId);
+          
+          if (deleteRequestError) throw deleteRequestError;
+          
+          // Remove the request entirely
+          setSwapRequests(prev => prev.filter(req => req.id !== requestId));
+          
+          toast({
+            title: "Request updated",
+            description: "The swap request has been removed as it had no remaining preferred dates."
+          });
+        } else {
+          // Just update the preferred dates for this request
+          setSwapRequests(prevRequests => 
+            prevRequests.map(req => {
+              if (req.id === requestId) {
+                return {
+                  ...req,
+                  preferredDates: req.preferredDates.filter(day => day.id !== dayId)
+                };
+              }
+              return req;
+            })
+          );
+          
+          toast({
+            title: "Date removed",
+            description: "Preferred date has been removed from your request."
+          });
         }
-      });
         
-      if (error) throw error;
-      
-      // Check if the entire request was deleted
-      if (data && data.request_deleted) {
-        // Remove the request entirely
-        setSwapRequests(prev => prev.filter(req => req.id !== requestId));
-        
-        toast({
-          title: "Request updated",
-          description: "The swap request has been removed as it had no remaining preferred dates."
-        });
-      } else {
-        // Just update the preferred dates for this request
-        setSwapRequests(prevRequests => 
-          prevRequests.map(req => {
-            if (req.id === requestId) {
-              return {
-                ...req,
-                preferredDates: req.preferredDates.filter(day => day.id !== dayId)
-              };
-            }
-            return req;
-          })
-        );
-        
-        toast({
-          title: "Date removed",
-          description: "Preferred date has been removed from your request."
-        });
+        return true;
       }
-      
-      return true;
     } catch (error) {
       console.error('Error deleting preferred day:', error);
       toast({
@@ -185,6 +282,38 @@ export const useSwapRequests = () => {
       return false;
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  // Helper function to handle deletion response
+  const handlePreferredDayDeletionResponse = (data: any, requestId: string, dayId: string) => {
+    // Check if the entire request was deleted
+    if (data && data.request_deleted) {
+      // Remove the request entirely
+      setSwapRequests(prev => prev.filter(req => req.id !== requestId));
+      
+      toast({
+        title: "Request updated",
+        description: "The swap request has been removed as it had no remaining preferred dates."
+      });
+    } else {
+      // Just update the preferred dates for this request
+      setSwapRequests(prevRequests => 
+        prevRequests.map(req => {
+          if (req.id === requestId) {
+            return {
+              ...req,
+              preferredDates: req.preferredDates.filter(day => day.id !== dayId)
+            };
+          }
+          return req;
+        })
+      );
+      
+      toast({
+        title: "Date removed",
+        description: "Preferred date has been removed from your request."
+      });
     }
   };
 
