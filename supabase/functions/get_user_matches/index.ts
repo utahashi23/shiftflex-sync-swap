@@ -40,7 +40,7 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
     
-    // Use our new security definer function to bypass RLS issues
+    // Use our security definer function to bypass RLS issues
     const { data: matchesData, error: matchesError } = await supabaseClient
       .rpc('get_user_matches_with_rls', { user_id });
     
@@ -49,9 +49,19 @@ serve(async (req) => {
       throw matchesError;
     }
     
-    console.log(`Found ${matchesData?.length ?? 0} potential matches`);
+    // Get only distinct matches by match_id
+    const uniqueMatchIds = new Set();
+    const distinctMatches = matchesData?.filter(match => {
+      if (uniqueMatchIds.has(match.match_id)) {
+        return false;
+      }
+      uniqueMatchIds.add(match.match_id);
+      return true;
+    }) || [];
     
-    if (!matchesData || matchesData.length === 0) {
+    console.log(`Found ${distinctMatches.length} potential matches`);
+    
+    if (!distinctMatches || distinctMatches.length === 0) {
       console.log('No matches found for this user');
       return new Response(
         JSON.stringify([]),
@@ -59,9 +69,9 @@ serve(async (req) => {
       );
     }
     
-    // Matches are already formatted by our database function
+    // Return the distinct matches
     return new Response(
-      JSON.stringify(matchesData),
+      JSON.stringify(distinctMatches),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
   } catch (error) {

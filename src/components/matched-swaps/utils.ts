@@ -29,6 +29,18 @@ export const getColleagueName = (profilesMap: Record<string, any>, userId: strin
   return `${profilesMap[userId].first_name || ''} ${profilesMap[userId].last_name || ''}`.trim() || 'Unknown';
 };
 
+// Update the shared getShiftType function to make it consistent across the application
+export const getCorrectShiftType = (startTime: string): "day" | "afternoon" | "night" => {
+  const hour = parseInt(startTime.split(':')[0], 10);
+  if (hour <= 8) {
+    return 'day';
+  } else if (hour > 8 && hour < 16) {
+    return 'afternoon';
+  } else {
+    return 'night';
+  }
+};
+
 // This function is kept for backward compatibility but is not used in the new implementation
 export const processSwapRequests = (
   requests: any[], 

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { SwapMatch } from '../types';
+import { getShiftType } from '@/utils/shiftUtils';
 
 /**
  * Hook for fetching matched swaps data
@@ -38,8 +39,18 @@ export const useFetchMatchedData = () => {
         return { matchedSwaps: [], completedSwaps: [] };
       }
       
+      // Get unique matches only
+      const uniqueMatchIds = new Set();
+      const uniqueMatches = matchesData.filter((match: any) => {
+        if (uniqueMatchIds.has(match.match_id)) {
+          return false;
+        }
+        uniqueMatchIds.add(match.match_id);
+        return true;
+      });
+      
       // Process and format the matches data
-      const formattedMatches = (matchesData as any[]).map(match => {
+      const formattedMatches = (uniqueMatches as any[]).map(match => {
         return {
           id: match.match_id,
           status: match.match_status,
@@ -132,14 +143,6 @@ export const useFetchMatchedData = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-  
-  // Helper function to determine shift type from time
-  const getShiftType = (startTime: string): string => {
-    const hour = parseInt(startTime.split(':')[0], 10);
-    if (hour >= 5 && hour < 12) return 'day';
-    if (hour >= 12 && hour < 17) return 'afternoon';
-    return 'night';
   };
   
   return {

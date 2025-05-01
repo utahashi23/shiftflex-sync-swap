@@ -19,13 +19,18 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
     );
   }
 
-  // Ensure each swap ID is unique to prevent duplicates
-  const uniqueSwaps = swaps.reduce((acc: SwapMatch[], swap) => {
-    if (!acc.some(s => s.id === swap.id)) {
-      acc.push(swap);
+  // Create a uniqueID to swap object map
+  const uniqueSwapsMap = new Map();
+  
+  // Use Set to track already seen swap IDs
+  swaps.forEach(swap => {
+    if (!uniqueSwapsMap.has(swap.id)) {
+      uniqueSwapsMap.set(swap.id, swap);
     }
-    return acc;
-  }, []);
+  });
+  
+  // Convert map values back to array
+  const uniqueSwaps = Array.from(uniqueSwapsMap.values());
 
   console.log(`Displaying ${uniqueSwaps.length} unique swaps from ${swaps.length} total swaps`);
 
