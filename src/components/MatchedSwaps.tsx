@@ -1,5 +1,4 @@
-
-import { useMatchedSwaps } from './matched-swaps/useMatchedSwaps';
+import { useMatchedSwaps } from './matched-swaps/hooks/useMatchedSwaps';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
 import { Button } from "./ui/button";
