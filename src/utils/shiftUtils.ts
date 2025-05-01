@@ -5,14 +5,30 @@ import { normalizeDate } from '@/utils/dateUtils';
  * Determines shift type based on start time
  */
 export const getShiftType = (startTime: string): "day" | "afternoon" | "night" => {
-  const startHour = new Date(`2000-01-01T${startTime}`).getHours();
-  
-  if (startHour <= 8) {
-    return 'day';
-  } else if (startHour > 8 && startHour < 16) {
-    return 'afternoon';
-  } else {
-    return 'night';
+  // Handle cases where startTime might be undefined or not a proper time string
+  if (!startTime) {
+    console.warn('Invalid start time provided to getShiftType:', startTime);
+    return 'day'; // Default to day shift in case of errors
+  }
+
+  try {
+    const hour = parseInt(startTime.split(':')[0], 10);
+    
+    if (isNaN(hour)) {
+      console.warn('Invalid hour parsed from startTime:', startTime);
+      return 'day'; // Default to day shift in case of errors
+    }
+    
+    if (hour <= 8) {
+      return 'day';
+    } else if (hour > 8 && hour < 16) {
+      return 'afternoon';
+    } else {
+      return 'night';
+    }
+  } catch (error) {
+    console.error('Error in getShiftType:', error);
+    return 'day'; // Default to day shift in case of errors
   }
 };
 

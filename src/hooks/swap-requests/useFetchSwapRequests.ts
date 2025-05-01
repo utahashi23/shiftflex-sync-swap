@@ -30,7 +30,16 @@ export const useFetchSwapRequests = (user: User | null) => {
       console.log('Found requests:', requests);
       
       // Get all the shift IDs from the requests
-      const shiftIds = requests.map(req => req.requester_shift_id);
+      const shiftIds = requests
+        .filter(req => req && req.requester_shift_id) // Ensure we have valid shift IDs
+        .map(req => req.requester_shift_id);
+      
+      if (shiftIds.length === 0) {
+        console.log('No valid shift IDs found in requests');
+        setSwapRequests([]);
+        setIsLoading(false);
+        return;
+      }
       
       // Fetch the shift details
       const { data: shifts, error: shiftsError } = await supabase
@@ -38,10 +47,16 @@ export const useFetchSwapRequests = (user: User | null) => {
         .select('*')
         .in('id', shiftIds);
         
-      if (shiftsError) throw shiftsError;
+      if (shiftsError) {
+        console.error('Error fetching shifts:', shiftsError);
+        throw shiftsError;
+      }
       
-      if (!shifts) {
-        throw new Error('Failed to fetch shift details');
+      if (!shifts || shifts.length === 0) {
+        console.log('No shifts found for the request shift IDs');
+        setSwapRequests([]);
+        setIsLoading(false);
+        return;
       }
       
       // Create a lookup for easy access
@@ -57,55 +72,62 @@ export const useFetchSwapRequests = (user: User | null) => {
         .select('*')
         .in('request_id', requestIds);
         
-      if (datesError) throw datesError;
+      if (datesError) {
+        console.error('Error fetching preferred dates:', datesError);
+        throw datesError;
+      }
       
       console.log('Fetched preferred dates:', preferredDates);
       
       // Map the requests to the format needed by the UI
-      const formattedRequests = requests.map(request => {
-        const shift = shiftMap[request.requester_shift_id];
-        
-        if (!shift) {
-          console.warn(`Shift ${request.requester_shift_id} not found for request ${request.id}`);
-          return null;
-        }
-        
-        // Determine shift type based on start time
-        let shiftType: "day" | "afternoon" | "night" = 'day';
-        const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
-        
-        if (startHour <= 8) {
-          shiftType = 'day';
-        } else if (startHour > 8 && startHour < 16) {
-          shiftType = 'afternoon';
-        } else {
-          shiftType = 'night';
-        }
-        
-        // Get preferred dates for this request
-        const requestPreferredDates = (preferredDates || [])
-          .filter(pd => pd.request_id === request.id)
-          .map(pd => ({
-            id: pd.id,
-            date: pd.date,
-            acceptedTypes: pd.accepted_types as ("day" | "afternoon" | "night")[]
-          }));
-        
-        return {
-          id: request.id,
-          requesterId: request.requester_id,
-          status: request.status,
-          originalShift: {
-            id: shift.id,
-            date: shift.date,
-            title: shift.truck_name || `Shift-${shift.id.substring(0, 5)}`,
-            startTime: shift.start_time.substring(0, 5), // Format as HH:MM
-            endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
-            type: shiftType
-          },
-          preferredDates: requestPreferredDates
-        };
-      }).filter(Boolean) as SwapRequest[];
+      const formattedRequests = requests
+        .filter(request => {
+          // Check if we have shift data for this request
+          const hasShift = shiftMap[request.requester_shift_id];
+          if (!hasShift) {
+            console.warn(`Shift ${request.requester_shift_id} not found for request ${request.id}`);
+          }
+          return hasShift;
+        })
+        .map(request => {
+          const shift = shiftMap[request.requester_shift_id];
+          
+          // Determine shift type based on start time using updated rules
+          const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
+          let shiftType: "day" | "afternoon" | "night";
+          
+          if (startHour <= 8) {
+            shiftType = 'day';
+          } else if (startHour > 8 && startHour < 16) {
+            shiftType = 'afternoon';
+          } else {
+            shiftType = 'night';
+          }
+          
+          // Get preferred dates for this request
+          const requestPreferredDates = (preferredDates || [])
+            .filter(pd => pd.request_id === request.id)
+            .map(pd => ({
+              id: pd.id,
+              date: pd.date,
+              acceptedTypes: pd.accepted_types as ("day" | "afternoon" | "night")[]
+            }));
+          
+          return {
+            id: request.id,
+            requesterId: request.requester_id,
+            status: request.status,
+            originalShift: {
+              id: shift.id,
+              date: shift.date,
+              title: shift.truck_name || `Shift-${shift.id.substring(0, 5)}`,
+              startTime: shift.start_time.substring(0, 5), // Format as HH:MM
+              endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
+              type: shiftType
+            },
+            preferredDates: requestPreferredDates
+          };
+        });
       
       console.log('Formatted requests:', formattedRequests);
       setSwapRequests(formattedRequests);

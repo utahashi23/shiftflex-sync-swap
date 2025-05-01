@@ -49,19 +49,22 @@ serve(async (req) => {
       throw matchesError;
     }
     
-    // Get only distinct matches by match_id
-    const uniqueMatchIds = new Set();
-    const distinctMatches = matchesData?.filter(match => {
+    // Ensure we have an array to work with
+    const matches = matchesData || [];
+    
+    // Get only distinct matches by match_id to ensure no duplicates
+    const uniqueMatchIds = new Set<string>();
+    const distinctMatches = matches.filter(match => {
       if (uniqueMatchIds.has(match.match_id)) {
         return false;
       }
       uniqueMatchIds.add(match.match_id);
       return true;
-    }) || [];
+    });
     
     console.log(`Found ${distinctMatches.length} potential matches`);
     
-    if (!distinctMatches || distinctMatches.length === 0) {
+    if (distinctMatches.length === 0) {
       console.log('No matches found for this user');
       return new Response(
         JSON.stringify([]),
