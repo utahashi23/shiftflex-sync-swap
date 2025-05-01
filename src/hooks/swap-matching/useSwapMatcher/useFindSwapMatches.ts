@@ -9,13 +9,15 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
   /**
    * Find potential matches for a user's swap requests
    * @param userId - The ID of the current user (optional for admins)
+   * @param forceCheck - Force checking for matches even if already matched
    */
-  const findSwapMatches = async (userId?: string) => {
+  const findSwapMatches = async (userId?: string, forceCheck: boolean = false) => {
     setIsProcessing(true);
     
     try {
       console.log('----------- SWAP MATCHING STARTED -----------');
       console.log('Current user ID:', userId || 'No user ID provided (admin mode)');
+      console.log('Force check:', forceCheck);
       
       // Fetch all necessary data from the database
       const result = await fetchAllData();
@@ -70,12 +72,13 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
       }
       
       // Find potential matches - Pass userId to ensure it works for non-admin users
-      const matches = findMatches(allRequests, allShifts, preferredDates, profilesMap, userId);
+      // If forceCheck is true, this will check for matches regardless of existing matches
+      const matches = findMatches(allRequests, allShifts, preferredDates, profilesMap, userId, forceCheck);
       
       // Process matches
       if (matches.length === 0) {
         toast({
-          title: "No matches found",
+          title: "No new matches found",
           description: "We couldn't find any matching swaps right now. Try again later or adjust your preferences.",
         });
       } else {

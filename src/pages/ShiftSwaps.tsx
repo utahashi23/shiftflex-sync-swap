@@ -1,15 +1,12 @@
 
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
 import ShiftSwapCalendar from '@/components/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useSwapMatcher } from '@/hooks/swap-matching'; 
-import { RefreshCw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -17,7 +14,6 @@ const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('calendar');
-  const { findSwapMatches, isProcessing } = useSwapMatcher();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Force tab refresh when coming back to this page or after finding matches
@@ -27,27 +23,6 @@ const ShiftSwaps = () => {
     setTimeout(() => setActiveTab(currentTab), 10);
   }, [refreshTrigger]);
   
-  const handleFindMatches = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to find matches.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    console.log('Find Matches button clicked');
-    // Pass the user ID to findSwapMatches. For admins, it can optionally handle all requests
-    await findSwapMatches(user.id);
-    // Refresh the tabs to show updated data
-    setRefreshTrigger(prev => prev + 1);
-    toast({
-      title: "Refresh complete",
-      description: "The swap data has been refreshed.",
-    });
-  };
-  
   return (
     <AppLayout>
       <div className="mb-8">
@@ -56,17 +31,6 @@ const ShiftSwaps = () => {
           Request and manage your shift swaps
           {isAdmin && <span className="ml-2 text-blue-500">(Admin Access)</span>}
         </p>
-      </div>
-
-      <div className="flex justify-end items-center mb-4">
-        <Button 
-          onClick={handleFindMatches}
-          disabled={isProcessing}
-          className="bg-green-500 hover:bg-green-600 text-white"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
-          {isProcessing ? 'Finding Matches...' : 'Find Matches'}
-        </Button>
       </div>
 
       <TooltipProvider>
@@ -93,7 +57,7 @@ const ShiftSwaps = () => {
             <RequestedSwaps key={`requested-${refreshTrigger}`} />
           </TabsContent>
           <TabsContent value="matched">
-            <MatchedSwaps key={`matched-${refreshTrigger}`} />
+            <MatchedSwaps key={`matched-${refreshTrigger}`} setRefreshTrigger={setRefreshTrigger} />
           </TabsContent>
         </Tabs>
       </TooltipProvider>

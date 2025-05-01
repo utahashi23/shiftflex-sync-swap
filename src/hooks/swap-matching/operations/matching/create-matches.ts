@@ -12,7 +12,8 @@ export const createMatches = (
   preferredDatesByRequest: Record<string, any[]>,
   shiftsByUser: Record<string, string[]>,
   profilesMap: Record<string, any>,
-  currentUserId?: string // Add currentUserId parameter
+  currentUserId?: string,
+  forceCheck: boolean = false
 ): MatchEntry[] => {
   // Temporary storage for matches
   const matches: MatchEntry[] = [];
@@ -63,6 +64,11 @@ export const createMatches = (
       // Skip comparing the request with itself
       if (request.id === otherRequest.id || request.requester_id === otherRequest.requester_id) {
         continue; // Skip both same request and requests from the same user
+      }
+      
+      // If not forcing a check and either request has a match already, skip
+      if (!forceCheck && (request.status === 'matched' || otherRequest.status === 'matched')) {
+        continue;
       }
       
       // Get the shift for the other request

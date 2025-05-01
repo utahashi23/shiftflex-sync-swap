@@ -18,7 +18,9 @@ export const useMatchedSwaps = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    fetchMatchedSwaps();
+    if (user) {
+      fetchMatchedSwaps();
+    }
   }, [user]);
 
   const fetchMatchedSwaps = async () => {
@@ -163,6 +165,11 @@ export const useMatchedSwaps = () => {
     }
   };
 
+  const refreshMatches = () => {
+    console.log('Refreshing matched swaps');
+    fetchMatchedSwaps();
+  };
+
   const handleAcceptSwap = async () => {
     if (!confirmDialog.swapId || !user) return;
     
@@ -213,6 +220,7 @@ export const useMatchedSwaps = () => {
     confirmDialog,
     setConfirmDialog,
     isLoading,
-    handleAcceptSwap
+    handleAcceptSwap,
+    refreshMatches
   };
 };
