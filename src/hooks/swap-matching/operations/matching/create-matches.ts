@@ -17,6 +17,8 @@ export const createMatches = (
 ): MatchEntry[] => {
   // Temporary storage for matches
   const matches: MatchEntry[] = [];
+  // Track already matched request IDs to prevent duplicates
+  const matchedRequestIds = new Set<string>();
   
   console.log(`Starting to process ${pendingRequests.length} pending requests for potential matches...`);
   
@@ -39,6 +41,11 @@ export const createMatches = (
   
   // Process each request to find potential matches
   for (const request of requestsToProcess) {
+    // Skip if this request is already part of a match
+    if (matchedRequestIds.has(request.id)) {
+      continue;
+    }
+
     // Get the shift for this request
     const requestShift = getRequestShift(request, requestShifts);
     
@@ -61,9 +68,11 @@ export const createMatches = (
     
     // Loop through comparison requests
     for (const otherRequest of requestsToCompare) {
-      // Skip comparing the request with itself
-      if (request.id === otherRequest.id || request.requester_id === otherRequest.requester_id) {
-        continue; // Skip both same request and requests from the same user
+      // Skip comparing the request with itself or if other request is already matched
+      if (request.id === otherRequest.id || 
+          request.requester_id === otherRequest.requester_id || 
+          matchedRequestIds.has(otherRequest.id)) {
+        continue;
       }
       
       // If not forcing a check and either request has a match already, skip
@@ -109,6 +118,13 @@ export const createMatches = (
       if (compatibility.isCompatible) {
         console.log(`✓ MATCH FOUND between ${requesterName} and ${otherRequesterName}!`);
         matches.push({ request, otherRequest });
+        
+        // Mark both requests as matched to prevent duplicate matches
+        matchedRequestIds.add(request.id);
+        matchedRequestIds.add(otherRequest.id);
+        
+        // Once we find a match for this request, move on to the next one
+        break;
       }
     }
   }

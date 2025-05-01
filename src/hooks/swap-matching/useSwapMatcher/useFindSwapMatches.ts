@@ -82,13 +82,20 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
           description: "We couldn't find any matching swaps right now. Try again later or adjust your preferences.",
         });
       } else {
-        // Process the matches
-        const matchesCount = await processMatches(matches, userId);
+        // Process the matches and handle the case of already existing matches
+        const matchResults = await processMatches(matches, userId);
         
-        if (matchesCount > 0) {
+        const newMatches = matchResults.filter(result => !result.alreadyExists).length;
+        
+        if (newMatches > 0) {
           toast({
             title: "Matches Found!",
-            description: `Found ${matchesCount} potential swap matches.`,
+            description: `Found ${newMatches} potential swap match${newMatches !== 1 ? 'es' : ''}.`,
+          });
+        } else if (matchResults.length > 0) {
+          toast({
+            title: "Matches Already Exist",
+            description: "All potential matches have already been recorded.",
           });
         }
       }

@@ -7,6 +7,26 @@ import { toast } from '@/hooks/use-toast';
  */
 export const recordShiftMatch = async (request: any, otherRequest: any, userId: string) => {
   try {
+    // First check if this match already exists to avoid duplicate key errors
+    const { data: existingMatch, error: checkError } = await supabase
+      .from('shift_swap_potential_matches')
+      .select('id')
+      .or(`requester_request_id.eq.${request.id},requester_request_id.eq.${otherRequest.id}`)
+      .or(`acceptor_request_id.eq.${request.id},acceptor_request_id.eq.${otherRequest.id}`)
+      .limit(1)
+      .single();
+      
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('Error checking for existing match:', checkError);
+      return { success: false, error: checkError };
+    }
+    
+    // If a match already exists, just return success without trying to create a duplicate
+    if (existingMatch) {
+      console.log('Match already exists, skipping creation');
+      return { success: true, alreadyExists: true };
+    }
+    
     // Record the match in the potential_matches table
     const { data: matchData, error: matchError } = await supabase
       .from('shift_swap_potential_matches')

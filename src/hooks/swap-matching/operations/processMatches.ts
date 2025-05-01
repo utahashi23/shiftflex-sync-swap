@@ -5,8 +5,12 @@ import { recordShiftMatch } from '@/utils/swap-matching';
  * Process and record the found matches
  */
 export const processMatches = async (matches: any[], userId: string) => {
+  const results = [];
+  
   for (const match of matches) {
-    await recordShiftMatch(match.request, match.otherRequest, userId);
+    const result = await recordShiftMatch(match.request, match.otherRequest, userId);
+    results.push(result);
   }
-  return matches.length;
+  
+  return results;
 };
