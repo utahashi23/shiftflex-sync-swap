@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { fetchSwapMatchingData } from '@/utils/swapMatchingLogic';
+import { fetchSwapMatchingData } from '@/utils/swap-matching';
 
 export const useSwapMatchingState = () => {
   const [isProcessing, setIsProcessing] = useState(false);
