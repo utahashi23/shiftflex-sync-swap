@@ -28,7 +28,13 @@ const ShiftSwapCalendar = () => {
   return (
     <div className="flex flex-col">
       {/* Calendar Header */}
-      <CalendarHeader currentDate={currentDate} onChangeMonth={changeMonth} />
+      <CalendarHeader 
+        currentDate={currentDate} 
+        onChangeMonth={(increment: number) => {
+          if (increment < 0) changeMonth('prev');
+          else changeMonth('next');
+        }} 
+      />
       
       {/* Days of Week Header */}
       <WeekdayHeader />

@@ -62,20 +62,31 @@ export function useSwapMatches() {
       
       // Call our PostgreSQL function to get all user matches
       const { data: matchesData, error: matchesError } = await supabase
-        .rpc('get_user_matches', { user_id: user.id });
+        .rpc('get_user_matches', { user_id: user.id }) as { data: any[], error: any };
       
       if (matchesError) throw matchesError;
       
       console.log('Raw match data from function:', matchesData);
       
+      if (!matchesData || matchesData.length === 0) {
+        setState({
+          matches: [],
+          pastMatches: [],
+          isLoading: false,
+          error: null
+        });
+        return;
+      }
+      
       // Get profiles data for all other users in one batch query
       const userIds = matchesData
-        .map(match => match.other_user_id)
-        .filter((id, index, self) => id && self.indexOf(id) === index);
+        .map((match: any) => match.other_user_id)
+        .filter((id: string | null, index: number, self: (string | null)[]) => 
+          id && self.indexOf(id) === index);
       
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, email')
+        .select('id, first_name, last_name')
         .in('id', userIds);
       
       if (profilesError) throw profilesError;
@@ -85,12 +96,11 @@ export function useSwapMatches() {
       profiles?.forEach(profile => {
         const firstName = profile.first_name || '';
         const lastName = profile.last_name || '';
-        const email = profile.email || '';
-        userNames[profile.id] = `${firstName} ${lastName}`.trim() || email || 'Unknown User';
+        userNames[profile.id] = `${firstName} ${lastName}`.trim() || 'Unknown User';
       });
       
       // Process and format the matches data
-      const formattedMatches = matchesData.map(match => {
+      const formattedMatches = matchesData.map((match: any) => {
         const userName = userNames[match.other_user_id] || 'Unknown User';
         
         return {
@@ -121,11 +131,11 @@ export function useSwapMatches() {
       });
       
       // Separate active and past matches
-      const activeMatches = formattedMatches.filter(match => 
+      const activeMatches = formattedMatches.filter((match: SwapMatch) => 
         match.status === 'pending' || match.status === 'accepted'
       );
       
-      const pastMatches = formattedMatches.filter(match => 
+      const pastMatches = formattedMatches.filter((match: SwapMatch) => 
         match.status === 'completed'
       );
       
@@ -138,7 +148,7 @@ export function useSwapMatches() {
         error: null
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching swap matches:', error);
       setState(prev => ({ 
         ...prev, 
@@ -161,7 +171,7 @@ export function useSwapMatches() {
       
       // Call the accept_swap_match function
       const { data, error } = await supabase
-        .rpc('accept_swap_match', { match_id: matchId });
+        .rpc('accept_swap_match', { match_id: matchId }) as { data: any, error: any };
       
       if (error) throw error;
       
@@ -194,7 +204,7 @@ export function useSwapMatches() {
       
       // Call the complete_swap_match function
       const { data, error } = await supabase
-        .rpc('complete_swap_match', { match_id: matchId });
+        .rpc('complete_swap_match', { match_id: matchId }) as { data: any, error: any };
       
       if (error) throw error;
       

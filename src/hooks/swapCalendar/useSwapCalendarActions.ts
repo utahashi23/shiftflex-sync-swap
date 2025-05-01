@@ -71,7 +71,7 @@ export const useSwapCalendarActions = (
     try {
       setIsLoading(true);
       
-      // 1. Create the swap request
+      // 1. Create the swap request using our new table structure
       const { data: request, error: requestError } = await supabase
         .from('swap_requests')
         .insert({
@@ -80,7 +80,7 @@ export const useSwapCalendarActions = (
           status: 'pending'
         })
         .select()
-        .single();
+        .single() as { data: any, error: any };
       
       if (requestError) throw requestError;
       
@@ -93,7 +93,7 @@ export const useSwapCalendarActions = (
       
       const { error: daysError } = await supabase
         .from('preferred_days')
-        .insert(preferredDaysToInsert);
+        .insert(preferredDaysToInsert) as { data: any, error: any };
       
       if (daysError) throw daysError;
 

@@ -52,13 +52,12 @@ export function useSwapRequests() {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
-      // Fetch the user's pending swap requests
+      // Fetch the user's pending swap requests from our new table structure
       const { data: requests, error: requestsError } = await supabase
         .from('swap_requests')
         .select('id, status, shift_id, created_at')
         .eq('user_id', user.id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+        .eq('status', 'pending');
       
       if (requestsError) throw requestsError;
       
@@ -145,7 +144,7 @@ export function useSwapRequests() {
         error: null
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching swap requests:', error);
       setState(prev => ({ 
         ...prev, 

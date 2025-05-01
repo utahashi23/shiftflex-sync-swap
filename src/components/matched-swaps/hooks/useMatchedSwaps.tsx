@@ -1,14 +1,14 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { MatchedSwap } from '../types';
+import { SwapMatch } from '../types';
 import { useFetchMatchedData } from './useFetchMatchedData';
 import { useSwapActions } from './useSwapActions';
 import { useSwapDialogs } from './useSwapDialogs';
 
 export const useMatchedSwaps = () => {
-  const [swapRequests, setSwapRequests] = useState<MatchedSwap[]>([]);
-  const [pastSwaps, setPastSwaps] = useState<MatchedSwap[]>([]);
+  const [swapRequests, setSwapRequests] = useState<SwapMatch[]>([]);
+  const [pastSwaps, setPastSwaps] = useState<SwapMatch[]>([]);
   const [activeTab, setActiveTab] = useState('active');
   
   const { user } = useAuth();
@@ -39,18 +39,18 @@ export const useMatchedSwaps = () => {
   };
 
   const handleAcceptSwap = async () => {
-    if (!confirmDialog.swapId || !user) return;
+    if (!confirmDialog.matchId || !user) return;
     
     setIsLoading(true);
     
-    const success = await acceptSwap(confirmDialog.swapId, () => {});
+    const success = await acceptSwap(confirmDialog.matchId, () => {});
     
     if (success) {
       // Update the UI
-      const completedSwap = swapRequests.find(s => s.id === confirmDialog.swapId);
+      const completedSwap = swapRequests.find(s => s.id === confirmDialog.matchId);
       if (completedSwap) {
         // Move from active to completed
-        setSwapRequests(prev => prev.filter(s => s.id !== confirmDialog.swapId));
+        setSwapRequests(prev => prev.filter(s => s.id !== confirmDialog.matchId));
         setPastSwaps(prev => [
           ...prev, 
           { ...completedSwap, status: 'completed' }
@@ -58,7 +58,7 @@ export const useMatchedSwaps = () => {
       }
     }
     
-    setConfirmDialog({ isOpen: false, swapId: null });
+    setConfirmDialog({ isOpen: false, matchId: null });
     setIsLoading(false);
   };
 
