@@ -89,6 +89,24 @@ export const useSwapMatcher = () => {
         return map;
       }, {} as Record<string, any>);
       
+      // Create a shifts map for direct lookup when we have embedded data
+      const shiftMap = new Map();
+      allShifts.forEach(shift => {
+        shiftMap.set(shift.id, shift);
+      });
+      
+      // Add any embedded shifts from the request data to our shift map
+      allRequests.forEach(request => {
+        if (request._embedded_shift && request._embedded_shift.id) {
+          // If the request has embedded shift data that we might not have, add it to the map
+          shiftMap.set(request._embedded_shift.id, request._embedded_shift);
+        }
+      });
+      
+      // Now convert our map back to an array to use with the existing code
+      const combinedShifts = Array.from(shiftMap.values());
+      console.log(`Combined ${combinedShifts.length} shifts after adding embedded shift data`);
+      
       // Prepare data structures for efficient matching
       const { 
         shiftsByDate, 
@@ -96,7 +114,7 @@ export const useSwapMatcher = () => {
         requestsByUser, 
         requestShifts, 
         preferredDatesByRequest 
-      } = createLookupMaps(allRequests, allShifts, preferredDates);
+      } = createLookupMaps(allRequests, combinedShifts, preferredDates);
       
       console.log('Data structures prepared for matching');
       console.log('Starting to process each request for potential matches...');
@@ -110,7 +128,21 @@ export const useSwapMatcher = () => {
       
       // Process each request to find potential matches
       for (const request of pendingRequests) {
-        const requestShift = requestShifts[request.id];
+        // First check if we have embedded shift data
+        let requestShift;
+        
+        if (request._embedded_shift) {
+          // Use the embedded shift data directly
+          requestShift = {
+            ...request._embedded_shift,
+            normalizedDate: new Date(request._embedded_shift.date).toISOString().split('T')[0],
+            type: getShiftType(request._embedded_shift.start_time)
+          };
+        } else {
+          // Fall back to the lookup method
+          requestShift = requestShifts[request.id];
+        }
+        
         if (!requestShift) {
           console.log(`Missing shift data for request ${request.id}`);
           continue;
@@ -135,8 +167,21 @@ export const useSwapMatcher = () => {
           // Skip if requester is the same person
           if (otherRequest.requester_id === request.requester_id) continue;
           
-          // Get the shift for the other request
-          const otherRequestShift = requestShifts[otherRequest.id];
+          // Get the shift for the other request, checking for embedded data first
+          let otherRequestShift;
+          
+          if (otherRequest._embedded_shift) {
+            // Use the embedded shift data directly
+            otherRequestShift = {
+              ...otherRequest._embedded_shift,
+              normalizedDate: new Date(otherRequest._embedded_shift.date).toISOString().split('T')[0],
+              type: getShiftType(otherRequest._embedded_shift.start_time)
+            };
+          } else {
+            // Fall back to the lookup method
+            otherRequestShift = requestShifts[otherRequest.id];
+          }
+          
           if (!otherRequestShift) {
             console.log(`Missing shift data for other request ${otherRequest.id}`);
             continue;
