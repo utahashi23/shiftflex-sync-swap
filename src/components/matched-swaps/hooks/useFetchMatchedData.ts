@@ -67,6 +67,7 @@ export const useFetchMatchedData = () => {
       // If no data, return empty arrays
       if ((!matchedRequests || matchedRequests.length === 0) && 
           (!completedRequests || completedRequests.length === 0)) {
+        console.log('No matched or completed swaps found');
         return { matchedSwaps: [], completedSwaps: [] };
       }
       
@@ -83,18 +84,23 @@ export const useFetchMatchedData = () => {
         if (req.acceptor_shift_id) shiftIds.add(req.acceptor_shift_id);
       });
       
-      // Fetch shift data
-      const { data: shiftsData, error: shiftsError } = await supabase
-        .from('shifts')
-        .select('*')
-        .in('id', Array.from(shiftIds));
+      // Only fetch shifts if we have shift IDs
+      let shiftsData: any[] = [];
+      if (shiftIds.size > 0) {
+        // Fetch shift data
+        const { data: shifts, error: shiftsError } = await supabase
+          .from('shifts')
+          .select('*')
+          .in('id', Array.from(shiftIds));
+          
+        if (shiftsError) {
+          console.error('Error fetching shifts:', shiftsError);
+          throw shiftsError;
+        }
         
-      if (shiftsError) {
-        console.error('Error fetching shifts:', shiftsError);
-        throw shiftsError;
+        console.log('Fetched shifts data:', shifts);
+        shiftsData = shifts || [];
       }
-      
-      console.log('Fetched shifts data:', shiftsData);
       
       // Get user IDs involved in swaps
       const userIds = new Set<string>();
@@ -135,7 +141,10 @@ export const useFetchMatchedData = () => {
         return map;
       }, {} as Record<string, any>);
       
-      // Join shift data with request data
+      // Process matches to avoid duplicates
+      const processedMatchIds = new Set<string>();
+      
+      // Join shift data with request data for matched requests
       const matchedRequestsWithShifts = matchedRequests?.map(req => {
         const requesterShift = shiftsData?.find(s => s.id === req.requester_shift_id);
         const acceptorShift = shiftsData?.find(s => s.id === req.acceptor_shift_id);
@@ -147,6 +156,7 @@ export const useFetchMatchedData = () => {
         };
       });
       
+      // Join shift data with request data for completed requests
       const completedRequestsWithShifts = completedRequests?.map(req => {
         const requesterShift = shiftsData?.find(s => s.id === req.requester_shift_id);
         const acceptorShift = shiftsData?.find(s => s.id === req.acceptor_shift_id);
@@ -158,7 +168,7 @@ export const useFetchMatchedData = () => {
         };
       });
       
-      // Process active matches
+      // Process active matches - the problem was here with duplicates
       const formattedActiveMatches = processSwapRequests(
         matchedRequestsWithShifts || [], 
         shiftsData || [], 
@@ -174,6 +184,11 @@ export const useFetchMatchedData = () => {
         profilesMap
       );
       
+      // Log the processed matches to debug
+      console.log('Processed active matches:', formattedActiveMatches);
+      console.log('Processed completed matches:', formattedCompletedMatches);
+      
+      // Return the unique matches
       return {
         matchedSwaps: formattedActiveMatches,
         completedSwaps: formattedCompletedMatches

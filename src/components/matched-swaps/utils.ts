@@ -35,6 +35,8 @@ export const processSwapRequests = (
   currentUserId: string,
   profilesMap: Record<string, any>
 ): MatchedSwap[] => {
+  // Used to track unique request IDs to prevent duplicates
+  const processedRequestIds = new Set<string>();
   const result: MatchedSwap[] = [];
 
   // Log the incoming data to help with debugging
@@ -45,6 +47,14 @@ export const processSwapRequests = (
   });
 
   for (const request of requests) {
+    // Skip if we've already processed this request
+    if (processedRequestIds.has(request.id)) {
+      continue;
+    }
+    
+    // Mark this request as processed to prevent duplicates
+    processedRequestIds.add(request.id);
+    
     try {
       // Determine if the current user is the requester or acceptor
       const isRequester = request.requester_id === currentUserId;
@@ -57,57 +67,47 @@ export const processSwapRequests = (
       if (!myShiftData || !theirShiftData) {
         console.log(`Missing shift data for request: ${request.id}`);
         
-        // Try to create placeholder shift data for display purposes using available information
-        if (!myShiftData && request.requester_shift_id) {
-          console.log(`Attempting to create placeholder data for requester shift: ${request.requester_shift_id}`);
-        }
-        if (!theirShiftData && request.acceptor_shift_id) {
-          console.log(`Attempting to create placeholder data for acceptor shift: ${request.acceptor_shift_id}`);
-        }
+        // Try to create placeholder shift data for display purposes
+        const myShiftId = isRequester ? request.requester_shift_id : request.acceptor_shift_id;
+        const theirShiftId = isRequester ? request.acceptor_shift_id : request.requester_shift_id;
         
-        // If we can't create placeholders, skip this request
-        if ((!myShiftData && !request.requester_shift_id) || 
-            (!theirShiftData && !request.acceptor_shift_id)) {
-          continue;
-        }
-        
-        // Create placeholder objects if needed
-        const myShift = myShiftData || {
-          id: isRequester ? request.requester_shift_id : request.acceptor_shift_id,
-          date: new Date().toISOString().split('T')[0], // Today as placeholder
-          start_time: "09:00:00", // Default start time
-          end_time: "17:00:00",  // Default end time
+        // Try to find the shifts in the shifts array if they're not in the request
+        const myShift = myShiftData || shifts.find(s => s.id === myShiftId) || {
+          id: myShiftId,
+          date: new Date().toISOString().split('T')[0],
+          start_time: "09:00:00",
+          end_time: "17:00:00"
         };
         
-        const theirShift = theirShiftData || {
-          id: isRequester ? request.acceptor_shift_id : request.requester_shift_id,
-          date: new Date().toISOString().split('T')[0], // Today as placeholder
-          start_time: "09:00:00", // Default start time
-          end_time: "17:00:00",  // Default end time
+        const theirShift = theirShiftData || shifts.find(s => s.id === theirShiftId) || {
+          id: theirShiftId,
+          date: new Date().toISOString().split('T')[0],
+          start_time: "09:00:00",
+          end_time: "17:00:00"
         };
         
         const myUserId = isRequester ? request.requester_id : request.acceptor_id;
         const theirUserId = isRequester ? request.acceptor_id : request.requester_id;
         
         const processedMyShift = {
-          id: myShift.id,
-          date: myShift.date,
-          type: getShiftType(myShift.start_time),
+          id: myShift.id || myShiftId || 'unknown',
+          date: myShift.date || new Date().toISOString().split('T')[0],
+          type: getShiftType(myShift.start_time || "09:00:00"),
           title: "Your Shift",
-          startTime: formatTime(myShift.start_time),
-          endTime: formatTime(myShift.end_time),
+          startTime: formatTime(myShift.start_time || "09:00:00"),
+          endTime: formatTime(myShift.end_time || "17:00:00"),
           colleagueType: isRequester ? "Requester" : "Acceptor",
         };
         
         const processedTheirShift = {
-          id: theirShift.id,
-          date: theirShift.date,
-          type: getShiftType(theirShift.start_time),
+          id: theirShift.id || theirShiftId || 'unknown',
+          date: theirShift.date || new Date().toISOString().split('T')[0],
+          type: getShiftType(theirShift.start_time || "09:00:00"),
           title: "Their Shift",
-          startTime: formatTime(theirShift.start_time),
-          endTime: formatTime(theirShift.end_time),
+          startTime: formatTime(theirShift.start_time || "09:00:00"),
+          endTime: formatTime(theirShift.end_time || "17:00:00"),
           colleagueType: isRequester ? "Acceptor" : "Requester",
-          colleague: getColleagueName(profilesMap, theirUserId)
+          colleague: getColleagueName(profilesMap, theirUserId || 'unknown')
         };
         
         result.push({
@@ -127,7 +127,7 @@ export const processSwapRequests = (
         id: myShiftData.id,
         date: myShiftData.date,
         type: getShiftType(myShiftData.start_time),
-        title: "Your Shift",
+        title: myShiftData.truck_name || "Your Shift",
         startTime: formatTime(myShiftData.start_time),
         endTime: formatTime(myShiftData.end_time),
         colleagueType: isRequester ? "Requester" : "Acceptor",
@@ -137,7 +137,7 @@ export const processSwapRequests = (
         id: theirShiftData.id,
         date: theirShiftData.date,
         type: getShiftType(theirShiftData.start_time),
-        title: "Their Shift",
+        title: theirShiftData.truck_name || "Their Shift",
         startTime: formatTime(theirShiftData.start_time),
         endTime: formatTime(theirShiftData.end_time),
         colleagueType: isRequester ? "Acceptor" : "Requester",
@@ -155,6 +155,5 @@ export const processSwapRequests = (
     }
   }
   
-  console.log('Processed active matches:', result);
   return result;
 };

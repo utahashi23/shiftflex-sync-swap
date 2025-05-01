@@ -67,7 +67,7 @@ export const formatTime = (timeStr: string): string => {
   const ampm = hours >= 12 ? 'PM' : 'AM';
   hours = hours % 12;
   hours = hours ? hours : 12; // Handle midnight (0) as 12
-  const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+  const minutesStr = minutes < 10 ? '0' + minutes : minutes.toString();
   
   return `${hours}:${minutesStr} ${ampm}`;
 };
