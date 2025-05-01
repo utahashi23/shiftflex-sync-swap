@@ -1,4 +1,6 @@
 
+import { SwapMatch } from './types';
+
 export const getShiftType = (startTime: string): string => {
   const hour = parseInt(startTime.split(':')[0], 10);
   if (hour >= 5 && hour < 12) return 'day';
