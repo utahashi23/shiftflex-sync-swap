@@ -37,7 +37,7 @@ export const checkMatchCompatibility = (
     }
     
     // Check if the preferred date's shift types match
-    if (prefDate.acceptedTypes.includes(otherRequestShift.type)) {
+    if (prefDate.acceptedTypes && prefDate.acceptedTypes.includes(otherRequestShift.type)) {
       matchDate = prefDate.date;
       break;
     }
@@ -52,6 +52,7 @@ export const checkMatchCompatibility = (
   for (const otherPrefDate of otherPreferredDates) {
     // Check if other user's preferred date contains my shift
     if (otherPrefDate.date === requestShift.normalizedDate && 
+        otherPrefDate.acceptedTypes && 
         otherPrefDate.acceptedTypes.includes(requestShift.type)) {
       reverseMatch = true;
       break;
@@ -81,7 +82,7 @@ export const logMatchInfo = (
 ) => {
   if (isMatch) {
     console.log(`✅ MATCH FOUND: ${request.requester_id.substring(0, 6)} <-> ${otherRequest.requester_id.substring(0, 6)}`);
-    console.log(`  My shift: ${myShift?.date} (${myShift?.type}) <-> Their shift: ${theirShift?.date} (${theirShift?.type})`);
+    console.log(`  My shift: ${myShift?.normalizedDate || myShift?.date} (${myShift?.type}) <-> Their shift: ${theirShift?.normalizedDate || theirShift?.date} (${theirShift?.type})`);
   } else {
     console.log(`❌ NO MATCH: ${request.requester_id.substring(0, 6)} <-> ${otherRequest.requester_id.substring(0, 6)}`);
     console.log(`  Reason: ${reason}`);

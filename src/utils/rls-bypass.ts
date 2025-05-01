@@ -25,7 +25,9 @@ export const fetchAllShifts = async () => {
     
     // Fall back to direct query with explicit admin check
     const { data: adminCheckData } = await supabase.rpc('test_admin_access');
-    const isAdmin = adminCheckData?.is_admin === true;
+    const isAdmin = adminCheckData && typeof adminCheckData === 'object' && 'is_admin' in adminCheckData 
+      ? Boolean(adminCheckData.is_admin) 
+      : false;
     
     if (isAdmin) {
       console.log('Admin access confirmed, trying direct query...');
@@ -74,7 +76,9 @@ export const fetchAllPreferredDates = async () => {
     
     // Fall back to admin check
     const { data: adminCheckData } = await supabase.rpc('test_admin_access');
-    const isAdmin = adminCheckData?.is_admin === true;
+    const isAdmin = adminCheckData && typeof adminCheckData === 'object' && 'is_admin' in adminCheckData 
+      ? Boolean(adminCheckData.is_admin) 
+      : false;
     
     if (isAdmin) {
       console.log('Admin access confirmed, trying direct query...');

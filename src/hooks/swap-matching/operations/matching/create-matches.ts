@@ -32,24 +32,45 @@ export const createMatches = (
       `${profilesMap[request.requester_id].first_name} ${profilesMap[request.requester_id].last_name}` : 
       'Unknown User';
     
-    logMatchInfo(requesterName, request, requestShift);
+    console.log(`Processing request from ${requesterName} (ID: ${request.id.substring(0, 6)})`);
     
     // Loop through all other pending requests to check for compatibility
     for (const otherRequest of pendingRequests) {
+      // Skip comparing the request with itself
+      if (request.id === otherRequest.id) {
+        continue;
+      }
+      
       // Get the shift for the other request
       const otherRequestShift = getRequestShift(otherRequest, requestShifts);
       
-      const isCompatible = checkMatchCompatibility(
+      if (!otherRequestShift) {
+        console.log(`Missing shift data for request ${otherRequest.id}`);
+        continue;
+      }
+      
+      // Check if the requests are compatible
+      const compatibility = checkMatchCompatibility(
         request,
-        otherRequest,
         requestShift,
+        otherRequest,
         otherRequestShift,
         preferredDatesByRequest,
         shiftsByUser
       );
       
+      // Log the match info
+      logMatchInfo(
+        request, 
+        otherRequest, 
+        requestShift, 
+        otherRequestShift, 
+        compatibility.isCompatible, 
+        compatibility.reason
+      );
+      
       // If match found, record it
-      if (isCompatible) {
+      if (compatibility.isCompatible) {
         matches.push({ request, otherRequest });
       }
     }
