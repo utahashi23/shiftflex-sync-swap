@@ -2,15 +2,15 @@
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { useFindSwapMatches } from './useSwapMatcher/useFindSwapMatches';
-import { useProcessState } from './useSwapMatcher/useProcessState';
+import { useFindSwapMatches } from './useFindSwapMatches';
+import { useProcessingState } from './useProcessingState';
 
 /**
  * Hook for finding and processing swap matches
  */
 export const useSwapMatcher = () => {
   const { user } = useAuth();
-  const { isProcessing, setIsProcessing } = useProcessState();
+  const { isProcessing, setIsProcessing } = useProcessingState();
   const { findSwapMatches: executeFindMatches } = useFindSwapMatches(setIsProcessing);
   
   /**
