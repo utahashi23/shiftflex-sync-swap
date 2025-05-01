@@ -8,15 +8,18 @@ import ShiftSwapCalendar from '@/components/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useSwapMatcher } from '@/hooks/useSwapMatcher'; // Make sure we're using the correct hook
-import { RefreshCw } from 'lucide-react';
+import { useSwapMatcher } from '@/hooks/useSwapMatcher'; 
+import { RefreshCw, Bug } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
   const [activeTab, setActiveTab] = useState('calendar');
-  const { findSwapMatches, isProcessing } = useSwapMatcher(); // Using the primary hook
+  const { findSwapMatches, isProcessing } = useSwapMatcher();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [testMode, setTestMode] = useState(false);
+  const [isTestLoading, setIsTestLoading] = useState(false);
   
   // Force tab refresh when coming back to this page or after finding matches
   useEffect(() => {
@@ -36,6 +39,45 @@ const ShiftSwaps = () => {
     });
   };
   
+  const handleTestMode = async () => {
+    setIsTestLoading(true);
+    try {
+      // Toggle test mode
+      const newTestMode = !testMode;
+      setTestMode(newTestMode);
+      
+      if (newTestMode) {
+        // If enabling test mode, switch to the matched tab
+        setActiveTab('matched');
+        
+        // Force refresh to show test data
+        setRefreshTrigger(prev => prev + 1);
+        
+        toast({
+          title: "Test Mode Enabled",
+          description: "Showing all shift swap requests in Matched Swaps tab",
+        });
+      } else {
+        // If disabling test mode, refresh to show normal data
+        setRefreshTrigger(prev => prev + 1);
+        
+        toast({
+          title: "Test Mode Disabled",
+          description: "Returned to normal view",
+        });
+      }
+    } catch (error) {
+      console.error("Error toggling test mode:", error);
+      toast({
+        title: "Error",
+        description: "Failed to toggle test mode",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTestLoading(false);
+    }
+  };
+  
   return (
     <AppLayout>
       <div className="mb-8">
@@ -45,7 +87,17 @@ const ShiftSwaps = () => {
         </p>
       </div>
 
-      <div className="flex justify-end items-center mb-4">
+      <div className="flex justify-between items-center mb-4">
+        <Button 
+          onClick={handleTestMode}
+          disabled={isTestLoading}
+          variant="outline"
+          className={testMode ? "bg-amber-100 border-amber-300 text-amber-800" : ""}
+        >
+          <Bug className={`h-4 w-4 mr-2 ${isTestLoading ? 'animate-spin' : ''}`} />
+          {testMode ? "Disable Test Mode" : "Enable Test Mode"}
+        </Button>
+        
         <Button 
           onClick={handleFindMatches}
           disabled={isProcessing}
@@ -80,7 +132,7 @@ const ShiftSwaps = () => {
             <RequestedSwaps key={`requested-${refreshTrigger}`} />
           </TabsContent>
           <TabsContent value="matched">
-            <MatchedSwaps key={`matched-${refreshTrigger}`} />
+            <MatchedSwaps key={`matched-${refreshTrigger}`} testMode={testMode} />
           </TabsContent>
         </Tabs>
       </TooltipProvider>
