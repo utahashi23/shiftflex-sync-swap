@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,7 @@ import { toast } from '@/hooks/use-toast';
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
   const [activeTab, setActiveTab] = useState('calendar');
-  const { findSwapMatches, isProcessing } = useSwapMatcher(); // Using the primary hook
+  const { findSwapMatches, isProcessing } = useSwapMatcher(); // Using the refactored hook
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Force tab refresh when coming back to this page or after finding matches
