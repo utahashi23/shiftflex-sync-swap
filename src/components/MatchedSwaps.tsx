@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
@@ -55,99 +56,155 @@ const MatchedSwapsComponent = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
+  const [testMode, setTestMode] = useState(false);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [allSwapRequests, setAllSwapRequests] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchMatchedSwaps = async () => {
-      if (!user) return;
-      
-      setIsLoading(true);
-      
-      try {
-        // Fetch active matched swaps
-        const { data: activeMatches, error: activeError } = await supabase
-          .from('shift_swap_requests')
-          .select(`
-            id,
-            status,
-            requester_id,
-            requester_shift_id,
-            acceptor_id,
-            acceptor_shift_id
-          `)
-          .or(`requester_id.eq.${user.id},acceptor_id.eq.${user.id}`)
-          .eq('status', 'matched');
-          
-        if (activeError) throw activeError;
-        
-        // Fetch completed swaps
-        const { data: completedMatches, error: completedError } = await supabase
-          .from('shift_swap_requests')
-          .select(`
-            id,
-            status,
-            requester_id,
-            requester_shift_id,
-            acceptor_id,
-            acceptor_shift_id
-          `)
-          .or(`requester_id.eq.${user.id},acceptor_id.eq.${user.id}`)
-          .eq('status', 'completed');
-          
-        if (completedError) throw completedError;
-        
-        // If no data, set empty arrays and return
-        if ((!activeMatches || activeMatches.length === 0) && 
-            (!completedMatches || completedMatches.length === 0)) {
-          setSwapRequests([]);
-          setPastSwaps([]);
-          setIsLoading(false);
-          return;
-        }
-        
-        // Get all shift IDs to fetch in one query
-        const allShiftIds = [
-          ...(activeMatches || []).map(m => m.requester_shift_id),
-          ...(activeMatches || []).map(m => m.acceptor_shift_id).filter(Boolean),
-          ...(completedMatches || []).map(m => m.requester_shift_id),
-          ...(completedMatches || []).map(m => m.acceptor_shift_id).filter(Boolean)
-        ].filter(Boolean) as string[];
-        
-        if (allShiftIds.length === 0) {
-          setSwapRequests([]);
-          setPastSwaps([]);
-          setIsLoading(false);
-          return;
-        }
-        
-        // Fetch all shift details
-        const { data: shiftsData, error: shiftsError } = await supabase
-          .from('shifts')
-          .select('*, profiles(first_name, last_name)')
-          .in('id', allShiftIds);
-          
-        if (shiftsError) throw shiftsError;
-        
-        // Process active matches
-        const formattedActiveMatches = processSwapRequests(activeMatches || [], shiftsData || [], user.id);
-        setSwapRequests(formattedActiveMatches);
-        
-        // Process completed matches
-        const formattedCompletedMatches = processSwapRequests(completedMatches || [], shiftsData || [], user.id);
-        setPastSwaps(formattedCompletedMatches);
-      } catch (error) {
-        console.error('Error fetching matched swaps:', error);
-        toast({
-          title: "Failed to load matched swaps",
-          description: "There was a problem loading your matched swaps. Please try again later.",
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    // Test mode detection
+    const isTestMode = window.location.search.includes('test=true');
+    setTestMode(isTestMode);
 
-    fetchMatchedSwaps();
+    if (isTestMode) {
+      fetchAllUsers();
+      fetchAllSwapRequests();
+    } else {
+      fetchMatchedSwaps();
+    }
   }, [user]);
+
+  const fetchAllUsers = async () => {
+    try {
+      // First attempt: Try to get users from profiles
+      let { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*');
+
+      // If no data from profiles, try to mimic users list
+      if (!profilesData || profilesData.length === 0) {
+        // Create mock data
+        const mockUsers = [
+          { id: '1', email: 'test1@example.com', first_name: 'Test', last_name: 'User' },
+          { id: '2', email: 'test2@example.com', first_name: 'Another', last_name: 'User' },
+          { id: '3', email: 'admin@example.com', first_name: 'Admin', last_name: 'User' }
+        ];
+        
+        setAllUsers(mockUsers);
+        console.log('Using mock users data:', mockUsers);
+      } else {
+        setAllUsers(profilesData);
+        console.log('Fetched users from profiles:', profilesData.length);
+      }
+    } catch (error) {
+      console.error('Error fetching all users:', error);
+    }
+  };
+
+  const fetchAllSwapRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shift_swap_requests')
+        .select('*');
+
+      if (error) throw error;
+
+      console.log('All swap requests:', data);
+      setAllSwapRequests(data || []);
+    } catch (error) {
+      console.error('Error fetching all swap requests:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchMatchedSwaps = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Fetch active matched swaps
+      const { data: activeMatches, error: activeError } = await supabase
+        .from('shift_swap_requests')
+        .select(`
+          id,
+          status,
+          requester_id,
+          requester_shift_id,
+          acceptor_id,
+          acceptor_shift_id
+        `)
+        .or(`requester_id.eq.${user.id},acceptor_id.eq.${user.id}`)
+        .eq('status', 'matched');
+        
+      if (activeError) throw activeError;
+      
+      // Fetch completed swaps
+      const { data: completedMatches, error: completedError } = await supabase
+        .from('shift_swap_requests')
+        .select(`
+          id,
+          status,
+          requester_id,
+          requester_shift_id,
+          acceptor_id,
+          acceptor_shift_id
+        `)
+        .or(`requester_id.eq.${user.id},acceptor_id.eq.${user.id}`)
+        .eq('status', 'completed');
+        
+      if (completedError) throw completedError;
+      
+      // If no data, set empty arrays and return
+      if ((!activeMatches || activeMatches.length === 0) && 
+          (!completedMatches || completedMatches.length === 0)) {
+        setSwapRequests([]);
+        setPastSwaps([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Get all shift IDs to fetch in one query
+      const allShiftIds = [
+        ...(activeMatches || []).map(m => m.requester_shift_id),
+        ...(activeMatches || []).map(m => m.acceptor_shift_id).filter(Boolean),
+        ...(completedMatches || []).map(m => m.requester_shift_id),
+        ...(completedMatches || []).map(m => m.acceptor_shift_id).filter(Boolean)
+      ].filter(Boolean) as string[];
+      
+      if (allShiftIds.length === 0) {
+        setSwapRequests([]);
+        setPastSwaps([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Fetch all shift details
+      const { data: shiftsData, error: shiftsError } = await supabase
+        .from('shifts')
+        .select('*, profiles(first_name, last_name)')
+        .in('id', allShiftIds);
+        
+      if (shiftsError) throw shiftsError;
+      
+      // Process active matches
+      const formattedActiveMatches = processSwapRequests(activeMatches || [], shiftsData || [], user.id);
+      setSwapRequests(formattedActiveMatches);
+      
+      // Process completed matches
+      const formattedCompletedMatches = processSwapRequests(completedMatches || [], shiftsData || [], user.id);
+      setPastSwaps(formattedCompletedMatches);
+    } catch (error) {
+      console.error('Error fetching matched swaps:', error);
+      toast({
+        title: "Failed to load matched swaps",
+        description: "There was a problem loading your matched swaps. Please try again later.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Helper function to process swap requests data
   const processSwapRequests = (
@@ -281,6 +338,84 @@ const MatchedSwapsComponent = () => {
     return type.charAt(0).toUpperCase() + type.slice(1);
   };
   
+  // Test mode UI - List all users
+  if (testMode) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Test Mode - All Users ({allUsers.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {allUsers.length === 0 ? (
+                <p>No users found</p>
+              ) : (
+                allUsers.map((user, index) => (
+                  <div key={user.id || index} className="p-4 border rounded-md">
+                    <div className="font-medium">
+                      {user.first_name || ''} {user.last_name || ''} {user.email ? `(${user.email})` : ''}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      ID: {user.id}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Test Mode - All Swap Requests ({allSwapRequests.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {allSwapRequests.length === 0 ? (
+                <p>No swap requests found</p>
+              ) : (
+                allSwapRequests.map((request) => (
+                  <div key={request.id} className="p-4 border rounded-md">
+                    <div className="font-medium">
+                      Request ID: {request.id}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mt-2">
+                      <div>
+                        <div className="text-sm text-muted-foreground">Requester ID</div>
+                        <div>{request.requester_id}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground">Acceptor ID</div>
+                        <div>{request.acceptor_id || 'None yet'}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground">Status</div>
+                        <div className={cn(
+                          "px-2 py-1 rounded text-xs font-medium inline-block",
+                          request.status === 'completed' ? "bg-green-100 text-green-800" :
+                          request.status === 'matched' ? "bg-yellow-100 text-yellow-800" :
+                          "bg-blue-100 text-blue-800"
+                        )}>
+                          {request.status}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground">Created At</div>
+                        <div>{new Date(request.created_at).toLocaleString()}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  // Standard UI
   return (
     <div className="space-y-6">
       <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
