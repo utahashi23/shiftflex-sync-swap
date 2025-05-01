@@ -17,7 +17,7 @@ export const useSwapActions = () => {
     swapId: string, 
     onSuccess: (completedSwap: SwapMatch) => void
   ) => {
-    if (!swapId) return;
+    if (!swapId) return false;
     
     setIsLoading(true);
     

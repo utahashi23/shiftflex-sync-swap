@@ -33,7 +33,7 @@ export interface ConfirmDialogState {
 }
 
 // Define a type for matched swaps used in older files (for compatibility)
-export interface MatchedSwap {
+export type MatchedSwap = {
   id: string;
   originalShift: {
     id: string;

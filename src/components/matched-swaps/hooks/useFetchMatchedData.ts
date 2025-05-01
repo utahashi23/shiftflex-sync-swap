@@ -21,7 +21,7 @@ export const useFetchMatchedData = () => {
     try {
       console.log('Fetching matched swaps for user', userId);
       
-      // Call the get_user_matches function as a fetch with RPC
+      // Call the get_user_matches function
       const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
         body: { user_id: userId }
       });
