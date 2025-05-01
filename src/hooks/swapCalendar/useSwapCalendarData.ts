@@ -5,6 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { getMonthDateRange } from '@/utils/dateUtils';
 import { Shift } from '@/hooks/useShiftData';
 
+// This hook is specifically for getting the current user's shifts for calendar display
 export const useSwapCalendarData = (currentDate: Date, userId?: string) => {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,8 +25,8 @@ export const useSwapCalendarData = (currentDate: Date, userId?: string) => {
         
         console.log('Fetching shifts with date range:', { startDate, endDate, userId });
         
-        // Note: This still filters by userId because we're only showing
-        // the current user's shifts in the calendar
+        // Note: This hook is specifically for fetching the current user's shifts
+        // for calendar display purposes only. For shift matching, we need ALL users' shifts.
         const { data, error } = await supabase
           .from('shifts')
           .select('*')
