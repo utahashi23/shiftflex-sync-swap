@@ -72,7 +72,25 @@ serve(async (req) => {
     // Create a map for quick lookup
     const shiftsMap = {}
     shifts.forEach(shift => {
-      shiftsMap[shift.id] = shift
+      // Determine shift type based on start time
+      const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours()
+      let shiftType = 'day'
+      
+      if (startHour <= 8) {
+        shiftType = 'day'
+      } else if (startHour > 8 && startHour < 16) {
+        shiftType = 'afternoon'
+      } else {
+        shiftType = 'night'
+      }
+      
+      shiftsMap[shift.id] = {
+        ...shift,
+        type: shiftType, // Add the shift type
+        startTime: shift.start_time,
+        endTime: shift.end_time,
+        truckName: shift.truck_name
+      }
     })
     
     // Fetch preferred days for these requests

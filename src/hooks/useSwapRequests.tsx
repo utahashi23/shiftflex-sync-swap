@@ -13,6 +13,7 @@ export interface SwapRequest {
     startTime: string;
     endTime: string;
     truckName: string | null;
+    type: string; // Adding the missing type field
   };
   preferredDays: PreferredDay[];
   createdAt?: string;
@@ -46,7 +47,30 @@ export function useSwapRequests() {
       if (error) throw new Error(error.message);
       
       // Process and set swap requests
-      setSwapRequests(data || []);
+      // Map the response data to ensure each shift has a type based on start time
+      const processedRequests = (data || []).map(request => {
+        const shift = request.shift;
+        
+        // Determine shift type based on start time if not provided
+        if (shift && !shift.type) {
+          const startHour = new Date(`2000-01-01T${shift.startTime}`).getHours();
+          if (startHour <= 8) {
+            shift.type = 'day';
+          } else if (startHour > 8 && startHour < 16) {
+            shift.type = 'afternoon';
+          } else {
+            shift.type = 'night';
+          }
+        }
+        
+        return {
+          ...request,
+          shift: shift,
+          preferredDays: request.preferred_days || [] // Ensure consistent property naming
+        };
+      });
+      
+      setSwapRequests(processedRequests);
       
     } catch (error: any) {
       console.error('Error fetching swap requests:', error);
