@@ -1,50 +1,89 @@
 
-import { checkSwapCompatibility } from '@/utils/swap-matching';
-import { MatchEntry } from './types';
-
 /**
- * Checks if two request shifts are compatible for swapping
+ * Check if two swap requests are compatible
  */
 export const checkMatchCompatibility = (
   request: any,
-  otherRequest: any,
   requestShift: any,
+  otherRequest: any,
   otherRequestShift: any,
   preferredDatesByRequest: Record<string, any[]>,
   shiftsByUser: Record<string, string[]>
-): boolean => {
-  if (!requestShift || !otherRequestShift) {
-    console.log(`Missing shift data for one of the requests`);
-    return false;
+): { isCompatible: boolean; reason?: string; matchDate?: string } => {
+  // Cannot match with self
+  if (request.requester_id === otherRequest.requester_id) {
+    return { isCompatible: false, reason: 'Cannot match with self' };
   }
   
-  // Skip self-comparison
-  if (request.id === otherRequest.id) return false;
+  // Both requests must have preferred dates
+  const preferredDates = preferredDatesByRequest[request.id] || [];
+  const otherPreferredDates = preferredDatesByRequest[otherRequest.id] || [];
   
-  // Skip if requester is the same person
-  if (request.requester_id === otherRequest.requester_id) return false;
+  if (preferredDates.length === 0 || otherPreferredDates.length === 0) {
+    return { isCompatible: false, reason: 'Missing preferred dates' };
+  }
   
-  // Check if users want to swap shifts based on their preferences
-  const { isCompatible } = checkSwapCompatibility(
-    request,
-    otherRequest,
-    requestShift,
-    otherRequestShift,
-    preferredDatesByRequest,
-    shiftsByUser
-  );
+  // Users must not be working on each other's preferred dates
+  const userShiftDates = shiftsByUser[otherRequest.requester_id] || [];
+  const otherUserShiftDates = shiftsByUser[request.requester_id] || [];
   
-  return isCompatible;
+  // Check if any of my preferred dates match the other user's shift dates
+  let matchDate = null;
+  
+  for (const prefDate of preferredDates) {
+    // Each user must be available on the other's preferred date
+    if (!otherUserShiftDates.includes(prefDate.date)) {
+      continue; // Other user doesn't work on this day
+    }
+    
+    // Check if the preferred date's shift types match
+    if (prefDate.acceptedTypes.includes(otherRequestShift.type)) {
+      matchDate = prefDate.date;
+      break;
+    }
+  }
+  
+  if (!matchDate) {
+    return { isCompatible: false, reason: 'No matching date with compatible shift types' };
+  }
+  
+  // Verify reverse compatibility
+  let reverseMatch = false;
+  for (const otherPrefDate of otherPreferredDates) {
+    // Check if other user's preferred date contains my shift
+    if (otherPrefDate.date === requestShift.normalizedDate && 
+        otherPrefDate.acceptedTypes.includes(requestShift.type)) {
+      reverseMatch = true;
+      break;
+    }
+  }
+  
+  if (!reverseMatch) {
+    return { 
+      isCompatible: false, 
+      reason: 'One-way match only - other user not interested in my shift type'
+    };
+  }
+  
+  return { isCompatible: true, matchDate };
 };
 
 /**
- * Log information about a potential match
+ * Log match information for debugging
  */
 export const logMatchInfo = (
-  requesterName: string, 
-  request: any, 
-  requestShift: any
+  request: any,
+  otherRequest: any, 
+  myShift: any,
+  theirShift: any,
+  isMatch: boolean,
+  reason?: string
 ) => {
-  console.log(`Processing request ${request.id} from user ${request.requester_id} (${requesterName || 'Unknown User'})`);
-  console.log(`Shift date: ${requestShift?.normalizedDate}, type: ${requestShift?.type}`);
+  if (isMatch) {
+    console.log(`✅ MATCH FOUND: ${request.requester_id.substring(0, 6)} <-> ${otherRequest.requester_id.substring(0, 6)}`);
+    console.log(`  My shift: ${myShift?.date} (${myShift?.type}) <-> Their shift: ${theirShift?.date} (${theirShift?.type})`);
+  } else {
+    console.log(`❌ NO MATCH: ${request.requester_id.substring(0, 6)} <-> ${otherRequest.requester_id.substring(0, 6)}`);
+    console.log(`  Reason: ${reason}`);
+  }
 };

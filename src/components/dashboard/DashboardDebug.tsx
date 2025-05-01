@@ -15,15 +15,12 @@ const DashboardDebug = ({ isVisible = true }: DashboardDebugProps) => {
   const [allRequests, setAllRequests] = useState<any[]>([]);
   const [isLoadingTestData, setIsLoadingTestData] = useState<boolean>(true);
   const [rlsDebugErrors, setRlsDebugErrors] = useState<string[]>([]);
-  
-  // Fix the type definition for rlsTestData to handle JSON objects properly
   const [rlsTestData, setRlsTestData] = useState<{
     directQuery: any[],
-    rpcQuery: any // Changed from any[] to any to handle JSON object response
-  }>({ directQuery: [], rpcQuery: {} }); // Initialize rpcQuery as empty object instead of array
+    rpcQuery: any
+  }>({ directQuery: [], rpcQuery: {} });
 
   useEffect(() => {
-    // Enhanced debug function specifically targeting our updated RLS bypass methods
     const fetchExtendedTestData = async () => {
       setIsLoadingTestData(true);
       setRlsDebugErrors([]);
@@ -33,30 +30,44 @@ const DashboardDebug = ({ isVisible = true }: DashboardDebugProps) => {
         console.log(`Current user ID: ${user?.id}`);
         console.log(`Is admin: ${isAdmin}`);
         
-        // METHOD 1: Test all shifts fetching with our updated utility
+        // TEST 1: Fetch all shifts with enhanced error tracking
+        console.log('TEST 1: Fetching all shifts...');
         const shiftsResult = await fetchAllShifts();
+        
         if (shiftsResult.error) {
+          console.error('Shift fetching error:', shiftsResult.error);
           setRlsDebugErrors(prev => [...prev, `Error fetching shifts: ${shiftsResult.error.message}`]);
+        } else if (!shiftsResult.data || shiftsResult.data.length === 0) {
+          console.warn('No shifts data returned despite successful query');
+          setRlsDebugErrors(prev => [...prev, 'No shifts found. RLS may be blocking cross-user access.']);
         } else {
-          console.log(`RLS Bypass: Found ${shiftsResult.data?.length || 0} shifts`);
+          console.log(`RLS Bypass SUCCESS: Found ${shiftsResult.data?.length || 0} shifts`);
           setAllShifts(shiftsResult.data || []);
         }
         
-        // METHOD 2: Test preferred dates fetching with our updated utility
+        // TEST 2: Fetch all preferred dates with enhanced error tracking
+        console.log('TEST 2: Fetching all preferred dates...');
         const datesResult = await fetchAllPreferredDates();
+        
         if (datesResult.error) {
+          console.error('Preferred dates fetching error:', datesResult.error);
           setRlsDebugErrors(prev => [...prev, `Error fetching preferred dates: ${datesResult.error.message}`]);
+        } else if (!datesResult.data || datesResult.data.length === 0) {
+          console.warn('No preferred dates returned despite successful query');
+          setRlsDebugErrors(prev => [...prev, 'No preferred dates found. RLS may be blocking cross-user access.']);
         } else {
-          console.log(`RLS Bypass: Found ${datesResult.data?.length || 0} preferred dates`);
+          console.log(`RLS Bypass SUCCESS: Found ${datesResult.data?.length || 0} preferred dates`);
           setAllPreferredDates(datesResult.data || []);
         }
         
-        // METHOD 3: Test swap requests fetching with our updated utility
+        // TEST 3: Fetch swap requests (this part is working correctly)
+        console.log('TEST 3: Fetching all swap requests...');
         const requestsResult = await fetchAllSwapRequests();
+        
         if (requestsResult.error) {
           setRlsDebugErrors(prev => [...prev, `Error fetching swap requests: ${requestsResult.error.message}`]);
         } else {
-          console.log(`RLS Bypass: Found ${requestsResult.data?.length || 0} swap requests`);
+          console.log(`RLS Bypass SUCCESS: Found ${requestsResult.data?.length || 0} swap requests`);
           setAllRequests(requestsResult.data || []);
         }
         
@@ -73,7 +84,7 @@ const DashboardDebug = ({ isVisible = true }: DashboardDebugProps) => {
           }
         }
         
-        // Special admin RPC test using our new function
+        // Test admin RPC function (this part is working correctly)
         try {
           const { data: rpcData, error: rpcError } = await supabase
             .rpc('test_admin_access');
@@ -83,10 +94,9 @@ const DashboardDebug = ({ isVisible = true }: DashboardDebugProps) => {
             setRlsDebugErrors(prev => [...prev, `RPC admin test error: ${rpcError.message}`]);
           } else {
             console.log('RPC admin test result:', rpcData);
-            // Fixed type assignment - ensure we treat rpcData as a single object, not an array
             setRlsTestData(prev => ({
               ...prev,
-              rpcQuery: rpcData || {}  // Initialize as empty object if null
+              rpcQuery: rpcData || {}
             }));
           }
         } catch (rpcErr: any) {

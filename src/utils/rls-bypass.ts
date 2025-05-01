@@ -7,30 +7,43 @@ import { supabase } from '@/integrations/supabase/client';
  */
 export const fetchAllShifts = async () => {
   try {
-    // In development mode, prioritize direct query to ensure we get all data
-    // This is more reliable for testing and development
-    const { data: directData, error: directError } = await supabase
-      .from('shifts')
-      .select('*');
-      
-    if (!directError && directData) {
-      console.log(`Direct query successfully fetched ${directData.length} shifts from all users`);
-      return { data: directData, error: null };
-    }
+    console.log('Attempting to fetch ALL shifts using RPC function...');
     
-    console.error('Direct query failed:', directError);
-    console.log('Falling back to RPC function...');
-    
-    // Fall back to RPC function if direct query fails
+    // Try with our RPC function first (most reliable)
     const { data: shiftsData, error: shiftsError } = await supabase.rpc('get_all_shifts');
     
-    if (shiftsError) {
-      console.error('RPC fallback also failed:', shiftsError);
-      return { data: null, error: shiftsError };
+    if (!shiftsError && shiftsData && shiftsData.length > 0) {
+      console.log(`RPC Successfully fetched ${shiftsData.length} shifts from all users`);
+      return { data: shiftsData, error: null };
     }
     
-    console.log(`RPC Successfully fetched ${shiftsData.length} shifts from all users`);
-    return { data: shiftsData, error: null };
+    if (shiftsError) {
+      console.error('RPC function failed:', shiftsError);
+    } else {
+      console.log('RPC function returned no data, trying direct query...');
+    }
+    
+    // Fall back to direct query with explicit admin check
+    const { data: adminCheckData } = await supabase.rpc('test_admin_access');
+    const isAdmin = adminCheckData?.is_admin === true;
+    
+    if (isAdmin) {
+      console.log('Admin access confirmed, trying direct query...');
+      // Direct query for admins should work with RLS
+      const { data: directData, error: directError } = await supabase
+        .from('shifts')
+        .select('*');
+        
+      if (!directError && directData) {
+        console.log(`Direct query successfully fetched ${directData.length} shifts from all users`);
+        return { data: directData, error: null };
+      }
+      
+      console.error('Direct query failed despite admin access:', directError);
+    }
+    
+    console.log('All attempts to fetch shifts failed, returning empty array');
+    return { data: [], error: new Error('Failed to fetch shifts data') };
   } catch (error) {
     console.error('Error in fetchAllShifts:', error);
     return { data: null, error };
@@ -43,60 +56,73 @@ export const fetchAllShifts = async () => {
  */
 export const fetchAllPreferredDates = async () => {
   try {
-    // For preferred dates, we need to ensure we get ALL preferred dates, even those
-    // from other users. Using a more complex query with joins to bypass potential RLS issues.
-    const { data: directData, error: directError } = await supabase
-      .from('shift_swap_preferred_dates')
-      .select(`
-        *,
-        shift_swap_requests!inner (
-          id,
-          requester_id,
-          requester_shift_id
-        )
-      `);
-      
-    if (!directError && directData) {
-      console.log(`Direct query with joins successfully fetched ${directData.length} preferred dates from all users`);
-      
-      // Extract just the preferred dates data without the joined fields
-      const cleanedData = directData.map(item => ({
-        id: item.id,
-        request_id: item.request_id,
-        date: item.date,
-        shift_id: item.shift_id,
-        accepted_types: item.accepted_types,
-        created_at: item.created_at
-      }));
-      
-      return { data: cleanedData, error: null };
-    }
+    console.log('Attempting to fetch ALL preferred dates using RPC function...');
     
-    console.error('Direct query failed:', directError);
-    console.log('Trying alternative direct query...');
-    
-    // Try a simpler direct query as a fallback
-    const { data: simpleData, error: simpleError } = await supabase
-      .from('shift_swap_preferred_dates')
-      .select('*');
-      
-    if (!simpleError && simpleData && simpleData.length > 0) {
-      console.log(`Simple direct query successfully fetched ${simpleData.length} preferred dates`);
-      return { data: simpleData, error: null };
-    }
-    
-    console.log('Falling back to RPC function...');
-    
-    // Last resort: Fall back to RPC function
+    // Try with our RPC function first
     const { data: datesData, error: datesError } = await supabase.rpc('get_all_preferred_dates');
     
-    if (datesError) {
-      console.error('RPC fallback also failed:', datesError);
-      return { data: null, error: datesError };
+    if (!datesError && datesData && datesData.length > 0) {
+      console.log(`RPC Successfully fetched ${datesData.length} preferred dates from all users`);
+      return { data: datesData, error: null };
     }
     
-    console.log(`RPC Successfully fetched ${datesData.length} preferred dates from all users`);
-    return { data: datesData, error: null };
+    if (datesError) {
+      console.error('RPC function failed:', datesError);
+    } else {
+      console.log('RPC function returned no data, trying direct query...');
+    }
+    
+    // Fall back to admin check
+    const { data: adminCheckData } = await supabase.rpc('test_admin_access');
+    const isAdmin = adminCheckData?.is_admin === true;
+    
+    if (isAdmin) {
+      console.log('Admin access confirmed, trying direct query...');
+      // For preferred dates, we'll try an extended query first
+      const { data: extendedData, error: extendedError } = await supabase
+        .from('shift_swap_preferred_dates')
+        .select(`
+          *,
+          shift_swap_requests!inner (
+            id,
+            requester_id,
+            requester_shift_id
+          )
+        `);
+        
+      if (!extendedError && extendedData && extendedData.length > 0) {
+        console.log(`Extended query fetched ${extendedData.length} preferred dates`);
+        
+        // Extract just the preferred dates data without the joined fields
+        const cleanedData = extendedData.map(item => ({
+          id: item.id,
+          request_id: item.request_id,
+          date: item.date,
+          shift_id: item.shift_id,
+          accepted_types: item.accepted_types,
+          created_at: item.created_at
+        }));
+        
+        return { data: cleanedData, error: null };
+      }
+      
+      console.log('Extended query failed, trying simple direct query');
+      
+      // Try simple direct query as last resort
+      const { data: simpleData, error: simpleError } = await supabase
+        .from('shift_swap_preferred_dates')
+        .select('*');
+        
+      if (!simpleError && simpleData && simpleData.length > 0) {
+        console.log(`Simple direct query fetched ${simpleData.length} preferred dates`);
+        return { data: simpleData, error: null };
+      }
+      
+      console.error('All admin queries failed:', simpleError || extendedError);
+    }
+    
+    console.log('All attempts to fetch preferred dates failed, returning empty array');
+    return { data: [], error: new Error('Failed to fetch preferred dates data') };
   } catch (error) {
     console.error('Error in fetchAllPreferredDates:', error);
     return { data: null, error };
@@ -109,7 +135,44 @@ export const fetchAllPreferredDates = async () => {
  */
 export const fetchAllSwapRequests = async () => {
   try {
-    // Enhanced query to include critical shift data in the same query
+    // Start with RPC function since All Swap Requests is already working correctly
+    console.log('Fetching all swap requests with working RPC method...');
+    const { data: requestsData, error: requestsError } = await supabase.rpc('get_all_swap_requests');
+    
+    if (!requestsError && requestsData && requestsData.length > 0) {
+      console.log(`RPC Successfully fetched ${requestsData.length} swap requests from all users`);
+      
+      // We need to fetch the associated shifts separately
+      const shiftIds = requestsData.map(req => req.requester_shift_id).filter(Boolean);
+      
+      // Get the shifts
+      const { data: shiftsData } = await fetchAllShifts();
+      
+      // Create a map of shifts by ID
+      const shiftMap = new Map();
+      if (shiftsData && shiftsData.length > 0) {
+        shiftsData.forEach(shift => {
+          shiftMap.set(shift.id, shift);
+        });
+      }
+      
+      // Attach the shift data to each request
+      const processedData = requestsData.map(request => {
+        // Find the associated shift
+        const shiftData = shiftMap.get(request.requester_shift_id);
+        
+        return {
+          ...request,
+          _embedded_shift: shiftData || null
+        };
+      });
+      
+      return { data: processedData, error: null };
+    }
+    
+    // If RPC fails, try direct query with joins as fallback
+    console.log('RPC method failed, trying direct join query...');
+    
     const { data: directData, error: directError } = await supabase
       .from('shift_swap_requests')
       .select(`
@@ -118,36 +181,21 @@ export const fetchAllSwapRequests = async () => {
       `);
       
     if (!directError && directData) {
-      console.log(`Direct query successfully fetched ${directData.length} swap requests from all users`);
+      console.log(`Direct query successfully fetched ${directData.length} swap requests`);
       
-      // Process the data to flatten the structure and avoid missing shift errors
+      // Process the data to include embedded shift
       const processedData = directData.map(request => {
-        // Extract the shift data from the nested structure
-        const shiftData = request.requester_shift;
-        
-        // Return the request with an embedded shift reference for easy access
         return {
           ...request,
-          _embedded_shift: shiftData  // Store the shift data directly in the request object
+          _embedded_shift: request.requester_shift
         };
       });
       
       return { data: processedData, error: null };
     }
     
-    console.error('Direct query failed:', directError);
-    console.log('Falling back to RPC function...');
-    
-    // Fall back to RPC function
-    const { data: requestsData, error: requestsError } = await supabase.rpc('get_all_swap_requests');
-    
-    if (requestsError) {
-      console.error('RPC fallback also failed:', requestsError);
-      return { data: null, error: requestsError };
-    }
-    
-    console.log(`RPC Successfully fetched ${requestsData.length} swap requests from all users`);
-    return { data: requestsData, error: null };
+    console.error('All attempts to fetch swap requests failed');
+    return { data: [], error: new Error('Failed to fetch swap requests') };
   } catch (error) {
     console.error('Error in fetchAllSwapRequests:', error);
     return { data: null, error };
