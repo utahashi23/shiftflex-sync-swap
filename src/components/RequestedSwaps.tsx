@@ -7,6 +7,7 @@ import SwapDeleteDialog from './swaps/SwapDeleteDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { fetchSwapRequestsApi, deleteSwapRequestApi, deletePreferredDayApi } from '@/hooks/swap-requests/api';
 import { SwapRequest } from '@/hooks/swap-requests/types';
 
 const RequestedSwaps = () => {
@@ -24,7 +25,7 @@ const RequestedSwaps = () => {
   
   const { user } = useAuth();
 
-  // Fetch swap requests directly here instead of using hook to simplify
+  // Fetch swap requests directly without using the hook to simplify
   const fetchSwapRequests = async () => {
     if (!user || !user.id) {
       console.log('No user or user ID available, skipping fetch');
@@ -34,126 +35,7 @@ const RequestedSwaps = () => {
     
     setIsLoading(true);
     try {
-      // Direct database query instead of edge function to avoid RLS issues
-      const { data: requests, error: requestsError } = await supabase
-        .from('shift_swap_requests')
-        .select('id, status, requester_shift_id, created_at, requester_id')
-        .eq('requester_id', user.id)
-        .eq('status', 'pending');
-
-      if (requestsError) {
-        console.error('Error fetching swap requests:', requestsError);
-        toast({
-          title: "Error",
-          description: "Failed to load swap requests. Please try again.",
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return;
-      }
-      
-      if (!requests || requests.length === 0) {
-        setSwapRequests([]);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Get all the shift IDs from the requests
-      const shiftIds = requests
-        .filter(req => req && req.requester_shift_id) 
-        .map(req => req.requester_shift_id);
-      
-      // Fetch the shift details
-      const { data: shifts, error: shiftsError } = await supabase
-        .from('shifts')
-        .select('*')
-        .in('id', shiftIds);
-        
-      if (shiftsError) {
-        console.error('Error fetching shifts:', shiftsError);
-        toast({
-          title: "Error",
-          description: "Failed to load shift data. Please try again.",
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return;
-      }
-      
-      // Fetch the preferred dates for all requests
-      const requestIds = requests.map(req => req.id);
-      const { data: preferredDates, error: datesError } = await supabase
-        .from('shift_swap_preferred_dates')
-        .select('*')
-        .in('request_id', requestIds);
-        
-      if (datesError) {
-        console.error('Error fetching preferred dates:', datesError);
-        toast({
-          title: "Error",
-          description: "Failed to load preferred dates. Please try again.",
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return;
-      }
-      
-      // Create lookup maps for easy access
-      const shiftMap = shifts.reduce((acc, shift) => {
-        acc[shift.id] = shift;
-        return acc;
-      }, {} as Record<string, any>);
-      
-      const preferredDatesByRequest = preferredDates.reduce((acc, date) => {
-        if (!acc[date.request_id]) {
-          acc[date.request_id] = [];
-        }
-        acc[date.request_id].push(date);
-        return acc;
-      }, {} as Record<string, any[]>);
-      
-      // Format the requests
-      const formattedRequests = requests
-        .filter(request => shiftMap[request.requester_shift_id])
-        .map(request => {
-          const shift = shiftMap[request.requester_shift_id];
-          
-          // Determine shift type based on start time
-          const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
-          let shiftType: "day" | "afternoon" | "night";
-          
-          if (startHour <= 8) {
-            shiftType = 'day';
-          } else if (startHour > 8 && startHour < 16) {
-            shiftType = 'afternoon';
-          } else {
-            shiftType = 'night';
-          }
-          
-          // Get preferred dates for this request
-          const requestPreferredDates = (preferredDatesByRequest[request.id] || [])
-            .map(pd => ({
-              id: pd.id,
-              date: pd.date,
-              acceptedTypes: pd.accepted_types as ("day" | "afternoon" | "night")[]
-            }));
-          
-          return {
-            id: request.id,
-            requesterId: request.requester_id,
-            status: request.status,
-            originalShift: {
-              id: shift.id,
-              date: shift.date,
-              title: shift.truck_name || `Shift-${shift.id.substring(0, 5)}`,
-              startTime: shift.start_time.substring(0, 5), // Format as HH:MM
-              endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
-              type: shiftType
-            },
-            preferredDates: requestPreferredDates
-          };
-        });
-      
+      const formattedRequests = await fetchSwapRequestsApi(user.id);
       setSwapRequests(formattedRequests);
     } catch (error) {
       console.error('Error in fetchSwapRequests:', error);
@@ -203,11 +85,7 @@ const RequestedSwaps = () => {
       
       if (deleteDialog.dayId) {
         // Delete a single preferred date
-        const { error } = await supabase.functions.invoke('delete_preferred_day', {
-          body: { day_id: deleteDialog.dayId, request_id: deleteDialog.requestId }
-        });
-        
-        if (error) throw error;
+        await deletePreferredDayApi(deleteDialog.dayId, deleteDialog.requestId);
         
         // Update the UI by filtering out the deleted day
         setSwapRequests(prevRequests => 
@@ -228,11 +106,7 @@ const RequestedSwaps = () => {
         });
       } else {
         // Delete the entire swap request
-        const { error } = await supabase.functions.invoke('delete_swap_request', {
-          body: { request_id: deleteDialog.requestId }
-        });
-        
-        if (error) throw error;
+        await deleteSwapRequestApi(deleteDialog.requestId);
         
         // Update the UI by filtering out the deleted request
         setSwapRequests(prevRequests => 
