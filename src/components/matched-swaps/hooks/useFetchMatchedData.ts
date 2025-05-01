@@ -22,7 +22,7 @@ export const useFetchMatchedData = () => {
     try {
       console.log('Fetching matched swaps for user', userId);
       
-      // First, fetch all shifts to ensure we have the complete shift data
+      // First, fetch all shifts for all users to ensure we have the complete data
       const { data: allShifts, error: shiftsError } = await supabase
         .from('shifts')
         .select('*');
@@ -31,6 +31,8 @@ export const useFetchMatchedData = () => {
         console.error('Error fetching all shifts:', shiftsError);
         throw shiftsError;
       }
+      
+      console.log(`Fetched ${allShifts?.length || 0} total shifts for matching`);
       
       // Build a map of shift IDs for quick lookup
       const shiftsById = (allShifts || []).reduce((map, shift) => {
@@ -124,7 +126,7 @@ export const useFetchMatchedData = () => {
       console.log('Number of matched requests before processing:', matchedRequests?.length || 0);
       console.log('Number of completed requests before processing:', completedRequests?.length || 0);
       
-      // Process matches to avoid duplicates - using our improved processSwapRequests function
+      // Process matches to avoid duplicates
       const formattedActiveMatches = processSwapRequests(
         matchedRequests || [], 
         allShifts || [], 
@@ -140,7 +142,6 @@ export const useFetchMatchedData = () => {
         profilesMap
       );
       
-      // Log the processed matches
       console.log(`Processed ${formattedActiveMatches.length} active matches`);
       console.log(`Processed ${formattedCompletedMatches.length} completed matches`);
       

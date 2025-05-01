@@ -43,7 +43,7 @@ export const useMatchedSwaps = () => {
     
     setIsLoading(true);
     
-    const success = await acceptSwap(confirmDialog.swapId, () => {});
+    const success = await acceptSwap(confirmDialog.swapId, refreshMatches);
     
     if (success) {
       // Update the UI

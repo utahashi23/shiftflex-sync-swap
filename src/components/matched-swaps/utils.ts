@@ -35,27 +35,26 @@ export const processSwapRequests = (
   currentUserId: string,
   profilesMap: Record<string, any>
 ): MatchedSwap[] => {
-  // Log the incoming data to help with debugging
-  console.log('Processing swap requests:', {
-    requestsCount: requests.length,
-    shiftsCount: shifts.length,
-    profilesMapKeys: Object.keys(profilesMap),
-    currentUserId
-  });
-
   // Create a map of all shifts by ID for faster lookup
   const shiftsById = shifts.reduce((map, shift) => {
     map[shift.id] = shift;
     return map;
   }, {} as Record<string, any>);
 
-  // Create a hash map to track unique swap combinations
-  // This is more reliable than just tracking IDs
-  const uniqueSwapMap = new Map<string, MatchedSwap>();
+  // Create a Set to track processed request IDs to prevent duplicates
+  const processedRequestIds = new Set<string>();
   const result: MatchedSwap[] = [];
+
+  console.log(`Processing ${requests.length} swap requests with ${shifts.length} shifts available`);
 
   for (const request of requests) {
     try {
+      // Skip if we've already processed this request
+      if (processedRequestIds.has(request.id)) {
+        console.log(`Skipping already processed request: ${request.id}`);
+        continue;
+      }
+
       // Determine if the current user is the requester or acceptor
       const isRequester = request.requester_id === currentUserId;
       
@@ -67,13 +66,15 @@ export const processSwapRequests = (
         requestId: request.id,
         isRequester,
         myShiftId,
-        theirShiftId
+        theirShiftId,
+        myShiftData: shiftsById[myShiftId] ? 'present' : 'missing',
+        theirShiftData: shiftsById[theirShiftId] ? 'present' : 'missing'
       });
       
-      // Get my shift data from the shifts array
+      // Get my shift data from the shifts map
       const myShift = shiftsById[myShiftId];
       
-      // Get their shift data from the shifts array
+      // Get their shift data from the shifts map
       const theirShift = shiftsById[theirShiftId];
       
       // Skip if either shift is missing
@@ -131,32 +132,26 @@ export const processSwapRequests = (
         colleague: getColleagueName(profilesMap, theirUserId || 'unknown')
       };
       
-      // Create a unique key for this swap based on the request ID AND both shift IDs
-      // This ensures true uniqueness based on the actual swap - one request might appear multiple times
-      const swapKey = `${request.id}`;
+      // Mark this request as processed
+      processedRequestIds.add(request.id);
       
-      // Only add this swap if we haven't processed this particular request yet
-      if (!uniqueSwapMap.has(swapKey)) {
-        const matchedSwap = {
-          id: request.id,
-          originalShift: processedMyShift,
-          matchedShift: processedTheirShift,
-          status: request.status
-        };
-        
-        uniqueSwapMap.set(swapKey, matchedSwap);
-        result.push(matchedSwap);
-        
-        console.log('Successfully processed match:', {
-          id: request.id,
-          originalShiftDate: processedMyShift.date,
-          matchedShiftDate: processedTheirShift.date,
-          originalShiftTime: `${processedMyShift.startTime}-${processedMyShift.endTime}`,
-          matchedShiftTime: `${processedTheirShift.startTime}-${processedTheirShift.endTime}`
-        });
-      } else {
-        console.log(`Skipping duplicate swap for request: ${swapKey}`);
-      }
+      // Create the matched swap object
+      const matchedSwap = {
+        id: request.id,
+        originalShift: processedMyShift,
+        matchedShift: processedTheirShift,
+        status: request.status
+      };
+      
+      result.push(matchedSwap);
+      
+      console.log('Successfully processed match:', {
+        id: request.id,
+        originalShiftDate: processedMyShift.date,
+        matchedShiftDate: processedTheirShift.date,
+        originalShiftTime: `${processedMyShift.startTime}-${processedMyShift.endTime}`,
+        matchedShiftTime: `${processedTheirShift.startTime}-${processedTheirShift.endTime}`
+      });
     } catch (error) {
       console.error(`Error processing request ${request.id}:`, error);
     }
