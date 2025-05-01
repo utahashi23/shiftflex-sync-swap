@@ -12,6 +12,7 @@ import {
 import { Filter, RefreshCw } from 'lucide-react';
 import { useSwapMatcher } from '@/hooks/swap-matching';
 import { useAuth } from '@/hooks/useAuth';
+import { useEffect } from 'react';
 
 interface MatchedSwapsProps {
   setRefreshTrigger: React.Dispatch<React.SetStateAction<number>>;
@@ -32,6 +33,14 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   const { user } = useAuth();
   const { findSwapMatches, isProcessing } = useSwapMatcher();
+  
+  // Ensure we refresh once on mount
+  useEffect(() => {
+    if (user) {
+      console.log('Initial fetch of matched swaps');
+      refreshMatches();
+    }
+  }, [user]);
 
   const handleAcceptClick = (swapId: string) => {
     setConfirmDialog({ isOpen: true, swapId });
@@ -54,7 +63,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
+      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab}>
         <div className="flex justify-between items-center mb-4">
           <TabsList>
             <TabsTrigger value="active">Active Matches</TabsTrigger>
@@ -63,11 +72,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           <div className="flex gap-2">
             <Button 
               onClick={handleFindMatches}
-              disabled={isProcessing}
+              disabled={isProcessing || isLoading}
               className="bg-green-500 hover:bg-green-600 text-white"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
-              {isProcessing ? 'Finding Matches...' : 'Find Matches'}
+              <RefreshCw className={`h-4 w-4 mr-2 ${isProcessing || isLoading ? 'animate-spin' : ''}`} />
+              {isProcessing || isLoading ? 'Loading...' : 'Find Matches'}
             </Button>
             <Button variant="outline">
               <Filter className="h-4 w-4 mr-1" /> Filter
@@ -79,6 +88,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           <SwapTabContent 
             swaps={swapRequests} 
             onAcceptSwap={handleAcceptClick}
+            isLoading={isLoading}
           />
         </TabsContent>
         
@@ -86,6 +96,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           <SwapTabContent 
             swaps={pastSwaps} 
             isPast={true}
+            isLoading={isLoading}
           />
         </TabsContent>
       </Tabs>

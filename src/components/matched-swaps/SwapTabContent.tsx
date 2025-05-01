@@ -1,34 +1,61 @@
 
-import { MatchedSwap } from "./types";
-import { SwapCard } from "./SwapCard";
-import { EmptySwapState } from "./EmptySwapState";
+import { EmptySwapState } from './EmptySwapState';
+import { MatchedSwap } from './types';
+import { SwapCard } from './SwapCard';
+import { Skeleton } from "../ui/skeleton";
 
 interface SwapTabContentProps {
   swaps: MatchedSwap[];
   isPast?: boolean;
+  isLoading?: boolean;
   onAcceptSwap?: (swapId: string) => void;
 }
 
-export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabContentProps) => {
-  if (swaps.length === 0) {
+export function SwapTabContent({ 
+  swaps,
+  isPast = false,
+  isLoading = false,
+  onAcceptSwap 
+}: SwapTabContentProps) {
+  // Loading skeletons
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2].map(i => (
+          <Skeleton 
+            key={i} 
+            className="w-full h-[300px] rounded-md bg-secondary/40" 
+          />
+        ))}
+      </div>
+    );
+  }
+  
+  // Empty state
+  if (!swaps || swaps.length === 0) {
     return (
       <EmptySwapState 
-        message={isPast ? "No Past Swaps" : "No Matched Swaps"}
-        subtitle={isPast ? "You don't have any completed swaps yet." : "You don't have any matched swap requests yet."}
+        title={isPast ? "No past swaps" : "No matches found"} 
+        description={
+          isPast 
+            ? "You haven't completed any shift swaps yet." 
+            : "No matched swaps were found. Try finding matches or waiting for your request to be matched."
+        }
       />
     );
   }
-
+  
+  // List of swap cards
   return (
-    <>
+    <div className="space-y-4">
       {swaps.map(swap => (
         <SwapCard 
           key={swap.id}
-          swap={swap} 
+          swap={swap}
           isPast={isPast}
-          onAccept={onAcceptSwap}
+          onAccept={isPast ? undefined : onAcceptSwap}
         />
       ))}
-    </>
+    </div>
   );
-};
+}
