@@ -1,12 +1,12 @@
 
-import { MatchedSwap } from "./types";
+import { SwapMatch } from "@/hooks/useSwapMatches";
 import { SwapCard } from "./SwapCard";
 import { EmptySwapState } from "./EmptySwapState";
 
 interface SwapTabContentProps {
-  swaps: MatchedSwap[];
+  swaps: SwapMatch[];
   isPast?: boolean;
-  onAcceptSwap?: (swapId: string) => void;
+  onAcceptSwap?: (matchId: string) => void;
 }
 
 export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabContentProps) => {
@@ -20,7 +20,7 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
   }
 
   // Ensure each swap ID is unique to prevent duplicates
-  const uniqueSwaps = swaps.reduce((acc: MatchedSwap[], swap) => {
+  const uniqueSwaps = swaps.reduce((acc: SwapMatch[], swap) => {
     if (!acc.some(s => s.id === swap.id)) {
       acc.push(swap);
     }

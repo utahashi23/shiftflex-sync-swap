@@ -1,149 +1,168 @@
-import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { Shift } from '@/hooks/useShiftData';
-import { SwapCalendarState, SwapCalendarHelpers, AcceptableShiftTypes } from './types';
-import { normalizeDate } from '@/utils/dateUtils';
 
+import { useAuth } from '@/hooks/useAuth';
+import { useState } from 'react';
+import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { Shift } from '@/hooks/useShiftData';
+import { AcceptableShiftTypes } from './types';
+
+// Update the useSwapCalendarActions hook to work with our new data model
 export const useSwapCalendarActions = (
-  state: SwapCalendarState,
-  setState: {
-    setSelectedShift: (shift: Shift | null) => void;
-    setSwapMode: (mode: boolean) => void;
-    setSelectedSwapDates: React.Dispatch<React.SetStateAction<string[]>>;
-    setCurrentDate: (date: Date) => void;
-    setAcceptableShiftTypes: React.Dispatch<React.SetStateAction<AcceptableShiftTypes>>;
-  },
-  helpers: SwapCalendarHelpers,
+  state: any, 
+  setStateActions: any, 
+  helpers: any,
   userId?: string
 ) => {
-  const [isActionLoading, setIsActionLoading] = useState(false);
-  const { isDateDisabled } = helpers;
-  const { selectedShift, selectedSwapDates, acceptableShiftTypes } = state;
-
-  const toggleDateSelection = (dateStr: string) => {
-    if (!state.swapMode || isDateDisabled(dateStr)) return;
-    
-    setState.setSelectedSwapDates(prev => {
-      if (prev.includes(dateStr)) {
-        return prev.filter(d => d !== dateStr);
-      } else {
-        return [...prev, dateStr];
-      }
-    });
-  };
-
+  const [isLoading, setIsLoading] = useState(false);
+  const { setSelectedShift, setSwapMode, setSelectedSwapDates, setCurrentDate } = setStateActions;
+  const { user } = useAuth();
+  
   const handleShiftClick = (shift: Shift) => {
-    if (state.swapMode) return; // Do nothing if already in swap mode
-    setState.setSelectedShift(shift);
+    setSelectedShift(shift);
+    setSwapMode(false); // Reset swap mode when selecting a new shift
+    setSelectedSwapDates([]);
   };
-
+  
   const handleRequestSwap = () => {
-    setState.setSwapMode(true);
+    setSwapMode(true);
+    setSelectedSwapDates([]);
   };
-
+  
   const handleSaveSwapRequest = async () => {
-    if (!selectedShift || selectedSwapDates.length === 0 || !userId) {
+    if (!user) {
       toast({
-        title: "Invalid Swap Request",
-        description: "Please select at least one date you're willing to swap for.",
-        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please log in to save swap requests.",
+        variant: "destructive"
       });
       return;
     }
-    
-    setIsActionLoading(true);
-    
-    try {
-      console.log('Creating swap request with:', {
-        user_id: userId,
-        shift_id: selectedShift.id,
-        selected_dates: selectedSwapDates,
-        acceptable_types: acceptableShiftTypes
+
+    const { selectedShift, selectedSwapDates, acceptableShiftTypes } = state;
+
+    if (!selectedShift) {
+      toast({
+        title: "No Shift Selected",
+        description: "Please select a shift to swap.",
+        variant: "destructive"
       });
+      return;
+    }
+
+    if (selectedSwapDates.length === 0) {
+      toast({
+        title: "No Dates Selected",
+        description: "Please select at least one date to swap with.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const acceptedTypes = getAcceptedTypes(acceptableShiftTypes);
+    if (acceptedTypes.length === 0) {
+      toast({
+        title: "No Shift Types Selected",
+        description: "Please select at least one acceptable shift type.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
       
-      // Convert acceptableShiftTypes object to array for each date
-      const acceptedTypesArray: ("day" | "afternoon" | "night")[] = [];
-      if (acceptableShiftTypes.day) acceptedTypesArray.push("day");
-      if (acceptableShiftTypes.afternoon) acceptedTypesArray.push("afternoon");
-      if (acceptableShiftTypes.night) acceptedTypesArray.push("night");
-      
-      // First create a swap request to get an ID
-      const { data: swapRequest, error: swapRequestError } = await supabase
-        .from('shift_swap_requests')
+      // 1. Create the swap request
+      const { data: request, error: requestError } = await supabase
+        .from('swap_requests')
         .insert({
-          requester_id: userId,
-          requester_shift_id: selectedShift.id,
+          user_id: user.id,
+          shift_id: selectedShift.id,
           status: 'pending'
         })
-        .select('id')
+        .select()
         .single();
-        
-      if (swapRequestError) throw swapRequestError;
       
-      if (!swapRequest || !swapRequest.id) {
-        throw new Error('Failed to create swap request');
-      }
+      if (requestError) throw requestError;
       
-      console.log('Created swap request with ID:', swapRequest.id);
-      
-      // Now store each preferred date with the request_id and shift_id
-      const preferredDatesInserts = selectedSwapDates.map(dateStr => ({
-        date: normalizeDate(dateStr), // Normalize date format
-        accepted_types: acceptedTypesArray,
-        shift_id: selectedShift.id,
-        request_id: swapRequest.id
+      // 2. Add all preferred days
+      const preferredDaysToInsert = selectedSwapDates.map(date => ({
+        swap_request_id: request.id,
+        date: date,
+        accepted_types: acceptedTypes
       }));
       
-      const { error: preferredDatesError } = await supabase
-        .from('shift_swap_preferred_dates')
-        .insert(preferredDatesInserts);
-        
-      if (preferredDatesError) throw preferredDatesError;
+      const { error: daysError } = await supabase
+        .from('preferred_days')
+        .insert(preferredDaysToInsert);
       
-      console.log('Stored preferred dates:', preferredDatesInserts);
-      
+      if (daysError) throw daysError;
+
       toast({
         title: "Swap Request Created",
-        description: `Your swap request for ${selectedShift.date} has been submitted.`,
+        description: "Your shift swap request has been saved.",
       });
-      
-      // Reset
-      setState.setSwapMode(false);
-      setState.setSelectedShift(null);
-      setState.setSelectedSwapDates([]);
-      
+
+      // Reset the swap mode and selected dates
+      setSwapMode(false);
+      setSelectedSwapDates([]);
+      setSelectedShift(null);
+
     } catch (error) {
-      console.error('Error creating swap request:', error);
+      console.error('Error saving swap request:', error);
       toast({
-        title: "Request Failed",
-        description: "There was a problem creating your swap request. Please try again.",
-        variant: "destructive",
+        title: "Error Saving Request",
+        description: "There was a problem saving your swap request.",
+        variant: "destructive"
       });
     } finally {
-      setIsActionLoading(false);
+      setIsLoading(false);
     }
   };
-
+  
   const handleCancelSwapRequest = () => {
-    setState.setSwapMode(false);
-    setState.setSelectedShift(null);
-    setState.setSelectedSwapDates([]);
+    setSwapMode(false);
+    setSelectedSwapDates([]);
   };
-
-  const changeMonth = (increment: number) => {
-    const newDate = new Date(state.currentDate);
-    newDate.setMonth(newDate.getMonth() + increment);
-    setState.setCurrentDate(newDate);
+  
+  const toggleDateSelection = (dateStr: string) => {
+    const isSelected = state.selectedSwapDates.includes(dateStr);
+    
+    if (isSelected) {
+      setSelectedSwapDates(state.selectedSwapDates.filter((d: string) => d !== dateStr));
+    } else {
+      setSelectedSwapDates([...state.selectedSwapDates, dateStr]);
+    }
   };
-
+  
+  const changeMonth = (direction: 'prev' | 'next') => {
+    const currentDate = new Date(state.currentDate);
+    let newDate;
+    
+    if (direction === 'prev') {
+      newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    } else {
+      newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+    }
+    
+    setCurrentDate(newDate);
+  };
+  
+  // Helper function to get accepted types array from the acceptableShiftTypes object
+  const getAcceptedTypes = (types: AcceptableShiftTypes): string[] => {
+    const result: string[] = [];
+    if (types.day) result.push('day');
+    if (types.afternoon) result.push('afternoon');
+    if (types.night) result.push('night');
+    return result;
+  };
+  
   return {
-    toggleDateSelection,
     handleShiftClick,
     handleRequestSwap,
     handleSaveSwapRequest,
     handleCancelSwapRequest,
+    toggleDateSelection,
     changeMonth,
-    isActionLoading
+    isLoading
   };
 };

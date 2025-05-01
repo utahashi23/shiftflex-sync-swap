@@ -9,59 +9,59 @@ import { useSwapRequests } from '@/hooks/useSwapRequests';
 const RequestedSwaps = () => {
   const [deleteDialog, setDeleteDialog] = useState<{ 
     isOpen: boolean, 
-    shiftId: string | null, 
-    dateId: string | null 
+    requestId: string | null, 
+    dayId: string | null 
   }>({
     isOpen: false,
-    shiftId: null,
-    dateId: null
+    requestId: null,
+    dayId: null
   });
   
   const {
     swapRequests,
     isLoading,
-    handleDeleteSwapRequest,
-    handleDeletePreferredDate
+    deleteSwapRequest,
+    deletePreferredDay
   } = useSwapRequests();
 
   // Handler for opening delete dialog for an entire swap request
-  const onDeleteRequest = (shiftId: string) => {
-    console.log("Opening delete dialog for shift:", shiftId);
+  const onDeleteRequest = (requestId: string) => {
+    console.log("Opening delete dialog for request:", requestId);
     setDeleteDialog({
       isOpen: true,
-      shiftId,
-      dateId: null
+      requestId,
+      dayId: null
     });
   };
 
   // Handler for opening delete dialog for a single preferred date
-  const onDeletePreferredDate = (dateId: string, shiftId: string) => {
-    console.log("Opening delete dialog for date:", dateId, "in shift:", shiftId);
+  const onDeletePreferredDate = (dayId: string, requestId: string) => {
+    console.log("Opening delete dialog for day:", dayId, "in request:", requestId);
     setDeleteDialog({
       isOpen: true,
-      shiftId,
-      dateId
+      requestId,
+      dayId
     });
   };
 
   // Handler for confirming deletion
   const handleConfirmDelete = async () => {
     console.log("Confirming deletion:", deleteDialog);
-    if (!deleteDialog.shiftId) {
-      console.log("No shift ID found in delete dialog");
+    if (!deleteDialog.requestId) {
+      console.log("No request ID found in delete dialog");
       return;
     }
     
-    if (deleteDialog.dateId) {
+    if (deleteDialog.dayId) {
       // Delete a single preferred date
-      await handleDeletePreferredDate(deleteDialog.dateId, deleteDialog.shiftId);
+      await deletePreferredDay(deleteDialog.dayId, deleteDialog.requestId);
     } else {
       // Delete the entire swap request
-      await handleDeleteSwapRequest(deleteDialog.shiftId);
+      await deleteSwapRequest(deleteDialog.requestId);
     }
     
     // Reset dialog state after action
-    setDeleteDialog({ isOpen: false, shiftId: null, dateId: null });
+    setDeleteDialog({ isOpen: false, requestId: null, dayId: null });
   };
   
   console.log("Current swap requests:", swapRequests);
@@ -79,7 +79,7 @@ const RequestedSwaps = () => {
       ) : (
         swapRequests.map(request => (
           <SwapRequestCard 
-            key={request.originalShift.id}
+            key={request.id}
             request={request}
             onDeleteRequest={onDeleteRequest}
             onDeletePreferredDate={onDeletePreferredDate}
@@ -93,13 +93,13 @@ const RequestedSwaps = () => {
         isLoading={isLoading}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            setDeleteDialog({ isOpen: false, shiftId: null, dateId: null });
+            setDeleteDialog({ isOpen: false, requestId: null, dayId: null });
           } else {
             setDeleteDialog(prev => ({ ...prev, isOpen: true }));
           }
         }}
         onDelete={handleConfirmDelete}
-        isDateOnly={!!deleteDialog.dateId}
+        isDateOnly={!!deleteDialog.dayId}
       />
     </div>
   );

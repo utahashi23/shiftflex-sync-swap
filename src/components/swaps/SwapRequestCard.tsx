@@ -11,12 +11,12 @@ import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ShiftTypeIcon from './ShiftTypeIcon';
 import ShiftTypeBadge from './ShiftTypeBadge';
-import { SwapRequest } from '@/hooks/swap-requests/types';
+import { SwapRequest, PreferredDay } from '@/hooks/useSwapRequests';
 
 interface SwapRequestCardProps {
   request: SwapRequest;
-  onDeleteRequest: (shiftId: string) => void;
-  onDeletePreferredDate: (dateId: string, shiftId: string) => void;
+  onDeleteRequest: (requestId: string) => void;
+  onDeletePreferredDate: (dayId: string, requestId: string) => void;
 }
 
 const ShiftHeader = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
@@ -59,26 +59,22 @@ const OriginalShiftInfo = ({ shift }: { shift: SwapRequest['originalShift'] }) =
 };
 
 const PreferredDateItem = ({ 
-  preferredDate,
-  shiftId,
+  preferredDay,
+  requestId,
   canDelete, 
   onDelete 
 }: { 
-  preferredDate: {
-    id: string;
-    date: string;
-    acceptedTypes: string[];
-  };
-  shiftId: string;
+  preferredDay: PreferredDay;
+  requestId: string;
   canDelete: boolean;
   onDelete: () => void;
 }) => {
   return (
     <div className="flex items-center justify-between p-3 border rounded-md bg-secondary/20">
       <div>
-        <div className="font-medium">{formatDate(preferredDate.date)}</div>
+        <div className="font-medium">{formatDate(preferredDay.date)}</div>
         <div className="text-xs text-gray-500 mt-0.5 flex flex-wrap gap-1">
-          {preferredDate.acceptedTypes.map(type => (
+          {preferredDay.acceptedTypes.map(type => (
             <ShiftTypeBadge key={type} type={type} size="sm" />
           ))}
         </div>
@@ -103,19 +99,19 @@ const PreferredDatesSection = ({
   onDeletePreferredDate 
 }: { 
   request: SwapRequest;
-  onDeletePreferredDate: (dateId: string, shiftId: string) => void;
+  onDeletePreferredDate: (dayId: string, requestId: string) => void;
 }) => {
   return (
     <div>
       <div className="text-sm font-medium text-muted-foreground mb-2">Preferred Swap Dates</div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
-        {request.preferredDates.map((preferredDate) => (
+        {request.preferredDays.map((preferredDay) => (
           <PreferredDateItem 
-            key={preferredDate.id}
-            preferredDate={preferredDate}
-            shiftId={request.originalShift.id}
-            canDelete={request.preferredDates.length > 1}
-            onDelete={() => onDeletePreferredDate(preferredDate.id, request.originalShift.id)}
+            key={preferredDay.id}
+            preferredDay={preferredDay}
+            requestId={request.id}
+            canDelete={request.preferredDays.length > 1}
+            onDelete={() => onDeletePreferredDate(preferredDay.id, request.id)}
           />
         ))}
       </div>
@@ -139,7 +135,7 @@ const SwapRequestCard = ({ request, onDeleteRequest, onDeletePreferredDate }: Sw
         variant="ghost"
         size="icon"
         className="absolute top-4 right-4 h-8 w-8 text-gray-500 hover:text-red-600"
-        onClick={() => onDeleteRequest(request.originalShift.id)}
+        onClick={() => onDeleteRequest(request.id)}
       >
         <Trash2 className="h-4 w-4" />
       </Button>

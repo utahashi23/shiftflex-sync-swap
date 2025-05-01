@@ -10,17 +10,15 @@ import {
   TabsTrigger,
 } from "./ui/tabs";
 import { Filter, RefreshCw } from 'lucide-react';
-import { useSwapMatcher } from '@/hooks/swap-matching';
-import { useAuth } from '@/hooks/useAuth';
 
 interface MatchedSwapsProps {
-  setRefreshTrigger: React.Dispatch<React.SetStateAction<number>>;
+  setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   const {
-    swapRequests,
-    pastSwaps,
+    matches,
+    pastMatches,
     activeTab,
     setActiveTab,
     confirmDialog,
@@ -30,26 +28,17 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     refreshMatches
   } = useMatchedSwaps();
 
-  const { user } = useAuth();
-  const { findSwapMatches, isFindingMatches } = useSwapMatcher();
-
-  const handleAcceptClick = (swapId: string) => {
-    setConfirmDialog({ isOpen: true, swapId });
+  const handleAcceptClick = (matchId: string) => {
+    setConfirmDialog({ isOpen: true, matchId });
   };
 
   const handleFindMatches = async () => {
-    if (!user) return;
-
-    // Force check for matches even if already matched
-    await findSwapMatches(user.id, true);
+    await refreshMatches();
     
-    // Wait a moment for the database operations to complete
-    setTimeout(() => {
-      // Refresh the matched swaps data
-      refreshMatches();
-      // Update the parent refresh trigger to update all tabs
+    // If passed from parent, update the parent refresh trigger to update all tabs
+    if (setRefreshTrigger) {
       setRefreshTrigger(prev => prev + 1);
-    }, 1000);
+    }
   };
 
   return (
@@ -63,11 +52,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           <div className="flex gap-2">
             <Button 
               onClick={handleFindMatches}
-              disabled={isFindingMatches}
+              disabled={isLoading}
               className="bg-green-500 hover:bg-green-600 text-white"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isFindingMatches ? 'animate-spin' : ''}`} />
-              {isFindingMatches ? 'Finding Matches...' : 'Find Matches'}
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? 'Finding Matches...' : 'Refresh Matches'}
             </Button>
             <Button variant="outline">
               <Filter className="h-4 w-4 mr-1" /> Filter
@@ -77,14 +66,14 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         
         <TabsContent value="active">
           <SwapTabContent 
-            swaps={swapRequests} 
+            swaps={matches} 
             onAcceptSwap={handleAcceptClick}
           />
         </TabsContent>
         
         <TabsContent value="past">
           <SwapTabContent 
-            swaps={pastSwaps} 
+            swaps={pastMatches} 
             isPast={true}
           />
         </TabsContent>
@@ -94,7 +83,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         open={confirmDialog.isOpen}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            setConfirmDialog({ isOpen: false, swapId: null });
+            setConfirmDialog({ isOpen: false, matchId: null });
           }
         }}
         onConfirm={handleAcceptSwap}
