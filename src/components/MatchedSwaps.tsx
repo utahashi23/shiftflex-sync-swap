@@ -64,7 +64,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
             <Button 
               onClick={handleFindMatches}
               disabled={isProcessing}
-              className="bg-green-500 hover:bg-green-600 text-white"
+              className="bg-green-500 hover:bg-green-600 text-white h-9" // Made the same height as the Filter button
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
               {isProcessing ? 'Finding Matches...' : 'Find Matches'}

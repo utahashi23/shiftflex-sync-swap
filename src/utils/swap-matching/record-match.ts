@@ -11,18 +11,17 @@ export const recordShiftMatch = async (request: any, otherRequest: any, userId: 
     const { data: existingMatch, error: checkError } = await supabase
       .from('shift_swap_potential_matches')
       .select('id')
-      .or(`requester_request_id.eq.${request.id},requester_request_id.eq.${otherRequest.id}`)
-      .or(`acceptor_request_id.eq.${request.id},acceptor_request_id.eq.${otherRequest.id}`)
-      .limit(1)
-      .single();
+      .or(`(requester_request_id.eq.${request.id}.and.acceptor_request_id.eq.${otherRequest.id})`)
+      .or(`(requester_request_id.eq.${otherRequest.id}.and.acceptor_request_id.eq.${request.id})`)
+      .limit(1);
       
-    if (checkError && checkError.code !== 'PGRST116') {
+    if (checkError) {
       console.error('Error checking for existing match:', checkError);
       return { success: false, error: checkError };
     }
     
     // If a match already exists, just return success without trying to create a duplicate
-    if (existingMatch) {
+    if (existingMatch && existingMatch.length > 0) {
       console.log('Match already exists, skipping creation');
       return { success: true, alreadyExists: true };
     }
