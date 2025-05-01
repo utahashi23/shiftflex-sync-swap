@@ -22,25 +22,7 @@ export const useFetchMatchedData = () => {
     try {
       console.log('Fetching matched swaps for user', userId);
       
-      // First, fetch all shifts for all users to ensure we have the complete data
-      const { data: allShifts, error: shiftsError } = await supabase
-        .from('shifts')
-        .select('*');
-        
-      if (shiftsError) {
-        console.error('Error fetching all shifts:', shiftsError);
-        throw shiftsError;
-      }
-      
-      console.log(`Fetched ${allShifts?.length || 0} total shifts for matching`);
-      
-      // Build a map of shift IDs for quick lookup
-      const shiftsById = (allShifts || []).reduce((map, shift) => {
-        map[shift.id] = shift;
-        return map;
-      }, {} as Record<string, any>);
-      
-      // Fetch matched swap requests
+      // Fetch matched swap requests with properly joined shift data
       const { data: matchedRequests, error: matchedError } = await supabase
         .from('shift_swap_requests')
         .select(`
@@ -49,7 +31,9 @@ export const useFetchMatchedData = () => {
           requester_id,
           requester_shift_id,
           acceptor_id,
-          acceptor_shift_id
+          acceptor_shift_id,
+          requester_shift:requester_shift_id(id, date, start_time, end_time, truck_name),
+          acceptor_shift:acceptor_shift_id(id, date, start_time, end_time, truck_name)
         `)
         .eq('status', 'matched')
         .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`)
@@ -62,7 +46,7 @@ export const useFetchMatchedData = () => {
       
       console.log('Active matched swaps raw data:', matchedRequests);
       
-      // Fetch completed swaps
+      // Fetch completed swaps with properly joined shift data
       const { data: completedRequests, error: completedError } = await supabase
         .from('shift_swap_requests')
         .select(`
@@ -71,7 +55,9 @@ export const useFetchMatchedData = () => {
           requester_id,
           requester_shift_id,
           acceptor_id,
-          acceptor_shift_id
+          acceptor_shift_id,
+          requester_shift:requester_shift_id(id, date, start_time, end_time, truck_name),
+          acceptor_shift:acceptor_shift_id(id, date, start_time, end_time, truck_name)
         `)
         .eq('status', 'completed')
         .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`)
@@ -83,6 +69,45 @@ export const useFetchMatchedData = () => {
       }
       
       console.log('Completed swaps raw data:', completedRequests);
+      
+      // If no data, return empty arrays
+      if ((!matchedRequests || matchedRequests.length === 0) && 
+          (!completedRequests || completedRequests.length === 0)) {
+        console.log('No matched or completed swaps found');
+        return { matchedSwaps: [], completedSwaps: [] };
+      }
+      
+      // Get ALL relevant shift IDs for fetching additional shift details
+      const shiftIds = new Set<string>();
+      
+      matchedRequests?.forEach(req => {
+        if (req.requester_shift_id && !req.requester_shift) shiftIds.add(req.requester_shift_id);
+        if (req.acceptor_shift_id && !req.acceptor_shift) shiftIds.add(req.acceptor_shift_id);
+      });
+      
+      completedRequests?.forEach(req => {
+        if (req.requester_shift_id && !req.requester_shift) shiftIds.add(req.requester_shift_id);
+        if (req.acceptor_shift_id && !req.acceptor_shift) shiftIds.add(req.acceptor_shift_id);
+      });
+      
+      // Only fetch additional shifts if needed (some might be missing after join)
+      let shiftsData: any[] = [];
+      if (shiftIds.size > 0) {
+        console.log('Fetching additional shift data for IDs:', Array.from(shiftIds));
+        
+        const { data: shifts, error: shiftsError } = await supabase
+          .from('shifts')
+          .select('*')
+          .in('id', Array.from(shiftIds));
+          
+        if (shiftsError) {
+          console.error('Error fetching additional shifts:', shiftsError);
+          throw shiftsError;
+        }
+        
+        console.log('Fetched additional shifts data:', shifts?.length || 0);
+        shiftsData = shifts || [];
+      }
       
       // Get user IDs involved in swaps
       const userIds = new Set<string>();
@@ -126,10 +151,10 @@ export const useFetchMatchedData = () => {
       console.log('Number of matched requests before processing:', matchedRequests?.length || 0);
       console.log('Number of completed requests before processing:', completedRequests?.length || 0);
       
-      // Process matches to avoid duplicates
+      // Process matches to avoid duplicates - using our improved processSwapRequests function
       const formattedActiveMatches = processSwapRequests(
         matchedRequests || [], 
-        allShifts || [], 
+        shiftsData, 
         userId, 
         profilesMap
       );
@@ -137,11 +162,12 @@ export const useFetchMatchedData = () => {
       // Process completed matches
       const formattedCompletedMatches = processSwapRequests(
         completedRequests || [], 
-        allShifts || [], 
+        shiftsData, 
         userId, 
         profilesMap
       );
       
+      // Log the processed matches
       console.log(`Processed ${formattedActiveMatches.length} active matches`);
       console.log(`Processed ${formattedCompletedMatches.length} completed matches`);
       
