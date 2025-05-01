@@ -1,4 +1,3 @@
-
 import { MatchedSwap } from "./types";
 import { getShiftType } from "@/utils/shiftUtils";
 import { formatTime } from "@/utils/dateUtils";
@@ -47,7 +46,7 @@ export const processSwapRequests = (
       const theirShiftData = isRequester ? request.acceptor_shift : request.requester_shift;
       
       if (!myShiftData || !theirShiftData) {
-        console.log(`Missing embedded shift data for request: ${request.id}`);
+        console.log(`Missing shift data for request: ${request.id}`);
         continue;
       }
       

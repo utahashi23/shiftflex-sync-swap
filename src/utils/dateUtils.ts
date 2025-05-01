@@ -43,3 +43,31 @@ export const getMonthDateRange = (date: Date) => {
   
   return { startDate, endDate };
 };
+
+// Format time from ISO or time string to readable time (e.g. "9:00 AM")
+export const formatTime = (timeStr: string): string => {
+  if (!timeStr) return '';
+  
+  let hours: number;
+  let minutes: number;
+  
+  // Handle ISO date strings
+  if (timeStr.includes('T')) {
+    const date = new Date(timeStr);
+    hours = date.getHours();
+    minutes = date.getMinutes();
+  } else {
+    // Handle time strings like "09:00:00"
+    const timeParts = timeStr.split(':');
+    hours = parseInt(timeParts[0], 10);
+    minutes = parseInt(timeParts[1], 10);
+  }
+  
+  // Convert to 12 hour format with AM/PM
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // Handle midnight (0) as 12
+  const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+  
+  return `${hours}:${minutesStr} ${ampm}`;
+};
