@@ -8,7 +8,7 @@ import ShiftSwapCalendar from '@/components/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useSwapMatcher } from '@/hooks/useSwapMatcher'; // Make sure we're using the correct hook
+import { useSwapMatcher } from '@/hooks/useSwapMatcher'; 
 import { RefreshCw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
