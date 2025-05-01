@@ -39,154 +39,29 @@ serve(async (req) => {
       // This way your row-level-security (RLS) policies are applied.
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
-
-    // Now get all swap matches for this user
-    const { data: matches, error: matchesError } = await supabaseClient
-      .from('shift_swap_potential_matches')
-      .select(`
-        id,
-        status,
-        created_at,
-        requester_request_id,
-        acceptor_request_id,
-        requester_shift_id,
-        acceptor_shift_id,
-        match_date
-      `)
-      .or(`requester_request_id.eq.${user_id},acceptor_request_id.eq.${user_id}`)
+    
+    // Use our new security definer function to bypass RLS issues
+    const { data: matchesData, error: matchesError } = await supabaseClient
+      .rpc('get_user_matches_with_rls', { user_id });
     
     if (matchesError) {
       console.error('Error fetching matches:', matchesError);
       throw matchesError;
     }
-
-    console.log(`Found ${matches?.length ?? 0} potential matches`);
     
-    if (!matches || matches.length === 0) {
+    console.log(`Found ${matchesData?.length ?? 0} potential matches`);
+    
+    if (!matchesData || matchesData.length === 0) {
       console.log('No matches found for this user');
       return new Response(
         JSON.stringify([]),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
-
-    // Now fetch details for all shifts involved in these matches
-    const shiftIds = new Set();
-    matches.forEach(match => {
-      shiftIds.add(match.requester_shift_id);
-      shiftIds.add(match.acceptor_shift_id);
-    });
-
-    console.log(`Fetching details for ${shiftIds.size} shifts`);
-
-    const { data: shifts, error: shiftsError } = await supabaseClient
-      .from('shifts')
-      .select('id, date, start_time, end_time, truck_name, user_id')
-      .in('id', Array.from(shiftIds));
     
-    if (shiftsError) {
-      console.error('Error fetching shifts:', shiftsError);
-      throw shiftsError;
-    }
-    
-    console.log(`Retrieved ${shifts?.length ?? 0} shifts`);
-
-    // Create a map for quick lookup
-    const shiftsMap = {};
-    shifts.forEach(shift => {
-      shiftsMap[shift.id] = shift;
-    });
-
-    // Get user IDs for all users involved in these shifts
-    const userIds = new Set();
-    shifts.forEach(shift => {
-      if (shift.user_id !== user_id) {
-        userIds.add(shift.user_id);
-      }
-    });
-
-    console.log(`Found ${userIds.size} other users involved in matches`);
-
-    // Fetch user profile information
-    const { data: profiles, error: profilesError } = await supabaseClient
-      .from('profiles')
-      .select('id, first_name, last_name')
-      .in('id', Array.from(userIds));
-      
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      // Continue without profiles rather than failing
-    }
-    
-    console.log(`Retrieved ${profiles?.length ?? 0} user profiles`);
-    
-    // Create a map for user profiles
-    const profilesMap = {};
-    if (profiles) {
-      profiles.forEach(profile => {
-        profilesMap[profile.id] = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User';
-      });
-    }
-
-    // Enrich the matches with shift and user data
-    const enrichedMatches = matches.map(match => {
-      // Find the shifts for this match
-      const requesterShiftId = match.requester_shift_id;
-      const acceptorShiftId = match.acceptor_shift_id;
-      
-      const requesterShift = shiftsMap[requesterShiftId];
-      const acceptorShift = shiftsMap[acceptorShiftId];
-
-      // Skip if we're missing shift data
-      if (!requesterShift || !acceptorShift) {
-        console.warn('Missing shift data for match:', match.id);
-        return null;
-      }
-
-      // Determine if the current user is the requester or acceptor
-      const isRequester = requesterShift.user_id === user_id;
-      
-      // Based on the user role, set my shift and other shift
-      const myShift = isRequester ? requesterShift : acceptorShift;
-      const otherShift = isRequester ? acceptorShift : requesterShift;
-      const otherUserId = otherShift.user_id;
-      
-      // Get the user name from profiles or default to Unknown
-      const otherUserName = profilesMap[otherUserId] || 'Unknown User';
-
-      const result = {
-        match_id: match.id,
-        match_status: match.status,
-        created_at: match.created_at,
-        match_date: match.match_date,
-        my_request_id: isRequester ? match.requester_request_id : match.acceptor_request_id,
-        other_request_id: isRequester ? match.acceptor_request_id : match.requester_request_id,
-        my_shift_id: myShift.id,
-        my_shift_date: myShift.date,
-        my_shift_start_time: myShift.start_time,
-        my_shift_end_time: myShift.end_time,
-        my_shift_truck: myShift.truck_name,
-        other_shift_id: otherShift.id,
-        other_shift_date: otherShift.date,
-        other_shift_start_time: otherShift.start_time,
-        other_shift_end_time: otherShift.end_time,
-        other_shift_truck: otherShift.truck_name,
-        other_user_id: otherUserId,
-        other_user_name: otherUserName
-      };
-      
-      return result;
-    }).filter(Boolean);
-    
-    console.log(`Returning ${enrichedMatches.length} enriched matches`);
-    
-    // DEBUG OUTPUT: Log a sample match
-    if (enrichedMatches.length > 0) {
-      console.log('Sample match structure:', JSON.stringify(enrichedMatches[0]));
-    }
-
+    // Matches are already formatted by our database function
     return new Response(
-      JSON.stringify(enrichedMatches),
+      JSON.stringify(matchesData),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
   } catch (error) {

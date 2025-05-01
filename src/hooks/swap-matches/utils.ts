@@ -1,17 +1,26 @@
 
 import { SwapMatch } from './types';
 
-export const getShiftType = (startTime: string): string => {
-  const hour = parseInt(startTime.split(':')[0], 10);
-  if (hour >= 5 && hour < 12) return 'day';
-  if (hour >= 12 && hour < 17) return 'afternoon';
-  return 'night';
-};
-
+/**
+ * Formats raw match data from the API into SwapMatch objects
+ */
 export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
-  if (!Array.isArray(matchesData)) return [];
+  if (!matchesData || !Array.isArray(matchesData)) {
+    return [];
+  }
   
-  return matchesData.map((match: any) => {
+  return matchesData.map(match => {
+    // Determine shift type based on start time
+    const getShiftType = (time: string): string => {
+      const hour = parseInt(time.split(':')[0], 10);
+      if (hour >= 5 && hour < 12) return 'day';
+      if (hour >= 12 && hour < 17) return 'afternoon';
+      return 'night';
+    };
+    
+    const myShiftType = getShiftType(match.my_shift_start_time);
+    const otherShiftType = getShiftType(match.other_shift_start_time);
+    
     return {
       id: match.match_id,
       status: match.match_status,
@@ -21,7 +30,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         startTime: match.my_shift_start_time,
         endTime: match.my_shift_end_time,
         truckName: match.my_shift_truck,
-        type: getShiftType(match.my_shift_start_time)
+        type: myShiftType
       },
       otherShift: {
         id: match.other_shift_id,
@@ -29,13 +38,13 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         startTime: match.other_shift_start_time,
         endTime: match.other_shift_end_time,
         truckName: match.other_shift_truck,
-        type: getShiftType(match.other_shift_start_time),
+        type: otherShiftType,
         userId: match.other_user_id,
-        userName: match.other_user_name || 'Unknown User'
+        userName: match.other_user_name
       },
       myRequestId: match.my_request_id,
       otherRequestId: match.other_request_id,
-      createdAt: new Date(match.created_at).toISOString()
+      createdAt: match.created_at
     };
   });
 };
