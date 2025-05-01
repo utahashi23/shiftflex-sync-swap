@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -21,45 +20,31 @@ export const useSwapRequests = () => {
     try {
       console.log('Fetching swap requests for user:', user.id);
       
-      // Direct database query using RPC function instead of edge function
+      // Using a direct call with query parameters instead of RPC
       const { data, error } = await supabase
-        .rpc('get_user_swap_requests_safe', {
-          p_user_id: user.id,
-          p_status: 'pending'
-        });
+        .from('shift_swap_requests')
+        .select(`
+          id, 
+          status, 
+          requester_id,
+          requester_shift_id,
+          created_at,
+          shifts:requester_shift_id (
+            id, date, start_time, end_time, truck_name
+          ),
+          shift_swap_preferred_dates (
+            id, date, accepted_types
+          )
+        `)
+        .eq('requester_id', user.id)
+        .eq('status', 'pending');
       
       if (error) {
-        console.error('Error from RPC function:', error);
-        
-        // Fall back to direct query with proper filters
-        const { data: directData, error: directError } = await supabase
-          .from('shift_swap_requests')
-          .select(`
-            id, 
-            status, 
-            requester_id,
-            requester_shift_id,
-            shifts:requester_shift_id (
-              id, date, start_time, end_time, truck_name
-            ),
-            preferred_dates:shift_swap_preferred_dates (
-              id, date, accepted_types
-            )
-          `)
-          .eq('requester_id', user.id)
-          .eq('status', 'pending');
-          
-        if (directError) {
-          console.error('Error with direct query:', directError);
-          throw directError;
-        }
-        
-        const formattedData = formatSwapRequests(directData || []);
-        setSwapRequests(formattedData);
-        setIsLoading(false);
-        return;
+        console.error('Error fetching swap requests:', error);
+        throw error;
       }
       
+      console.log('Received swap request data:', data);
       const formattedData = formatSwapRequests(data || []);
       setSwapRequests(formattedData);
       
@@ -79,10 +64,10 @@ export const useSwapRequests = () => {
   const formatSwapRequests = (data: any[]): SwapRequest[] => {
     return data.map(item => {
       // Extract shift data - handle both nested and flat structure
-      const shift = item.shifts || item.shift || {};
+      const shift = item.shifts || {};
       
       // Format preferred days - handle both nested and flat structure
-      const preferredDatesRaw = item.preferred_dates || item.preferredDates || [];
+      const preferredDatesRaw = item.shift_swap_preferred_dates || [];
       const preferredDates = preferredDatesRaw.map((day: any) => ({
         id: day.id,
         date: day.date,
@@ -91,7 +76,7 @@ export const useSwapRequests = () => {
       
       // Determine shift type based on start time if not already provided
       let shiftType: 'day' | 'afternoon' | 'night' = 'day';
-      const startTime = shift.start_time || shift.startTime;
+      const startTime = shift.start_time;
       if (startTime) {
         const startHour = parseInt(startTime.split(':')[0], 10);
         if (startHour <= 8) {
@@ -101,8 +86,6 @@ export const useSwapRequests = () => {
         } else {
           shiftType = 'night';
         }
-      } else if (shift.type) {
-        shiftType = shift.type as 'day' | 'afternoon' | 'night';
       }
       
       return {
@@ -112,9 +95,9 @@ export const useSwapRequests = () => {
         originalShift: {
           id: shift.id,
           date: shift.date,
-          title: shift.truck_name || shift.truckName || `Shift-${shift.id?.substring(0, 5)}`,
+          title: shift.truck_name || `Shift-${shift.id?.substring(0, 5)}`,
           startTime: (startTime || '').substring(0, 5),
-          endTime: (shift.end_time || shift.endTime || '').substring(0, 5),
+          endTime: (shift.end_time || '').substring(0, 5),
           type: shiftType
         },
         preferredDates

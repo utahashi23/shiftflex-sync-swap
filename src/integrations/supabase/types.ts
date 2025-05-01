@@ -408,6 +408,18 @@ export type Database = {
           other_user_name: string
         }[]
       }
+      get_user_swap_requests_safe: {
+        Args: { p_user_id: string; p_status: string }
+        Returns: {
+          id: string
+          status: string
+          requester_id: string
+          requester_shift_id: string
+          created_at: string
+          shift: Json
+          preferred_dates: Json
+        }[]
+      }
       has_role: {
         Args: {
           _user_id: string
