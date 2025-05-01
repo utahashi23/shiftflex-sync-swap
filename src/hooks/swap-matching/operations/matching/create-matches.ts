@@ -24,7 +24,7 @@ export const createMatches = (
     const requestShift = getRequestShift(request, requestShifts);
     
     if (!requestShift) {
-      console.log(`Missing shift data for request ${request.id}`);
+      console.log(`Missing shift data for request ${request.id}, skipping`);
       continue;
     }
     
@@ -37,17 +37,23 @@ export const createMatches = (
     // Loop through all other pending requests to check for compatibility
     for (const otherRequest of pendingRequests) {
       // Skip comparing the request with itself
-      if (request.id === otherRequest.id) {
-        continue;
+      if (request.id === otherRequest.id || request.requester_id === otherRequest.requester_id) {
+        continue; // Skip both same request and requests from the same user
       }
       
       // Get the shift for the other request
       const otherRequestShift = getRequestShift(otherRequest, requestShifts);
       
       if (!otherRequestShift) {
-        console.log(`Missing shift data for request ${otherRequest.id}`);
+        console.log(`Missing shift data for request ${otherRequest.id}, skipping comparison`);
         continue;
       }
+      
+      const otherRequesterName = profilesMap[otherRequest.requester_id] ? 
+        `${profilesMap[otherRequest.requester_id].first_name} ${profilesMap[otherRequest.requester_id].last_name}` : 
+        'Unknown User';
+      
+      console.log(`Comparing with request from ${otherRequesterName} (ID: ${otherRequest.id.substring(0, 6)})`);
       
       // Check if the requests are compatible
       const compatibility = checkMatchCompatibility(
@@ -59,7 +65,7 @@ export const createMatches = (
         shiftsByUser
       );
       
-      // Log the match info
+      // Log the match info with enhanced details
       logMatchInfo(
         request, 
         otherRequest, 
@@ -71,6 +77,7 @@ export const createMatches = (
       
       // If match found, record it
       if (compatibility.isCompatible) {
+        console.log(`✓ MATCH FOUND between ${requesterName} and ${otherRequesterName}!`);
         matches.push({ request, otherRequest });
       }
     }
