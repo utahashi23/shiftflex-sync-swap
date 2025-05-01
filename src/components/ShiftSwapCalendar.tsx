@@ -5,6 +5,9 @@ import { SwapSelectionPanel } from './calendar/SwapSelectionPanel';
 import { CalendarHeader, WeekdayHeader } from './calendar/CalendarHeader';
 import { CalendarLegend } from './calendar/CalendarLegend';
 import { useSwapCalendarState } from '@/hooks/useSwapCalendarState';
+import { Button } from './ui/button';
+import { RefreshCw } from 'lucide-react';
+import { useSwapMatcher } from '@/hooks/useSwapMatcher';
 
 const ShiftSwapCalendar = () => {
   const {
@@ -21,6 +24,8 @@ const ShiftSwapCalendar = () => {
     changeMonth,
     setAcceptableShiftTypes
   } = useSwapCalendarState();
+
+  const { findSwapMatches, isProcessing } = useSwapMatcher();
 
   return (
     <div className="flex flex-col">
