@@ -43,7 +43,7 @@ export const useSwapMatcher = () => {
     try {
       console.log('----------- SWAP MATCHING STARTED -----------');
       
-      // Step 1: Fetch ALL pending swap requests from ALL users
+      // Step 1: Fetch ALL pending swap requests from ALL users (no user filter)
       console.log('Fetching ALL pending swap requests...');
       const { data: allRequests, error: requestsError } = await supabase
         .from('shift_swap_requests')
@@ -84,8 +84,8 @@ export const useSwapMatcher = () => {
       
       console.log(`Found ${preferredDates.length} preferred dates:`, preferredDates);
       
-      // Step 3: Get all shifts
-      console.log('Fetching all shifts...');
+      // Step 3: Get ALL shifts for ALL users (removed userId filter)
+      console.log('Fetching all shifts for all users...');
       const { data: allShifts, error: shiftsError } = await supabase
         .from('shifts')
         .select('*');
@@ -101,6 +101,8 @@ export const useSwapMatcher = () => {
         setIsProcessing(false);
         return;
       }
+      
+      console.log(`Found ${allShifts.length} shifts across all users:`, allShifts);
       
       // Create lookup maps for more efficient matching
       const shiftsByDate = {};
@@ -190,13 +192,18 @@ export const useSwapMatcher = () => {
           
           // Find shifts on this preferred date
           const shiftsOnPrefDate = shiftsByDate[pref.date] || [];
+          console.log(`Found ${shiftsOnPrefDate.length} shifts on preferred date ${pref.date}`);
           
           // Check each shift on the preferred date
           for (const potentialShift of shiftsOnPrefDate) {
             // Skip if the shift belongs to the same user
-            if (potentialShift.user_id === request.requester_id) continue;
+            if (potentialShift.user_id === request.requester_id) {
+              console.log(`Skipping shift from same user ${request.requester_id}`);
+              continue;
+            }
             
             const potentialShiftType = getShiftType(potentialShift.start_time);
+            console.log(`Checking potential shift ${potentialShift.id} (${potentialShiftType}) from user ${potentialShift.user_id}`);
             
             // Check if the shift type is acceptable
             if (pref.acceptedTypes.length > 0 && !pref.acceptedTypes.includes(potentialShiftType)) {
@@ -215,11 +222,19 @@ export const useSwapMatcher = () => {
             for (const otherRequest of otherUserRequests) {
               // Get the other request's shift
               const otherRequestShift = requestShifts[otherRequest.id];
-              if (!otherRequestShift) continue;
+              if (!otherRequestShift) {
+                console.log(`Missing shift data for other user's request ${otherRequest.id}`);
+                continue;
+              }
+              
+              console.log(`Checking against other user's request ${otherRequest.id}, offering shift on ${otherRequestShift.normalizedDate}`);
               
               // Create a unique pair ID to avoid duplicate matches
               const pairId = [request.id, otherRequest.id].sort().join('-');
-              if (processedPairs.has(pairId)) continue;
+              if (processedPairs.has(pairId)) {
+                console.log(`Already processed this pair: ${pairId}`);
+                continue;
+              }
               processedPairs.add(pairId);
               
               // Check if the other user prefers the current user's shift date
@@ -232,6 +247,8 @@ export const useSwapMatcher = () => {
               if (!otherUserWantsThisDate) {
                 console.log(`User ${potentialShift.user_id} doesn't want the date ${requestShift.normalizedDate}`);
                 continue;
+              } else {
+                console.log(`User ${potentialShift.user_id} DOES want the date ${requestShift.normalizedDate}`);
               }
               
               // Check if either user is already rostered on the swap date
