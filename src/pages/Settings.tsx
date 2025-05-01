@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -18,7 +19,7 @@ import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/layouts/AppLayout';
 import { toast } from '@/hooks/use-toast';
-import { Calendar, CalendarX, Link } from 'lucide-react';
+import { Calendar, CalendarX, Link, Apple, Mail } from 'lucide-react';
 
 const profileSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -321,10 +322,19 @@ const Settings = () => {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="shared">
-              <TabsList>
+              <TabsList className="grid grid-cols-4 mb-4">
                 <TabsTrigger value="shared">Shared Calendar Links</TabsTrigger>
                 <TabsTrigger value="manual">Manual Import</TabsTrigger>
+                <TabsTrigger value="google" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  <span>Google Calendar</span>
+                </TabsTrigger>
+                <TabsTrigger value="apple" className="flex items-center gap-2">
+                  <Apple className="h-4 w-4" />
+                  <span>Apple Calendar</span>
+                </TabsTrigger>
               </TabsList>
+              
               <TabsContent value="shared" className="pt-6">
                 <Form {...calendarLinkForm}>
                   <form onSubmit={calendarLinkForm.handleSubmit(onCalendarLinkSubmit)} className="space-y-4">
@@ -361,6 +371,7 @@ const Settings = () => {
                   </form>
                 </Form>
               </TabsContent>
+              
               <TabsContent value="manual" className="pt-6">
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="mb-4 p-3 rounded-full bg-gray-100">
@@ -369,6 +380,32 @@ const Settings = () => {
                   <h3 className="text-lg font-medium mb-2">Coming Soon</h3>
                   <p className="text-gray-500 max-w-md">
                     Almost there! This feature will be ready in an upcoming release.
+                  </p>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="google" className="pt-6">
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-4 p-4 rounded-full bg-blue-50">
+                    <Mail className="h-8 w-8 text-blue-500" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-3">Coming Soon: Google Calendar Integration</h3>
+                  <p className="text-gray-600 max-w-md">
+                    Real-time push and pull syncing with Google Calendar is on the way! 
+                    Stay tuned for seamless updates and smarter scheduling in an upcoming release.
+                  </p>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="apple" className="pt-6">
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-4 p-4 rounded-full bg-gray-100">
+                    <Apple className="h-8 w-8 text-gray-700" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-3">Coming Soon: Apple Calendar Integration</h3>
+                  <p className="text-gray-600 max-w-md">
+                    Real-time push and pull syncing with Apple Calendar is on the way! 
+                    Stay tuned for seamless updates and smarter scheduling in an upcoming release.
                   </p>
                 </div>
               </TabsContent>
