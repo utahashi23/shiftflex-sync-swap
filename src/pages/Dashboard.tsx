@@ -51,7 +51,7 @@ const Dashboard = () => {
         // Fetch all profiles without any filters - RLS policies will control access
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name')
+          .select('id, first_name, last_name, email')
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -59,37 +59,7 @@ const Dashboard = () => {
         } else {
           console.log('Fetched profiles:', data);
           console.log('Total number of profiles fetched:', data?.length || 0);
-          
-          // If admin, we can fetch email addresses from auth.users for better profile display
-          if (isAdmin && data && data.length > 0) {
-            const userIds = data.map(profile => profile.id);
-            
-            // This will only work for admins due to RLS policies
-            const { data: usersData, error: usersError } = await supabase
-              .from('users')
-              .select('id, email')
-              .in('id', userIds);
-              
-            if (!usersError && usersData) {
-              // Create a map of user IDs to emails
-              const emailMap = usersData.reduce((acc, user) => {
-                acc[user.id] = user.email;
-                return acc;
-              }, {});
-              
-              // Add emails to profiles
-              const profilesWithEmail = data.map(profile => ({
-                ...profile,
-                email: emailMap[profile.id]
-              }));
-              
-              setProfiles(profilesWithEmail);
-            } else {
-              setProfiles(data);
-            }
-          } else {
-            setProfiles(data);
-          }
+          setProfiles(data || []);
         }
       } catch (error) {
         console.error('Error fetching profiles:', error);
@@ -100,7 +70,7 @@ const Dashboard = () => {
 
     fetchUserCount();
     fetchProfiles();
-  }, [isAdmin, user]);
+  }, []);
 
   return (
     <AppLayout>
