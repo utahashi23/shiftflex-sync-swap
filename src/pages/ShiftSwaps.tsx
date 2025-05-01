@@ -38,6 +38,7 @@ const ShiftSwaps = () => {
     }
     
     console.log('Find Matches button clicked');
+    // Pass the user ID to findSwapMatches. For admins, it can optionally handle all requests
     await findSwapMatches(user.id);
     // Refresh the tabs to show updated data
     setRefreshTrigger(prev => prev + 1);

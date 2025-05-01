@@ -8,13 +8,14 @@ import { fetchAllData, findMatches, processMatches } from '../operations';
 export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) => {
   /**
    * Find potential matches for a user's swap requests
+   * @param userId - The ID of the current user (optional for admins)
    */
-  const findSwapMatches = async (userId: string) => {
+  const findSwapMatches = async (userId?: string) => {
     setIsProcessing(true);
     
     try {
       console.log('----------- SWAP MATCHING STARTED -----------');
-      console.log('Current user ID:', userId);
+      console.log('Current user ID:', userId || 'No user ID provided (admin mode)');
       
       // Fetch all necessary data from the database
       const result = await fetchAllData();
@@ -34,14 +35,23 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
         return;
       }
       
-      // Separate my requests from other users' requests
-      const myRequests = allRequests.filter(req => req.requester_id === userId);
-      const otherUsersRequests = allRequests.filter(req => req.requester_id !== userId);
+      // Separate my requests from other users' requests if userId is provided
+      const myRequests = userId 
+        ? allRequests.filter(req => req.requester_id === userId)
+        : allRequests;
+        
+      const otherUsersRequests = userId
+        ? allRequests.filter(req => req.requester_id !== userId)
+        : [];
       
-      console.log('My requests:', myRequests.length);
-      console.log('Other users requests:', otherUsersRequests.length);
+      if (userId) {
+        console.log('My requests:', myRequests.length);
+        console.log('Other users requests:', otherUsersRequests.length);
+      } else {
+        console.log('Admin mode: processing all requests together');
+      }
       
-      if (myRequests.length === 0) {
+      if (userId && myRequests.length === 0) {
         toast({
           title: "No pending swap requests",
           description: "You don't have any pending swap requests to match.",
@@ -50,7 +60,7 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
         return;
       }
       
-      if (otherUsersRequests.length === 0) {
+      if (userId && otherUsersRequests.length === 0) {
         toast({
           title: "No potential matches",
           description: "No other users currently have pending swap requests.",

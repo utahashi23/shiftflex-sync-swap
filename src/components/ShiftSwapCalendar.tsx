@@ -8,6 +8,7 @@ import { useSwapCalendarState } from '@/hooks/useSwapCalendarState';
 import { Button } from './ui/button';
 import { RefreshCw } from 'lucide-react';
 import { useSwapMatcher } from '@/hooks/swap-matching';
+import { useAuth } from '@/hooks/useAuth';
 
 const ShiftSwapCalendar = () => {
   const {
@@ -26,12 +27,19 @@ const ShiftSwapCalendar = () => {
   } = useSwapCalendarState();
 
   const { findSwapMatches, isProcessing } = useSwapMatcher();
+  const { user } = useAuth();
+
+  const handleFindMatches = async () => {
+    if (user) {
+      await findSwapMatches(user.id);
+    }
+  };
 
   return (
     <div className="flex flex-col">
       <div className="flex justify-end mb-4">
         <Button 
-          onClick={findSwapMatches}
+          onClick={handleFindMatches}
           disabled={isProcessing}
           className="bg-green-500 hover:bg-green-600 text-white"
         >
