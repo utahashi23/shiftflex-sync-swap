@@ -1,18 +1,18 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import SwapRequestCard from './swaps/SwapRequestCard';
 import SwapRequestSkeleton from './swaps/SwapRequestSkeleton';
 import EmptySwapRequests from './swaps/EmptySwapRequests';
 import SwapDeleteDialog from './swaps/SwapDeleteDialog';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { fetchSwapRequestsApi, deleteSwapRequestApi, deletePreferredDayApi } from '@/hooks/swap-requests/api';
-import { SwapRequest } from '@/hooks/swap-requests/types';
+import { useFetchSwapRequests } from '@/hooks/swap-requests/useFetchSwapRequests';
+import { deleteSwapRequestApi, deletePreferredDayApi } from '@/hooks/swap-requests/api';
 
 const RequestedSwaps = () => {
-  const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+  const { swapRequests, setSwapRequests, isLoading, fetchSwapRequests } = useFetchSwapRequests(user);
+  
   const [deleteDialog, setDeleteDialog] = useState<{ 
     isOpen: boolean, 
     requestId: string | null, 
@@ -23,38 +23,7 @@ const RequestedSwaps = () => {
     dayId: null
   });
   
-  const { user } = useAuth();
-
-  // Fetch swap requests directly without using the hook to simplify
-  const fetchSwapRequests = async () => {
-    if (!user || !user.id) {
-      console.log('No user or user ID available, skipping fetch');
-      setIsLoading(false);
-      return;
-    }
-    
-    setIsLoading(true);
-    try {
-      const formattedRequests = await fetchSwapRequestsApi(user.id);
-      setSwapRequests(formattedRequests);
-    } catch (error) {
-      console.error('Error in fetchSwapRequests:', error);
-      toast({
-        title: "Error",
-        description: "Something went wrong while loading swap requests.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Load swap requests on component mount
-  useEffect(() => {
-    if (user) {
-      fetchSwapRequests();
-    }
-  }, [user]);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Handler for opening delete dialog for an entire swap request
   const onDeleteRequest = (requestId: string) => {
@@ -81,7 +50,7 @@ const RequestedSwaps = () => {
     if (!deleteDialog.requestId) return;
     
     try {
-      setIsLoading(true);
+      setDeleteLoading(true);
       
       if (deleteDialog.dayId) {
         // Delete a single preferred date
@@ -126,7 +95,7 @@ const RequestedSwaps = () => {
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setDeleteLoading(false);
       setDeleteDialog({ isOpen: false, requestId: null, dayId: null });
     }
   };
@@ -156,7 +125,7 @@ const RequestedSwaps = () => {
 
       <SwapDeleteDialog
         isOpen={deleteDialog.isOpen}
-        isLoading={isLoading}
+        isLoading={deleteLoading}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
             setDeleteDialog({ isOpen: false, requestId: null, dayId: null });

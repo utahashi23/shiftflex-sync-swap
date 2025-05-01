@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetchSwapRequests } from './useFetchSwapRequests';
 import { useDeleteSwapRequest } from './useDeleteSwapRequest';
@@ -12,14 +12,13 @@ export const useSwapRequests = (): UseSwapRequestsReturn => {
     swapRequests, 
     setSwapRequests, 
     isLoading, 
-    setIsLoading, 
     fetchSwapRequests 
   } = useFetchSwapRequests(user);
   
   const { 
     handleDeleteSwapRequest, 
     handleDeletePreferredDay 
-  } = useDeleteSwapRequest(setSwapRequests, setIsLoading);
+  } = useDeleteSwapRequest(setSwapRequests, setIsLoading => {});
   
   // Load swap requests on component mount or when user changes
   useEffect(() => {
