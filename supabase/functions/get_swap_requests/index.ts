@@ -40,9 +40,9 @@ serve(async (req) => {
 
     // Fetch the user's pending swap requests
     const { data: requests, error: requestsError } = await supabaseClient
-      .from('swap_requests')
-      .select('id, status, shift_id, created_at')
-      .eq('user_id', user_id)
+      .from('shift_swap_requests')
+      .select('id, status, requester_shift_id, created_at, requester_id')
+      .eq('requester_id', user_id)
       .eq('status', status)
       
     if (requestsError) {
@@ -57,7 +57,7 @@ serve(async (req) => {
     }
     
     // Get all shift IDs
-    const shiftIds = requests.map(req => req.shift_id)
+    const shiftIds = requests.map(req => req.requester_shift_id)
     
     // Fetch shift data
     const { data: shifts, error: shiftsError } = await supabaseClient
@@ -79,9 +79,9 @@ serve(async (req) => {
     const requestIds = requests.map(req => req.id)
     
     const { data: preferredDays, error: daysError } = await supabaseClient
-      .from('preferred_days')
-      .select('id, swap_request_id, date, accepted_types')
-      .in('swap_request_id', requestIds)
+      .from('shift_swap_preferred_dates')
+      .select('id, request_id, date, accepted_types')
+      .in('request_id', requestIds)
       
     if (daysError) {
       throw daysError
@@ -90,10 +90,10 @@ serve(async (req) => {
     // Group preferred days by request ID
     const preferredDaysByRequest = {}
     preferredDays.forEach(day => {
-      if (!preferredDaysByRequest[day.swap_request_id]) {
-        preferredDaysByRequest[day.swap_request_id] = []
+      if (!preferredDaysByRequest[day.request_id]) {
+        preferredDaysByRequest[day.request_id] = []
       }
-      preferredDaysByRequest[day.swap_request_id].push(day)
+      preferredDaysByRequest[day.request_id].push(day)
     })
     
     // Join the data together
@@ -101,7 +101,7 @@ serve(async (req) => {
       return {
         id: request.id,
         status: request.status,
-        shift: shiftsMap[request.shift_id],
+        shift: shiftsMap[request.requester_shift_id],
         preferred_days: preferredDaysByRequest[request.id] || []
       }
     })
