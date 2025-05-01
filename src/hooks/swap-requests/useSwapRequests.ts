@@ -21,96 +21,52 @@ export const useSwapRequests = () => {
     try {
       console.log('Fetching swap requests for user:', user.id);
       
-      // Direct database query without using edge function
-      const { data: requests, error: requestsError } = await supabase
-        .from('shift_swap_requests')
-        .select('id, status, requester_shift_id, created_at, requester_id')
-        .eq('requester_id', user.id)
-        .eq('status', 'pending');
-
-      if (requestsError) throw requestsError;
+      // Using edge function to bypass RLS issues
+      const { data, error } = await supabase.functions.invoke('get_swap_requests', {
+        body: { 
+          user_id: user.id,
+          status: 'pending'
+        }
+      });
       
-      console.log(`Found ${requests?.length || 0} swap requests`);
+      if (error) throw error;
       
-      if (!requests || requests.length === 0) {
+      console.log('Received response from edge function:', data);
+      
+      if (!data || data.length === 0) {
+        console.log('No swap requests found');
         setSwapRequests([]);
         setIsLoading(false);
         return;
       }
       
-      // Get all the shift IDs from the requests
-      const shiftIds = requests
-        .filter(req => req && req.requester_shift_id)
-        .map(req => req.requester_shift_id);
-      
-      // Fetch the shift details
-      const { data: shifts, error: shiftsError } = await supabase
-        .from('shifts')
-        .select('*')
-        .in('id', shiftIds);
+      // Process the data returned from the edge function
+      const formattedRequests = data.map(item => {
+        // Extract shift data
+        const shift = item.shift;
         
-      if (shiftsError) throw shiftsError;
-      
-      // Create a lookup for easy access
-      const shiftMap = (shifts || []).reduce((acc, shift) => {
-        acc[shift.id] = shift;
-        return acc;
-      }, {} as Record<string, any>);
-      
-      // Fetch the preferred dates for all requests
-      const requestIds = requests.map(req => req.id);
-      const { data: preferredDates, error: datesError } = await supabase
-        .from('shift_swap_preferred_dates')
-        .select('*')
-        .in('request_id', requestIds);
+        // Format preferred days
+        const preferredDates = (item.preferred_days || []).map(day => ({
+          id: day.id,
+          date: day.date,
+          acceptedTypes: day.accepted_types
+        }));
         
-      if (datesError) throw datesError;
-      
-      // Format and return the requests
-      const formattedRequests = requests
-        .map(request => {
-          const shift = shiftMap[request.requester_shift_id];
-          
-          // Skip requests without a valid shift
-          if (!shift) return null;
-          
-          // Determine shift type based on start time
-          const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
-          let shiftType: "day" | "afternoon" | "night";
-          
-          if (startHour <= 8) {
-            shiftType = 'day';
-          } else if (startHour > 8 && startHour < 16) {
-            shiftType = 'afternoon';
-          } else {
-            shiftType = 'night';
-          }
-          
-          // Get preferred dates for this request
-          const requestPreferredDates = (preferredDates || [])
-            .filter(pd => pd.request_id === request.id)
-            .map(pd => ({
-              id: pd.id,
-              date: pd.date,
-              acceptedTypes: pd.accepted_types
-            }));
-          
-          return {
-            id: request.id,
-            requesterId: request.requester_id,
-            status: request.status,
-            originalShift: {
-              id: shift.id,
-              date: shift.date,
-              title: shift.truck_name || `Shift-${shift.id.substring(0, 5)}`,
-              startTime: shift.start_time.substring(0, 5),
-              endTime: shift.end_time.substring(0, 5),
-              type: shiftType
-            },
-            preferredDates: requestPreferredDates
-          };
-        })
-        .filter(Boolean) as SwapRequest[];
+        return {
+          id: item.id,
+          requesterId: item.requester_id,
+          status: item.status,
+          originalShift: {
+            id: shift.id,
+            date: shift.date,
+            title: shift.truckName || `Shift-${shift.id.substring(0, 5)}`,
+            startTime: shift.startTime.substring(0, 5),
+            endTime: shift.endTime.substring(0, 5),
+            type: shift.type
+          },
+          preferredDates
+        };
+      }).filter(Boolean) as SwapRequest[];
       
       console.log('Formatted requests:', formattedRequests);
       setSwapRequests(formattedRequests);
@@ -142,12 +98,10 @@ export const useSwapRequests = () => {
     try {
       console.log('Deleting swap request:', requestId);
       
-      // Direct delete without using edge function
-      const { error } = await supabase
-        .from('shift_swap_requests')
-        .delete()
-        .eq('id', requestId)
-        .eq('requester_id', user.id);
+      // Use the edge function to delete the request
+      const { data, error } = await supabase.functions.invoke('delete_swap_request', {
+        body: { request_id: requestId }
+      });
         
       if (error) throw error;
       
@@ -181,37 +135,43 @@ export const useSwapRequests = () => {
     try {
       console.log('Deleting preferred day:', dayId);
       
-      // Direct delete without using edge function
-      const { error } = await supabase
-        .from('shift_swap_preferred_dates')
-        .delete()
-        .eq('id', dayId);
+      // Use the edge function to delete the preferred day
+      const { data, error } = await supabase.functions.invoke('delete_preferred_day', {
+        body: { 
+          day_id: dayId,
+          request_id: requestId
+        }
+      });
         
       if (error) throw error;
       
-      // Update UI by filtering out the deleted day
-      setSwapRequests(prevRequests => 
-        prevRequests.map(req => {
-          if (req.id === requestId) {
-            return {
-              ...req,
-              preferredDates: req.preferredDates.filter(day => day.id !== dayId)
-            };
-          }
-          return req;
-        })
-      );
-      
-      toast({
-        title: "Date removed",
-        description: "Preferred date has been removed from your request."
-      });
-      
-      // Check if the request needs to be removed (no more preferred dates)
-      const request = swapRequests.find(req => req.id === requestId);
-      if (request && request.preferredDates.length <= 1) {
-        // Refetch to be safe since the trigger might have deleted the request
-        fetchSwapRequests();
+      // Check if the entire request was deleted
+      if (data && data.request_deleted) {
+        // Remove the request entirely
+        setSwapRequests(prev => prev.filter(req => req.id !== requestId));
+        
+        toast({
+          title: "Request updated",
+          description: "The swap request has been removed as it had no remaining preferred dates."
+        });
+      } else {
+        // Just update the preferred dates for this request
+        setSwapRequests(prevRequests => 
+          prevRequests.map(req => {
+            if (req.id === requestId) {
+              return {
+                ...req,
+                preferredDates: req.preferredDates.filter(day => day.id !== dayId)
+              };
+            }
+            return req;
+          })
+        );
+        
+        toast({
+          title: "Date removed",
+          description: "Preferred date has been removed from your request."
+        });
       }
       
       return true;
