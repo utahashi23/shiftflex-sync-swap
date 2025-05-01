@@ -164,9 +164,13 @@ export const fetchSwapMatchingData = async () => {
     // Exclude admin user ID from all queries
     const ADMIN_USER_ID = '7c31ceb6-bec9-4ea8-b65a-b6629547b52e';
     
-    // Fetch ALL pending swap requests from ALL users except admin
+    console.log('RLS BYPASS ATTEMPT: Using multiple strategies to fetch ALL data');
+    
+    // STRATEGY 1: Fetch ALL pending swap requests from ALL users except admin
     console.log('Fetching ALL pending swap requests...');
-    const { data: allRequests, error: requestsError } = await supabase
+    
+    // First try with standard query
+    const { data: pendingRequests, error: requestsError } = await supabase
       .from('shift_swap_requests')
       .select(`
         id, 
@@ -179,13 +183,16 @@ export const fetchSwapMatchingData = async () => {
       .gt('preferred_dates_count', 0) // Only include requests with at least one preferred date
       .neq('requester_id', ADMIN_USER_ID); // Exclude admin user
       
-    if (requestsError) throw requestsError;
+    if (requestsError) {
+      console.error('Error fetching swap requests:', requestsError);
+      throw requestsError;
+    }
     
-    if (!allRequests || allRequests.length === 0) {
+    if (!pendingRequests || pendingRequests.length === 0) {
       return { success: false, message: "No pending swap requests" };
     }
     
-    console.log(`Found ${allRequests.length} pending swap requests:`, allRequests);
+    console.log(`Strategy 1: Found ${pendingRequests.length} pending swap requests`);
     
     // Get all profiles except admin
     console.log('Fetching ALL profiles except admin:');
@@ -195,56 +202,90 @@ export const fetchSwapMatchingData = async () => {
       .select('*')
       .neq('id', ADMIN_USER_ID);
       
-    if (profilesError) throw profilesError;
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+      throw profilesError;
+    }
+    
     console.log('Fetched profiles:', profiles?.length || 0);
     
-    // Get all request IDs for preferred dates query
-    const requestIds = allRequests.map(req => req.id);
+    // STRATEGY 2: Try to get all preferred dates
+    console.log('STRATEGY 2: Fetching ALL preferred dates...');
     
-    // Get all preferred dates - CRITICAL: This query needs to find ALL preferred dates
-    console.log('Fetching preferred dates...');
+    // First, get request IDs we need
+    const requestIds = pendingRequests.map(req => req.id);
+    console.log(`Looking for preferred dates for ${requestIds.length} requests`);
+    
+    // Special query for preferred dates that explicitly filters by request IDs
     const { data: preferredDates, error: datesError } = await supabase
       .from('shift_swap_preferred_dates')
-      .select('*');
+      .select('*')
+      .in('request_id', requestIds);  // Only fetch dates for our pending requests
       
-    if (datesError) throw datesError;
-    
-    if (!preferredDates) {
-      return { success: false, message: "No swap preferences" };
+    if (datesError) {
+      console.error('Error fetching preferred dates:', datesError);
+      throw datesError;
     }
     
-    // Filter preferred dates to only include those for our pending requests
-    const filteredPreferredDates = preferredDates.filter(date => 
-      requestIds.includes(date.request_id)
-    );
+    if (!preferredDates || preferredDates.length === 0) {
+      console.log('No preferred dates found despite having pending requests with preferred_dates_count > 0');
+      return { success: false, message: "No swap preferences found" };
+    }
     
-    console.log(`Found ${preferredDates.length} total preferred dates, ${filteredPreferredDates.length} relevant to current requests`);
+    console.log(`Strategy 2: Found ${preferredDates.length} preferred dates`);
     
-    // Get all shift IDs from requests for the shifts query
-    const shiftIds = allRequests.map(req => req.requester_shift_id).filter(Boolean);
+    // STRATEGY 3: Special approach for shifts - use explicit filters
+    console.log('STRATEGY 3: Fetching ALL shifts...');
     
-    // IMPORTANT: Add a separate query for shifts that bypasses RLS to get ALL shifts
-    // We're using the service role API just for this critical feature
-    console.log('Fetching ALL shifts using RPC function...');
+    // Get all the shift IDs from our requests
+    const requestShiftIds = pendingRequests
+      .map(req => req.requester_shift_id)
+      .filter(Boolean);
+      
+    console.log(`Need to fetch ${requestShiftIds.length} specific shifts by ID`);
     
-    // Get ALL shifts directly from all users except admin
-    // NOTE: We now query without filtering by user ID to get all shifts
-    const { data: allShifts, error: shiftsError } = await supabase
+    // First, fetch shifts by ID that we know we need
+    const { data: requestedShifts, error: shiftsError1 } = await supabase
       .from('shifts')
-      .select('*');
-    
-    if (shiftsError) throw shiftsError;
-    
-    if (!allShifts || allShifts.length === 0) {
-      return { success: false, message: "No shifts found" };
+      .select('*')
+      .in('id', requestShiftIds);
+      
+    if (shiftsError1) {
+      console.error('Error fetching specific shifts:', shiftsError1);
+      throw shiftsError1;
     }
     
-    // Filter out admin shifts after receiving all shifts
-    const filteredShifts = allShifts.filter(shift => 
-      shift.user_id !== ADMIN_USER_ID
-    );
+    console.log(`Fetched ${requestedShifts?.length || 0} shifts by ID`);
     
-    console.log(`Found ${allShifts.length} total shifts, ${filteredShifts.length} non-admin shifts`);
+    // Now try to get ALL shifts from ALL users
+    const { data: allOtherShifts, error: shiftsError2 } = await supabase
+      .from('shifts')
+      .select('*')
+      .neq('user_id', ADMIN_USER_ID);  // Exclude admin shifts
+      
+    if (shiftsError2) {
+      console.error('Error fetching all other shifts:', shiftsError2);
+      throw shiftsError2;
+    }
+    
+    console.log(`Fetched ${allOtherShifts?.length || 0} total shifts`);
+    
+    // Combine both sets of shifts, removing duplicates by ID
+    const shiftMap = new Map();
+    requestedShifts?.forEach(shift => shiftMap.set(shift.id, shift));
+    allOtherShifts?.forEach(shift => {
+      if (!shiftMap.has(shift.id)) {
+        shiftMap.set(shift.id, shift);
+      }
+    });
+    
+    // Convert the Map back to an array
+    const allShifts = Array.from(shiftMap.values());
+    console.log(`Combined: ${allShifts.length} unique shifts after merging`);
+    
+    // Log all unique user IDs in shifts for debugging
+    const userIds = [...new Set(allShifts.map(s => s.user_id))];
+    console.log('Shift data includes these user IDs:', userIds);
     
     // Create a map of user IDs to profile info for quick lookup
     const profilesMap = (profiles || []).reduce((map, profile) => {
@@ -255,9 +296,9 @@ export const fetchSwapMatchingData = async () => {
     return { 
       success: true, 
       data: {
-        allRequests,
-        allShifts: filteredShifts, // Use the filtered shifts without admin
-        preferredDates: filteredPreferredDates, // Use only the relevant preferred dates
+        allRequests: pendingRequests,
+        allShifts, 
+        preferredDates,
         profilesMap
       }
     };

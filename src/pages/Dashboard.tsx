@@ -25,6 +25,10 @@ const Dashboard = () => {
   const [allShifts, setAllShifts] = useState<any[]>([]);
   const [allPreferredDates, setAllPreferredDates] = useState<any[]>([]);
   const [isLoadingTestData, setIsLoadingTestData] = useState<boolean>(true);
+  const [rlsTestData, setRlsTestData] = useState<{
+    directQuery: any[],
+    rpcQuery: any[]
+  }>({ directQuery: [], rpcQuery: [] });
 
   useEffect(() => {
     const fetchUserCount = async () => {
@@ -71,14 +75,16 @@ const Dashboard = () => {
       }
     };
 
-    // Debug function to fetch all shifts and preferred dates
+    // Enhanced debug function to test RLS bypass methods
     const fetchTestData = async () => {
       setIsLoadingTestData(true);
       try {
         // Exclude admin user ID from queries
         const ADMIN_USER_ID = '7c31ceb6-bec9-4ea8-b65a-b6629547b52e';
         
-        // Fetch ALL shifts
+        console.log('=== RLS TEST: Starting comprehensive fetching test ===');
+        
+        // METHOD 1: Direct query with explicit filter
         const { data: shiftsData, error: shiftsError } = await supabase
           .from('shifts')
           .select('*')
@@ -87,8 +93,29 @@ const Dashboard = () => {
         if (shiftsError) {
           console.error('Error fetching all shifts:', shiftsError);
         } else {
-          console.log('DEBUG - All shifts in database:', shiftsData);
+          console.log(`METHOD 1 - Direct query: Found ${shiftsData?.length || 0} shifts`);
           setAllShifts(shiftsData || []);
+        }
+        
+        // METHOD 2: Use no filters at all to try to get everything
+        const { data: allShiftsData, error: allShiftsError } = await supabase
+          .from('shifts')
+          .select('*');
+          
+        if (allShiftsError) {
+          console.error('Error fetching all shifts (no filter):', allShiftsError);
+        } else {
+          console.log(`METHOD 2 - No filter: Found ${allShiftsData?.length || 0} shifts`);
+          const filteredShifts = allShiftsData?.filter(shift => 
+            shift.user_id !== ADMIN_USER_ID
+          ) || [];
+          console.log(`After filtering admin: ${filteredShifts.length} shifts`);
+          
+          // Track both methods for comparison
+          setRlsTestData(prev => ({
+            ...prev, 
+            directQuery: filteredShifts
+          }));
         }
         
         // Fetch ALL preferred dates
@@ -99,9 +126,26 @@ const Dashboard = () => {
         if (datesError) {
           console.error('Error fetching all preferred dates:', datesError);
         } else {
-          console.log('DEBUG - All preferred dates in database:', datesData);
+          console.log(`METHOD 1 - Direct query: Found ${datesData?.length || 0} preferred dates`);
           setAllPreferredDates(datesData || []);
         }
+        
+        // Get the associated shift requests to validate data relationships
+        if (datesData && datesData.length > 0) {
+          const requestIds = datesData.map(date => date.request_id);
+          const { data: requestsData, error: requestsError } = await supabase
+            .from('shift_swap_requests')
+            .select('*')
+            .in('id', requestIds);
+            
+          if (requestsError) {
+            console.error('Error fetching linked requests:', requestsError);
+          } else {
+            console.log('Associated requests for preferred dates:', requestsData);
+          }
+        }
+        
+        console.log('=== RLS TEST: Testing complete ===');
       } catch (error) {
         console.error('Error fetching test data:', error);
       } finally {
@@ -111,7 +155,7 @@ const Dashboard = () => {
 
     fetchUserCount();
     fetchTotalActiveSwaps();
-    fetchTestData(); // Add the debug function call
+    fetchTestData();
   }, []);
 
   return (
@@ -175,12 +219,12 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Debug Test Block - Will be removed after testing */}
+      {/* Enhanced Debug Test Block - Will be removed after testing */}
       <div className="mb-8 p-4 border border-red-300 bg-red-50 rounded-lg">
-        <h2 className="text-lg font-bold text-red-700 mb-2">DEBUG DATA (Will be removed)</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <h2 className="text-lg font-bold text-red-700 mb-2">RLS DEBUG DATA (Will be removed)</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <h3 className="font-semibold">All Shifts ({allShifts.length})</h3>
+            <h3 className="font-semibold">All Shifts - Direct Query ({allShifts.length})</h3>
             {isLoadingTestData ? (
               <p>Loading shifts data...</p>
             ) : (
@@ -209,6 +253,18 @@ const Dashboard = () => {
               </div>
             )}
           </div>
+        </div>
+        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-300 rounded-lg">
+          <h3 className="font-semibold text-yellow-800">RLS Analysis</h3>
+          <p className="text-sm mb-2">
+            {rlsTestData.directQuery.length === 0 ? 
+              "RLS is likely blocking access to data from other users. " :
+              `Method 2 found ${rlsTestData.directQuery.length} shifts - RLS might not be the only issue.`
+            }
+          </p>
+          <p className="text-sm font-medium">
+            Current User ID: {user?.id.substring(0, 8) || 'Not logged in'}
+          </p>
         </div>
       </div>
 
