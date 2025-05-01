@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { toast } from '@/hooks/use-toast';
-import { ArrowRight, Check, Clock, Filter, Sunrise, Sun, Moon, Bug } from 'lucide-react';
+import { ArrowRight, Check, Clock, Filter, Sunrise, Sun, Moon, Bug, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -47,6 +48,13 @@ interface MatchedSwap {
   isTestData?: boolean;
 }
 
+interface UserProfile {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+}
+
 interface MatchedSwapsProps {
   testMode?: boolean;
 }
@@ -54,8 +62,10 @@ interface MatchedSwapsProps {
 const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
   const [swapRequests, setSwapRequests] = useState<MatchedSwap[]>([]);
   const [pastSwaps, setPastSwaps] = useState<MatchedSwap[]>([]);
-  const [testData, setTestData] = useState<MatchedSwap[]>([]);
+  const [allSwapRequests, setAllSwapRequests] = useState<MatchedSwap[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [activeTab, setActiveTab] = useState('active');
+  const [testViewMode, setTestViewMode] = useState<'swaps' | 'users'>('swaps');
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean, swapId: string | null }>({
     isOpen: false,
     swapId: null
@@ -66,14 +76,52 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
   useEffect(() => {
     if (testMode) {
       fetchAllSwapRequests();
+      fetchAllUsers();
     } else {
       fetchMatchedSwaps();
     }
   }, [testMode, user]);
 
-  const fetchAllSwapRequests = async () => {
-    if (!user) return;
+  const fetchAllUsers = async () => {
+    setIsLoading(true);
     
+    try {
+      console.log('TEST MODE: Fetching all users');
+      
+      // Fetch profiles for all users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name');
+        
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
+      
+      console.log('TEST MODE: Found profiles:', profiles?.length || 0);
+      
+      // Convert to user profiles for display
+      const userProfiles: UserProfile[] = profiles?.map(profile => ({
+        id: profile.id,
+        first_name: profile.first_name || 'Unknown',
+        last_name: profile.last_name || 'User',
+      })) || [];
+      
+      setUsers(userProfiles);
+      
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: "Test Mode Error",
+        description: "There was a problem loading user data. " + (error instanceof Error ? error.message : ''),
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchAllSwapRequests = async () => {
     setIsLoading(true);
     
     try {
@@ -88,7 +136,8 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
           requester_shift_id,
           acceptor_id,
           acceptor_shift_id,
-          status
+          status,
+          created_at
         `);
         
       if (requestsError) {
@@ -99,7 +148,7 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
       console.log('TEST MODE: Found swap requests:', requests?.length || 0, requests);
       
       if (!requests || requests.length === 0) {
-        setTestData([]);
+        setAllSwapRequests([]);
         setIsLoading(false);
         return;
       }
@@ -111,12 +160,12 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
       ].filter(Boolean) as string[];
       
       if (allShiftIds.length === 0) {
-        setTestData([]);
+        setAllSwapRequests([]);
         setIsLoading(false);
         return;
       }
       
-      // Fetch all shift details - IMPORTANT: Removed the profiles join which was causing the error
+      // Fetch all shift details
       const { data: shiftsData, error: shiftsError } = await supabase
         .from('shifts')
         .select('*')
@@ -129,14 +178,13 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
       
       console.log('TEST MODE: Found shifts:', shiftsData?.length || 0);
       
-      // Separately fetch profiles to get names if needed
+      // Separately fetch profiles to get names
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*');
       
       if (profilesError) {
         console.log('Note: Could not fetch profiles, will use placeholder names:', profilesError);
-        // Continue without profiles data
       }
       
       // Create a profiles lookup for easy access
@@ -147,36 +195,36 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
         });
       }
       
-      // Process all requests as "matched" for display purposes
-      const formattedTestData = requests.map(request => {
+      // Process all requests for display
+      const formattedRequests = requests.map(request => {
         // Find the shifts
         const requesterShift = shiftsData?.find(s => s.id === request.requester_shift_id);
         
         if (!requesterShift) {
-          console.log(`TEST MODE: Missing shift data for request ${request.id}`);
+          console.log(`Missing shift data for request ${request.id}`);
           return null;
         }
         
-        // For the test mode, we'll create a placeholder "matched" shift if one doesn't exist
-        let acceptorShift;
+        // For acceptor shift, use it if available or create a placeholder
+        let acceptorShift = null;
         if (request.acceptor_shift_id) {
           acceptorShift = shiftsData?.find(s => s.id === request.acceptor_shift_id);
         }
         
-        if (!acceptorShift) {
-          // Create a placeholder shift for display
-          acceptorShift = {
-            id: `placeholder-${request.id}`,
-            date: '2025-05-20', // Example date
-            start_time: '09:00:00',
-            end_time: '17:00:00',
-            truck_name: 'Test Truck',
-            user_id: 'placeholder-user'
-          };
-        }
-        
-        // Format the shift details
+        // Format the shifts for display
         const formatShift = (shift: any, isOriginal: boolean): ShiftDetail => {
+          if (!shift) {
+            return {
+              id: 'not-assigned',
+              date: 'Not assigned',
+              title: 'Not assigned',
+              startTime: '',
+              endTime: '',
+              type: 'day',
+              colleagueType: 'Unknown'
+            };
+          }
+          
           // Determine shift type
           let type = 'day';
           const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
@@ -189,13 +237,12 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
             type = 'night';
           }
           
-          // Get colleague name if available from profiles map
-          let colleagueName = 'Test Colleague';
-          if (shift.user_id && !isOriginal) {
-            const profile = profilesMap[shift.user_id];
-            if (profile) {
-              colleagueName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unnamed Colleague';
-            }
+          // Get user name if available
+          let userName = 'Unknown User';
+          const userId = isOriginal ? request.requester_id : (request.acceptor_id || '');
+          if (userId && profilesMap[userId]) {
+            const profile = profilesMap[userId];
+            userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unnamed User';
           }
             
           return {
@@ -206,7 +253,7 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
             endTime: shift.end_time.substring(0, 5),
             type,
             colleagueType: 'Unknown',
-            ...(isOriginal ? {} : { colleague: colleagueName })
+            ...(isOriginal ? {} : { colleague: userName })
           };
         };
         
@@ -215,19 +262,18 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
           requester_id: request.requester_id,
           originalShift: formatShift(requesterShift, true),
           matchedShift: formatShift(acceptorShift, false),
-          status: request.status,
-          isTestData: true
+          status: request.status
         };
       }).filter(Boolean) as MatchedSwap[];
       
-      console.log('TEST MODE: Formatted test data:', formattedTestData.length, formattedTestData);
-      setTestData(formattedTestData);
+      console.log('TEST MODE: Formatted requests:', formattedRequests.length);
+      setAllSwapRequests(formattedRequests);
       
     } catch (error) {
       console.error('Error fetching test data:', error);
       toast({
         title: "Test Mode Error",
-        description: "There was a problem loading test data. " + (error instanceof Error ? error.message : ''),
+        description: "There was a problem loading swap requests. " + (error instanceof Error ? error.message : ''),
         variant: "destructive"
       });
     } finally {
@@ -457,7 +503,9 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
   };
   
   // Determine which data to display based on mode
-  const displayData = testMode ? testData : (activeTab === 'active' ? swapRequests : pastSwaps);
+  const displayData = testMode 
+    ? allSwapRequests 
+    : (activeTab === 'active' ? swapRequests : pastSwaps);
   
   return (
     <div className="space-y-6">
@@ -466,9 +514,20 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
           <Bug className="h-5 w-5 mr-2 mt-0.5" />
           <div>
             <h3 className="font-medium">Test Mode Active</h3>
-            <p className="text-sm">Displaying all shift swap requests for testing purposes. IDs of interest: 170f792f-3de8-42de-a8e7-22fad95d91bc and 79b05905-1075-49f7-af87-e9fac516a7fa</p>
+            <p className="text-sm">Displaying all shift swap requests for all users.</p>
           </div>
         </div>
+      )}
+      
+      {testMode && (
+        <Tabs defaultValue="swaps" value={testViewMode} onValueChange={(val) => setTestViewMode(val as 'swaps' | 'users')}>
+          <div className="flex justify-between items-center mb-4">
+            <TabsList>
+              <TabsTrigger value="swaps">All Swap Requests</TabsTrigger>
+              <TabsTrigger value="users">All Users</TabsTrigger>
+            </TabsList>
+          </div>
+        </Tabs>
       )}
       
       {!testMode && (
@@ -489,12 +548,51 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <div className="h-12 w-12 rounded-full border-4 border-t-blue-500 border-r-transparent border-b-blue-500 border-l-transparent animate-spin mb-3"></div>
-            <h3 className="text-xl font-medium">Loading Swap Data</h3>
+            <h3 className="text-xl font-medium">Loading Data</h3>
             <p className="text-muted-foreground mt-2">
-              {testMode ? "Loading all swap requests..." : "Loading matched swaps..."}
+              {testMode ? (testViewMode === 'swaps' ? "Loading all swap requests..." : "Loading all users...") : "Loading matched swaps..."}
             </p>
           </CardContent>
         </Card>
+      ) : testMode && testViewMode === 'users' ? (
+        // Display users in test mode
+        users.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+              <Users className="h-12 w-12 text-gray-300 mb-3" />
+              <h3 className="text-xl font-medium">No Users Found</h3>
+              <p className="text-muted-foreground mt-2">There are no users in the database.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {users.map(user => (
+              <Card key={user.id} className="overflow-hidden">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center">
+                    <div className="p-1.5 rounded-md mr-2 bg-gray-100">
+                      <Users className="h-4 w-4 text-gray-600" />
+                    </div>
+                    <div className="truncate">
+                      {user.first_name} {user.last_name}
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                
+                <CardContent>
+                  <div className="text-sm">
+                    <div className="grid grid-cols-1 gap-2">
+                      <div>
+                        <div className="text-muted-foreground">User ID</div>
+                        <div className="truncate font-mono text-xs">{user.id}</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
       ) : displayData.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -518,28 +616,36 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
           <Card 
             key={swap.id} 
             className={cn(
-              swap.isTestData && (swap.id === '170f792f-3de8-42de-a8e7-22fad95d91bc' || swap.id === '79b05905-1075-49f7-af87-e9fac516a7fa') 
+              swap.id === '170f792f-3de8-42de-a8e7-22fad95d91bc' || swap.id === '79b05905-1075-49f7-af87-e9fac516a7fa' 
                 ? "border-amber-400 bg-amber-50" 
                 : "",
               activeTab === 'past' ? "opacity-80" : ""
             )}
           >
             <CardHeader>
-              <CardTitle className="text-lg flex items-center">
-                <div className={cn(
-                  "p-1.5 rounded-md mr-2",
-                  swap.originalShift.type === 'day' ? "bg-yellow-100 text-yellow-600" :
-                  swap.originalShift.type === 'afternoon' ? "bg-orange-100 text-orange-600" :
-                  "bg-blue-100 text-blue-600"
-                )}>
-                  {getShiftIcon(swap.originalShift.type)}
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className={cn(
+                    "p-1.5 rounded-md mr-2",
+                    swap.originalShift.type === 'day' ? "bg-yellow-100 text-yellow-600" :
+                    swap.originalShift.type === 'afternoon' ? "bg-orange-100 text-orange-600" :
+                    "bg-blue-100 text-blue-600"
+                  )}>
+                    {getShiftIcon(swap.originalShift.type)}
+                  </div>
+                  <div>
+                    {testMode 
+                      ? `Request ID: ${swap.id.substring(0, 8)}...`
+                      : (activeTab === 'active' ? "Swap Match Found" : "Completed Swap")
+                    }
+                  </div>
                 </div>
-                <div>
-                  {swap.isTestData 
-                    ? `Swap Request ID: ${swap.id.substring(0, 8)}...`
-                    : (activeTab === 'active' ? "Swap Match Found" : "Completed Swap")
-                  }
-                </div>
+                
+                {testMode && (
+                  <div className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
+                    Status: {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
+                  </div>
+                )}
               </CardTitle>
             </CardHeader>
             
@@ -549,7 +655,7 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
                   {/* Original Shift */}
                   <div className="flex-1 p-4 border rounded-lg bg-secondary/10">
                     <div className="text-sm font-medium text-muted-foreground mb-2">
-                      {swap.isTestData ? "Requester's Shift" : (activeTab === 'active' ? "Your Shift" : "Original Shift")}
+                      {testMode ? "Requester's Shift" : (activeTab === 'active' ? "Your Shift" : "Original Shift")}
                     </div>
                     
                     <div className="flex items-center gap-2 mb-2">
@@ -581,10 +687,10 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
                       
                       <div>
                         <div className="text-muted-foreground">Colleague</div>
-                        <div>{swap.originalShift.colleagueType}</div>
+                        <div>{swap.originalShift.colleagueType || 'Unknown'}</div>
                       </div>
                       
-                      {swap.isTestData && (
+                      {testMode && (
                         <div>
                           <div className="text-muted-foreground">Requester ID</div>
                           <div className="truncate">{swap.requester_id?.substring(0, 8)}...</div>
@@ -606,46 +712,54 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
                   {/* Matched Shift */}
                   <div className="flex-1 p-4 border rounded-lg bg-green-50 border-green-200">
                     <div className="text-sm font-medium text-muted-foreground mb-2">
-                      {swap.isTestData ? "Requested Swap" : (activeTab === 'active' ? "Matched Shift" : "Swapped Shift")}
+                      {testMode ? "Requested Swap" : (activeTab === 'active' ? "Matched Shift" : "Swapped Shift")}
                     </div>
                     
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className={cn(
-                        "px-2 py-1 rounded text-xs font-medium flex items-center",
-                        swap.matchedShift.type === 'day' ? "bg-yellow-100 text-yellow-800" : 
-                        swap.matchedShift.type === 'afternoon' ? "bg-orange-100 text-orange-800" : 
-                        "bg-blue-100 text-blue-800"
-                      )}>
-                        {getShiftIcon(swap.matchedShift.type)}
-                        <span className="ml-1">{getShiftTypeLabel(swap.matchedShift.type)}</span>
+                    {swap.matchedShift && swap.matchedShift.id !== 'not-assigned' ? (
+                      <>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={cn(
+                            "px-2 py-1 rounded text-xs font-medium flex items-center",
+                            swap.matchedShift.type === 'day' ? "bg-yellow-100 text-yellow-800" : 
+                            swap.matchedShift.type === 'afternoon' ? "bg-orange-100 text-orange-800" : 
+                            "bg-blue-100 text-blue-800"
+                          )}>
+                            {getShiftIcon(swap.matchedShift.type)}
+                            <span className="ml-1">{getShiftTypeLabel(swap.matchedShift.type)}</span>
+                          </div>
+                          
+                          <div className="text-sm font-medium">
+                            {swap.matchedShift.title}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <div className="text-muted-foreground">Date</div>
+                            <div>{formatDate(swap.matchedShift.date)}</div>
+                          </div>
+                          
+                          <div>
+                            <div className="text-muted-foreground">Time</div>
+                            <div>{swap.matchedShift.startTime} - {swap.matchedShift.endTime}</div>
+                          </div>
+                          
+                          <div>
+                            <div className="text-muted-foreground">Colleague</div>
+                            <div>{swap.matchedShift.colleagueType}</div>
+                          </div>
+                          
+                          <div>
+                            <div className="text-muted-foreground">Requested By</div>
+                            <div>{swap.matchedShift.colleague}</div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="py-4 text-center text-gray-500">
+                        {swap.status === 'pending' ? 'No match found yet' : 'No match information available'}
                       </div>
-                      
-                      <div className="text-sm font-medium">
-                        {swap.matchedShift.title}
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <div className="text-muted-foreground">Date</div>
-                        <div>{formatDate(swap.matchedShift.date)}</div>
-                      </div>
-                      
-                      <div>
-                        <div className="text-muted-foreground">Time</div>
-                        <div>{swap.matchedShift.startTime} - {swap.matchedShift.endTime}</div>
-                      </div>
-                      
-                      <div>
-                        <div className="text-muted-foreground">Colleague</div>
-                        <div>{swap.matchedShift.colleagueType}</div>
-                      </div>
-                      
-                      <div>
-                        <div className="text-muted-foreground">Requested By</div>
-                        <div>{swap.matchedShift.colleague}</div>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
                 
@@ -653,26 +767,20 @@ const MatchedSwapsComponent = ({ testMode = false }: MatchedSwapsProps) => {
                   <div className="flex items-center">
                     <div className={cn(
                       "px-2 py-1 text-xs font-medium rounded-full",
-                      swap.isTestData 
-                        ? (swap.status === 'pending' ? "bg-blue-100 text-blue-800" : 
-                           swap.status === 'matched' ? "bg-yellow-100 text-yellow-800" :
-                           "bg-green-100 text-green-800")
-                        : (activeTab === 'active' ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800")
+                      swap.status === 'pending' ? "bg-blue-100 text-blue-800" : 
+                      swap.status === 'matched' ? "bg-yellow-100 text-yellow-800" :
+                      "bg-green-100 text-green-800"
                     )}>
-                      {swap.isTestData ? swap.status.charAt(0).toUpperCase() + swap.status.slice(1) : (activeTab === 'active' ? "Matched" : "Completed")}
+                      {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
                     </div>
                   </div>
                   
-                  {swap.isTestData ? (
-                    <div className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-full">
-                      Test Data
-                    </div>
-                  ) : activeTab === 'active' ? (
+                  {!testMode && activeTab === 'active' ? (
                     <Button onClick={() => setConfirmDialog({ isOpen: true, swapId: swap.id })}>
                       <Check className="h-4 w-4 mr-1" />
                       Accept Swap
                     </Button>
-                  ) : (
+                  ) : !testMode && (
                     <div className="text-xs text-muted-foreground">
                       This swap will be removed on {formatDate('2025-05-30')}
                     </div>
