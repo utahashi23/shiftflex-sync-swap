@@ -30,10 +30,7 @@ const ShiftSwapCalendar = () => {
       {/* Calendar Header */}
       <CalendarHeader 
         currentDate={currentDate} 
-        onChangeMonth={(increment: number) => {
-          if (increment < 0) changeMonth('prev');
-          else changeMonth('next');
-        }} 
+        onChangeMonth={changeMonth}
       />
       
       {/* Days of Week Header */}

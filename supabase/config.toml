@@ -1,1 +1,24 @@
+
 project_id = "ponhfgbpxehsdlxjpszg"
+[api]
+enabled = true
+[db]
+enabled = true
+[storage]
+enabled = true
+[functions]
+enabled = true
+[functions.get_user_matches]
+verify_jwt = true
+[functions.accept_swap_match]
+verify_jwt = true
+[functions.complete_swap_match]
+verify_jwt = true
+[functions.create_swap_request]
+verify_jwt = true
+[functions.get_swap_requests]
+verify_jwt = true
+[functions.delete_swap_request]
+verify_jwt = true
+[functions.delete_preferred_day]
+verify_jwt = true

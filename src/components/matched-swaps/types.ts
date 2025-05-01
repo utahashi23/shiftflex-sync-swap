@@ -32,9 +32,6 @@ export interface ConfirmDialogState {
   matchId: string | null;
 }
 
-// Re-export types from the SwapMatch
-export type { SwapMatch };
-
 // Define a type for matched swaps used in older files (for compatibility)
 export interface MatchedSwap {
   id: string;

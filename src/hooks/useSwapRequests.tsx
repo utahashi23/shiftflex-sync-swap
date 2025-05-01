@@ -52,18 +52,16 @@ export function useSwapRequests() {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
-      // Fetch the user's pending swap requests from our new table structure
-      const { data: requests, error: requestsError } = await supabase
-        .from('swap_requests')
-        .select('id, status, shift_id, created_at')
-        .eq('user_id', user.id)
-        .eq('status', 'pending');
+      // Fetch the user's pending swap requests using our Edge Function
+      const { data: requestsData, error: requestsError } = await supabase.functions.invoke('get_swap_requests', {
+        body: { user_id: user.id, status: 'pending' }
+      });
       
       if (requestsError) throw requestsError;
       
-      console.log('Raw request data:', requests);
+      console.log('Raw request data:', requestsData);
       
-      if (!requests || requests.length === 0) {
+      if (!requestsData || !Array.isArray(requestsData) || requestsData.length === 0) {
         setState({
           swapRequests: [],
           isLoading: false,
@@ -72,67 +70,24 @@ export function useSwapRequests() {
         return;
       }
       
-      // Get all shift IDs to fetch in a single query
-      const shiftIds = requests.map(req => req.shift_id);
-      
-      // Fetch all the shifts data in one query
-      const { data: shifts, error: shiftsError } = await supabase
-        .from('shifts')
-        .select('id, date, start_time, end_time, truck_name')
-        .in('id', shiftIds);
-      
-      if (shiftsError) throw shiftsError;
-      
-      // Create a map for quick lookup
-      const shiftsMap: Record<string, any> = {};
-      shifts?.forEach(shift => {
-        shiftsMap[shift.id] = shift;
-      });
-      
-      // Fetch all preferred days for these requests
-      const requestIds = requests.map(req => req.id);
-      
-      const { data: preferredDays, error: daysError } = await supabase
-        .from('preferred_days')
-        .select('id, swap_request_id, date, accepted_types')
-        .in('swap_request_id', requestIds);
-      
-      if (daysError) throw daysError;
-      
-      // Group preferred days by request ID
-      const preferredDaysByRequest: Record<string, PreferredDay[]> = {};
-      preferredDays?.forEach(day => {
-        if (!preferredDaysByRequest[day.swap_request_id]) {
-          preferredDaysByRequest[day.swap_request_id] = [];
-        }
-        preferredDaysByRequest[day.swap_request_id].push({
-          id: day.id,
-          date: day.date,
-          acceptedTypes: day.accepted_types || ['day', 'afternoon', 'night']
-        });
-      });
-      
-      // Process and format the requests data
-      const formattedRequests = requests.map(request => {
-        const shift = shiftsMap[request.shift_id];
-        
-        if (!shift) {
-          console.warn(`Shift not found for request ${request.id}`);
-          return null;
-        }
-        
+      // Process and format the requests data using the already processed data from our Edge Function
+      const formattedRequests = (requestsData as any[]).map(request => {
         return {
           id: request.id,
           status: request.status,
           originalShift: {
-            id: shift.id,
-            date: shift.date,
-            title: shift.truck_name || 'Shift',
-            startTime: shift.start_time,
-            endTime: shift.end_time,
-            type: getShiftType(shift.start_time)
+            id: request.shift.id,
+            date: request.shift.date,
+            title: request.shift.truck_name || 'Shift',
+            startTime: request.shift.start_time,
+            endTime: request.shift.end_time,
+            type: getShiftType(request.shift.start_time)
           },
-          preferredDays: preferredDaysByRequest[request.id] || []
+          preferredDays: request.preferred_days?.map((day: any) => ({
+            id: day.id,
+            date: day.date,
+            acceptedTypes: day.accepted_types || ['day', 'afternoon', 'night']
+          })) || []
         };
       }).filter(Boolean) as SwapRequest[];
       
@@ -159,72 +114,19 @@ export function useSwapRequests() {
     }
   };
   
-  const createSwapRequest = async (shiftId: string, preferredDates: { date: string, acceptedTypes: string[] }[]) => {
-    if (!user || !shiftId || preferredDates.length === 0) return false;
-    
-    try {
-      setState(prev => ({ ...prev, isLoading: true }));
-      
-      // First create the swap request
-      const { data: request, error: requestError } = await supabase
-        .from('swap_requests')
-        .insert({
-          user_id: user.id,
-          shift_id: shiftId,
-          status: 'pending'
-        })
-        .select()
-        .single();
-      
-      if (requestError) throw requestError;
-      
-      // Then create all preferred days
-      const preferredDaysToInsert = preferredDates.map(pd => ({
-        swap_request_id: request.id,
-        date: pd.date,
-        accepted_types: pd.acceptedTypes
-      }));
-      
-      const { data: days, error: daysError } = await supabase
-        .from('preferred_days')
-        .insert(preferredDaysToInsert)
-        .select();
-      
-      if (daysError) throw daysError;
-      
-      // Refresh requests after creation
-      await fetchSwapRequests();
-      
-      toast({
-        title: "Swap Request Created",
-        description: "Your shift swap request has been created successfully",
-      });
-      
-      return true;
-    } catch (error) {
-      console.error('Error creating swap request:', error);
-      toast({
-        title: "Failed to create swap request",
-        description: "There was a problem creating your swap request",
-        variant: "destructive"
-      });
-      setState(prev => ({ ...prev, isLoading: false }));
-      return false;
-    }
-  };
-  
   const deleteSwapRequest = async (requestId: string) => {
     if (!user || !requestId) return false;
     
     try {
       setState(prev => ({ ...prev, isLoading: true }));
       
-      // Delete the swap request (will cascade delete preferred days)
-      const { error } = await supabase
-        .from('swap_requests')
-        .delete()
-        .eq('id', requestId)
-        .eq('user_id', user.id);
+      // Delete the swap request using Edge Function
+      const { error } = await supabase.functions.invoke('delete_swap_request', {
+        body: {
+          request_id: requestId,
+          user_id: user.id
+        }
+      });
       
       if (error) throw error;
       
@@ -259,43 +161,41 @@ export function useSwapRequests() {
     try {
       setState(prev => ({ ...prev, isLoading: true }));
       
-      // Delete the preferred day
-      const { error } = await supabase
-        .from('preferred_days')
-        .delete()
-        .eq('id', dayId)
-        .neq('id', null); // Safety check
+      // Delete the preferred day using Edge Function
+      const { data, error } = await supabase.functions.invoke('delete_preferred_day', {
+        body: {
+          day_id: dayId,
+          request_id: requestId,
+          user_id: user.id
+        }
+      });
       
       if (error) throw error;
       
-      // Check if there are any preferred days left
-      const { data: remainingDays, error: countError } = await supabase
-        .from('preferred_days')
-        .select('id')
-        .eq('swap_request_id', requestId);
-      
-      if (countError) throw countError;
-      
-      // If no days left, delete the whole request
-      if (!remainingDays || remainingDays.length === 0) {
-        await deleteSwapRequest(requestId);
-        return true;
+      // If the function indicates the whole request was deleted
+      if (data && data.request_deleted) {
+        // Remove the whole request from state
+        setState(prev => ({
+          ...prev,
+          swapRequests: prev.swapRequests.filter(req => req.id !== requestId),
+          isLoading: false
+        }));
+      } else {
+        // Just remove the preferred day
+        setState(prev => ({
+          ...prev,
+          swapRequests: prev.swapRequests.map(req => {
+            if (req.id === requestId) {
+              return {
+                ...req,
+                preferredDays: req.preferredDays.filter(day => day.id !== dayId)
+              };
+            }
+            return req;
+          }),
+          isLoading: false
+        }));
       }
-      
-      // Update the local state
-      setState(prev => ({
-        ...prev,
-        swapRequests: prev.swapRequests.map(req => {
-          if (req.id === requestId) {
-            return {
-              ...req,
-              preferredDays: req.preferredDays.filter(day => day.id !== dayId)
-            };
-          }
-          return req;
-        }),
-        isLoading: false
-      }));
       
       toast({
         title: "Preferred Date Removed",
@@ -308,6 +208,44 @@ export function useSwapRequests() {
       toast({
         title: "Failed to delete date",
         description: "There was a problem removing the selected date",
+        variant: "destructive"
+      });
+      setState(prev => ({ ...prev, isLoading: false }));
+      return false;
+    }
+  };
+  
+  const createSwapRequest = async (shiftId: string, preferredDates: { date: string, acceptedTypes: string[] }[]) => {
+    if (!user || !shiftId || preferredDates.length === 0) return false;
+    
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+      
+      // Create a swap request using Edge Function
+      const { error } = await supabase.functions.invoke('create_swap_request', {
+        body: {
+          user_id: user.id,
+          shift_id: shiftId,
+          preferred_dates: preferredDates
+        }
+      });
+      
+      if (error) throw error;
+      
+      // Refresh requests after creation
+      await fetchSwapRequests();
+      
+      toast({
+        title: "Swap Request Created",
+        description: "Your shift swap request has been created successfully",
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error creating swap request:', error);
+      toast({
+        title: "Failed to create swap request",
+        description: "There was a problem creating your swap request",
         variant: "destructive"
       });
       setState(prev => ({ ...prev, isLoading: false }));

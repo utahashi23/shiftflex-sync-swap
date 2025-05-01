@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Shift } from '@/hooks/useShiftData';
 import { AcceptableShiftTypes } from './types';
 
-// Update the useSwapCalendarActions hook to work with our new data model
+// Update the useSwapCalendarActions hook to work with our Edge Functions
 export const useSwapCalendarActions = (
   state: any, 
   setStateActions: any, 
@@ -71,31 +71,19 @@ export const useSwapCalendarActions = (
     try {
       setIsLoading(true);
       
-      // 1. Create the swap request using our new table structure
-      const { data: request, error: requestError } = await supabase
-        .from('swap_requests')
-        .insert({
+      // Use the Edge Function to create a swap request with preferred days
+      const { data, error } = await supabase.functions.invoke('create_swap_request', {
+        body: {
           user_id: user.id,
           shift_id: selectedShift.id,
-          status: 'pending'
-        })
-        .select()
-        .single() as { data: any, error: any };
+          preferred_dates: selectedSwapDates.map(date => ({
+            date: date,
+            accepted_types: acceptedTypes
+          }))
+        }
+      });
       
-      if (requestError) throw requestError;
-      
-      // 2. Add all preferred days
-      const preferredDaysToInsert = selectedSwapDates.map(date => ({
-        swap_request_id: request.id,
-        date: date,
-        accepted_types: acceptedTypes
-      }));
-      
-      const { error: daysError } = await supabase
-        .from('preferred_days')
-        .insert(preferredDaysToInsert) as { data: any, error: any };
-      
-      if (daysError) throw daysError;
+      if (error) throw error;
 
       toast({
         title: "Swap Request Created",

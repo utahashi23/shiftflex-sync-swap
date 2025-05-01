@@ -23,8 +23,9 @@ export const useSwapActions = () => {
     
     try {
       // Call the accept_swap_match function
-      const { data, error } = await supabase
-        .rpc('accept_swap_match', { match_id: swapId });
+      const { data, error } = await supabase.functions.invoke('accept_swap_match', {
+        body: { match_id: swapId }
+      });
         
       if (error) throw error;
       

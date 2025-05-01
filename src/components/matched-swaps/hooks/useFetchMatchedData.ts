@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { SwapMatch } from '../types';
-import { processSwapRequests } from '../utils';
 
 /**
  * Hook for fetching matched swaps data
@@ -22,9 +21,10 @@ export const useFetchMatchedData = () => {
     try {
       console.log('Fetching matched swaps for user', userId);
       
-      // Call the get_user_matches function to get match data
-      const { data: matchesData, error: matchesError } = await supabase
-        .rpc('get_user_matches', { user_id: userId });
+      // Call the get_user_matches function as a fetch with RPC
+      const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
+        body: { user_id: userId }
+      });
         
       if (matchesError) {
         console.error('Error fetching matches:', matchesError);
@@ -33,7 +33,7 @@ export const useFetchMatchedData = () => {
       
       console.log('Raw matches data:', matchesData);
       
-      if (!matchesData || matchesData.length === 0) {
+      if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
         console.log('No matches found');
         return { matchedSwaps: [], completedSwaps: [] };
       }

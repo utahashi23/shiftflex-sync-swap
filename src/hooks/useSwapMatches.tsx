@@ -60,15 +60,16 @@ export function useSwapMatches() {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
-      // Call our PostgreSQL function to get all user matches
-      const { data: matchesData, error: matchesError } = await supabase
-        .rpc('get_user_matches', { user_id: user.id }) as { data: any[], error: any };
+      // Call our Edge Function to get all user matches
+      const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
+        body: { user_id: user.id }
+      });
       
       if (matchesError) throw matchesError;
       
       console.log('Raw match data from function:', matchesData);
       
-      if (!matchesData || matchesData.length === 0) {
+      if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
         setState({
           matches: [],
           pastMatches: [],
@@ -79,10 +80,11 @@ export function useSwapMatches() {
       }
       
       // Get profiles data for all other users in one batch query
-      const userIds = matchesData
-        .map((match: any) => match.other_user_id)
-        .filter((id: string | null, index: number, self: (string | null)[]) => 
-          id && self.indexOf(id) === index);
+      const userIds = Array.from(new Set(
+        (matchesData as any[])
+          .map((match: any) => match.other_user_id)
+          .filter(Boolean)
+      ));
       
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
@@ -100,7 +102,7 @@ export function useSwapMatches() {
       });
       
       // Process and format the matches data
-      const formattedMatches = matchesData.map((match: any) => {
+      const formattedMatches = (matchesData as any[]).map((match: any) => {
         const userName = userNames[match.other_user_id] || 'Unknown User';
         
         return {
@@ -170,8 +172,9 @@ export function useSwapMatches() {
       setState(prev => ({ ...prev, isLoading: true }));
       
       // Call the accept_swap_match function
-      const { data, error } = await supabase
-        .rpc('accept_swap_match', { match_id: matchId }) as { data: any, error: any };
+      const { data, error } = await supabase.functions.invoke('accept_swap_match', {
+        body: { match_id: matchId }
+      });
       
       if (error) throw error;
       
@@ -203,8 +206,9 @@ export function useSwapMatches() {
       setState(prev => ({ ...prev, isLoading: true }));
       
       // Call the complete_swap_match function
-      const { data, error } = await supabase
-        .rpc('complete_swap_match', { match_id: matchId }) as { data: any, error: any };
+      const { data, error } = await supabase.functions.invoke('complete_swap_match', {
+        body: { match_id: matchId }
+      });
       
       if (error) throw error;
       
