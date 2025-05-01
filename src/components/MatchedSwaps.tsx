@@ -1,3 +1,4 @@
+
 import { useMatchedSwaps } from './matched-swaps/hooks/useMatchedSwaps';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
@@ -33,13 +34,20 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   const { user } = useAuth();
   const { findSwapMatches, isProcessing } = useSwapMatcher();
   
+  // Debug logging for matches
+  console.log('Matched Swaps Component - Current matches:', { 
+    active: swapRequests?.length || 0, 
+    past: pastSwaps?.length || 0,
+    isLoading
+  });
+  
   // Ensure we refresh once on mount
   useEffect(() => {
     if (user) {
       console.log('Initial fetch of matched swaps');
       refreshMatches();
     }
-  }, [user]);
+  }, [user, refreshMatches]);
 
   const handleAcceptClick = (swapId: string) => {
     setConfirmDialog({ isOpen: true, swapId });

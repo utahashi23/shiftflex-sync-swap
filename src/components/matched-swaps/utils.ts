@@ -4,11 +4,18 @@ import { getShiftType } from "@/utils/shiftUtils";
 import { formatTime } from "@/utils/dateUtils";
 
 export const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  });
+  if (!dateStr) return 'Unknown date';
+  
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (e) {
+    console.error('Error formatting date:', e);
+    return 'Invalid date';
+  }
 };
 
 export const getShiftTypeLabel = (type: string) => {
@@ -25,7 +32,7 @@ export const getShiftTypeLabel = (type: string) => {
 };
 
 export const getColleagueName = (profilesMap: Record<string, any>, userId: string) => {
-  if (!profilesMap[userId]) return 'Unknown';
+  if (!userId || !profilesMap[userId]) return 'Unknown';
   return `${profilesMap[userId].first_name || ''} ${profilesMap[userId].last_name || ''}`.trim() || 'Unknown';
 };
 
@@ -35,7 +42,7 @@ export const processSwapRequests = (
   currentUserId: string,
   profilesMap: Record<string, any>
 ): MatchedSwap[] => {
-  // Log the incoming data to help with debugging
+  // Log the incoming data for debugging
   console.log('Processing swap requests:', {
     requestsCount: requests.length,
     shiftsMapKeys: Object.keys(shiftsMap),
@@ -55,6 +62,8 @@ export const processSwapRequests = (
         continue;
       }
       
+      console.log(`Processing request: ${request.id}, status: ${request.status}`);
+      
       // Mark this request as processed
       processedRequests.add(request.id);
       
@@ -64,12 +73,10 @@ export const processSwapRequests = (
       // Get shift IDs based on user role in this swap
       const myShiftId = isRequester ? request.requester_shift_id : request.acceptor_shift_id;
       const theirShiftId = isRequester ? request.acceptor_shift_id : request.requester_shift_id;
-      
       const theirUserId = isRequester ? request.acceptor_id : request.requester_id;
       
       // Log the shift IDs we're looking for
-      console.log('Looking for shifts:', {
-        requestId: request.id,
+      console.log(`Request ${request.id} - Looking for shifts:`, {
         myShiftId,
         theirShiftId,
         myShiftExists: shiftsMap[myShiftId] ? 'yes' : 'no',
@@ -77,7 +84,7 @@ export const processSwapRequests = (
         isRequester
       });
       
-      // Get shifts from the shifts map - this is the most reliable source
+      // Get shifts from the shifts map
       const myShift = shiftsMap[myShiftId];
       const theirShift = shiftsMap[theirShiftId];
       
@@ -89,6 +96,14 @@ export const processSwapRequests = (
         });
         continue;
       }
+      
+      // Log the shift data for debugging
+      console.log(`Found shift data for request ${request.id}:`, {
+        myShiftDate: myShift.date,
+        myShiftTime: `${myShift.start_time}-${myShift.end_time}`,
+        theirShiftDate: theirShift.date,
+        theirShiftTime: `${theirShift.start_time}-${theirShift.end_time}`
+      });
       
       // Process my shift
       const processedMyShift = {
@@ -114,7 +129,7 @@ export const processSwapRequests = (
       };
       
       // Create the matched swap entry
-      const matchedSwap = {
+      const matchedSwap: MatchedSwap = {
         id: request.id,
         originalShift: processedMyShift,
         matchedShift: processedTheirShift,
@@ -131,7 +146,7 @@ export const processSwapRequests = (
         matchedShiftTime: `${processedTheirShift.startTime}-${processedTheirShift.endTime}`
       });
     } catch (error) {
-      console.error(`Error processing request ${request.id}:`, error);
+      console.error(`Error processing request ${request?.id}:`, error);
     }
   }
   
