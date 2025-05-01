@@ -19,7 +19,7 @@ interface SwapRequestCardProps {
   onDeletePreferredDate: (dayId: string, requestId: string) => void;
 }
 
-const ShiftHeader = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
+const ShiftHeader = ({ shift }: { shift: SwapRequest['shift'] }) => {
   return (
     <div className="flex items-center">
       <div className={cn(
@@ -31,13 +31,13 @@ const ShiftHeader = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
         <ShiftTypeIcon type={shift.type} />
       </div>
       <div>
-        {shift.title} ({formatDate(shift.date)})
+        {shift.truckName || `Shift-${shift.id.substring(0, 5)}`} ({formatDate(shift.date)})
       </div>
     </div>
   );
 };
 
-const OriginalShiftInfo = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
+const OriginalShiftInfo = ({ shift }: { shift: SwapRequest['shift'] }) => {
   return (
     <div className="flex justify-between">
       <div className="space-y-1">
@@ -142,13 +142,13 @@ const SwapRequestCard = ({ request, onDeleteRequest, onDeletePreferredDate }: Sw
       
       <CardHeader>
         <CardTitle className="text-lg">
-          <ShiftHeader shift={request.originalShift} />
+          <ShiftHeader shift={request.shift} />
         </CardTitle>
       </CardHeader>
       
       <CardContent>
         <div className="space-y-4">
-          <OriginalShiftInfo shift={request.originalShift} />
+          <OriginalShiftInfo shift={request.shift} />
           <PreferredDatesSection 
             request={request}
             onDeletePreferredDate={onDeletePreferredDate}
