@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -12,50 +13,24 @@ export const createSwapRequestApi = async (
   }
   
   try {
-    console.log('Creating swap request using RPC function for shift:', shiftId);
+    console.log('Creating swap request using edge function for shift:', shiftId);
     
-    // Use the RPC function to create swap request safely (avoids RLS recursion)
-    const { data: requestId, error: requestError } = await supabase.rpc(
-      'create_swap_request_safe',
-      {
-        p_requester_shift_id: shiftId,
-        p_status: 'pending'
+    // Use the edge function to handle the entire process safely
+    const { data, error } = await supabase.functions.invoke('create_swap_request', {
+      body: {
+        shift_id: shiftId,
+        preferred_dates: preferredDates
       }
-    );
-      
-    if (requestError) {
-      console.error('Error creating swap request with RPC:', requestError);
-      throw requestError;
+    });
+    
+    if (error) {
+      console.error('Error creating swap request:', error);
+      throw error;
     }
     
-    console.log('Created swap request with ID:', requestId);
+    console.log('Swap request created successfully:', data);
+    return { success: true, requestId: data?.request_id };
     
-    // Add all preferred dates
-    const preferredDatesToInsert = preferredDates.map(pd => ({
-      request_id: requestId,
-      date: pd.date,
-      accepted_types: pd.acceptedTypes || []
-    }));
-    
-    console.log('Adding preferred dates:', preferredDatesToInsert);
-    
-    const { error: datesError } = await supabase
-      .from('shift_swap_preferred_dates')
-      .insert(preferredDatesToInsert);
-    
-    if (datesError) {
-      console.error('Error adding preferred dates:', datesError);
-      
-      // Clean up the request if adding dates failed
-      await supabase
-        .from('shift_swap_requests')
-        .delete()
-        .eq('id', requestId);
-        
-      throw datesError;
-    }
-    
-    return { success: true, requestId };
   } catch (error) {
     console.error('Error creating swap request:', error);
     throw error;
@@ -71,21 +46,13 @@ export const deleteSwapRequestApi = async (requestId: string) => {
   }
   
   try {
-    // Delete all preferred dates for this request first
-    const { error: datesError } = await supabase
-      .from('shift_swap_preferred_dates')
-      .delete()
-      .eq('request_id', requestId);
+    // Use the RPC function to safely delete the request
+    const { error } = await supabase.rpc(
+      'delete_swap_request_safe',
+      { p_request_id: requestId }
+    );
       
-    if (datesError) throw datesError;
-    
-    // Then delete the request
-    const { error: requestError } = await supabase
-      .from('shift_swap_requests')
-      .delete()
-      .eq('id', requestId);
-      
-    if (requestError) throw requestError;
+    if (error) throw error;
     
     return { success: true };
   } catch (error) {
@@ -103,35 +70,20 @@ export const deletePreferredDateApi = async (dayId: string, requestId: string) =
   }
   
   try {
-    // Delete the preferred date
-    const { error: deleteError } = await supabase
-      .from('shift_swap_preferred_dates')
-      .delete()
-      .eq('id', dayId);
+    // Use the edge function to safely delete a preferred date
+    const { data, error } = await supabase.functions.invoke('delete_preferred_day', {
+      body: { 
+        day_id: dayId,
+        request_id: requestId
+      }
+    });
       
-    if (deleteError) throw deleteError;
+    if (error) throw error;
     
-    // Check if any preferred dates remain
-    const { data: remainingDays, error: countError } = await supabase
-      .from('shift_swap_preferred_dates')
-      .select('id')
-      .eq('request_id', requestId);
-      
-    if (countError) throw countError;
-    
-    // If no dates left, delete the request too
-    if (!remainingDays || remainingDays.length === 0) {
-      const { error: requestError } = await supabase
-        .from('shift_swap_requests')
-        .delete()
-        .eq('id', requestId);
-        
-      if (requestError) throw requestError;
-      
-      return { success: true, requestDeleted: true };
-    }
-    
-    return { success: true, requestDeleted: false };
+    return { 
+      success: true, 
+      requestDeleted: data?.requestDeleted || false 
+    };
   } catch (error) {
     console.error('Error deleting preferred date:', error);
     throw error;

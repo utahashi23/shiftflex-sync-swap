@@ -2,9 +2,9 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { Shift } from '@/hooks/useShiftData';
 import { AcceptableShiftTypes } from './types';
+import { createSwapRequestApi } from '@/hooks/swap-requests/api';
 
 // Update the useSwapCalendarActions hook to work with our database directly
 export const useSwapCalendarActions = (
@@ -71,59 +71,29 @@ export const useSwapCalendarActions = (
     try {
       setIsLoading(true);
       
-      console.log('Creating swap request using RPC function for shift:', selectedShift.id);
-      
-      // Use the RPC function to create the swap request safely
-      const { data: requestId, error: requestError } = await supabase.rpc(
-        'create_swap_request_safe',
-        {
-          p_requester_shift_id: selectedShift.id,
-          p_status: 'pending'
-        }
-      );
-        
-      if (requestError) {
-        console.error('Error creating swap request:', requestError);
-        throw requestError;
-      }
-      
-      console.log('Created swap request with ID:', requestId);
-      
-      // Then add all preferred days
-      const preferredDaysToInsert = selectedSwapDates.map(dateStr => ({
-        request_id: requestId,
+      // Format preferred dates for the API
+      const preferredDates = selectedSwapDates.map(dateStr => ({
         date: dateStr,
-        accepted_types: acceptedTypes
+        acceptedTypes: acceptedTypes
       }));
       
-      console.log('Adding preferred dates:', preferredDaysToInsert);
+      // Use our API function that calls the edge function
+      const { success } = await createSwapRequestApi(
+        selectedShift.id,
+        preferredDates
+      );
       
-      const { error: daysError } = await supabase
-        .from('shift_swap_preferred_dates')
-        .insert(preferredDaysToInsert);
-      
-      if (daysError) {
-        console.error('Error adding preferred dates:', daysError);
-        
-        // Cleanup the request if adding days failed
-        await supabase
-          .from('shift_swap_requests')
-          .delete()
-          .eq('id', requestId);
-          
-        throw daysError;
+      if (success) {
+        toast({
+          title: "Swap Request Created",
+          description: "Your shift swap request has been saved.",
+        });
+  
+        // Reset the swap mode and selected dates
+        setSwapMode(false);
+        setSelectedSwapDates([]);
+        setSelectedShift(null);
       }
-
-      toast({
-        title: "Swap Request Created",
-        description: "Your shift swap request has been saved.",
-      });
-
-      // Reset the swap mode and selected dates
-      setSwapMode(false);
-      setSelectedSwapDates([]);
-      setSelectedShift(null);
-
     } catch (error) {
       console.error('Error saving swap request:', error);
       toast({
@@ -177,4 +147,3 @@ export const useSwapCalendarActions = (
     isLoading
   };
 };
-
