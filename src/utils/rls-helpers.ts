@@ -7,13 +7,19 @@ import { supabase } from '@/integrations/supabase/client';
  */
 export const fetchUserSwapRequestsSafe = async (userId: string, status: string = 'pending') => {
   try {
+    console.log(`Fetching swap requests for user ${userId} with status ${status} using RPC function`);
+    
     const { data, error } = await supabase.rpc(
       'get_user_swap_requests_safe',
       { p_user_id: userId, p_status: status }
     );
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error in fetchUserSwapRequestsSafe:', error);
+      throw error;
+    }
     
+    console.log('RPC function returned swap requests:', data);
     return { data, error: null };
   } catch (error) {
     console.error('Error in fetchUserSwapRequestsSafe:', error);

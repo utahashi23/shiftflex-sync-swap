@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { User } from '@supabase/supabase-js';
 import { SwapRequest } from './types';
-import { supabase } from '@/integrations/supabase/client';
 import { fetchUserSwapRequestsSafe } from '@/utils/rls-helpers';
 
 /**
