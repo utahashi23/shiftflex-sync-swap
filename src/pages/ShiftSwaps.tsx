@@ -9,12 +9,14 @@ import MatchedSwaps from '@/components/MatchedSwaps';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import AdminDataDebugger from "@/components/AdminDataDebugger";
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('calendar');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showDebugger, setShowDebugger] = useState(true);
   
   // Force tab refresh when coming back to this page or after finding matches
   useEffect(() => {
@@ -32,6 +34,12 @@ const ShiftSwaps = () => {
           {isAdmin && <span className="ml-2 text-blue-500">(Admin Access)</span>}
         </p>
       </div>
+
+      {isAdmin && showDebugger && (
+        <div className="mb-8">
+          <AdminDataDebugger />
+        </div>
+      )}
 
       <TooltipProvider>
         <Tabs 
