@@ -13,162 +13,112 @@ const corsHeaders = {
 serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS preflight request');
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
     // Get the request body
-    const { user_id, status = 'pending' } = await req.json()
-
+    const { user_id, status = 'pending', auth_token } = await req.json()
+    
+    // Validate required parameters
     if (!user_id) {
       return new Response(
-        JSON.stringify({ error: 'Missing user_id parameter' }),
+        JSON.stringify({ error: 'User ID is required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
 
-    // Create a Supabase client with the Auth context of the logged in user
+    // Validate auth_token
+    if (!auth_token) {
+      console.error('Missing auth token')
+      return new Response(
+        JSON.stringify({ error: 'Authentication token is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      )
+    }
+
+    // Create a Supabase client with the auth token
     const supabaseClient = createClient(
-      // Supabase API URL - env var exposed by default when deployed
       Deno.env.get('SUPABASE_URL') ?? '',
-      // Supabase API ANON KEY - env var exposed by default when deployed
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      // Create client with Auth context of the user that called the function.
-      // This way your row-level-security (RLS) policies are applied.
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      { 
+        global: { 
+          headers: { Authorization: `Bearer ${auth_token}` } 
+        } 
+      }
     )
 
-    // Use our custom RPC function to bypass RLS issues
-    const { data: rpcResponse, error: rpcError } = await supabaseClient.rpc('get_user_swap_requests', {
-      p_user_id: user_id,
-      p_status: status
-    });
-    
-    if (rpcError) {
-      console.error('RPC Error:', rpcError);
-      
-      // Fall back to direct query with service role if RPC fails
-      console.log(`Falling back to direct query for user ${user_id} with status ${status}`);
-      
-      // Create admin client with service role
-      const adminClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-        { global: { headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` } } }
-      );
-      
-      // Fetch the user's pending swap requests with service role (bypasses RLS)
-      const { data: requests, error: requestsError } = await adminClient
-        .from('shift_swap_requests')
-        .select('id, status, requester_shift_id, created_at, requester_id')
-        .eq('requester_id', user_id)
-        .eq('status', status);
-        
-      if (requestsError) {
-        console.error('Error fetching swap requests:', requestsError);
-        throw requestsError;
-      }
-      
-      console.log(`Found ${requests?.length || 0} swap requests`);
-      
-      if (!requests || requests.length === 0) {
-        return new Response(
-          JSON.stringify([]),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-      
-      // Get all shift IDs
-      const shiftIds = requests.map(req => req.requester_shift_id);
-      
-      // Fetch shift data with service role
-      const { data: shifts, error: shiftsError } = await adminClient
-        .from('shifts')
-        .select('id, date, start_time, end_time, truck_name')
-        .in('id', shiftIds);
-        
-      if (shiftsError) {
-        console.error('Error fetching shifts:', shiftsError);
-        throw shiftsError;
-      }
-      
-      // Create a map for quick lookup
-      const shiftsMap = {};
-      shifts.forEach(shift => {
-        // Determine shift type based on start time
-        const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
-        let shiftType = 'day';
-        
-        if (startHour <= 8) {
-          shiftType = 'day';
-        } else if (startHour > 8 && startHour < 16) {
-          shiftType = 'afternoon';
-        } else {
-          shiftType = 'night';
-        }
-        
-        shiftsMap[shift.id] = {
-          ...shift,
-          type: shiftType, // Add the shift type
-          startTime: shift.start_time,
-          endTime: shift.end_time,
-          truckName: shift.truck_name
-        };
-      });
-      
-      // Fetch preferred days for these requests with service role
-      const requestIds = requests.map(req => req.id);
-      
-      const { data: preferredDays, error: daysError } = await adminClient
-        .from('shift_swap_preferred_dates')
-        .select('id, request_id, date, accepted_types')
-        .in('request_id', requestIds);
-        
-      if (daysError) {
-        console.error('Error fetching preferred days:', daysError);
-        throw daysError;
-      }
-      
-      // Group preferred days by request ID
-      const preferredDaysByRequest = {};
-      preferredDays.forEach(day => {
-        if (!preferredDaysByRequest[day.request_id]) {
-          preferredDaysByRequest[day.request_id] = [];
-        }
-        preferredDaysByRequest[day.request_id].push(day);
-      });
-      
-      // Join the data together
-      const result = requests.map(request => {
-        return {
-          id: request.id,
-          status: request.status,
-          requester_id: request.requester_id,
-          requester_shift_id: request.requester_shift_id,
-          shift: shiftsMap[request.requester_shift_id],
-          preferred_days: preferredDaysByRequest[request.id] || []
-        };
-      });
-      
-      console.log(`Returning ${result.length} formatted swap requests`);
-      
+    // Get the user id from the auth token
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser()
+
+    if (userError || !user) {
+      console.error('Auth error:', userError)
       return new Response(
-        JSON.stringify(result),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
+        JSON.stringify({ error: 'Unauthorized - Check authentication token' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      )
+    }
+
+    console.log('Authenticated user:', user.id)
+    
+    // Check if user is allowed to access this data
+    // Users can only access their own data unless they're an admin
+    const isAdmin = await checkIsAdmin(supabaseClient, user.id)
+    
+    if (user.id !== user_id && !isAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized to access this data' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      )
     }
     
-    // If RPC was successful, return the results
+    // Use the RPC function to safely get user swap requests
+    const { data, error: fetchError } = await supabaseClient.rpc(
+      'get_user_swap_requests_safe',
+      { 
+        p_user_id: user_id,
+        p_status: status 
+      }
+    )
+    
+    if (fetchError) {
+      console.error('Error fetching swap requests:', fetchError)
+      return new Response(
+        JSON.stringify({ error: fetchError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
+    
     return new Response(
-      JSON.stringify(rpcResponse),
+      JSON.stringify(data || []),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    );
+    )
     
   } catch (error) {
-    console.error('Error in get_swap_requests:', error);
+    console.error('Error in get_swap_requests function:', error)
+    
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-    );
+    )
   }
 })
+
+// Helper functions
+async function checkIsAdmin(client: any, userId: string): Promise<boolean> {
+  const { data, error } = await client.rpc('has_role', { 
+    _user_id: userId,
+    _role: 'admin'
+  })
+  
+  if (error) {
+    console.error('Error checking admin role:', error)
+    return false
+  }
+  
+  return !!data
+}

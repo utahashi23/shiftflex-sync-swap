@@ -76,6 +76,9 @@ verify_jwt = false
 [functions.create_swap_request]
 verify_jwt = false
 
+[functions.get_swap_requests]
+verify_jwt = false
+
 [inbucket]
 enabled = true
 port = 54325

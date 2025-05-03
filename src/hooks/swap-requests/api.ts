@@ -3,3 +3,4 @@
 export { createSwapRequestApi } from './createSwapRequest';
 export { deleteSwapRequestApi } from './deleteSwapRequest';
 export { deletePreferredDateApi } from './deletePreferredDate';
+export { getUserSwapRequestsApi } from './getUserSwapRequests';
