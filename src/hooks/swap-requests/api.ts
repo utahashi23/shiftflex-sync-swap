@@ -32,20 +32,30 @@ export const createSwapRequestApi = async (
     const authToken = session.access_token;
     console.log('Got auth token, length:', authToken?.length);
     
-    // Use the edge function to handle the entire process
-    const { data, error } = await supabase.functions.invoke('create_swap_request', {
-      body: {
-        shift_id: shiftId,
-        preferred_dates: preferredDates,
-        auth_token: authToken
+    // Use the edge function to handle the entire process with proper auth header
+    const response = await fetch(
+      'https://ponhfgbpxehsdlxjpszg.supabase.co/functions/v1/create_swap_request',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          shift_id: shiftId,
+          preferred_dates: preferredDates
+        })
       }
-    });
+    );
     
-    // Check for errors from the edge function
-    if (error) {
-      console.error('Error creating swap request:', error);
-      throw error;
+    // Check the response status
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Error creating swap request:', errorData);
+      throw new Error(errorData.error || 'Unknown error occurred');
     }
+    
+    const data = await response.json();
     
     // Check response data for errors or success
     if (!data || !data.success) {

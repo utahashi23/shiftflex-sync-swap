@@ -19,8 +19,9 @@ serve(async (req) => {
   }
 
   try {
-    // Parse request data
-    const { shift_id, preferred_dates, auth_token } = await req.json();
+    // Parse request data and extract authorization header
+    const { shift_id, preferred_dates } = await req.json();
+    const authHeader = req.headers.get('Authorization');
     
     // Validate required parameters
     if (!shift_id) {
@@ -37,20 +38,23 @@ serve(async (req) => {
       );
     }
 
-    if (!auth_token) {
+    if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Authentication token is required' }),
+        JSON.stringify({ error: 'Authorization header is required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
 
+    // Extract the token from the authorization header (Bearer token)
+    const token = authHeader.replace('Bearer ', '');
+    
     // Create a client to validate the auth token
     const supabaseAuth = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: `Bearer ${auth_token}` }
+          headers: { Authorization: `Bearer ${token}` }
         }
       }
     );
