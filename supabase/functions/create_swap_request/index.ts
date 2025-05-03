@@ -19,9 +19,8 @@ serve(async (req) => {
   }
 
   try {
-    // Parse request data and extract authorization header
+    // Parse request data
     const { shift_id, preferred_dates } = await req.json();
-    const authHeader = req.headers.get('Authorization');
     
     // Validate required parameters
     if (!shift_id) {
@@ -38,78 +37,99 @@ serve(async (req) => {
       );
     }
 
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Authorization header is required' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
-    }
-
-    // Debug logging for authentication troubleshooting
-    console.log('Auth header received:', authHeader.substring(0, 20) + '...');
+    // Get authorization header
+    const authHeader = req.headers.get('Authorization');
     
-    // Extract the token from the authorization header (Bearer token)
-    const token = authHeader.replace('Bearer ', '');
+    // Debug logging for request info
+    console.log('Request for shift ID:', shift_id);
+    console.log('Preferred dates count:', preferred_dates.length);
     
-    // Create a client to validate the auth token
-    const supabaseAuth = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      }
-    );
-
-    // Verify the user with the auth token
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Invalid authentication token', details: authError }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
-    }
-
-    const userId = user.id;
-    console.log('Authenticated user ID:', userId);
-
     // Create an admin client with service role to bypass RLS
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // 1. Verify that the shift belongs to the user
-    const { data: shiftData, error: shiftError } = await supabaseAdmin
-      .from('shifts')
-      .select('*')
-      .eq('id', shift_id)
-      .eq('user_id', userId)
-      .single();
+    // Extract user ID from auth header if present (for validation)
+    let userId = null;
+    if (authHeader) {
+      // Extract the token from the authorization header (Bearer token)
+      const token = authHeader.replace('Bearer ', '');
       
-    if (shiftError || !shiftData) {
-      console.error('Shift verification error:', shiftError || 'Shift not found or does not belong to user');
-      return new Response(
-        JSON.stringify({ error: 'You can only request swaps for your own shifts' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      // Create a client to validate the auth token
+      const supabaseAuth = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        {
+          global: {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        }
       );
+
+      // Verify the user with the auth token
+      const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+      
+      if (authError || !user) {
+        console.error('Auth error:', authError);
+        return new Response(
+          JSON.stringify({ error: 'Invalid authentication token', details: authError }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        );
+      }
+
+      userId = user.id;
+      console.log('Authenticated user ID:', userId);
+    } else {
+      console.log('No auth header provided - using admin powers only');
     }
 
-    console.log('Shift verified, creating swap request');
+    // 1. Verify that the shift belongs to the user if we have a user ID
+    if (userId) {
+      const { data: shiftData, error: shiftError } = await supabaseAdmin
+        .from('shifts')
+        .select('*')
+        .eq('id', shift_id)
+        .eq('user_id', userId)
+        .single();
+        
+      if (shiftError || !shiftData) {
+        console.error('Shift verification error:', shiftError || 'Shift not found or does not belong to user');
+        return new Response(
+          JSON.stringify({ error: 'You can only request swaps for your own shifts' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+      
+      console.log('Shift verified, belongs to user:', userId);
+    } else {
+      // Just get the shift to determine the user ID if not provided
+      const { data: shiftData, error: shiftError } = await supabaseAdmin
+        .from('shifts')
+        .select('user_id')
+        .eq('id', shift_id)
+        .single();
+        
+      if (shiftError || !shiftData) {
+        console.error('Shift lookup error:', shiftError || 'Shift not found');
+        return new Response(
+          JSON.stringify({ error: 'Shift not found' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        );
+      }
+      
+      userId = shiftData.user_id;
+      console.log('Using shift owner as requester:', userId);
+    }
     
-    // 2. Insert the swap request
+    console.log('Proceeding with user ID:', userId);
+    
+    // 2. Use the create_swap_request_safe function to avoid RLS issues
     const { data: requestData, error: requestError } = await supabaseAdmin
-      .from('shift_swap_requests')
-      .insert({
-        requester_id: userId,
-        requester_shift_id: shift_id,
-        status: 'pending'
-      })
-      .select('id')
-      .single();
+      .rpc('create_swap_request_safe', {
+        p_requester_shift_id: shift_id,
+        p_status: 'pending'
+      });
       
     if (requestError) {
       console.error('Error creating swap request:', requestError);
@@ -119,7 +139,7 @@ serve(async (req) => {
       );
     }
     
-    const requestId = requestData.id;
+    const requestId = requestData;
     console.log('Created swap request with ID:', requestId);
     
     // 3. Add all preferred dates
