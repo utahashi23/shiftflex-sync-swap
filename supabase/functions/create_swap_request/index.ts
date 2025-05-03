@@ -38,38 +38,43 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    // 1. Create the swap request
-    const { data: request, error: requestError } = await supabaseClient
-      .from('swap_requests')
-      .insert({
-        user_id,
-        shift_id,
-        status: 'pending'
-      })
-      .select()
-      .single()
+    // Use RPC function to safely create swap request
+    const { data: requestId, error: requestError } = await supabaseClient.rpc(
+      'create_swap_request_safe',
+      { 
+        p_requester_shift_id: shift_id, 
+        p_status: 'pending'
+      }
+    )
       
     if (requestError) {
+      console.error('Error creating swap request with RPC:', requestError)
       throw requestError
     }
     
     // 2. Add all preferred days
     const preferredDaysToInsert = preferred_dates.map(pd => ({
-      swap_request_id: request.id,
+      request_id: requestId,
       date: pd.date,
       accepted_types: pd.accepted_types || ['day', 'afternoon', 'night']
     }))
     
     const { error: daysError } = await supabaseClient
-      .from('preferred_days')
+      .from('shift_swap_preferred_dates')
       .insert(preferredDaysToInsert)
     
     if (daysError) {
+      // Clean up on error
+      await supabaseClient
+        .from('shift_swap_requests')
+        .delete()
+        .eq('id', requestId)
+        
       throw daysError
     }
 
     return new Response(
-      JSON.stringify({ success: true, request_id: request.id }),
+      JSON.stringify({ success: true, request_id: requestId }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
   } catch (error) {

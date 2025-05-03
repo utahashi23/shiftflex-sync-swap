@@ -71,28 +71,32 @@ export const useSwapCalendarActions = (
     try {
       setIsLoading(true);
       
-      // First create the swap request
-      const { data: request, error: requestError } = await supabase
-        .from('shift_swap_requests')
-        .insert({
-          requester_id: user.id,
-          requester_shift_id: selectedShift.id,
-          status: 'pending'
-        })
-        .select()
-        .single();
+      console.log('Creating swap request using RPC function for shift:', selectedShift.id);
+      
+      // Use the RPC function to create the swap request safely
+      const { data: requestId, error: requestError } = await supabase.rpc(
+        'create_swap_request_safe',
+        {
+          p_requester_shift_id: selectedShift.id,
+          p_status: 'pending'
+        }
+      );
         
       if (requestError) {
         console.error('Error creating swap request:', requestError);
         throw requestError;
       }
       
+      console.log('Created swap request with ID:', requestId);
+      
       // Then add all preferred days
       const preferredDaysToInsert = selectedSwapDates.map(dateStr => ({
-        request_id: request.id,
+        request_id: requestId,
         date: dateStr,
         accepted_types: acceptedTypes
       }));
+      
+      console.log('Adding preferred dates:', preferredDaysToInsert);
       
       const { error: daysError } = await supabase
         .from('shift_swap_preferred_dates')
@@ -105,7 +109,7 @@ export const useSwapCalendarActions = (
         await supabase
           .from('shift_swap_requests')
           .delete()
-          .eq('id', request.id);
+          .eq('id', requestId);
           
         throw daysError;
       }
@@ -173,3 +177,4 @@ export const useSwapCalendarActions = (
     isLoading
   };
 };
+

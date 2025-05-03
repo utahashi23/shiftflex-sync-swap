@@ -1,8 +1,7 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Create a new swap request
+ * Create a new swap request using the safe RPC function
  */
 export const createSwapRequestApi = async (
   shiftId: string, 
@@ -12,41 +11,51 @@ export const createSwapRequestApi = async (
     throw new Error('Missing required parameters for swap request');
   }
   
-  // Get the current user
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    throw new Error('User is not authenticated');
-  }
-  
   try {
-    // Create the swap request
-    const { data: request, error: requestError } = await supabase
-      .from('shift_swap_requests')
-      .insert({
-        requester_id: user.id,
-        requester_shift_id: shiftId,
-        status: 'pending'
-      })
-      .select()
-      .single();
+    console.log('Creating swap request using RPC function for shift:', shiftId);
+    
+    // Use the RPC function to create swap request safely (avoids RLS recursion)
+    const { data: requestId, error: requestError } = await supabase.rpc(
+      'create_swap_request_safe',
+      {
+        p_requester_shift_id: shiftId,
+        p_status: 'pending'
+      }
+    );
       
-    if (requestError) throw requestError;
+    if (requestError) {
+      console.error('Error creating swap request with RPC:', requestError);
+      throw requestError;
+    }
+    
+    console.log('Created swap request with ID:', requestId);
     
     // Add all preferred dates
     const preferredDatesToInsert = preferredDates.map(pd => ({
-      request_id: request.id,
+      request_id: requestId,
       date: pd.date,
       accepted_types: pd.acceptedTypes || []
     }));
+    
+    console.log('Adding preferred dates:', preferredDatesToInsert);
     
     const { error: datesError } = await supabase
       .from('shift_swap_preferred_dates')
       .insert(preferredDatesToInsert);
     
-    if (datesError) throw datesError;
+    if (datesError) {
+      console.error('Error adding preferred dates:', datesError);
+      
+      // Clean up the request if adding dates failed
+      await supabase
+        .from('shift_swap_requests')
+        .delete()
+        .eq('id', requestId);
+        
+      throw datesError;
+    }
     
-    return { success: true, requestId: request.id };
+    return { success: true, requestId };
   } catch (error) {
     console.error('Error creating swap request:', error);
     throw error;

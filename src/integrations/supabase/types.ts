@@ -332,6 +332,10 @@ export type Database = {
           acceptor_request_id: string
         }[]
       }
+      create_swap_request_safe: {
+        Args: { p_requester_shift_id: string; p_status?: string }
+        Returns: string
+      }
       get_all_preferred_dates: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -430,6 +434,10 @@ export type Database = {
       test_admin_access: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      user_is_involved_in_swap_request: {
+        Args: { request_id: string; auth_user_id: string }
+        Returns: boolean
       }
     }
     Enums: {
