@@ -68,10 +68,13 @@ serve_port = 54324
 port = 54324
 
 [functions.delete_swap_request]
-verify_jwt = true
+verify_jwt = false
 
 [functions.delete_preferred_day]
-verify_jwt = true
+verify_jwt = false
+
+[functions.create_swap_request]
+verify_jwt = false
 
 [inbucket]
 enabled = true
@@ -83,3 +86,4 @@ port = 54326
 
 [edge_runtime]
 enabled = false
+

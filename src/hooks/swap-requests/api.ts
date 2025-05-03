@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 /**
  * Create a new swap request using the safe RPC function
@@ -17,7 +18,18 @@ export const createSwapRequestApi = async (
     
     // Get the current session to pass the auth token
     const { data: { session } } = await supabase.auth.getSession();
-    const authToken = session?.access_token || '';
+    
+    if (!session) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to create a swap request.",
+        variant: "destructive"
+      });
+      throw new Error('Authentication required');
+    }
+    
+    const authToken = session.access_token;
+    console.log('Got auth token, length:', authToken?.length);
     
     // Use the edge function to handle the entire process safely
     const { data, error } = await supabase.functions.invoke('create_swap_request', {
@@ -53,7 +65,17 @@ export const deleteSwapRequestApi = async (requestId: string) => {
   try {
     // Get the current session to pass the auth token
     const { data: { session } } = await supabase.auth.getSession();
-    const authToken = session?.access_token || '';
+    
+    if (!session) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to delete a swap request.",
+        variant: "destructive"
+      });
+      throw new Error('Authentication required');
+    }
+    
+    const authToken = session.access_token;
     
     // Use the edge function to safely delete the request
     const { data, error } = await supabase.functions.invoke('delete_swap_request', {
@@ -83,7 +105,17 @@ export const deletePreferredDateApi = async (dayId: string, requestId: string) =
   try {
     // Get the current session to pass the auth token
     const { data: { session } } = await supabase.auth.getSession();
-    const authToken = session?.access_token || '';
+    
+    if (!session) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to modify a swap request.",
+        variant: "destructive"
+      });
+      throw new Error('Authentication required');
+    }
+    
+    const authToken = session.access_token;
     
     // Use the edge function to safely delete a preferred date
     const { data, error } = await supabase.functions.invoke('delete_preferred_day', {

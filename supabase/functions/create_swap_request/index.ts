@@ -13,6 +13,7 @@ const corsHeaders = {
 serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS preflight request');
     return new Response(null, { headers: corsHeaders })
   }
 
@@ -33,14 +34,24 @@ serve(async (req) => {
       )
     }
 
-    // Create a Supabase client
+    // Validate auth_token
+    if (!auth_token) {
+      console.error('Missing auth token')
+      return new Response(
+        JSON.stringify({ error: 'Authentication token is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      )
+    }
+
+    // Create a Supabase client with the auth token
     const supabaseClient = createClient(
-      // Supabase API URL - env var exposed by default when deployed
       Deno.env.get('SUPABASE_URL') ?? '',
-      // Supabase API ANON KEY - env var exposed by default when deployed
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      // Create client with Auth context from the provided token
-      { global: { headers: { Authorization: auth_token ? `Bearer ${auth_token}` : '' } } }
+      { 
+        global: { 
+          headers: { Authorization: `Bearer ${auth_token}` } 
+        } 
+      }
     )
 
     // Get the user id from the auth token
@@ -78,7 +89,7 @@ serve(async (req) => {
     
     console.log('Successfully created swap request with ID:', requestId)
     
-    // 2. Add all preferred days - using direct insert which should work now that we have proper policies
+    // 2. Add all preferred days
     const preferredDaysToInsert = preferred_dates.map(pd => ({
       request_id: requestId,
       date: pd.date,
@@ -94,7 +105,7 @@ serve(async (req) => {
     if (daysError) {
       console.error('Error adding preferred dates:', daysError)
       
-      // Clean up on error - using RPC to delete to avoid recursion issues
+      // Clean up on error
       await supabaseClient.rpc(
         'delete_swap_request_safe',
         { p_request_id: requestId }
