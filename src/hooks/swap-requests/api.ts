@@ -46,11 +46,10 @@ export const deleteSwapRequestApi = async (requestId: string) => {
   }
   
   try {
-    // Use the RPC function to safely delete the request
-    const { error } = await supabase.rpc(
-      'delete_swap_request_safe',
-      { p_request_id: requestId }
-    );
+    // Use the edge function to safely delete the request
+    const { data, error } = await supabase.functions.invoke('delete_swap_request', {
+      body: { request_id: requestId }
+    });
       
     if (error) throw error;
     

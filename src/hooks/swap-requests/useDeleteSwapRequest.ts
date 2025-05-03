@@ -3,14 +3,24 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { SwapRequest } from './types';
 import { deletePreferredDateApi, deleteSwapRequestApi } from './api';
+import { useAuth } from '@/hooks/useAuth';
 
 export const useDeleteSwapRequest = (
   setSwapRequests: React.Dispatch<React.SetStateAction<SwapRequest[]>>,
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>
 ) => {
+  const { user } = useAuth();
+  
   // Delete an entire swap request
   const handleDeleteSwapRequest = async (requestId: string) => {
-    if (!requestId) return false;
+    if (!requestId || !user) {
+      toast({
+        title: "Error",
+        description: "Authentication required",
+        variant: "destructive"
+      });
+      return false;
+    }
     
     setIsLoading(true);
     
