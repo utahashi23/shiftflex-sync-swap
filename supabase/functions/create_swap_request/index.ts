@@ -55,19 +55,17 @@ serve(async (req) => {
     )
 
     // Get the user id from the auth token
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser()
-
-    if (userError || !user) {
-      console.error('Auth error:', userError)
+    const { data, error: getUserError } = await supabaseClient.auth.getUser(auth_token)
+    
+    if (getUserError || !data.user) {
+      console.error('Auth error:', getUserError)
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - Check authentication token' }),
+        JSON.stringify({ error: 'Unauthorized - Invalid authentication token' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       )
     }
 
+    const user = data.user
     console.log('Authenticated user:', user.id)
     
     // 1. Use the RPC function to safely create the swap request

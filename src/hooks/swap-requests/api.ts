@@ -32,7 +32,7 @@ export const createSwapRequestApi = async (
     console.log('Got auth token, length:', authToken?.length);
     
     // Use the edge function to handle the entire process safely
-    const { data, error } = await supabase.functions.invoke('create_swap_request', {
+    const response = await supabase.functions.invoke('create_swap_request', {
       body: {
         shift_id: shiftId,
         preferred_dates: preferredDates,
@@ -40,9 +40,18 @@ export const createSwapRequestApi = async (
       }
     });
     
-    if (error) {
-      console.error('Error creating swap request:', error);
-      throw error;
+    // Check for errors in the response
+    if (response.error) {
+      console.error('Error creating swap request:', response.error);
+      throw response.error;
+    }
+    
+    // Check for data errors or failed status
+    const data = response.data;
+    if (!data || !data.success) {
+      const errorMessage = data?.error || 'Unknown error occurred';
+      console.error('Error in response data:', errorMessage);
+      throw new Error(errorMessage);
     }
     
     console.log('Swap request created successfully:', data);
@@ -78,14 +87,17 @@ export const deleteSwapRequestApi = async (requestId: string) => {
     const authToken = session.access_token;
     
     // Use the edge function to safely delete the request
-    const { data, error } = await supabase.functions.invoke('delete_swap_request', {
+    const response = await supabase.functions.invoke('delete_swap_request', {
       body: { 
         request_id: requestId,
         auth_token: authToken
       }
     });
       
-    if (error) throw error;
+    if (response.error) {
+      console.error('Error deleting swap request:', response.error);
+      throw response.error;
+    }
     
     return { success: true };
   } catch (error) {
@@ -118,7 +130,7 @@ export const deletePreferredDateApi = async (dayId: string, requestId: string) =
     const authToken = session.access_token;
     
     // Use the edge function to safely delete a preferred date
-    const { data, error } = await supabase.functions.invoke('delete_preferred_day', {
+    const response = await supabase.functions.invoke('delete_preferred_day', {
       body: { 
         day_id: dayId,
         request_id: requestId,
@@ -126,11 +138,14 @@ export const deletePreferredDateApi = async (dayId: string, requestId: string) =
       }
     });
       
-    if (error) throw error;
+    if (response.error) {
+      console.error('Error deleting preferred date:', response.error);
+      throw response.error;
+    }
     
     return { 
       success: true, 
-      requestDeleted: data?.requestDeleted || false 
+      requestDeleted: response.data?.requestDeleted || false 
     };
   } catch (error) {
     console.error('Error deleting preferred date:', error);
