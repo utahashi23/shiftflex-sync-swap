@@ -54,6 +54,16 @@ export const createSwapRequestApi = async (
       throw new Error(errorMessage);
     }
     
+    // Show warning if there is one
+    if (data.warning) {
+      console.warn('Warning:', data.warning);
+      toast({
+        title: "Swap Request Created",
+        description: "Request created but there was an issue with preferred dates. Please try adding them again.",
+        variant: "warning"
+      });
+    }
+    
     console.log('Swap request created successfully:', data);
     return { success: true, requestId: data?.request_id };
     

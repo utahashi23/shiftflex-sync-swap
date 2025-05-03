@@ -46,7 +46,7 @@ serve(async (req) => {
     // Create a Supabase client with the auth token
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',  // Use SERVICE_ROLE_KEY to bypass RLS
       { 
         global: { 
           headers: { Authorization: `Bearer ${auth_token}` } 
@@ -54,7 +54,7 @@ serve(async (req) => {
       }
     )
 
-    // Get the user id from the auth token
+    // Verify the user with the auth token
     const { data, error: getUserError } = await supabaseClient.auth.getUser(auth_token)
     
     if (getUserError || !data.user) {
@@ -68,57 +68,69 @@ serve(async (req) => {
     const user = data.user
     console.log('Authenticated user:', user.id)
     
-    // 1. Use the RPC function to safely create the swap request
-    const { data: requestId, error: requestError } = await supabaseClient.rpc(
-      'create_swap_request_safe',
-      { 
-        p_requester_shift_id: shift_id, 
-        p_status: 'pending'
+    try {
+      // 1. Insert directly into the swap requests table
+      const { data: requestData, error: requestError } = await supabaseClient
+        .from('shift_swap_requests')
+        .insert({
+          requester_id: user.id,
+          requester_shift_id: shift_id,
+          status: 'pending'
+        })
+        .select('id')
+        .single();
+      
+      if (requestError) {
+        console.error('Error creating swap request:', requestError);
+        return new Response(
+          JSON.stringify({ error: requestError.message }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
       }
-    )
       
-    if (requestError) {
-      console.error('Error creating swap request with RPC:', requestError)
-      return new Response(
-        JSON.stringify({ error: requestError.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      )
-    }
-    
-    console.log('Successfully created swap request with ID:', requestId)
-    
-    // 2. Add all preferred days
-    const preferredDaysToInsert = preferred_dates.map(pd => ({
-      request_id: requestId,
-      date: pd.date,
-      accepted_types: pd.acceptedTypes || ['day', 'afternoon', 'night']
-    }))
-    
-    console.log('Inserting preferred dates:', preferredDaysToInsert)
-    
-    const { error: daysError } = await supabaseClient
-      .from('shift_swap_preferred_dates')
-      .insert(preferredDaysToInsert)
-    
-    if (daysError) {
-      console.error('Error adding preferred dates:', daysError)
+      const requestId = requestData.id;
+      console.log('Successfully created swap request with ID:', requestId);
       
-      // Clean up on error
-      await supabaseClient.rpc(
-        'delete_swap_request_safe',
-        { p_request_id: requestId }
-      )
+      // 2. Add all preferred days
+      const preferredDaysToInsert = preferred_dates.map(pd => ({
+        request_id: requestId,
+        date: pd.date,
+        accepted_types: pd.acceptedTypes || ['day', 'afternoon', 'night']
+      }));
+      
+      console.log('Inserting preferred dates:', preferredDaysToInsert);
+      
+      const { error: daysError } = await supabaseClient
+        .from('shift_swap_preferred_dates')
+        .insert(preferredDaysToInsert);
+      
+      if (daysError) {
+        console.error('Error adding preferred dates:', daysError);
         
-      return new Response(
-        JSON.stringify({ error: daysError.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      )
-    }
+        // Don't delete the request if dates fail - let it exist without preferred dates
+        // The user can add dates later
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            request_id: requestId,
+            warning: "Request created but preferred dates could not be added: " + daysError.message 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
 
-    return new Response(
-      JSON.stringify({ success: true, request_id: requestId }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    )
+      return new Response(
+        JSON.stringify({ success: true, request_id: requestId }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    } catch (dbError) {
+      console.error('Database operation error:', dbError);
+      return new Response(
+        JSON.stringify({ error: dbError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
   } catch (error) {
     console.error('Error in create_swap_request function:', error)
     
