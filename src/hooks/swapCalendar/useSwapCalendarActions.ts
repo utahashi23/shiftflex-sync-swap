@@ -71,7 +71,7 @@ export const useSwapCalendarActions = (
     try {
       setIsLoading(true);
       
-      // Format preferred dates for the API - ensure we use acceptedTypes (not acceptTypes)
+      // Format preferred dates for the API - each date with its accepted types
       const preferredDates = selectedSwapDates.map(dateStr => ({
         date: dateStr,
         acceptedTypes: acceptedTypes

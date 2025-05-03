@@ -43,10 +43,16 @@ serve(async (req) => {
       )
     }
 
-    // Create a Supabase client with the auth token
-    const supabaseClient = createClient(
+    // Create a Supabase client with the service role key to bypass RLS
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',  // Use SERVICE_ROLE_KEY to bypass RLS
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    // Create a second client to verify the user token
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { 
         global: { 
           headers: { Authorization: `Bearer ${auth_token}` } 
@@ -55,9 +61,9 @@ serve(async (req) => {
     )
 
     // Verify the user with the auth token
-    const { data, error: getUserError } = await supabaseClient.auth.getUser(auth_token)
+    const { data: authData, error: getUserError } = await supabaseAuth.auth.getUser()
     
-    if (getUserError || !data.user) {
+    if (getUserError || !authData.user) {
       console.error('Auth error:', getUserError)
       return new Response(
         JSON.stringify({ error: 'Unauthorized - Invalid authentication token' }),
@@ -65,12 +71,28 @@ serve(async (req) => {
       )
     }
 
-    const user = data.user
+    const user = authData.user
     console.log('Authenticated user:', user.id)
     
     try {
-      // 1. Insert directly into the swap requests table
-      const { data: requestData, error: requestError } = await supabaseClient
+      // 1. First verify that the shift belongs to the user
+      const { data: shiftData, error: shiftError } = await supabaseAdmin
+        .from('shifts')
+        .select('*')
+        .eq('id', shift_id)
+        .eq('user_id', user.id)
+        .single();
+        
+      if (shiftError || !shiftData) {
+        console.error('Shift verification error:', shiftError);
+        return new Response(
+          JSON.stringify({ error: 'You can only request swaps for your own shifts' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+      
+      // 2. Insert directly into the swap requests table using admin client to bypass RLS
+      const { data: requestData, error: requestError } = await supabaseAdmin
         .from('shift_swap_requests')
         .insert({
           requester_id: user.id,
@@ -91,37 +113,36 @@ serve(async (req) => {
       const requestId = requestData.id;
       console.log('Successfully created swap request with ID:', requestId);
       
-      // 2. Add all preferred days
-      const preferredDaysToInsert = preferred_dates.map(pd => ({
-        request_id: requestId,
-        date: pd.date,
-        accepted_types: pd.acceptedTypes || ['day', 'afternoon', 'night']
-      }));
+      // 3. Add all preferred days, also using admin client to bypass RLS
+      let daysError = null;
       
-      console.log('Inserting preferred dates:', preferredDaysToInsert);
-      
-      const { error: daysError } = await supabaseClient
-        .from('shift_swap_preferred_dates')
-        .insert(preferredDaysToInsert);
-      
-      if (daysError) {
-        console.error('Error adding preferred dates:', daysError);
+      if (preferred_dates && preferred_dates.length > 0) {
+        const preferredDaysToInsert = preferred_dates.map(pd => ({
+          request_id: requestId,
+          date: pd.date,
+          accepted_types: pd.acceptedTypes || ['day', 'afternoon', 'night']
+        }));
         
-        // Don't delete the request if dates fail - let it exist without preferred dates
-        // The user can add dates later
+        console.log('Inserting preferred dates:', preferredDaysToInsert);
         
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            request_id: requestId,
-            warning: "Request created but preferred dates could not be added: " + daysError.message 
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
+        const { error } = await supabaseAdmin
+          .from('shift_swap_preferred_dates')
+          .insert(preferredDaysToInsert);
+        
+        daysError = error;
+        
+        if (error) {
+          console.error('Error adding preferred dates:', error);
+        }
       }
 
+      // Return success even if dates failed - we'll include a warning
       return new Response(
-        JSON.stringify({ success: true, request_id: requestId }),
+        JSON.stringify({ 
+          success: true, 
+          request_id: requestId,
+          warning: daysError ? "Request created but preferred dates could not be added: " + daysError.message : null
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     } catch (dbError) {
