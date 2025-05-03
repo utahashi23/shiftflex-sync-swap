@@ -45,6 +45,9 @@ serve(async (req) => {
       );
     }
 
+    // Debug logging for authentication troubleshooting
+    console.log('Auth header received:', authHeader.substring(0, 20) + '...');
+    
     // Extract the token from the authorization header (Bearer token)
     const token = authHeader.replace('Bearer ', '');
     
@@ -65,7 +68,7 @@ serve(async (req) => {
     if (authError || !user) {
       console.error('Auth error:', authError);
       return new Response(
-        JSON.stringify({ error: 'Invalid authentication token' }),
+        JSON.stringify({ error: 'Invalid authentication token', details: authError }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }

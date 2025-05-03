@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 /**
- * Create a new swap request using the edge function
+ * Create a new swap request directly using the Supabase client
  */
 export const createSwapRequestApi = async (
   shiftId: string, 
@@ -15,9 +15,8 @@ export const createSwapRequestApi = async (
   
   try {
     console.log('Creating swap request with preferred dates:', preferredDates);
-    console.log('Creating swap request using edge function for shift:', shiftId);
     
-    // Get the current session to pass the auth token
+    // Get the current session
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
@@ -29,49 +28,85 @@ export const createSwapRequestApi = async (
       throw new Error('Authentication required');
     }
     
-    const authToken = session.access_token;
-    console.log('Got auth token, length:', authToken?.length);
+    const userId = session.user.id;
     
-    // Use the edge function to handle the entire process with proper auth header
-    const response = await fetch(
-      'https://ponhfgbpxehsdlxjpszg.supabase.co/functions/v1/create_swap_request',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({
-          shift_id: shiftId,
-          preferred_dates: preferredDates
-        })
-      }
-    );
+    // 1. Verify that the shift belongs to the user
+    const { data: shiftData, error: shiftError } = await supabase
+      .from('shifts')
+      .select('*')
+      .eq('id', shiftId)
+      .eq('user_id', userId)
+      .single();
+      
+    if (shiftError || !shiftData) {
+      console.error('Shift verification error:', shiftError || 'Shift not found or does not belong to user');
+      toast({
+        title: "Error",
+        description: "You can only request swaps for your own shifts.",
+        variant: "destructive"
+      });
+      throw new Error('You can only request swaps for your own shifts');
+    }
+
+    console.log('Shift verified, creating swap request');
     
-    // Check the response status
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Error creating swap request:', errorData);
-      throw new Error(errorData.error || 'Unknown error occurred');
+    // 2. Insert the swap request
+    const { data: requestData, error: requestError } = await supabase
+      .from('shift_swap_requests')
+      .insert({
+        requester_id: userId,
+        requester_shift_id: shiftId,
+        status: 'pending'
+      })
+      .select('id')
+      .single();
+      
+    if (requestError) {
+      console.error('Error creating swap request:', requestError);
+      toast({
+        title: "Error",
+        description: "Failed to create swap request. Please try again.",
+        variant: "destructive"
+      });
+      throw requestError;
     }
     
-    const data = await response.json();
+    const requestId = requestData.id;
+    console.log('Created swap request with ID:', requestId);
     
-    // Check response data for errors or success
-    if (!data || !data.success) {
-      const errorMessage = data?.error || 'Unknown error occurred';
-      console.error('Error in response data:', errorMessage);
-      throw new Error(errorMessage);
+    // 3. Add all preferred dates
+    const preferredDaysToInsert = preferredDates.map(pd => ({
+      request_id: requestId,
+      date: pd.date,
+      accepted_types: pd.acceptedTypes || ['day', 'afternoon', 'night']
+    }));
+    
+    console.log('Inserting preferred dates:', preferredDaysToInsert);
+    
+    const { error: datesError } = await supabase
+      .from('shift_swap_preferred_dates')
+      .insert(preferredDaysToInsert);
+      
+    if (datesError) {
+      console.error('Error adding preferred dates:', datesError);
+      // Delete the request if we couldn't add preferred dates
+      await supabase.from('shift_swap_requests').delete().eq('id', requestId);
+      
+      toast({
+        title: "Error",
+        description: "Failed to add preferred dates. Please try again.",
+        variant: "destructive"
+      });
+      throw datesError;
     }
-    
-    console.log('Swap request created successfully:', data);
+
     toast({
       title: "Swap Request Created",
       description: "Your shift swap request has been saved.",
       variant: "default"
     });
     
-    return { success: true, requestId: data.request_id };
+    return { success: true, requestId };
     
   } catch (error) {
     console.error('Error creating swap request:', error);
