@@ -268,9 +268,12 @@ export const testAdminRoleVerification = async () => {
       };
     }
     
+    // Fix the type error by safely accessing the is_admin property
+    const isAdmin = data ? (typeof data === 'object' && data !== null ? Boolean(data.is_admin) : false) : false;
+    
     return {
       success: true,
-      isAdmin: data?.is_admin === true,
+      isAdmin: isAdmin,
       data: data
     };
   } catch (err: any) {

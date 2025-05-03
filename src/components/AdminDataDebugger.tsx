@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
@@ -66,13 +65,15 @@ export default function AdminDataDebugger() {
             <Shield className="h-5 w-5" /> Admin Data Access Debugger
           </CardTitle>
           <Badge 
-            variant={isAdmin ? "success" : "destructive"}
+            variant={isAdmin ? "outline" : "destructive"}
             className={isAdmin ? "bg-green-100 hover:bg-green-200 text-green-800 border border-green-300" : ""}
           >
             {isAdmin ? "Admin Access" : "No Admin Access"}
           </Badge>
         </div>
       </CardHeader>
+      
+      
       <CardContent className="pt-6">
         <Tabs 
           value={activeTab}

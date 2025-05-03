@@ -16,7 +16,7 @@ const ShiftSwaps = () => {
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('calendar');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [showDebugger, setShowDebugger] = useState(true);
+  const [showDebugger, setShowDebugger] = useState(false);
   
   // Force tab refresh when coming back to this page or after finding matches
   useEffect(() => {
@@ -24,6 +24,13 @@ const ShiftSwaps = () => {
     setActiveTab('');
     setTimeout(() => setActiveTab(currentTab), 10);
   }, [refreshTrigger]);
+
+  // Show debugger by default only for admins
+  useEffect(() => {
+    if (isAdmin) {
+      setShowDebugger(true);
+    }
+  }, [isAdmin]);
   
   return (
     <AppLayout>
