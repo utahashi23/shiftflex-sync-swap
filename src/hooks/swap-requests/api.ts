@@ -60,7 +60,7 @@ export const createSwapRequestApi = async (
       toast({
         title: "Swap Request Created",
         description: "Request created but there was an issue with preferred dates. Please try adding them again.",
-        variant: "warning"
+        variant: "default" // Changed from "warning" to "default" as warning is not a supported variant
       });
     }
     
