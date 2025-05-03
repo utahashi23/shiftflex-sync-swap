@@ -22,7 +22,7 @@ serve(async (req) => {
     console.log('Received request data:', requestData)
 
     // Extract data from the request
-    const { shift_id, preferred_dates } = requestData
+    const { shift_id, preferred_dates, auth_token } = requestData
 
     // Validate required parameters
     if (!shift_id || !preferred_dates || !Array.isArray(preferred_dates) || preferred_dates.length === 0) {
@@ -33,15 +33,14 @@ serve(async (req) => {
       )
     }
 
-    // Create a Supabase client with the Auth context of the logged in user
+    // Create a Supabase client
     const supabaseClient = createClient(
       // Supabase API URL - env var exposed by default when deployed
       Deno.env.get('SUPABASE_URL') ?? '',
       // Supabase API ANON KEY - env var exposed by default when deployed
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      // Create client with Auth context of the user that called the function.
-      // This way your row-level-security (RLS) policies are applied.
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      // Create client with Auth context from the provided token
+      { global: { headers: { Authorization: auth_token ? `Bearer ${auth_token}` : '' } } }
     )
 
     // Get the user id from the auth token
@@ -53,7 +52,7 @@ serve(async (req) => {
     if (userError || !user) {
       console.error('Auth error:', userError)
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ error: 'Unauthorized - Check authentication token' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       )
     }

@@ -1,6 +1,9 @@
 
-import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+// Follow this setup guide to integrate the Supabase Edge Functions with your app:
+// https://supabase.com/docs/guides/functions/getting-started
+
+import { serve } from "https://deno.land/std@0.131.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,78 +13,116 @@ const corsHeaders = {
 serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    // Get the request body
-    const { day_id, request_id } = await req.json();
-
+    const { day_id, request_id, auth_token } = await req.json()
+    
     if (!day_id || !request_id) {
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
+        JSON.stringify({ error: 'Day ID and Request ID are required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      )
     }
 
-    // Create a Supabase client with the Auth context of the logged in user
+    // Create a Supabase client
     const supabaseClient = createClient(
-      // Supabase API URL - env var exposed by default when deployed
       Deno.env.get('SUPABASE_URL') ?? '',
-      // Supabase API ANON KEY - env var exposed by default when deployed
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    );
+      { global: { headers: { Authorization: auth_token ? `Bearer ${auth_token}` : '' } } }
+    )
 
-    // First, delete the preferred date
+    // Get the user id from the auth token
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser()
+
+    if (userError || !user) {
+      console.error('Auth error:', userError)
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - Check authentication token' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      )
+    }
+
+    // Check if the user is an admin or owns the request
+    const isAdmin = await checkIsAdmin(supabaseClient, user.id)
+    const canDelete = await canModifyRequest(supabaseClient, user.id, request_id, isAdmin)
+    
+    if (!canDelete) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized to modify this request' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      )
+    }
+    
+    // Delete the preferred date
     const { error: deleteError } = await supabaseClient
       .from('shift_swap_preferred_dates')
       .delete()
-      .eq('id', day_id);
-      
+      .eq('id', day_id)
+      .eq('request_id', request_id)
+    
     if (deleteError) {
-      console.error('Error deleting preferred date:', deleteError);
-      throw deleteError;
+      return new Response(
+        JSON.stringify({ error: deleteError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
     }
     
-    // Check if any preferred dates remain
-    const { data: remainingDates, error: countError } = await supabaseClient
+    // Check if this was the last preferred date and the request was deleted by the trigger
+    const { count, error: countError } = await supabaseClient
       .from('shift_swap_preferred_dates')
-      .select('id')
-      .eq('request_id', request_id);
-      
-    if (countError) {
-      console.error('Error checking remaining dates:', countError);
-      throw countError;
-    }
+      .select('id', { count: 'exact', head: true })
+      .eq('request_id', request_id)
     
-    // If no dates left, delete the request using the safe RPC function
-    let requestDeleted = false;
+    const requestDeleted = (count === 0)
     
-    if (!remainingDates || remainingDates.length === 0) {
-      const { error: requestError } = await supabaseClient.rpc(
-        'delete_swap_request_safe', 
-        { p_request_id: request_id }
-      );
-        
-      if (requestError) {
-        console.error('Error deleting swap request:', requestError);
-        throw requestError;
-      }
-      
-      requestDeleted = true;
-    }
-
     return new Response(
-      JSON.stringify({ success: true, requestDeleted: requestDeleted }),
+      JSON.stringify({ success: true, requestDeleted }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    );
+    )
+    
   } catch (error) {
-    console.error('Error in delete_preferred_day function:', error);
+    console.error('Error in delete_preferred_day function:', error)
     
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-    );
+    )
   }
-});
+})
+
+// Helper functions
+async function checkIsAdmin(client: any, userId: string): Promise<boolean> {
+  const { data, error } = await client.rpc('has_role', { 
+    _user_id: userId,
+    _role: 'admin'
+  })
+  
+  if (error) {
+    console.error('Error checking admin role:', error)
+    return false
+  }
+  
+  return !!data
+}
+
+async function canModifyRequest(client: any, userId: string, requestId: string, isAdmin: boolean): Promise<boolean> {
+  if (isAdmin) return true
+  
+  const { data, error } = await client
+    .from('shift_swap_requests')
+    .select('requester_id')
+    .eq('id', requestId)
+    .single()
+    
+  if (error || !data) {
+    console.error('Error checking request ownership:', error)
+    return false
+  }
+  
+  return data.requester_id === userId
+}

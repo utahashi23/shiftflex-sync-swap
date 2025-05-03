@@ -15,11 +15,16 @@ export const createSwapRequestApi = async (
   try {
     console.log('Creating swap request using edge function for shift:', shiftId);
     
+    // Get the current session to pass the auth token
+    const { data: { session } } = await supabase.auth.getSession();
+    const authToken = session?.access_token || '';
+    
     // Use the edge function to handle the entire process safely
     const { data, error } = await supabase.functions.invoke('create_swap_request', {
       body: {
         shift_id: shiftId,
-        preferred_dates: preferredDates
+        preferred_dates: preferredDates,
+        auth_token: authToken
       }
     });
     
@@ -46,9 +51,16 @@ export const deleteSwapRequestApi = async (requestId: string) => {
   }
   
   try {
+    // Get the current session to pass the auth token
+    const { data: { session } } = await supabase.auth.getSession();
+    const authToken = session?.access_token || '';
+    
     // Use the edge function to safely delete the request
     const { data, error } = await supabase.functions.invoke('delete_swap_request', {
-      body: { request_id: requestId }
+      body: { 
+        request_id: requestId,
+        auth_token: authToken
+      }
     });
       
     if (error) throw error;
@@ -69,11 +81,16 @@ export const deletePreferredDateApi = async (dayId: string, requestId: string) =
   }
   
   try {
+    // Get the current session to pass the auth token
+    const { data: { session } } = await supabase.auth.getSession();
+    const authToken = session?.access_token || '';
+    
     // Use the edge function to safely delete a preferred date
     const { data, error } = await supabase.functions.invoke('delete_preferred_day', {
       body: { 
         day_id: dayId,
-        request_id: requestId
+        request_id: requestId,
+        auth_token: authToken
       }
     });
       

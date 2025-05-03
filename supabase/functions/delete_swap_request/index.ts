@@ -18,105 +18,107 @@ serve(async (req) => {
 
   try {
     // Get the request body
-    const { request_id, user_id } = await req.json()
-
-    if (!request_id || !user_id) {
+    const { request_id, auth_token } = await req.json()
+    
+    // Validate required parameters
+    if (!request_id) {
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
+        JSON.stringify({ error: 'Request ID is required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
 
-    // Create a Supabase client with the Auth context of the logged in user
+    // Create a Supabase client
     const supabaseClient = createClient(
-      // Supabase API URL - env var exposed by default when deployed
       Deno.env.get('SUPABASE_URL') ?? '',
-      // Supabase API ANON KEY - env var exposed by default when deployed
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      // Create client with Auth context of the user that called the function.
-      // This way your row-level-security (RLS) policies are applied.
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      { global: { headers: { Authorization: auth_token ? `Bearer ${auth_token}` : '' } } }
     )
 
-    // Verify the request belongs to this user
-    const { data: request, error: verifyError } = await supabaseClient
-      .from('shift_swap_requests')
-      .select('id')
-      .eq('id', request_id)
-      .eq('requester_id', user_id)
-      .single()
-      
-    if (verifyError || !request) {
-      // Try with admin privileges if standard query fails due to RLS
-      console.log('Standard query failed, trying with service role')
-      
-      // Create admin client with service role
-      const adminClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-        { global: { headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` } } }
-      )
-      
-      // Check if request exists and belongs to user
-      const { data: adminVerify, error: adminVerifyError } = await adminClient
-        .from('shift_swap_requests')
-        .select('id')
-        .eq('id', request_id)
-        .eq('requester_id', user_id)
-        .single()
-        
-      if (adminVerifyError || !adminVerify) {
-        return new Response(
-          JSON.stringify({ error: 'Unauthorized or request not found' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
-        )
-      }
-      
-      // Delete preferred dates first (they have a foreign key constraint)
-      const { error: adminDeleteDaysError } = await adminClient
-        .from('shift_swap_preferred_dates')
-        .delete()
-        .eq('request_id', request_id)
-      
-      if (adminDeleteDaysError) {
-        console.error('Error deleting preferred days:', adminDeleteDaysError)
-      }
-      
-      // Delete the request using service role
-      const { error: adminDeleteError } = await adminClient
-        .from('shift_swap_requests')
-        .delete()
-        .eq('id', request_id)
-        
-      if (adminDeleteError) {
-        throw adminDeleteError
-      }
-      
+    // Get the user id from the auth token
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser()
+
+    if (userError || !user) {
+      console.error('Auth error:', userError)
       return new Response(
-        JSON.stringify({ success: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        JSON.stringify({ error: 'Unauthorized - Check authentication token' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       )
     }
 
-    // Standard path - delete the request (preferred days will be cascade deleted)
-    const { error: deleteError } = await supabaseClient
-      .from('shift_swap_requests')
-      .delete()
-      .eq('id', request_id)
+    console.log('Authenticated user:', user.id)
+    
+    // Check if the user is an admin or owns the request
+    const isAdmin = await checkIsAdmin(supabaseClient, user.id)
+    const canDelete = await canDeleteRequest(supabaseClient, user.id, request_id, isAdmin)
+    
+    if (!canDelete) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized to delete this request' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      )
+    }
+    
+    // Use the RPC function to safely delete the request
+    const { data, error: deleteError } = await supabaseClient.rpc(
+      'delete_swap_request_safe',
+      { p_request_id: request_id }
+    )
     
     if (deleteError) {
-      throw deleteError
+      console.error('Error deleting swap request:', deleteError)
+      return new Response(
+        JSON.stringify({ error: deleteError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
     }
-
+    
     return new Response(
       JSON.stringify({ success: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
+    
   } catch (error) {
-    console.error('Error in delete_swap_request:', error)
+    console.error('Error in delete_swap_request function:', error)
+    
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
     )
   }
 })
+
+// Helper functions
+async function checkIsAdmin(client: any, userId: string): Promise<boolean> {
+  const { data, error } = await client.rpc('has_role', { 
+    _user_id: userId,
+    _role: 'admin'
+  })
+  
+  if (error) {
+    console.error('Error checking admin role:', error)
+    return false
+  }
+  
+  return !!data
+}
+
+async function canDeleteRequest(client: any, userId: string, requestId: string, isAdmin: boolean): Promise<boolean> {
+  if (isAdmin) return true
+  
+  const { data, error } = await client
+    .from('shift_swap_requests')
+    .select('requester_id')
+    .eq('id', requestId)
+    .single()
+    
+  if (error || !data) {
+    console.error('Error checking request ownership:', error)
+    return false
+  }
+  
+  return data.requester_id === userId
+}
