@@ -71,11 +71,13 @@ export const useSwapCalendarActions = (
     try {
       setIsLoading(true);
       
-      // Format preferred dates for the API
+      // Format preferred dates for the API - ensure we use acceptedTypes (not acceptTypes)
       const preferredDates = selectedSwapDates.map(dateStr => ({
         date: dateStr,
         acceptedTypes: acceptedTypes
       }));
+      
+      console.log('Creating swap request with preferred dates:', preferredDates);
       
       // Use our API function that calls the edge function
       const { success } = await createSwapRequestApi(

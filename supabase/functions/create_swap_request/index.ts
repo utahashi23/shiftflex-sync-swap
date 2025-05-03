@@ -18,9 +18,15 @@ serve(async (req) => {
 
   try {
     // Get the request body
-    const { user_id, shift_id, preferred_dates } = await req.json()
+    const requestData = await req.json()
+    console.log('Received request data:', requestData)
 
-    if (!user_id || !shift_id || !preferred_dates || !Array.isArray(preferred_dates) || preferred_dates.length === 0) {
+    // Extract data from the request
+    const { shift_id, preferred_dates } = requestData
+
+    // Validate required parameters
+    if (!shift_id || !preferred_dates || !Array.isArray(preferred_dates) || preferred_dates.length === 0) {
+      console.error('Missing required parameters:', { shift_id, preferred_dates })
       return new Response(
         JSON.stringify({ error: 'Missing required parameters' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -38,6 +44,22 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
+    // Get the user id from the auth token
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser()
+
+    if (userError || !user) {
+      console.error('Auth error:', userError)
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      )
+    }
+
+    console.log('Authenticated user:', user.id)
+    
     // 1. Use the RPC function to safely create the swap request
     const { data: requestId, error: requestError } = await supabaseClient.rpc(
       'create_swap_request_safe',
@@ -49,7 +71,10 @@ serve(async (req) => {
       
     if (requestError) {
       console.error('Error creating swap request with RPC:', requestError)
-      throw requestError
+      return new Response(
+        JSON.stringify({ error: requestError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
     }
     
     console.log('Successfully created swap request with ID:', requestId)
@@ -58,7 +83,7 @@ serve(async (req) => {
     const preferredDaysToInsert = preferred_dates.map(pd => ({
       request_id: requestId,
       date: pd.date,
-      accepted_types: pd.accepted_types || ['day', 'afternoon', 'night']
+      accepted_types: pd.acceptedTypes || ['day', 'afternoon', 'night']
     }))
     
     console.log('Inserting preferred dates:', preferredDaysToInsert)
@@ -76,7 +101,10 @@ serve(async (req) => {
         { p_request_id: requestId }
       )
         
-      throw daysError
+      return new Response(
+        JSON.stringify({ error: daysError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
     }
 
     return new Response(
