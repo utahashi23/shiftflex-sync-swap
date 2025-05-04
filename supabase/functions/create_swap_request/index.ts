@@ -47,45 +47,52 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Just get the shift to determine the user ID
-    const { data: shiftData, error: shiftError } = await supabaseAdmin
-      .from('shifts')
-      .select('user_id')
-      .eq('id', shift_id)
-      .single();
-      
-    if (shiftError || !shiftData) {
-      console.error('Shift lookup error:', shiftError || 'Shift not found');
+    // Get user session from the request authorization header
+    const authHeader = req.headers.get('Authorization') || '';
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(
-        JSON.stringify({ error: 'Shift not found' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        JSON.stringify({ error: 'Missing or invalid authorization header' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
-    
-    const userId = shiftData.user_id;
-    console.log('Using shift owner as requester:', userId);
-    
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+
+    if (userError || !user) {
+      console.error('Auth error:', userError || 'User not found');
+      return new Response(
+        JSON.stringify({ error: 'Authentication failed' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const userId = user.id;
     console.log('Proceeding with user ID:', userId);
     
-    // 2. Use the create_swap_request_safe function to avoid RLS issues
-    const { data: requestData, error: requestError } = await supabaseAdmin
-      .rpc('create_swap_request_safe', {
-        p_requester_shift_id: shift_id,
-        p_status: 'pending'
-      });
+    // 1. Create the swap request
+    const { data: swapRequest, error: swapRequestError } = await supabaseAdmin
+      .from('shift_swap_requests')
+      .insert({
+        requester_id: userId,
+        requester_shift_id: shift_id,
+        status: 'pending'
+      })
+      .select('id')
+      .single();
       
-    if (requestError) {
-      console.error('Error creating swap request:', requestError);
+    if (swapRequestError) {
+      console.error('Error creating swap request:', swapRequestError);
       return new Response(
-        JSON.stringify({ error: requestError.message }),
+        JSON.stringify({ error: swapRequestError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
     
-    const requestId = requestData;
+    const requestId = swapRequest.id;
     console.log('Created swap request with ID:', requestId);
     
-    // 3. Add all preferred dates
+    // 2. Add all preferred dates
     const preferredDaysToInsert = preferred_dates.map(pd => ({
       request_id: requestId,
       date: pd.date,

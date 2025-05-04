@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { Shift } from '@/hooks/useShiftData';
 import { AcceptableShiftTypes } from './types';
-import { createSwapRequestApi } from '@/hooks/swap-requests/api';
+import { supabase } from '@/integrations/supabase/client';
 
-// Update the useSwapCalendarActions hook to work with our database directly
+// Update the useSwapCalendarActions hook to work with our edge function
 export const useSwapCalendarActions = (
   state: any, 
   setStateActions: any, 
@@ -71,7 +71,7 @@ export const useSwapCalendarActions = (
     try {
       setIsLoading(true);
       
-      // Format preferred dates for the API - each date with its accepted types
+      // Format preferred dates for the edge function
       const preferredDates = selectedSwapDates.map(dateStr => ({
         date: dateStr,
         acceptedTypes: acceptedTypes
@@ -79,28 +79,33 @@ export const useSwapCalendarActions = (
       
       console.log('Creating swap request with preferred dates:', preferredDates);
       
-      // Use our API function that calls the edge function
-      const { success } = await createSwapRequestApi(
-        selectedShift.id,
-        preferredDates
-      );
+      // Call the Supabase edge function instead of directly accessing the database
+      const { data, error } = await supabase.functions.invoke('create_swap_request', {
+        body: { 
+          shift_id: selectedShift.id,
+          preferred_dates: preferredDates
+        }
+      });
       
-      if (success) {
-        toast({
-          title: "Swap Request Created",
-          description: "Your shift swap request has been saved.",
-        });
-  
-        // Reset the swap mode and selected dates
-        setSwapMode(false);
-        setSelectedSwapDates([]);
-        setSelectedShift(null);
+      if (error) {
+        console.error('Error creating swap request:', error);
+        throw error;
       }
+      
+      toast({
+        title: "Swap Request Created",
+        description: "Your shift swap request has been saved.",
+      });
+
+      // Reset the swap mode and selected dates
+      setSwapMode(false);
+      setSelectedSwapDates([]);
+      setSelectedShift(null);
     } catch (error) {
       console.error('Error saving swap request:', error);
       toast({
         title: "Error Saving Request",
-        description: "There was a problem saving your swap request.",
+        description: "There was a problem saving your swap request. Please try again.",
         variant: "destructive"
       });
     } finally {
