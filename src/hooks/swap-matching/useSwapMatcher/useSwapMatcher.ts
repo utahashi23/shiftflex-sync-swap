@@ -19,11 +19,13 @@ export const useSwapMatcher = () => {
    * @param userId - The ID of the current user (optional for admins)
    * @param forceCheck - Force checking for matches even if already matched
    * @param verbose - Whether to enable verbose logging
+   * @param userPerspectiveOnly - Whether to only show matches from the user's perspective
    */
   const findSwapMatches = async (
     userId?: string, 
     forceCheck: boolean = false, 
-    verbose: boolean = true
+    verbose: boolean = true,
+    userPerspectiveOnly: boolean = true
   ) => {
     if (!user && !userId) {
       toast({
@@ -36,13 +38,16 @@ export const useSwapMatcher = () => {
     
     try {
       setIsFindingMatches(true);
-      console.log(`Finding swap matches for user: ${userId || user?.id}, force check: ${forceCheck}, verbose: ${verbose}`);
+      console.log(`Finding swap matches for user: ${userId || user?.id}, force check: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}`);
       
+      // Use service-role based approach to bypass RLS issues
+      console.log("Using modified approach to avoid RLS recursion...");
       try {
         const result = await executeFindMatches(
           userId || user?.id, 
           forceCheck, 
-          verbose
+          verbose, 
+          userPerspectiveOnly
         );
         console.log("Edge function result:", result);
         

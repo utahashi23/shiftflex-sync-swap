@@ -4,15 +4,14 @@ import { toast } from '../use-toast';
 import { formatSwapMatches } from './utils';
 import { SwapMatch } from './types';
 
-export const fetchUserMatches = async (userId: string) => {
+export const fetchUserMatches = async (userId: string, userPerspectiveOnly: boolean = true) => {
   console.log('Fetching matches for user:', userId);
   
   try {
     const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
       body: { 
         user_id: userId,
-        verbose: true,
-        force_check: true
+        user_perspective_only: userPerspectiveOnly
       }
     });
     

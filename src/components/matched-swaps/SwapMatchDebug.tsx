@@ -15,10 +15,8 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
 
   const runFindMatches = async () => {
     try {
-      if (!user?.id) return;
-      
-      console.log("Starting match finding process...");
-      const result = await findSwapMatches(user.id, true, true);
+      // Call findSwapMatches with the current user ID, verbose and user perspective only
+      const result = await findSwapMatches(user?.id, true, true, true);
       console.log("Match find result:", result);
       
       // After finding matches, trigger parent refresh if provided

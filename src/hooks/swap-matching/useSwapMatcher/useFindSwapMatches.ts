@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Hook for finding potential swap matches between users
- * Enhanced to use the updated matching algorithm
+ * Enhanced to avoid RLS recursion issues with clearer error handling
  */
 export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => void) => {
   const [matchResults, setMatchResults] = useState<any>(null);
@@ -14,22 +14,27 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
    * @param userId - User ID to find matches for
    * @param forceCheck - Whether to check all requests even if already matched
    * @param verbose - Whether to enable verbose logging
+   * @param userPerspectiveOnly - Whether to only show matches from the user's perspective
    */
   const findSwapMatches = async (
     userId: string, 
     forceCheck: boolean = false,
-    verbose: boolean = false
+    verbose: boolean = false,
+    userPerspectiveOnly: boolean = true
   ) => {
     try {
-      console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose})`);
+      console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly})`);
       setIsProcessing(true);
       
       // Make direct call to the edge function to avoid RLS recursion
+      // The edge function uses service_role to bypass RLS policies
       const { data, error } = await supabase.functions.invoke('get_user_matches', {
         body: { 
           user_id: userId,
           force_check: forceCheck,
-          verbose: verbose
+          verbose: verbose,
+          user_perspective_only: userPerspectiveOnly,
+          bypass_rls: true // Explicitly request RLS bypass
         }
       });
       
