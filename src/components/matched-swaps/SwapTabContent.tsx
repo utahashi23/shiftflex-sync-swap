@@ -13,7 +13,8 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
   // Add debugging to see what's being passed to the component
   console.log(`SwapTabContent received ${swaps?.length || 0} swaps, isPast: ${isPast}`);
   
-  if (!swaps || swaps.length === 0) {
+  // Bug fix: Add proper null check and ensure swaps is an array
+  if (!swaps || !Array.isArray(swaps) || swaps.length === 0) {
     console.log("No swaps to display, showing empty state");
     return (
       <EmptySwapState 
@@ -28,7 +29,7 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
     new Map(swaps.map(swap => [swap.id, swap])).values()
   );
   
-  console.log(`Rendering ${uniqueSwaps.length} unique swaps`);
+  console.log(`Rendering ${uniqueSwaps.length} unique swaps:`, uniqueSwaps);
 
   return (
     <div className="space-y-4">

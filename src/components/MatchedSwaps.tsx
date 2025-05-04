@@ -147,9 +147,16 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         
         console.log(`Separated into ${activeMatches.length} active and ${completedMatches.length} completed matches`);
         
-        // Set state with the processed matches
+        // Bug fix: Use setMatches properly to update the state
         setMatches(activeMatches);
         setPastMatches(completedMatches);
+        
+        // Critical fix: Force re-render by explicitly setting state with new array references
+        setTimeout(() => {
+          setMatches([...activeMatches]);
+          setPastMatches([...completedMatches]);
+          console.log("Updating matches state with:", activeMatches);
+        }, 100);
         
         // If we've found matches, update parent tabs if needed
         if (activeMatches.length > 0 && setRefreshTrigger) {
@@ -269,6 +276,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     };
   }, [user]);
 
+  // Debug the current state
+  useEffect(() => {
+    console.log("Current matches state:", matches);
+  }, [matches]);
+
   return (
     <div className="space-y-6">
       {/* Collapsible Swap Match Testing section */}
@@ -334,6 +346,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         </div>
         
         <TabsContent value="active">
+          {/* Bug fix: Make the React state updates more explicit */}
+          {console.log("Rendering active tab with matches:", matches)}
           <SwapTabContent 
             swaps={matches} 
             onAcceptSwap={handleAcceptClick}

@@ -19,6 +19,7 @@ interface SwapCardProps {
 // Format date to a readable string
 const formatDate = (dateStr: string) => {
   try {
+    if (!dateStr) return 'Unknown date';
     return new Date(dateStr).toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
@@ -39,6 +40,10 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
     console.error('Missing swap data in SwapCard');
     return null;
   }
+
+  // More defensive checks to ensure the UI doesn't break
+  const myShift = swap.myShift || {};
+  const otherShift = swap.otherShift || {};
 
   return (
     <Card className="overflow-hidden">
@@ -68,21 +73,21 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
             
             <div className="p-3 border rounded-md bg-background">
               <div className="flex items-center justify-between">
-                <ShiftTypeBadge type={swap.myShift.type} />
+                <ShiftTypeBadge type={myShift.type || 'unknown'} />
               </div>
               
               <div className="flex items-center mt-2">
                 <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span className="text-sm">{formatDate(swap.myShift.date)}</span>
+                <span className="text-sm">{formatDate(myShift.date || '')}</span>
               </div>
               
               <div className="flex items-center mt-1">
                 <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span className="text-sm">{swap.myShift.startTime} - {swap.myShift.endTime}</span>
+                <span className="text-sm">{myShift.startTime || '00:00'} - {myShift.endTime || '00:00'}</span>
               </div>
               
               <div className="mt-2 text-xs font-medium text-muted-foreground">
-                {swap.myShift.truckName || 'Shift'}
+                {myShift.truckName || 'Unknown location'}
               </div>
             </div>
           </div>
@@ -95,24 +100,24 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
             
             <div className="p-3 border rounded-md bg-background">
               <div className="flex items-center justify-between">
-                <ShiftTypeBadge type={swap.otherShift.type} />
+                <ShiftTypeBadge type={otherShift.type || 'unknown'} />
                 <div className="text-xs font-medium text-muted-foreground">
-                  {swap.otherShift.userName || 'Unknown User'}
+                  {otherShift.userName || 'Unknown User'}
                 </div>
               </div>
               
               <div className="flex items-center mt-2">
                 <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span className="text-sm">{formatDate(swap.otherShift.date)}</span>
+                <span className="text-sm">{formatDate(otherShift.date || '')}</span>
               </div>
               
               <div className="flex items-center mt-1">
                 <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span className="text-sm">{swap.otherShift.startTime} - {swap.otherShift.endTime}</span>
+                <span className="text-sm">{otherShift.startTime || '00:00'} - {otherShift.endTime || '00:00'}</span>
               </div>
               
               <div className="mt-2 text-xs font-medium text-muted-foreground">
-                {swap.otherShift.truckName || 'Shift'}
+                {otherShift.truckName || 'Unknown location'}
               </div>
             </div>
           </div>
