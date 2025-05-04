@@ -15,8 +15,14 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
    * @param userId - The ID of the current user (optional for admins)
    * @param forceCheck - Force checking for matches even if already matched
    * @param verbose - Whether to enable verbose logging
+   * @param specificCheck - Whether to check for specific users mentioned in issues
    */
-  const findSwapMatches = async (userId?: string, forceCheck: boolean = false, verbose: boolean = false) => {
+  const findSwapMatches = async (
+    userId?: string, 
+    forceCheck: boolean = false, 
+    verbose: boolean = false,
+    specificCheck: boolean = false
+  ) => {
     setIsProcessing(true);
     
     try {
@@ -24,16 +30,32 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
       console.log('Current user ID:', userId || 'No user ID provided (admin mode)');
       console.log('Force check:', forceCheck);
       console.log('Verbose logging:', verbose);
+      console.log('Specific check:', specificCheck);
       console.log('Is admin:', isAdmin);
       
-      if (verbose) {
-        // Test calling the edge function directly for debugging
+      // Test calling the edge function directly
+      if (verbose || specificCheck) {
         console.log("Testing direct call to edge function with user ID:", userId);
         try {
           const testResponse = await supabase.functions.invoke('get_user_matches', {
-            body: { user_id: userId, verbose: true }
+            body: { 
+              user_id: userId, 
+              verbose: true,
+              specific_check: specificCheck
+            }
           });
           console.log("Direct edge function response:", testResponse);
+          
+          // If the edge function returned matches, we can return early
+          if (testResponse?.data && Array.isArray(testResponse.data) && testResponse.data.length > 0) {
+            console.log(`Edge function found ${testResponse.data.length} matches directly`);
+            toast({
+              title: "Matches Found!",
+              description: `Found ${testResponse.data.length} potential swap match${testResponse.data.length !== 1 ? 'es' : ''}.`,
+            });
+            setIsProcessing(false);
+            return testResponse;
+          }
         } catch (error) {
           console.error("Test call to edge function failed:", error);
         }
@@ -59,6 +81,31 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
       
       // Always log core data regardless of verbose mode
       console.log(`Found ${allRequests.length} swap requests, ${allShifts.length} shifts, ${preferredDates.length} preferred dates`);
+      
+      // If checking for specific issues, log detailed request IDs
+      if (specificCheck || verbose) {
+        console.log('All request IDs:', allRequests.map(r => r.id));
+        console.log('All shift IDs:', allShifts.map(s => s.id));
+        
+        // Check for specific requests mentioned in issue
+        const specificRequestIds = ['b70b145b-965f-462c-b8c0-366865dc7f02', '3ecb141f-5b7e-4cb2-bd83-532345876ed6'];
+        const foundSpecificRequests = allRequests.filter(r => specificRequestIds.includes(r.id));
+        
+        if (foundSpecificRequests.length > 0) {
+          console.log('Found specific requests mentioned in issue:', foundSpecificRequests);
+          
+          // Get shift data for these requests
+          const specificShiftIds = foundSpecificRequests.map(r => r.requester_shift_id);
+          const specificShifts = allShifts.filter(s => specificShiftIds.includes(s.id));
+          console.log('Shifts for specific requests:', specificShifts);
+          
+          // Get preferred dates for these requests
+          const specificPrefDates = preferredDates.filter(d => 
+            foundSpecificRequests.some(r => r.id === d.request_id)
+          );
+          console.log('Preferred dates for specific requests:', specificPrefDates);
+        }
+      }
       
       // Log detailed data in verbose mode
       if (verbose) {
