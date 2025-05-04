@@ -268,8 +268,16 @@ export const testAdminRoleVerification = async () => {
       };
     }
     
-    // Fix the type error by safely accessing the is_admin property
-    const isAdmin = data ? (typeof data === 'object' && data !== null ? Boolean(data.is_admin) : false) : false;
+    // Properly handle the different possible types of the data
+    let isAdmin = false;
+    
+    if (data !== null) {
+      if (typeof data === 'object') {
+        // Handle object type safely
+        isAdmin = Boolean((data as Record<string, any>)?.is_admin);
+      }
+      // If data is an array or other type, default to false already set
+    }
     
     return {
       success: true,
