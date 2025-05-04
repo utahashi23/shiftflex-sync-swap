@@ -46,13 +46,14 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     try {
       console.log('Fetching matches for user:', user.id);
       
-      // Call the get_user_matches function with verbose option and user perspective only
+      // Call the get_user_matches function with verbose option and user as initiator
       const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
         body: { 
           user_id: user.id,
           verbose: true,
           force_check: true,
-          user_perspective_only: true // Only show matches from user's perspective
+          user_perspective_only: true,
+          user_initiator_only: true
         }
       });
         
