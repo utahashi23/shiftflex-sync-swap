@@ -9,13 +9,14 @@ import {
   TabsList,
   TabsTrigger,
 } from "./ui/tabs";
-import { Filter, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { SwapMatch } from '@/hooks/useSwapMatches';
 import { getShiftType } from '@/utils/shiftUtils';
 import SimpleMatchTester from './testing/SimpleMatchTester';
+import { SwapMatchDebug } from './matched-swaps/SwapMatchDebug';
 
 interface MatchedSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
@@ -45,12 +46,13 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     try {
       console.log('Fetching matches for user:', user.id);
       
-      // Call the get_user_matches function with verbose option to get more info
+      // Call the get_user_matches function with verbose option and user perspective only
       const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
         body: { 
           user_id: user.id,
           verbose: true,
-          force_check: true
+          force_check: true,
+          user_perspective_only: true // Only show matches from user's perspective
         }
       });
         
@@ -203,6 +205,9 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         <SimpleMatchTester onMatchCreated={fetchMatches} />
       </div>
       
+      {/* Find Potential Matches button */}
+      <SwapMatchDebug onRefreshMatches={fetchMatches} />
+      
       <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
         <div className="flex justify-between items-center mb-4">
           <TabsList>
@@ -217,9 +222,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               {isLoading ? 'Finding Matches...' : 'Refresh Matches'}
-            </Button>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-1" /> Filter
             </Button>
           </div>
         </div>

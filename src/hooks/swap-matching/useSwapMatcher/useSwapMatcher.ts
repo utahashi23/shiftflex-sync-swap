@@ -19,13 +19,13 @@ export const useSwapMatcher = () => {
    * @param userId - The ID of the current user (optional for admins)
    * @param forceCheck - Force checking for matches even if already matched
    * @param verbose - Whether to enable verbose logging
-   * @param specificCheck - Whether to check for specific users mentioned in issues
+   * @param userPerspectiveOnly - Whether to only show matches from the user's perspective
    */
   const findSwapMatches = async (
     userId?: string, 
     forceCheck: boolean = false, 
-    verbose: boolean = true, // Default to true for more debugging info
-    specificCheck: boolean = false
+    verbose: boolean = true,
+    userPerspectiveOnly: boolean = true
   ) => {
     if (!user && !userId) {
       toast({
@@ -38,21 +38,17 @@ export const useSwapMatcher = () => {
     
     try {
       setIsFindingMatches(true);
-      console.log(`Finding swap matches for user: ${userId || user?.id}, force check: ${forceCheck}, verbose: ${verbose}, specific check: ${specificCheck}`);
-      
-      // Log known problem IDs (from user message)
-      const knownUserIds = ['0dba6413-6ab5-46c9-9db1-ecca3b444e34', 'b6da71dc-3749-4b92-849a-1977ff196e67'];
-      const knownRequestIds = ['b70b145b-965f-462c-b8c0-366865dc7f02', '3ecb141f-5b7e-4cb2-bd83-532345876ed6'];
-      
-      if (knownUserIds.includes(userId || user?.id)) {
-        console.log("Processing known problematic user, enabling specific checks");
-        specificCheck = true;
-      }
+      console.log(`Finding swap matches for user: ${userId || user?.id}, force check: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}`);
       
       // Use service-role based approach to bypass RLS issues
       console.log("Using modified approach to avoid RLS recursion...");
       try {
-        const result = await executeFindMatches(userId || user?.id, forceCheck, verbose, specificCheck);
+        const result = await executeFindMatches(
+          userId || user?.id, 
+          forceCheck, 
+          verbose, 
+          userPerspectiveOnly
+        );
         console.log("Edge function result:", result);
         
         // Show a toast if matches were found
@@ -72,14 +68,6 @@ export const useSwapMatcher = () => {
       } catch (error) {
         console.error("Error in edge function call:", error);
         throw error;
-      }
-      
-      // When debugging known issues, provide feedback
-      if (specificCheck || knownUserIds.includes(userId || user?.id)) {
-        toast({
-          title: "Debug mode active",
-          description: "Checking specific users and requests with enhanced logging.",
-        });
       }
     } catch (error) {
       console.error('Error in findSwapMatches:', error);

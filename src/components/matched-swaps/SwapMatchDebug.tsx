@@ -6,18 +6,17 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 interface SwapMatchDebugProps {
-  onRefreshMatches?: () => void;  // Added prop for refreshing parent components
+  onRefreshMatches?: () => void;
 }
 
 export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
   const { user } = useAuth();
   const { findSwapMatches, isProcessing } = useSwapMatcher();
 
-  // Enhanced to use verbose and force options for better debugging
   const runFindMatches = async () => {
     try {
-      console.log("Running match find with verbose and force options");
-      const result = await findSwapMatches(user?.id, true, true);
+      // Call findSwapMatches with the current user ID, verbose and user perspective only
+      const result = await findSwapMatches(user?.id, true, true, true);
       console.log("Match find result:", result);
       
       // After finding matches, trigger parent refresh if provided
