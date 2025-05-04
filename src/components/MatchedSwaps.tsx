@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
@@ -66,18 +65,18 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         myShift: {
           id: match.my_shift_id,
           date: match.my_shift_date,
-          startTime: match.my_shift_start_time,
-          endTime: match.my_shift_end_time,
-          truckName: match.my_shift_truck,
-          type: getShiftType(match.my_shift_start_time)
+          startTime: match.my_shift_start_time || '00:00:00',
+          endTime: match.my_shift_end_time || '00:00:00',
+          truckName: match.my_shift_truck || 'Unknown',
+          type: getShiftType(match.my_shift_start_time || '00:00:00')
         },
         otherShift: {
           id: match.other_shift_id,
           date: match.other_shift_date,
-          startTime: match.other_shift_start_time,
-          endTime: match.other_shift_end_time,
-          truckName: match.other_shift_truck,
-          type: getShiftType(match.other_shift_start_time),
+          startTime: match.other_shift_start_time || '00:00:00',
+          endTime: match.other_shift_end_time || '00:00:00',
+          truckName: match.other_shift_truck || 'Unknown',
+          type: getShiftType(match.other_shift_start_time || '00:00:00'),
           userId: match.other_user_id,
           userName: match.other_user_name || 'Unknown User'
         },
@@ -143,9 +142,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       // If we've found matches, update parent tabs if needed
       if (activeMatches.length > 0 && setRefreshTrigger) {
         setRefreshTrigger(prevVal => prevVal + 1);
-        if (activeTab !== 'active') {
-          setActiveTab('active');
-        }
       }
       
       // Show toast message about the results

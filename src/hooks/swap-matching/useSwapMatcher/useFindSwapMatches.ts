@@ -68,7 +68,7 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
         return {
           ...request,
           shift_date: shiftData?.[0]?.date || 'Unknown',
-          shift: shiftData?.[0] as ShiftData || null,
+          shift: shiftData?.[0] as ShiftData || {},
           user: userData || { first_name: 'Unknown', last_name: 'User' }
         };
       }));
