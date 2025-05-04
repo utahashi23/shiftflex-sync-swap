@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Hook for finding potential swap matches between users
- * Enhanced to avoid RLS recursion issues with clearer error handling
+ * Enhanced to use the updated matching algorithm
  */
 export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => void) => {
   const [matchResults, setMatchResults] = useState<any>(null);
@@ -14,30 +14,22 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
    * @param userId - User ID to find matches for
    * @param forceCheck - Whether to check all requests even if already matched
    * @param verbose - Whether to enable verbose logging
-   * @param userPerspectiveOnly - Whether to only show matches from the user's perspective
-   * @param userInitiatorOnly - Whether to only show matches where the user is the initiator
    */
   const findSwapMatches = async (
     userId: string, 
     forceCheck: boolean = false,
-    verbose: boolean = false,
-    userPerspectiveOnly: boolean = true,
-    userInitiatorOnly: boolean = true
+    verbose: boolean = false
   ) => {
     try {
-      console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}, user initiator only: ${userInitiatorOnly})`);
+      console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose})`);
       setIsProcessing(true);
       
       // Make direct call to the edge function to avoid RLS recursion
-      // The edge function uses service_role to bypass RLS policies
       const { data, error } = await supabase.functions.invoke('get_user_matches', {
         body: { 
           user_id: userId,
           force_check: forceCheck,
-          verbose: verbose,
-          user_perspective_only: userPerspectiveOnly,
-          user_initiator_only: userInitiatorOnly,
-          bypass_rls: true // Explicitly request RLS bypass
+          verbose: verbose
         }
       });
       

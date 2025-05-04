@@ -16,18 +16,13 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
   
   const { user } = useAuth();
   
-  const fetchMatches = async (userPerspectiveOnly: boolean = true, userInitiatorOnly: boolean = true) => {
+  const fetchMatches = async () => {
     if (!user) return;
     
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
-      // Always force userInitiatorOnly to true to ensure consistent behavior
-      const { matches, pastMatches, rawApiData } = await fetchUserMatches(
-        user.id,
-        userPerspectiveOnly, 
-        true // Always use true for userInitiatorOnly
-      );
+      const { matches, pastMatches, rawApiData } = await fetchUserMatches(user.id);
       
       setState({
         matches,
@@ -113,8 +108,7 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
   // Fetch matches when the component mounts or user changes
   useEffect(() => {
     if (user) {
-      // Always force userInitiatorOnly to true to ensure consistent behavior
-      fetchMatches(true, true);
+      fetchMatches();
     }
   }, [user]);
   
