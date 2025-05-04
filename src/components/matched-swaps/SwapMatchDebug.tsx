@@ -38,7 +38,9 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
       // After finding matches, trigger parent refresh if provided
       if (onRefreshMatches && typeof onRefreshMatches === 'function') {
         console.log("Triggering parent refresh after finding matches");
-        onRefreshMatches();
+        setTimeout(() => {
+          onRefreshMatches();
+        }, 100); // Small delay to ensure state updates complete
       }
       
       // Show toast about results

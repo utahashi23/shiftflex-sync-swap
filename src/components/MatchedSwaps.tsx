@@ -221,11 +221,21 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     }
   };
 
-  // Initial load
+  // Initial load - prevent multiple fetches
   useEffect(() => {
-    if (user) {
-      fetchMatches();
-    }
+    let mounted = true;
+    
+    const loadInitialData = async () => {
+      if (user && mounted) {
+        await fetchMatches();
+      }
+    };
+    
+    loadInitialData();
+    
+    return () => {
+      mounted = false;
+    };
   }, [user]);
 
   return (
@@ -265,7 +275,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         </CollapsibleContent>
       </Collapsible>
       
-      <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
+      <Tabs 
+        defaultValue="active" 
+        value={activeTab} 
+        onValueChange={setActiveTab}
+      >
         <div className="flex justify-between items-center mb-4">
           <TabsList>
             <TabsTrigger value="active">Active Matches</TabsTrigger>
