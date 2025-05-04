@@ -8,12 +8,14 @@ import ShiftSwapCalendar from '@/components/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useSwapMatcher } from '@/hooks/useSwapMatcher';
+import { useSwapMatcher } from '@/hooks/swap-matching'; 
 import { RefreshCw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
+  const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('calendar');
   const { findSwapMatches, isProcessing } = useSwapMatcher();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -26,8 +28,18 @@ const ShiftSwaps = () => {
   }, [refreshTrigger]);
   
   const handleFindMatches = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to find matches.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     console.log('Find Matches button clicked');
-    await findSwapMatches();
+    // Pass the user ID to findSwapMatches. For admins, it can optionally handle all requests
+    await findSwapMatches(user.id);
     // Refresh the tabs to show updated data
     setRefreshTrigger(prev => prev + 1);
     toast({
@@ -42,6 +54,7 @@ const ShiftSwaps = () => {
         <h1 className="text-3xl font-bold tracking-tight">Shift Swaps</h1>
         <p className="text-gray-500 mt-1">
           Request and manage your shift swaps
+          {isAdmin && <span className="ml-2 text-blue-500">(Admin Access)</span>}
         </p>
       </div>
 
