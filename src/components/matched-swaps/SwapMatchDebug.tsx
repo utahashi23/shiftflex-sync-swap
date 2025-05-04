@@ -15,8 +15,8 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
 
   const runFindMatches = async () => {
     try {
-      // Call findSwapMatches with the current user ID, verbose and user perspective only
-      // We explicitly set userInitiatorOnly to true to prevent showing duplicated matches
+      // Always set userInitiatorOnly to true to only show matches where the current user is the initiator
+      // The userPerspectiveOnly parameter ensures we only see the current user's perspective
       const result = await findSwapMatches(user?.id, true, true, true, true);
       console.log("Match find result:", result);
       
