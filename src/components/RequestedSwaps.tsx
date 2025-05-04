@@ -1,15 +1,17 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SwapRequestCard from './swaps/SwapRequestCard';
 import SwapRequestSkeleton from './swaps/SwapRequestSkeleton';
 import EmptySwapRequests from './swaps/EmptySwapRequests';
 import SwapDeleteDialog from './swaps/SwapDeleteDialog';
 import { useSwapRequests } from '@/hooks/swap-requests';
+import { toast } from '@/hooks/use-toast';
 
 const RequestedSwaps = () => {
   const { 
     swapRequests, 
-    isLoading, 
+    isLoading,
+    fetchSwapRequests, 
     deleteSwapRequest, 
     deletePreferredDay 
   } = useSwapRequests();
@@ -25,6 +27,11 @@ const RequestedSwaps = () => {
     dayId: null,
     isDeleting: false
   });
+  
+  // Fetch swap requests when component mounts
+  useEffect(() => {
+    fetchSwapRequests();
+  }, [fetchSwapRequests]);
   
   // Handler for opening delete dialog for an entire swap request
   const onDeleteRequest = (requestId: string) => {
@@ -57,13 +64,29 @@ const RequestedSwaps = () => {
       
       if (deleteDialog.dayId) {
         // Delete a single preferred date
-        await deletePreferredDay(deleteDialog.dayId, deleteDialog.requestId);
+        const result = await deletePreferredDay(deleteDialog.dayId, deleteDialog.requestId);
+        console.log("Delete preferred day result:", result);
+        
+        // If this was the last date and the entire request was deleted
+        if (result && result.requestDeleted) {
+          // Refresh the list
+          fetchSwapRequests();
+        }
       } else {
         // Delete the entire swap request
         await deleteSwapRequest(deleteDialog.requestId);
+        // Request list will be updated in the useDeleteSwapRequest hook
       }
-    } finally {
+      
       setDeleteDialog({ isOpen: false, requestId: null, dayId: null, isDeleting: false });
+    } catch (error) {
+      console.error("Error in deletion process:", error);
+      toast({
+        title: "Deletion Failed",
+        description: "Please try again or contact support if the problem persists.",
+        variant: "destructive"
+      });
+      setDeleteDialog(prev => ({ ...prev, isDeleting: false }));
     }
   };
   

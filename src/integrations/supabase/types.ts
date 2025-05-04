@@ -336,6 +336,18 @@ export type Database = {
         Args: { p_requester_shift_id: string; p_status?: string }
         Returns: string
       }
+      delete_preferred_date_rpc: {
+        Args: { p_day_id: string; p_request_id: string }
+        Returns: Json
+      }
+      delete_preferred_date_safe: {
+        Args: { p_day_id: string; p_request_id: string }
+        Returns: Json
+      }
+      delete_swap_request_safe: {
+        Args: { p_request_id: string; p_user_id: string }
+        Returns: Json
+      }
       get_all_preferred_dates: {
         Args: Record<PropertyKey, never>
         Returns: {

@@ -11,7 +11,31 @@ export const deleteSwapRequestApi = async (requestId: string) => {
   }
   
   try {
-    // Get the current session
+    console.log('Attempting to delete swap request with ID:', requestId);
+    
+    // Try to use the RPC function first (most reliable)
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
+      'delete_swap_request_safe',
+      { 
+        p_request_id: requestId,
+        p_user_id: (await supabase.auth.getUser()).data.user?.id 
+      }
+    );
+    
+    if (!rpcError) {
+      console.log('Successfully deleted swap request using RPC function:', rpcData);
+      
+      toast({
+        title: "Swap Request Deleted",
+        description: "Your swap request has been deleted successfully."
+      });
+      
+      return { success: true };
+    }
+    
+    console.warn('RPC function failed, falling back to edge function:', rpcError);
+    
+    // Fall back to the edge function if RPC fails
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
