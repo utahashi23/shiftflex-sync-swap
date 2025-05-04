@@ -1,4 +1,3 @@
-
 // Follow this setup guide to integrate the Supabase Edge Functions with your app:
 // https://supabase.com/docs/guides/functions/getting-started
 
@@ -209,23 +208,13 @@ serve(async (req) => {
           const userMatchRequests = await getUserRequestIds(serviceClient, user_id);
           console.log(`User has ${userMatchRequests.length} request IDs:`, userMatchRequests);
           
-          let userInvolvedMatches = [];
-          
-          if (user_initiator_only) {
-            // ONLY show matches where the user's request is the requester_request_id
-            // This ensures "Your Shift" is always the current user's shift being swapped
-            userInvolvedMatches = directMatches.filter(match => 
-              userMatchRequests.includes(match.requester_request_id)
-            );
-            console.log(`Found ${userInvolvedMatches.length} matches where user ${user_id} is the initiator`);
-          } else {
-            // Show matches where the user is involved on either side (not used anymore)
-            userInvolvedMatches = directMatches.filter(match => 
-              userMatchRequests.includes(match.requester_request_id) || 
-              userMatchRequests.includes(match.acceptor_request_id)
-            );
-            console.log(`Found ${userInvolvedMatches.length} matches involving user ${user_id}`);
-          }
+          // CRITICAL CHANGE: Always filter to only show matches where the user is the requester (initiator)
+          // This ensures "Your Shift" is always the current user's shift being swapped
+          const userInvolvedMatches = directMatches.filter(match => 
+            userMatchRequests.includes(match.requester_request_id)
+          );
+
+          console.log(`Found ${userInvolvedMatches.length} matches where user ${user_id} is ONLY the initiator`);
           
           if (userInvolvedMatches.length > 0) {
             // Try to get detailed info for these matches
@@ -248,7 +237,8 @@ serve(async (req) => {
       // If no matches found and verbose mode is enabled, try manual matching
       if (verbose || force_check) {
         console.log("No matches found - attempting to run manual matching process");
-        const manualMatches = await attemptManualMatching(serviceClient, user_id, user_initiator_only);
+        // Always force userInitiatorOnly to true in manual matching
+        const manualMatches = await attemptManualMatching(serviceClient, user_id, true);
         
         if (manualMatches && manualMatches.length > 0) {
           console.log(`Manual matching found ${manualMatches.length} potential matches`);
@@ -349,6 +339,12 @@ async function getMatchDetails(serviceClient, matches, userId) {
         continue;
       }
       
+      // CRITICAL CHECK: Ensure this is the current user's request
+      if (reqData.requester_id !== userId) {
+        console.log(`Skipping match ${match.id} - requester is not the current user (${reqData.requester_id} vs ${userId})`);
+        continue;
+      }
+      
       // Get the acceptor request (which should always be the other user's request)
       const { data: acceptorData, error: acceptorError } = await serviceClient
         .from('shift_swap_requests')
@@ -358,12 +354,6 @@ async function getMatchDetails(serviceClient, matches, userId) {
         
       if (acceptorError || !acceptorData) {
         console.error('Error fetching acceptor request:', acceptorError);
-        continue;
-      }
-      
-      // Double check that the requester request belongs to the current user
-      if (reqData.requester_id !== userId) {
-        console.log(`Skipping match ${match.id} - requester is not the current user`);
         continue;
       }
       

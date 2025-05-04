@@ -45,12 +45,13 @@ export const useSwapMatcher = () => {
       // Use service-role based approach to bypass RLS issues
       console.log("Using modified approach to avoid RLS recursion...");
       try {
+        // Always force userInitiatorOnly to true to ensure consistent behavior
         const result = await executeFindMatches(
           userId || user?.id, 
           forceCheck, 
           verbose, 
           userPerspectiveOnly,
-          userInitiatorOnly
+          true // Always use true for userInitiatorOnly
         );
         console.log("Edge function result:", result);
         
