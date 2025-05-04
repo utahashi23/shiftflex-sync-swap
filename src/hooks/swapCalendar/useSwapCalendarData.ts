@@ -24,8 +24,6 @@ export const useSwapCalendarData = (currentDate: Date, userId?: string) => {
         
         console.log('Fetching shifts with date range:', { startDate, endDate, userId });
         
-        // Note: This still filters by userId because we're only showing
-        // the current user's shifts in the calendar
         const { data, error } = await supabase
           .from('shifts')
           .select('*')
@@ -36,7 +34,7 @@ export const useSwapCalendarData = (currentDate: Date, userId?: string) => {
           
         if (error) throw error;
         
-        console.log('Shifts fetched for calendar display:', data?.length || 0);
+        console.log('Shifts fetched:', data);
         
         // Format the shifts for the calendar
         const formattedShifts: Shift[] = data?.map(shift => {

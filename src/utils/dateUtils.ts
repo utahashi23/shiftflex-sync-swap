@@ -1,69 +1,35 @@
-/**
- * Get the number of days in a month
- */
-export const getDaysInMonth = (year: number, month: number): number => {
+
+export const formatDateString = (year: number, month: number, day: number) => {
+  const date = new Date(year, month, day);
+  // Ensure we're using the local timezone for the date string
+  const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  
+  // Format as YYYY-MM-DD using local timezone components
+  const y = localDate.getFullYear();
+  const m = String(localDate.getMonth() + 1).padStart(2, '0');
+  const d = String(localDate.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+export const getDaysInMonth = (year: number, month: number) => {
   return new Date(year, month + 1, 0).getDate();
 };
 
-/**
- * Get the first day of the month
- */
-export const getFirstDayOfMonth = (year: number, month: number): number => {
+export const getFirstDayOfMonth = (year: number, month: number) => {
   return new Date(year, month, 1).getDay();
 };
 
-/**
- * Format a date string
- */
-export const formatDateString = (year: number, month: number, day: number): string => {
-  const monthStr = String(month + 1).padStart(2, '0');
-  const dayStr = String(day).padStart(2, '0');
-  return `${year}-${monthStr}-${dayStr}`;
-};
-
-/**
- * Get the start and end dates for a given month
- */
+// Function to get the start and end date of a month
 export const getMonthDateRange = (date: Date) => {
   const year = date.getFullYear();
   const month = date.getMonth();
   
-  const startDate = new Date(year, month, 1).toISOString().split('T')[0];
-  const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+  // First day of the month
+  const startDate = formatDateString(year, month, 1);
+  
+  // Last day of the month
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const endDate = formatDateString(year, month, lastDay);
   
   return { startDate, endDate };
-};
-
-/**
- * Normalize a date string to YYYY-MM-DD format
- */
-export const normalizeDate = (date: string): string => {
-  return new Date(date).toISOString().split('T')[0];
-};
-
-/**
- * Format time from database format (HH:MM:SS) to display format (HH:MM AM/PM)
- */
-export const formatTime = (timeStr: string): string => {
-  if (!timeStr) return '';
-  
-  try {
-    // Handle both HH:MM:SS and HH:MM formats
-    const timeParts = timeStr.split(':');
-    let hours = parseInt(timeParts[0], 10);
-    const minutes = parseInt(timeParts[1], 10);
-    
-    // Convert to 12-hour format
-    const period = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
-    
-    // Format with leading zeros
-    const formattedHours = hours.toString();
-    const formattedMinutes = minutes.toString().padStart(2, '0');
-    
-    return `${formattedHours}:${formattedMinutes} ${period}`;
-  } catch (e) {
-    console.error('Error formatting time:', e);
-    return timeStr;
-  }
 };
