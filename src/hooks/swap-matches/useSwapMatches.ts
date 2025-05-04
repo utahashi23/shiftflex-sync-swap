@@ -108,7 +108,8 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
   // Fetch matches when the component mounts or user changes
   useEffect(() => {
     if (user) {
-      fetchMatches(true, true); // Default to only user perspective and user as initiator
+      // Always set userInitiatorOnly to true to only see matches where the current user is the initiator
+      fetchMatches(true, true);
     }
   }, [user]);
   

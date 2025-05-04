@@ -210,7 +210,8 @@ serve(async (req) => {
           let userInvolvedMatches;
           
           if (user_initiator_only) {
-            // Only show matches where the user is the initiator of the request
+            // Only show matches where the user is the requester (initiator)
+            // This ensures "Your Shift" is always the current user's shift being swapped
             userInvolvedMatches = directMatches.filter(match => 
               userMatchRequests.includes(match.requester_request_id)
             );
@@ -496,11 +497,16 @@ async function attemptManualMatching(serviceClient, userId, userInitiatorOnly = 
         // Skip if users are the same
         if (userRequest.requester_id === otherRequest.requester_id) continue;
         
-        // If user initiator only is enabled and user's request ID is greater than other's request ID, skip
-        // This ensures we only create matches where the user is the initiator
-        if (userInitiatorOnly && userRequest.id > otherRequest.id) {
-          console.log(`Skipping match between ${userRequest.id} and ${otherRequest.id} because user is not initiator`);
-          continue;
+        // When userInitiatorOnly is true, ALWAYS ensure the user's request is the requester
+        // This is crucial to ensure "Your Shift" is always the user's shift they want to swap
+        if (userInitiatorOnly) {
+          // Since we're explicitly ensuring the current user is the requester/initiator,
+          // we don't need additional ID comparison logic here
+          console.log(`Processing match between user request ${userRequest.id} and other request ${otherRequest.id}`);
+        } else {
+          // This branch is no longer really used since we default to userInitiatorOnly=true
+          // But keeping it for completeness
+          console.log(`Processing match between ${userRequest.id} and ${otherRequest.id}`);
         }
         
         const otherShift = shiftsById[otherRequest.requester_shift_id];
@@ -529,7 +535,8 @@ async function attemptManualMatching(serviceClient, userId, userInitiatorOnly = 
             .limit(1);
             
           if (!matchCheckError && (!existingMatch || existingMatch.length === 0)) {
-            // Record the new match
+            // Record the new match - ALWAYS with the user request as requester
+            // This ensures "Your Shift" is consistently the user's actual shift
             const { data: newMatch, error: createError } = await serviceClient
               .from('shift_swap_potential_matches')
               .insert({
