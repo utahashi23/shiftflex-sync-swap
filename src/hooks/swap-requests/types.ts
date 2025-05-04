@@ -24,6 +24,6 @@ export interface UseSwapRequestsReturn {
   swapRequests: SwapRequest[];
   isLoading: boolean;
   fetchSwapRequests: () => Promise<void>;
-  handleDeleteSwapRequest: (requestId: string) => Promise<void>;
-  handleDeletePreferredDate: (dateId: string, requestId: string) => Promise<void>;
+  deleteSwapRequest: (requestId: string) => Promise<boolean>;
+  deletePreferredDay: (dayId: string, requestId: string) => Promise<boolean>;
 }
