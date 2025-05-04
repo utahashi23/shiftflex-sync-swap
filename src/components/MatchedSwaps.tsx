@@ -5,8 +5,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { RefreshCw, Search } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useSwapMatches } from "@/hooks/swap-matches";
-import { useSwapMatcher } from "@/hooks/swap-matching";
+import { useSimpleSwapMatches } from "@/hooks/swap-matches/useSimpleSwapMatches";
+import { useSimpleMatcher } from "@/hooks/swap-matching/useSwapMatcher/useSimpleMatcher";
 import MatchCard from "@/components/swaps/MatchCard";
 import MatchCardSkeleton from "@/components/swaps/MatchCardSkeleton";
 import { DebugPanel } from "@/components/matched-swaps/DebugPanel";
@@ -17,8 +17,8 @@ interface MatchedSwapsProps {
 
 const MatchedSwaps = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   const { user, isAdmin } = useAuth();
-  const { matches, pastMatches, isLoading, error, fetchMatches, acceptMatch, completeMatch, rawApiData } = useSwapMatches();
-  const { findSwapMatches, isProcessing, isFindingMatches } = useSwapMatcher();
+  const { matches, pastMatches, isLoading, error, fetchMatches, acceptMatch, completeMatch, rawApiData } = useSimpleSwapMatches();
+  const { findSwapMatches, isProcessing } = useSimpleMatcher();
   const [debugEnabled, setDebugEnabled] = useState(false);
   
   // Log component state for debugging
@@ -40,15 +40,8 @@ const MatchedSwaps = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         description: "Checking for potential shift swaps"
       });
       
-      // Use enhanced options for more detailed matching
-      const result = await findSwapMatches(
-        user.id,    // user ID
-        true,       // force check even if matches exist
-        true,       // verbose mode for more debugging
-        false       // specific check for known issues
-      );
-      
-      console.log("Find matches result:", result);
+      // Use the simple matcher to find matches directly
+      await findSwapMatches(true);
       
       // Refresh match data after finding matches
       await fetchMatches();
@@ -104,9 +97,9 @@ const MatchedSwaps = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         </h2>
         <Button
           onClick={handleFindMatches}
-          disabled={isFindingMatches || isProcessing}
+          disabled={isProcessing || isLoading}
         >
-          {(isFindingMatches || isProcessing) ? (
+          {(isProcessing || isLoading) ? (
             <>
               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
               Finding Matches...
