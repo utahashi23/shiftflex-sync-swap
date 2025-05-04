@@ -25,7 +25,12 @@ export const deletePreferredDateApi = async (dayId: string, requestId: string) =
     if (!rpcError) {
       console.log('Successfully deleted preferred date using RPC function:', rpcData);
       
-      if (rpcData.requestDeleted) {
+      // Check if the result indicates the entire request was deleted
+      const wasRequestDeleted = rpcData && typeof rpcData === 'object' && 'requestDeleted' in rpcData 
+        ? Boolean(rpcData.requestDeleted)
+        : false;
+      
+      if (wasRequestDeleted) {
         toast({
           title: "Swap Request Deleted",
           description: "This was the last preferred date, so the entire request has been removed."
@@ -39,7 +44,7 @@ export const deletePreferredDateApi = async (dayId: string, requestId: string) =
       
       return { 
         success: true, 
-        requestDeleted: rpcData.requestDeleted || false 
+        requestDeleted: wasRequestDeleted 
       };
     }
     
@@ -75,9 +80,14 @@ export const deletePreferredDateApi = async (dayId: string, requestId: string) =
       throw response.error;
     }
     
+    // Check if the result indicates the entire request was deleted
+    const wasRequestDeleted = response.data && typeof response.data === 'object' && 'requestDeleted' in response.data 
+      ? Boolean(response.data.requestDeleted)
+      : false;
+    
     return { 
       success: true, 
-      requestDeleted: response.data?.requestDeleted || false 
+      requestDeleted: wasRequestDeleted 
     };
   } catch (error) {
     console.error('Error deleting preferred date:', error);

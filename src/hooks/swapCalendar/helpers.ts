@@ -26,24 +26,17 @@ export const createSwapHelpers = (state: SwapCalendarState) => {
     // User cannot select days they are already working
     if (hasShift(dateStr)) return true;
     
-    // Check 10-hour rule
-    if (acceptableShiftTypes.day || acceptableShiftTypes.afternoon) {
-      // Get previous day
-      const date = new Date(dateStr);
-      date.setDate(date.getDate() - 1);
-      const prevDateStr = date.toISOString().split('T')[0];
-      
-      // Check if previous day has a night shift
-      const prevShift = getShiftForDate(prevDateStr);
-      if (prevShift && prevShift.type === 'night') {
-        return true;
-      }
-    }
+    // Check 10-hour rule: A day or afternoon shift cannot follow a night shift
+    // Get previous day
+    const date = new Date(dateStr);
+    date.setDate(date.getDate() - 1);
+    const prevDateStr = date.toISOString().split('T')[0];
     
-    if (acceptableShiftTypes.night) {
-      // Get same day
-      const sameShift = getShiftForDate(dateStr);
-      if (sameShift && sameShift.type === 'day') {
+    // Check if previous day has a night shift
+    const prevShift = getShiftForDate(prevDateStr);
+    if (prevShift && prevShift.type === 'night') {
+      // If we're potentially selecting a day or afternoon shift
+      if (acceptableShiftTypes.day || acceptableShiftTypes.afternoon) {
         return true;
       }
     }

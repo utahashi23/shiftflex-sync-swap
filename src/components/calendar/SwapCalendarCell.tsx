@@ -32,16 +32,17 @@ export const SwapCalendarCell = ({
   return (
     <div 
       className={cn(
-        "calendar-cell cursor-pointer hover:bg-secondary/30 transition-colors",
+        "calendar-cell relative",
         shift && "has-shift",
         isSelected && "selected",
-        isDisabled && "day-disabled",
-        isSwapSelected && "day-selected bg-green-50"
+        isDisabled ? "day-disabled bg-gray-300 cursor-not-allowed" : "cursor-pointer hover:bg-secondary/30",
+        isSwapSelected && "day-selected bg-green-50",
+        "transition-colors"
       )}
-      onClick={onClick}
+      onClick={isDisabled ? undefined : onClick}
     >
       <div className="flex justify-between items-start mb-1">
-        <span className="text-sm font-medium">{day}</span>
+        <span className={cn("text-sm font-medium", isDisabled && "text-gray-500")}>{day}</span>
         {shift && (
           <span className={cn(
             "p-1 rounded-full",
@@ -62,9 +63,21 @@ export const SwapCalendarCell = ({
       
       {shift && (
         <>
-          <div className="text-xs font-medium mb-0.5 truncate">{shift.title}</div>
-          <div className="shift-detail">{shift.startTime} - {shift.endTime}</div>
+          <div className={cn("text-xs font-medium mb-0.5 truncate", isDisabled && "text-gray-500")}>{shift.title}</div>
+          <div className={cn("shift-detail", isDisabled && "text-gray-500")}>{shift.startTime} - {shift.endTime}</div>
         </>
+      )}
+      
+      {isDisabled && (
+        <div className="absolute inset-0 bg-gray-200 bg-opacity-50 flex items-center justify-center">
+          {acceptableShiftTypes.day || acceptableShiftTypes.afternoon ? (
+            <div className="text-xs text-gray-600 font-medium text-center p-1">
+              Cannot follow night shift
+            </div>
+          ) : (
+            <div className="text-xs text-gray-600 font-medium">Unavailable</div>
+          )}
+        </div>
       )}
     </div>
   );

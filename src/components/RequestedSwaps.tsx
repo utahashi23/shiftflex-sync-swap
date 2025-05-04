@@ -67,8 +67,8 @@ const RequestedSwaps = () => {
         const result = await deletePreferredDay(deleteDialog.dayId, deleteDialog.requestId);
         console.log("Delete preferred day result:", result);
         
-        // If this was the last date and the entire request was deleted
-        if (result && result.requestDeleted) {
+        // Type-safe check if this was the last date and the entire request was deleted
+        if (result && 'requestDeleted' in result && result.requestDeleted) {
           // Refresh the list
           fetchSwapRequests();
         }
