@@ -15,7 +15,14 @@ const ShiftSwaps = () => {
   const [activeTab, setActiveTab] = useState('calendar');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
-  // Handle manual refresh without forced tab switching
+  // Force tab refresh when coming back to this page or after finding matches
+  useEffect(() => {
+    const currentTab = activeTab;
+    setActiveTab('');
+    setTimeout(() => setActiveTab(currentTab), 10);
+  }, [refreshTrigger]);
+  
+  // Handle manual refresh
   const handleRefreshRequest = () => {
     setRefreshTrigger(prev => prev + 1);
   };
@@ -35,7 +42,9 @@ const ShiftSwaps = () => {
           defaultValue="calendar" 
           value={activeTab}
           onValueChange={(value) => {
-            setActiveTab(value);
+            // Force a refresh of the components when switching tabs
+            setActiveTab('');
+            setTimeout(() => setActiveTab(value), 10);
           }}
           className="w-full"
         >
@@ -45,13 +54,13 @@ const ShiftSwaps = () => {
             <TabsTrigger value="matched">Matched Swaps</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="calendar" className="min-h-[300px]">
+          <TabsContent value="calendar">
             <ShiftSwapCalendar key={`calendar-${refreshTrigger}`} />
           </TabsContent>
-          <TabsContent value="requested" className="min-h-[300px]">
+          <TabsContent value="requested">
             <RequestedSwaps key={`requested-${refreshTrigger}`} />
           </TabsContent>
-          <TabsContent value="matched" className="min-h-[300px]">
+          <TabsContent value="matched">
             <MatchedSwaps key={`matched-${refreshTrigger}`} setRefreshTrigger={setRefreshTrigger} />
           </TabsContent>
         </Tabs>

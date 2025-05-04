@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+
+import { useState, useEffect } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
 import { Button } from "./ui/button";
@@ -37,9 +38,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     matchId: null
   });
   
-  // Add a ref to track if we're currently refreshing to prevent loops
-  const isRefreshingRef = useRef(false);
-  
   const { user, isAdmin } = useAuth();
   const { findSwapMatches, isProcessing } = useSwapMatcher();
 
@@ -59,50 +57,44 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     
     console.log(`Deduplicated from ${matchesData.length} to ${uniqueMatches.length} matches`);
     
-    // Process the data with additional error handling
+    // Process the data
     return uniqueMatches.map((match: any) => {
       console.log('Processing match:', match);
-      
-      // Ensure all required fields exist with fallbacks
-      const processedMatch = {
-        id: match.match_id || `unknown-${Date.now()}`,
+      return {
+        id: match.match_id,
         status: match.match_status || 'pending',
         myShift: {
-          id: match.my_shift_id || 'unknown',
-          date: match.my_shift_date || new Date().toISOString().split('T')[0],
-          startTime: match.my_shift_start_time || '00:00:00',
-          endTime: match.my_shift_end_time || '00:00:00',
-          truckName: match.my_shift_truck || 'Unknown',
-          type: getShiftType(match.my_shift_start_time || '00:00:00')
+          id: match.my_shift_id,
+          date: match.my_shift_date,
+          startTime: match.my_shift_start_time,
+          endTime: match.my_shift_end_time,
+          truckName: match.my_shift_truck,
+          type: getShiftType(match.my_shift_start_time)
         },
         otherShift: {
-          id: match.other_shift_id || 'unknown',
-          date: match.other_shift_date || new Date().toISOString().split('T')[0],
-          startTime: match.other_shift_start_time || '00:00:00',
-          endTime: match.other_shift_end_time || '00:00:00',
-          truckName: match.other_shift_truck || 'Unknown',
-          type: getShiftType(match.other_shift_start_time || '00:00:00'),
-          userId: match.other_user_id || 'unknown',
+          id: match.other_shift_id,
+          date: match.other_shift_date,
+          startTime: match.other_shift_start_time,
+          endTime: match.other_shift_end_time,
+          truckName: match.other_shift_truck,
+          type: getShiftType(match.other_shift_start_time),
+          userId: match.other_user_id,
           userName: match.other_user_name || 'Unknown User'
         },
-        myRequestId: match.my_request_id || 'unknown',
-        otherRequestId: match.other_request_id || 'unknown',
-        createdAt: match.created_at || new Date().toISOString()
+        myRequestId: match.my_request_id,
+        otherRequestId: match.other_request_id,
+        createdAt: match.created_at
       };
-      
-      return processedMatch;
     });
   };
 
   // Fetch matches using findSwapMatches from useSwapMatcher hook
   const fetchMatches = async () => {
-    // Prevent multiple simultaneous refresh operations
-    if (isRefreshingRef.current || !user || !user.id) return;
+    if (!user || !user.id) return;
+    
+    setIsLoading(true);
     
     try {
-      isRefreshingRef.current = true;
-      setIsLoading(true);
-      
       console.log('Finding matches for user:', user.id);
       
       // Setting all parameters for consistent results with testing tool
@@ -126,6 +118,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           description: "No potential swap matches were found at this time.",
         });
         
+        setIsLoading(false);
         return;
       }
       
@@ -133,55 +126,38 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       const formattedMatches = processMatchesData(matchesData);
       console.log('Processed matches:', formattedMatches);
       
-      // Ensure we have valid matches before updating state
-      if (formattedMatches && formattedMatches.length > 0) {
-        // Separate active and past matches
-        const activeMatches = formattedMatches.filter((match: SwapMatch) => 
-          match.status === 'pending' || match.status === 'accepted'
-        );
-        
-        const completedMatches = formattedMatches.filter((match: SwapMatch) => 
-          match.status === 'completed'
-        );
-        
-        console.log(`Separated into ${activeMatches.length} active and ${completedMatches.length} completed matches`);
-        
-        // Bug fix: Use setMatches properly to update the state
-        setMatches(activeMatches);
-        setPastMatches(completedMatches);
-        
-        // Critical fix: Force re-render by explicitly setting state with new array references
-        setTimeout(() => {
-          setMatches([...activeMatches]);
-          setPastMatches([...completedMatches]);
-          console.log("Updating matches state with:", activeMatches);
-        }, 100);
-        
-        // If we've found matches, update parent tabs if needed
-        if (activeMatches.length > 0 && setRefreshTrigger) {
-          setRefreshTrigger(prevVal => prevVal + 1);
+      // Separate active and past matches
+      const activeMatches = formattedMatches.filter((match: SwapMatch) => 
+        match.status === 'pending' || match.status === 'accepted'
+      );
+      
+      const completedMatches = formattedMatches.filter((match: SwapMatch) => 
+        match.status === 'completed'
+      );
+      
+      console.log(`Separated into ${activeMatches.length} active and ${completedMatches.length} completed matches`);
+      
+      setMatches(activeMatches);
+      setPastMatches(completedMatches);
+      
+      // If we've found matches, update parent tabs if needed
+      if (activeMatches.length > 0 && setRefreshTrigger) {
+        setRefreshTrigger(prevVal => prevVal + 1);
+        if (activeTab !== 'active') {
+          setActiveTab('active');
         }
-        
-        // Show toast message about the results
-        if (activeMatches.length > 0) {
-          toast({
-            title: "Matches found!",
-            description: `Found ${activeMatches.length} potential swap matches.`,
-          });
-        } else {
-          toast({
-            title: "No active matches found",
-            description: "No active swap matches were found at this time.",
-          });
-        }
-      } else {
-        console.log('No valid matches after processing');
-        setMatches([]);
-        setPastMatches([]);
-        
+      }
+      
+      // Show toast message about the results
+      if (activeMatches.length > 0) {
         toast({
-          title: "No valid matches found",
-          description: "No valid swap matches were found after processing.",
+          title: "Matches found!",
+          description: `Found ${activeMatches.length} potential swap matches.`,
+        });
+      } else {
+        toast({
+          title: "No matches found",
+          description: "No potential swap matches were found at this time.",
         });
       }
     } catch (error) {
@@ -193,10 +169,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       });
     } finally {
       setIsLoading(false);
-      // Reset the refreshing flag after a short delay to prevent immediate re-triggers
-      setTimeout(() => {
-        isRefreshingRef.current = false;
-      }, 500);
     }
   };
 
@@ -253,133 +225,93 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     }
   };
 
-  // Initial load - prevent multiple fetches
+  // Initial load
   useEffect(() => {
-    let mounted = true;
-    
-    const loadInitialData = async () => {
-      if (user && mounted && !isRefreshingRef.current) {
-        isRefreshingRef.current = true;
-        await fetchMatches();
-        // Reset the refreshing flag after initial load
-        setTimeout(() => {
-          isRefreshingRef.current = false;
-        }, 500);
-      }
-    };
-    
-    loadInitialData();
-    
-    return () => {
-      mounted = false;
-    };
+    if (user) {
+      fetchMatches();
+    }
   }, [user]);
-
-  // Debug the current state
-  useEffect(() => {
-    console.log("Current matches state:", matches);
-  }, [matches]);
-
-  // Fixed renderRows function to explicitly return JSX
-  const renderRows = (): JSX.Element => {
-    return (
-      <>
-        {/* Collapsible Swap Match Testing section */}
-        <Collapsible
-          open={showTestingTools}
-          onOpenChange={setShowTestingTools}
-          className="border border-amber-300 rounded-lg bg-amber-50 overflow-hidden"
-        >
-          <div className="flex justify-between items-center p-4">
-            <h2 className="text-lg font-bold text-amber-700">Swap Match Testing</h2>
-            <CollapsibleTrigger asChild>
-              <Button variant="outline" size="sm" className="border-amber-400 hover:bg-amber-100">
-                {showTestingTools ? (
-                  <>Hide Testing Tools <ChevronUp className="ml-1 h-4 w-4" /></>
-                ) : (
-                  <>Show Testing Tools <ChevronDown className="ml-1 h-4 w-4" /></>
-                )}
-              </Button>
-            </CollapsibleTrigger>
-          </div>
-          
-          <CollapsibleContent>
-            <div className="p-4 pt-0">
-              <p className="text-sm text-amber-600 mb-4">
-                Test and create matches between swap requests. Created matches will appear in the Active Matches tab.
-              </p>
-              <SimpleMatchTester onMatchCreated={fetchMatches} />
-              
-              {/* Add the SwapMatchDebug component to help with troubleshooting */}
-              <div className="mt-4 pt-4 border-t border-amber-200">
-                <h3 className="text-md font-semibold text-amber-700 mb-2">Find Matches Directly</h3>
-                <SwapMatchDebug onRefreshMatches={fetchMatches} />
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-        
-        <Tabs 
-          defaultValue="active" 
-          value={activeTab} 
-          onValueChange={setActiveTab}
-        >
-          <div className="flex justify-between items-center mb-4">
-            <TabsList>
-              <TabsTrigger value="active">Active Matches</TabsTrigger>
-              <TabsTrigger value="past">Past Swaps</TabsTrigger>
-            </TabsList>
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => {
-                  // Only trigger if not already refreshing
-                  if (!isRefreshingRef.current) {
-                    fetchMatches();
-                  }
-                }}
-                disabled={isLoading || isProcessing || isRefreshingRef.current}
-                className="bg-green-500 hover:bg-green-600 text-white"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />
-                {isLoading || isProcessing ? 'Finding Matches...' : 'Refresh Matches'}
-              </Button>
-            </div>
-          </div>
-          
-          <TabsContent value="active">
-            {/* Bug fix: Make the React state updates more explicit */}
-            {console.log("Rendering active tab with matches:", matches)}
-            <SwapTabContent 
-              swaps={matches} 
-              onAcceptSwap={handleAcceptClick}
-            />
-          </TabsContent>
-          
-          <TabsContent value="past">
-            <SwapTabContent 
-              swaps={pastMatches} 
-              isPast={true}
-            />
-          </TabsContent>
-        </Tabs>
-
-        <SwapConfirmDialog
-          open={confirmDialog.isOpen}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) {
-              setConfirmDialog({ isOpen: false, matchId: null });
-            }
-          }}
-          onConfirm={handleAcceptSwap}
-          isLoading={isLoading}
-        />
-      </>
-    );
-  };
 
   return (
     <div className="space-y-6">
-      {renderRows()}
+      {/* Collapsible Swap Match Testing section */}
+      <Collapsible
+        open={showTestingTools}
+        onOpenChange={setShowTestingTools}
+        className="border border-amber-300 rounded-lg bg-amber-50 overflow-hidden"
+      >
+        <div className="flex justify-between items-center p-4">
+          <h2 className="text-lg font-bold text-amber-700">Swap Match Testing</h2>
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" size="sm" className="border-amber-400 hover:bg-amber-100">
+              {showTestingTools ? (
+                <>Hide Testing Tools <ChevronUp className="ml-1 h-4 w-4" /></>
+              ) : (
+                <>Show Testing Tools <ChevronDown className="ml-1 h-4 w-4" /></>
+              )}
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+        
+        <CollapsibleContent>
+          <div className="p-4 pt-0">
+            <p className="text-sm text-amber-600 mb-4">
+              Test and create matches between swap requests. Created matches will appear in the Active Matches tab.
+            </p>
+            <SimpleMatchTester onMatchCreated={fetchMatches} />
+            
+            {/* Add the SwapMatchDebug component to help with troubleshooting */}
+            <div className="mt-4 pt-4 border-t border-amber-200">
+              <h3 className="text-md font-semibold text-amber-700 mb-2">Find Matches Directly</h3>
+              <SwapMatchDebug onRefreshMatches={fetchMatches} />
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+      
+      <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex justify-between items-center mb-4">
+          <TabsList>
+            <TabsTrigger value="active">Active Matches</TabsTrigger>
+            <TabsTrigger value="past">Past Swaps</TabsTrigger>
+          </TabsList>
+          <div className="flex gap-2">
+            <Button 
+              onClick={fetchMatches}
+              disabled={isLoading || isProcessing}
+              className="bg-green-500 hover:bg-green-600 text-white"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />
+              {isLoading || isProcessing ? 'Finding Matches...' : 'Refresh Matches'}
+            </Button>
+          </div>
+        </div>
+        
+        <TabsContent value="active">
+          <SwapTabContent 
+            swaps={matches} 
+            onAcceptSwap={handleAcceptClick}
+          />
+        </TabsContent>
+        
+        <TabsContent value="past">
+          <SwapTabContent 
+            swaps={pastMatches} 
+            isPast={true}
+          />
+        </TabsContent>
+      </Tabs>
+
+      <SwapConfirmDialog
+        open={confirmDialog.isOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setConfirmDialog({ isOpen: false, matchId: null });
+          }
+        }}
+        onConfirm={handleAcceptSwap}
+        isLoading={isLoading}
+      />
     </div>
   );
 };
