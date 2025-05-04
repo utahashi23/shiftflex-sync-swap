@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllSwapRequestsSafe, fetchAllPreferredDatesWithRequestsSafe } from '@/utils/rls-helpers';
@@ -58,7 +59,7 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
         return {
           ...request,
           shift_date: shiftData?.[0]?.date || 'Unknown',
-          shift: shiftData?.[0] || {},
+          shift: shiftData?.[0] || null,
           user: userData || { first_name: 'Unknown', last_name: 'User' }
         };
       }));
@@ -141,6 +142,10 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
               console.log(`Found match between request ${request1.id} and ${request2.id}`);
             }
             
+            // Get the shift objects, ensuring they have the required properties
+            const shift1 = request1.shift || {};
+            const shift2 = request2.shift || {};
+            
             // Construct match object in the format expected by the UI
             matches.push({
               match_id: `potential-${request1.id}-${request2.id}`,
@@ -151,12 +156,12 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
               other_shift_id: request2.requester_shift_id,
               my_shift_date: request1.shift_date,
               other_shift_date: request2.shift_date,
-              my_shift_start_time: request1.shift?.start_time || '00:00:00',
-              my_shift_end_time: request1.shift?.end_time || '00:00:00',
-              other_shift_start_time: request2.shift?.start_time || '00:00:00',
-              other_shift_end_time: request2.shift?.end_time || '00:00:00',
-              my_shift_truck: request1.shift?.truck_name || 'Unknown',
-              other_shift_truck: request2.shift?.truck_name || 'Unknown',
+              my_shift_start_time: shift1.start_time || '00:00:00',
+              my_shift_end_time: shift1.end_time || '00:00:00',
+              other_shift_start_time: shift2.start_time || '00:00:00',
+              other_shift_end_time: shift2.end_time || '00:00:00',
+              my_shift_truck: shift1.truck_name || 'Unknown',
+              other_shift_truck: shift2.truck_name || 'Unknown',
               other_user_id: request2.requester_id,
               other_user_name: `${request2.user?.first_name || ''} ${request2.user?.last_name || ''}`.trim() || 'Unknown User',
               created_at: new Date().toISOString()
