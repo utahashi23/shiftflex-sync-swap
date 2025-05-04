@@ -73,7 +73,7 @@ export const useDashboardData = (user: ExtendedUser | null) => {
           // Create a title from the truck name or use a default
           const title = shift.truck_name ? shift.truck_name : `Shift-${shift.id.substring(0, 5)}`;
           
-          // Determine the shift type based on start time
+          // Determine the shift type based on start time - UPDATED LOGIC
           let type: 'day' | 'afternoon' | 'night' = 'day';
           const startHour = new Date(`2000-01-01T${shift.start_time}`).getHours();
           
@@ -96,11 +96,7 @@ export const useDashboardData = (user: ExtendedUser | null) => {
         }) || [];
         
         // Count the different types of swap requests
-        // Only count requests with preferred dates as "active"
-        const activeSwaps = swapRequests?.filter(
-          req => req.status === 'pending' && req.preferred_dates_count > 0
-        ).length || 0;
-        
+        const activeSwaps = swapRequests?.filter(req => req.status === 'pending').length || 0;
         const matchedSwaps = swapRequests?.filter(req => req.status === 'matched').length || 0;
         const completedSwaps = swapRequests?.filter(req => req.status === 'completed').length || 0;
         

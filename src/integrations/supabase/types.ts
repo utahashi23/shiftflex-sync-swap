@@ -39,113 +39,6 @@ export type Database = {
         }
         Relationships: []
       }
-      shift_swap_matches: {
-        Row: {
-          acceptor_id: string
-          acceptor_shift_id: string
-          created_at: string
-          id: string
-          requester_id: string
-          requester_shift_id: string
-          status: string
-        }
-        Insert: {
-          acceptor_id: string
-          acceptor_shift_id: string
-          created_at?: string
-          id?: string
-          requester_id: string
-          requester_shift_id: string
-          status?: string
-        }
-        Update: {
-          acceptor_id?: string
-          acceptor_shift_id?: string
-          created_at?: string
-          id?: string
-          requester_id?: string
-          requester_shift_id?: string
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "shift_swap_matches_acceptor_shift_id_fkey"
-            columns: ["acceptor_shift_id"]
-            isOneToOne: false
-            referencedRelation: "shifts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shift_swap_matches_requester_shift_id_fkey"
-            columns: ["requester_shift_id"]
-            isOneToOne: false
-            referencedRelation: "shifts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      shift_swap_potential_matches: {
-        Row: {
-          acceptor_request_id: string
-          acceptor_shift_id: string
-          created_at: string
-          id: string
-          match_date: string
-          requester_request_id: string
-          requester_shift_id: string
-          status: string
-        }
-        Insert: {
-          acceptor_request_id: string
-          acceptor_shift_id: string
-          created_at?: string
-          id?: string
-          match_date: string
-          requester_request_id: string
-          requester_shift_id: string
-          status?: string
-        }
-        Update: {
-          acceptor_request_id?: string
-          acceptor_shift_id?: string
-          created_at?: string
-          id?: string
-          match_date?: string
-          requester_request_id?: string
-          requester_shift_id?: string
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "shift_swap_potential_matches_acceptor_request_id_fkey"
-            columns: ["acceptor_request_id"]
-            isOneToOne: false
-            referencedRelation: "shift_swap_requests"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shift_swap_potential_matches_acceptor_shift_id_fkey"
-            columns: ["acceptor_shift_id"]
-            isOneToOne: false
-            referencedRelation: "shifts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shift_swap_potential_matches_requester_request_id_fkey"
-            columns: ["requester_request_id"]
-            isOneToOne: false
-            referencedRelation: "shift_swap_requests"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shift_swap_potential_matches_requester_shift_id_fkey"
-            columns: ["requester_shift_id"]
-            isOneToOne: false
-            referencedRelation: "shifts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       shift_swap_preferred_dates: {
         Row: {
           accepted_types: string[]
@@ -194,7 +87,6 @@ export type Database = {
           acceptor_shift_id: string | null
           created_at: string
           id: string
-          preferred_dates_count: number | null
           requester_id: string
           requester_shift_id: string
           status: string
@@ -205,7 +97,6 @@ export type Database = {
           acceptor_shift_id?: string | null
           created_at?: string
           id?: string
-          preferred_dates_count?: number | null
           requester_id: string
           requester_shift_id: string
           status?: string
@@ -216,7 +107,6 @@ export type Database = {
           acceptor_shift_id?: string | null
           created_at?: string
           id?: string
-          preferred_dates_count?: number | null
           requester_id?: string
           requester_shift_id?: string
           status?: string
@@ -322,55 +212,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_all_preferred_dates: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          accepted_types: string[]
-          created_at: string
-          date: string
-          id: string
-          request_id: string
-          shift_id: string | null
-        }[]
-      }
-      get_all_shifts: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          created_at: string
-          date: string
-          end_time: string
-          id: string
-          start_time: string
-          status: string
-          truck_name: string | null
-          updated_at: string
-          user_id: string
-        }[]
-      }
-      get_all_swap_requests: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          acceptor_id: string | null
-          acceptor_shift_id: string | null
-          created_at: string
-          id: string
-          preferred_dates_count: number | null
-          requester_id: string
-          requester_shift_id: string
-          status: string
-          updated_at: string
-        }[]
-      }
       has_role: {
         Args: {
           _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
         }
         Returns: boolean
-      }
-      test_admin_access: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
       }
     }
     Enums: {

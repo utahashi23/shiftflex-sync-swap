@@ -1,9 +1,9 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Shift } from '@/hooks/useShiftData';
 import { SwapCalendarState, SwapCalendarHelpers, AcceptableShiftTypes } from './types';
-import { normalizeDate } from '@/utils/dateUtils';
 
 export const useSwapCalendarActions = (
   state: SwapCalendarState,
@@ -89,7 +89,7 @@ export const useSwapCalendarActions = (
       
       // Now store each preferred date with the request_id and shift_id
       const preferredDatesInserts = selectedSwapDates.map(dateStr => ({
-        date: normalizeDate(dateStr), // Normalize date format
+        date: dateStr,
         accepted_types: acceptedTypesArray,
         shift_id: selectedShift.id,
         request_id: swapRequest.id

@@ -21,9 +21,7 @@ export const useSwapRequests = (): UseSwapRequestsReturn => {
   } = useDeleteSwapRequest(setSwapRequests, setIsLoading);
 
   useEffect(() => {
-    if (user) {
-      fetchSwapRequests();
-    }
+    fetchSwapRequests();
   }, [user, fetchSwapRequests]);
 
   return {
