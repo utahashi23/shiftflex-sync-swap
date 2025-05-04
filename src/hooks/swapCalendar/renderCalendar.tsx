@@ -11,7 +11,7 @@ export const createCalendarRenderer = (
   onShiftClick: (shift: Shift) => void,
   onDateSelect: (dateStr: string) => void
 ) => {
-  const { currentDate, selectedShift, swapMode } = state;
+  const { currentDate, selectedShift, swapMode, acceptableShiftTypes } = state;
   const { getShiftForDate, isDateDisabled, isDateSelectedForSwap } = helpers;
 
   const renderCalendar = () => {
@@ -31,6 +31,7 @@ export const createCalendarRenderer = (
           empty={true}
           isSelected={false}
           onClick={() => {}}
+          acceptableShiftTypes={acceptableShiftTypes}
         />
       );
     }
@@ -54,6 +55,7 @@ export const createCalendarRenderer = (
           isDisabled={isDisabled}
           isSwapSelected={isSwapSelected}
           onClick={() => shift ? onShiftClick(shift) : onDateSelect(dateStr)}
+          acceptableShiftTypes={acceptableShiftTypes}
         />
       );
     }

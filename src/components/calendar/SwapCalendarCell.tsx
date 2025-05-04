@@ -3,6 +3,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { Sunrise, Sun, Moon } from 'lucide-react';
 import { Shift } from '@/hooks/useShiftData';
+import { AcceptableShiftTypes } from '@/hooks/swapCalendar/types';
 
 interface SwapCalendarCellProps {
   day?: number;
@@ -13,6 +14,7 @@ interface SwapCalendarCellProps {
   isSwapSelected?: boolean;
   onClick: () => void;
   empty?: boolean;
+  acceptableShiftTypes?: AcceptableShiftTypes;
 }
 
 export const SwapCalendarCell = ({
@@ -23,7 +25,8 @@ export const SwapCalendarCell = ({
   isDisabled = false,
   isSwapSelected = false,
   onClick,
-  empty = false
+  empty = false,
+  acceptableShiftTypes
 }: SwapCalendarCellProps) => {
   if (empty) {
     return <div key={`empty-${day}`} className="calendar-cell"></div>;
@@ -70,7 +73,7 @@ export const SwapCalendarCell = ({
       
       {isDisabled && (
         <div className="absolute inset-0 bg-gray-200 bg-opacity-50 flex items-center justify-center">
-          {acceptableShiftTypes.day || acceptableShiftTypes.afternoon ? (
+          {acceptableShiftTypes && (acceptableShiftTypes.day || acceptableShiftTypes.afternoon) ? (
             <div className="text-xs text-gray-600 font-medium text-center p-1">
               Cannot follow night shift
             </div>
