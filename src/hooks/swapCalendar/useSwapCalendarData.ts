@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { getMonthDateRange } from '@/utils/dateUtils';
 import { Shift } from '@/hooks/useShiftData';
 
-export const useSwapCalendarData = (currentDate: Date, userId?: string, refreshTrigger = 0) => {
+export const useSwapCalendarData = (currentDate: Date, userId?: string) => {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -22,7 +22,7 @@ export const useSwapCalendarData = (currentDate: Date, userId?: string, refreshT
         // Get date range for the current month
         const { startDate, endDate } = getMonthDateRange(currentDate);
         
-        console.log('Fetching shifts with date range:', { startDate, endDate, userId, refreshTrigger });
+        console.log('Fetching shifts with date range:', { startDate, endDate, userId });
         
         // Note: This still filters by userId because we're only showing
         // the current user's shifts in the calendar
@@ -77,7 +77,7 @@ export const useSwapCalendarData = (currentDate: Date, userId?: string, refreshT
     };
 
     fetchShifts();
-  }, [currentDate, userId, refreshTrigger]); // Make sure refreshTrigger is in the dependency array
+  }, [currentDate, userId]);
 
   return { shifts, isLoading, setShifts };
 };

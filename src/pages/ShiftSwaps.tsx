@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
@@ -16,29 +16,12 @@ const ShiftSwaps = () => {
   const [activeTab, setActiveTab] = useState('calendar');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
-  // Function to force refresh when needed
-  const forceRefresh = useCallback(() => {
-    console.log("ShiftSwaps - Force refreshing components");
-    setRefreshTrigger(prev => prev + 1);
-  }, []);
-  
   // Force tab refresh when coming back to this page or after finding matches
   useEffect(() => {
     const currentTab = activeTab;
     setActiveTab('');
     setTimeout(() => setActiveTab(currentTab), 10);
   }, [refreshTrigger]);
-  
-  // Force refresh on tab change
-  const handleTabChange = (value: string) => {
-    console.log("ShiftSwaps - Tab changed to:", value);
-    setActiveTab('');
-    setTimeout(() => {
-      setActiveTab(value);
-      // Additional delay to ensure component refresh
-      setTimeout(forceRefresh, 100);
-    }, 10);
-  };
   
   return (
     <AppLayout>
@@ -54,7 +37,11 @@ const ShiftSwaps = () => {
         <Tabs 
           defaultValue="calendar" 
           value={activeTab}
-          onValueChange={handleTabChange}
+          onValueChange={(value) => {
+            // Force a refresh of the components when switching tabs
+            setActiveTab('');
+            setTimeout(() => setActiveTab(value), 10);
+          }}
           className="w-full"
         >
           <TabsList className="grid grid-cols-3 mb-8">
@@ -70,10 +57,7 @@ const ShiftSwaps = () => {
             <RequestedSwaps key={`requested-${refreshTrigger}`} />
           </TabsContent>
           <TabsContent value="matched">
-            <MatchedSwaps 
-              key={`matched-${refreshTrigger}`} 
-              setRefreshTrigger={forceRefresh} 
-            />
+            <MatchedSwaps key={`matched-${refreshTrigger}`} setRefreshTrigger={setRefreshTrigger} />
           </TabsContent>
         </Tabs>
       </TooltipProvider>

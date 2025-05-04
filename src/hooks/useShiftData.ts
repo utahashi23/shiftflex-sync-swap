@@ -15,7 +15,7 @@ export interface Shift {
   colleagueType?: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown';
 }
 
-export const useShiftData = (currentDate: Date, userId?: string, refreshTrigger = 0) => {
+export const useShiftData = (currentDate: Date, userId?: string) => {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -32,8 +32,6 @@ export const useShiftData = (currentDate: Date, userId?: string, refreshTrigger 
         // Get date range for the current month
         const { startDate, endDate } = getMonthDateRange(currentDate);
         
-        console.log('useShiftData - Fetching shifts with trigger:', refreshTrigger);
-        
         // Fetch shifts for the current month
         const { data, error } = await supabase
           .from('shifts')
@@ -44,8 +42,6 @@ export const useShiftData = (currentDate: Date, userId?: string, refreshTrigger 
           .order('date', { ascending: true });
           
         if (error) throw error;
-        
-        console.log('useShiftData - Shifts fetched:', data?.length || 0);
         
         // Format the shifts for the calendar with updated shift type logic
         const formattedShifts: Shift[] = data?.map(shift => {
@@ -80,7 +76,7 @@ export const useShiftData = (currentDate: Date, userId?: string, refreshTrigger 
     };
 
     fetchShifts();
-  }, [currentDate, userId, refreshTrigger]); // Make sure refreshTrigger is in the dependency array
+  }, [currentDate, userId]);
 
   return { shifts, isLoading };
 };

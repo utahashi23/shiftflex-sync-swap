@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSwapCalendarData } from './swapCalendar/useSwapCalendarData';
 import { createSwapHelpers } from './swapCalendar/helpers';
@@ -18,10 +18,9 @@ export const useSwapCalendarState = () => {
     afternoon: false,
     night: false,
   });
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   const { user } = useAuth();
-  const { shifts, isLoading, setShifts } = useSwapCalendarData(currentDate, user?.id, refreshTrigger);
+  const { shifts, isLoading, setShifts } = useSwapCalendarData(currentDate, user?.id);
 
   // When a shift is selected, set the corresponding shift type to true
   useEffect(() => {
@@ -73,12 +72,6 @@ export const useSwapCalendarState = () => {
     actions.toggleDateSelection
   );
 
-  // Function to refresh calendar data
-  const refreshCalendar = useCallback(() => {
-    console.log('Refreshing calendar data...');
-    setRefreshTrigger(prev => prev + 1);
-  }, []);
-
   return {
     currentDate,
     shifts,
@@ -92,7 +85,6 @@ export const useSwapCalendarState = () => {
     ...helpers,
     ...actions,
     renderCalendar,
-    setAcceptableShiftTypes,
-    refreshCalendar
+    setAcceptableShiftTypes
   };
 };

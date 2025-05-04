@@ -37,15 +37,13 @@ interface ShiftFormProps {
   selectedShift: Shift | null;
   setSelectedShift: (shift: Shift | null) => void;
   resetSelection: () => void;
-  onShiftChange?: () => void; // New callback for when shifts are updated
 }
 
 const ShiftForm = ({ 
   selectedDate,
   selectedShift,
   setSelectedShift,
-  resetSelection,
-  onShiftChange
+  resetSelection
 }: ShiftFormProps) => {
   // Use our custom hook for truck names
   const { truckNames, isLoading: isLoadingTrucks } = useTruckNames();
@@ -242,11 +240,6 @@ const ShiftForm = ({
         });
       }
       
-      // Notify parent components that shifts have changed
-      if (onShiftChange) {
-        onShiftChange();
-      }
-      
       resetSelection();
       resetForm();
     } catch (error) {
@@ -279,11 +272,6 @@ const ShiftForm = ({
         title: "Shift Deleted",
         description: `Your shift on ${new Date(selectedShift.date).toLocaleDateString()} has been removed.`,
       });
-      
-      // Notify parent components that shifts have changed
-      if (onShiftChange) {
-        onShiftChange();
-      }
       
       resetSelection();
       resetForm();

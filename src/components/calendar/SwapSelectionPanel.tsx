@@ -25,7 +25,6 @@ interface SwapSelectionPanelProps {
     afternoon: boolean;
     night: boolean;
   }>>;
-  onShiftChange?: () => void; // Added the onShiftChange prop as optional
 }
 
 export const SwapSelectionPanel = ({
@@ -37,32 +36,8 @@ export const SwapSelectionPanel = ({
   handleRequestSwap,
   handleSaveSwapRequest,
   handleCancelSwapRequest,
-  setAcceptableShiftTypes,
-  onShiftChange
+  setAcceptableShiftTypes
 }: SwapSelectionPanelProps) => {
-  
-  // Wrap handlers to trigger onShiftChange when appropriate
-  const handleSaveWithRefresh = async () => {
-    await handleSaveSwapRequest();
-    if (onShiftChange) {
-      onShiftChange();
-    }
-  };
-  
-  const handleCancelWithRefresh = () => {
-    handleCancelSwapRequest();
-    if (onShiftChange) {
-      onShiftChange();
-    }
-  };
-  
-  const handleRequestWithRefresh = () => {
-    handleRequestSwap();
-    if (onShiftChange) {
-      onShiftChange();
-    }
-  };
-  
   return (
     <Card className="mt-4">
       <CardContent className="pt-6">
@@ -184,7 +159,7 @@ export const SwapSelectionPanel = ({
               
               <div className="flex gap-2 pt-2">
                 <Button 
-                  onClick={handleSaveWithRefresh} 
+                  onClick={handleSaveSwapRequest} 
                   className="flex-1"
                   disabled={isLoading || selectedSwapDates.length === 0 || 
                     (!acceptableShiftTypes.day && !acceptableShiftTypes.afternoon && !acceptableShiftTypes.night)}
@@ -193,7 +168,7 @@ export const SwapSelectionPanel = ({
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={handleCancelWithRefresh}
+                  onClick={handleCancelSwapRequest}
                   disabled={isLoading}
                 >
                   Cancel
@@ -202,7 +177,7 @@ export const SwapSelectionPanel = ({
             </>
           ) : (
             <Button 
-              onClick={handleRequestWithRefresh} 
+              onClick={handleRequestSwap} 
               className="w-full mt-2"
             >
               Request Swap
