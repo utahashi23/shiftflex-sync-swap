@@ -22,7 +22,7 @@ export const useSwapCalendarData = (currentDate: Date, userId?: string, refreshT
         // Get date range for the current month
         const { startDate, endDate } = getMonthDateRange(currentDate);
         
-        console.log('Fetching shifts with date range:', { startDate, endDate, userId });
+        console.log('Fetching shifts with date range:', { startDate, endDate, userId, refreshTrigger });
         
         // Note: This still filters by userId because we're only showing
         // the current user's shifts in the calendar
@@ -77,7 +77,7 @@ export const useSwapCalendarData = (currentDate: Date, userId?: string, refreshT
     };
 
     fetchShifts();
-  }, [currentDate, userId, refreshTrigger]);
+  }, [currentDate, userId, refreshTrigger]); // Make sure refreshTrigger is in the dependency array
 
   return { shifts, isLoading, setShifts };
 };

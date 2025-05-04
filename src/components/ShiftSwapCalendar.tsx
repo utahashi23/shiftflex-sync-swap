@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { SwapCalendarCell } from './calendar/SwapCalendarCell';
 import { SwapSelectionPanel } from './calendar/SwapSelectionPanel';
 import { CalendarHeader, WeekdayHeader } from './calendar/CalendarHeader';
@@ -25,6 +25,12 @@ const ShiftSwapCalendar = () => {
   } = useSwapCalendarState();
 
   const { user } = useAuth();
+  
+  // Effect to refresh calendar data when component mounts
+  useEffect(() => {
+    console.log("ShiftSwapCalendar mounted, refreshing data");
+    refreshCalendar();
+  }, [refreshCalendar]);
 
   return (
     <div className="flex flex-col">

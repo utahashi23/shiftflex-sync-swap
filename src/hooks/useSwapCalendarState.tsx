@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSwapCalendarData } from './swapCalendar/useSwapCalendarData';
 import { createSwapHelpers } from './swapCalendar/helpers';
@@ -74,9 +74,10 @@ export const useSwapCalendarState = () => {
   );
 
   // Function to refresh calendar data
-  const refreshCalendar = () => {
+  const refreshCalendar = useCallback(() => {
+    console.log('Refreshing calendar data...');
     setRefreshTrigger(prev => prev + 1);
-  };
+  }, []);
 
   return {
     currentDate,

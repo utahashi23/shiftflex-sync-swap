@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useShiftData, getShiftForDate, Shift } from '@/hooks/useShiftData';
 import { getDaysInMonth, getFirstDayOfMonth, formatDateString } from '@/utils/dateUtils';
@@ -12,18 +12,28 @@ interface ShiftCalendarProps {
   setSelectedDate: (date: Date | null) => void;
   selectedShift: Shift | null;
   setSelectedShift: (shift: Shift | null) => void;
+  onShiftChange?: () => void;
 }
 
 const ShiftCalendar = ({ 
   selectedDate, 
   setSelectedDate, 
   selectedShift, 
-  setSelectedShift 
+  setSelectedShift,
+  onShiftChange
 }: ShiftCalendarProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { user } = useAuth();
   const { shifts, isLoading } = useShiftData(currentDate, user?.id, refreshTrigger);
+
+  // Effect to refresh data when onShiftChange is called
+  useEffect(() => {
+    if (onShiftChange) {
+      console.log("ShiftCalendar - onShiftChange triggered, refreshing data");
+      refreshCalendar();
+    }
+  }, [onShiftChange]);
 
   const handleDateClick = (date: Date, shift: Shift | null) => {
     if (shift) {
@@ -42,6 +52,7 @@ const ShiftCalendar = ({
 
   // Callback to refresh calendar data
   const refreshCalendar = useCallback(() => {
+    console.log("ShiftCalendar - Refreshing calendar data");
     setRefreshTrigger(prev => prev + 1);
   }, []);
 

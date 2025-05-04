@@ -40,6 +40,29 @@ export const SwapSelectionPanel = ({
   setAcceptableShiftTypes,
   onShiftChange
 }: SwapSelectionPanelProps) => {
+  
+  // Wrap handlers to trigger onShiftChange when appropriate
+  const handleSaveWithRefresh = async () => {
+    await handleSaveSwapRequest();
+    if (onShiftChange) {
+      onShiftChange();
+    }
+  };
+  
+  const handleCancelWithRefresh = () => {
+    handleCancelSwapRequest();
+    if (onShiftChange) {
+      onShiftChange();
+    }
+  };
+  
+  const handleRequestWithRefresh = () => {
+    handleRequestSwap();
+    if (onShiftChange) {
+      onShiftChange();
+    }
+  };
+  
   return (
     <Card className="mt-4">
       <CardContent className="pt-6">
@@ -161,7 +184,7 @@ export const SwapSelectionPanel = ({
               
               <div className="flex gap-2 pt-2">
                 <Button 
-                  onClick={handleSaveSwapRequest} 
+                  onClick={handleSaveWithRefresh} 
                   className="flex-1"
                   disabled={isLoading || selectedSwapDates.length === 0 || 
                     (!acceptableShiftTypes.day && !acceptableShiftTypes.afternoon && !acceptableShiftTypes.night)}
@@ -170,7 +193,7 @@ export const SwapSelectionPanel = ({
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={handleCancelSwapRequest}
+                  onClick={handleCancelWithRefresh}
                   disabled={isLoading}
                 >
                   Cancel
@@ -179,7 +202,7 @@ export const SwapSelectionPanel = ({
             </>
           ) : (
             <Button 
-              onClick={handleRequestSwap} 
+              onClick={handleRequestWithRefresh} 
               className="w-full mt-2"
             >
               Request Swap
