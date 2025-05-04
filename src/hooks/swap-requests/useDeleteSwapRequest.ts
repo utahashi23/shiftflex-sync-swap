@@ -1,3 +1,4 @@
+
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { SwapRequest } from './types';
@@ -35,6 +36,11 @@ export const useDeleteSwapRequest = (
       return true;
     } catch (error) {
       console.error('Error deleting swap request:', error);
+      toast({
+        title: "Delete Failed",
+        description: "There was a problem deleting your swap request. Please try again.",
+        variant: "destructive"
+      });
       return false;
     } finally {
       setIsLoading(false);
@@ -43,7 +49,14 @@ export const useDeleteSwapRequest = (
   
   // Delete a single preferred date
   const handleDeletePreferredDay = async (dayId: string, requestId: string) => {
-    if (!dayId || !requestId) return false;
+    if (!dayId || !requestId || !user) {
+      toast({
+        title: "Error",
+        description: "Authentication required",
+        variant: "destructive"
+      });
+      return false;
+    }
     
     setIsLoading(true);
     
@@ -59,6 +72,7 @@ export const useDeleteSwapRequest = (
         
       // If this is the only preferred date, delete the entire request
       if (preferredDates && preferredDates.length <= 1) {
+        console.log('This is the last preferred date, deleting entire request');
         return await handleDeleteSwapRequest(requestId);
       }
       
@@ -68,7 +82,30 @@ export const useDeleteSwapRequest = (
         .delete()
         .eq('id', dayId);
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting preferred date:', error);
+        
+        // If we encounter a permissions error, try using the delete_preferred_day edge function
+        if (error.code === '42501' || error.message?.includes('permission denied')) {
+          console.log('Trying to use edge function for preferred date deletion');
+          
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (!sessionData.session) {
+            throw new Error('Authentication required');
+          }
+          
+          const { error: fnError } = await supabase.functions.invoke('delete_preferred_day', {
+            body: { day_id: dayId, request_id: requestId },
+            headers: {
+              Authorization: `Bearer ${sessionData.session.access_token}`
+            }
+          });
+          
+          if (fnError) throw fnError;
+        } else {
+          throw error;
+        }
+      }
       
       // Update local state to remove just the preferred day
       setSwapRequests(prev => {

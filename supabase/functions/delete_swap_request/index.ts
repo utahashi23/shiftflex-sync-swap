@@ -29,6 +29,8 @@ serve(async (req) => {
       )
     }
 
+    console.log('Deleting request ID:', request_id);
+
     // Get authorization header
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
@@ -39,6 +41,11 @@ serve(async (req) => {
       )
     }
 
+    console.log('Auth header present, format:', authHeader.substring(0, 15) + '...');
+    
+    // Extract the JWT token
+    const token = authHeader.replace('Bearer ', '');
+    
     // Create a Supabase client with the auth token from the request
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -46,7 +53,11 @@ serve(async (req) => {
       { 
         global: { 
           headers: { Authorization: authHeader } 
-        } 
+        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        }
       }
     )
 
@@ -59,7 +70,7 @@ serve(async (req) => {
     if (userError || !user) {
       console.error('Auth error:', userError);
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - Check authentication token' }),
+        JSON.stringify({ error: 'Unauthorized - Check authentication token', details: userError?.message || 'No user found' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       )
     }
@@ -69,7 +80,13 @@ serve(async (req) => {
     // Create admin client to bypass RLS
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        }
+      }
     )
     
     // Check if the user is an admin using the admin client
@@ -79,6 +96,7 @@ serve(async (req) => {
     })
     
     const isAdmin = !!roleData
+    console.log('User is admin:', isAdmin);
     
     // Check if the user owns the request
     const { data: requestData, error: requestError } = await supabaseAdmin
@@ -97,11 +115,14 @@ serve(async (req) => {
     
     // Verify the user has permission to delete this request
     if (!isAdmin && requestData.requester_id !== user.id) {
+      console.log('Permission denied: User', user.id, 'trying to delete request owned by', requestData.requester_id);
       return new Response(
         JSON.stringify({ error: 'Permission denied: You can only delete your own swap requests' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
       )
     }
+    
+    console.log('Permission check passed, proceeding with deletion');
     
     // First, delete all preferred dates using the admin client
     const { error: datesError } = await supabaseAdmin
@@ -117,6 +138,8 @@ serve(async (req) => {
       )
     }
     
+    console.log('Preferred dates deleted, now deleting the request');
+    
     // Then delete the request using the admin client
     const { error: deleteError } = await supabaseAdmin
       .from('shift_swap_requests')
@@ -130,6 +153,8 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       )
     }
+    
+    console.log('Request successfully deleted');
     
     return new Response(
       JSON.stringify({ success: true }),

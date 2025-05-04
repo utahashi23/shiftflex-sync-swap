@@ -14,8 +14,13 @@ export const deleteSwapRequestApi = async (requestId: string) => {
     // Get the current session
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     
-    if (sessionError || !sessionData.session) {
-      console.error('Authentication error:', sessionError);
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      throw new Error('Authentication required');
+    }
+    
+    if (!sessionData.session) {
+      console.error('No active session found');
       toast({
         title: "Authentication Error",
         description: "You must be logged in to delete a swap request.",
@@ -23,16 +28,18 @@ export const deleteSwapRequestApi = async (requestId: string) => {
       });
       throw new Error('Authentication required');
     }
+
+    const token = sessionData.session.access_token;
+    console.log('Using token for delete request:', token.substring(0, 10) + '...');
     
     // Use the edge function to safely delete the request
-    // Include auth headers to pass the session token
     const { data, error } = await supabase.functions.invoke('delete_swap_request', {
       body: { request_id: requestId },
       headers: {
-        Authorization: `Bearer ${sessionData.session.access_token}`
+        Authorization: `Bearer ${token}`
       }
     });
-      
+    
     if (error) {
       console.error('Error deleting swap request:', error);
       throw error;
