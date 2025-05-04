@@ -24,6 +24,7 @@ interface SwapRequest {
   status: string;
   created_at: string;
   preferred_dates_count: number;
+  shift_date?: string; // Add shift_date property
 }
 
 interface PreferredDate {
@@ -46,7 +47,19 @@ export const AllSwapsTable = () => {
     try {
       // Fetch all swap requests
       const { data: requestsData } = await fetchAllSwapRequestsSafe();
-      setSwapRequests(requestsData || []);
+      
+      // Fetch shift data for each request
+      const enrichedRequests = await Promise.all((requestsData || []).map(async (request) => {
+        // Get the shift data using the request's requester_shift_id
+        const { data: shiftData } = await supabase.rpc('get_shift_by_id', { shift_id: request.requester_shift_id });
+        
+        return {
+          ...request,
+          shift_date: shiftData?.[0]?.date || 'Unknown' // Add the shift date to the request object
+        };
+      }));
+      
+      setSwapRequests(enrichedRequests || []);
       
       // Fetch all preferred dates with related request data
       const { data: datesData } = await fetchAllPreferredDatesWithRequestsSafe();
@@ -67,6 +80,7 @@ export const AllSwapsTable = () => {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString || dateString === 'Unknown') return 'Unknown';
     return new Date(dateString).toLocaleDateString();
   };
 
@@ -108,13 +122,14 @@ export const AllSwapsTable = () => {
                 <TableHead>Requester</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
+                <TableHead>Shift Date</TableHead>
                 <TableHead>Preferred Dates</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {swapRequests.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     {isLoading ? 'Loading swap requests...' : 'No swap requests found'}
                   </TableCell>
                 </TableRow>
@@ -129,6 +144,7 @@ export const AllSwapsTable = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>{getTimeSince(request.created_at)}</TableCell>
+                    <TableCell>{formatDate(request.shift_date)}</TableCell>
                     <TableCell>{request.preferred_dates_count || 0}</TableCell>
                   </TableRow>
                 ))
@@ -142,7 +158,8 @@ export const AllSwapsTable = () => {
             <TableCaption>All preferred dates from all swap requests</TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
+                <TableHead>Preferred Date</TableHead>
+                <TableHead>Shift Date</TableHead>
                 <TableHead>Accepted Types</TableHead>
                 <TableHead>Request ID</TableHead>
                 <TableHead>Requester</TableHead>
@@ -151,7 +168,7 @@ export const AllSwapsTable = () => {
             <TableBody>
               {preferredDates.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     {isLoading ? 'Loading preferred dates...' : 'No preferred dates found'}
                   </TableCell>
                 </TableRow>
@@ -160,7 +177,10 @@ export const AllSwapsTable = () => {
                   <TableRow key={date.id}>
                     <TableCell>{formatDate(date.date)}</TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
+                      {date.request && formatDate(date.request.shift_date || 'Unknown')}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
                         {date.accepted_types.map(type => (
                           <Badge key={type} variant="outline" className="text-xs">
                             {type}

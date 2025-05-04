@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -122,13 +123,31 @@ export const fetchAllPreferredDatesWithRequestsSafe = async () => {
       throw requestsError;
     }
     
-    // Map requests by ID for easy lookup
-    const requestsById = (allRequests || []).reduce((map, request) => {
-      map[request.id] = request;
+    // Get all shifts for the requests to include shift dates
+    const shiftIds = (allRequests || []).map(req => req.requester_shift_id).filter(Boolean);
+    const { data: shifts, error: shiftsError } = await supabase.rpc('get_all_shifts');
+    
+    if (shiftsError) {
+      throw shiftsError;
+    }
+    
+    // Create a map of shifts by ID for easy lookup
+    const shiftsById = (shifts || []).reduce((map, shift) => {
+      map[shift.id] = shift;
       return map;
     }, {} as Record<string, any>);
     
-    // Enrich preferred dates with request info
+    // Map requests by ID for easy lookup and add shift data
+    const requestsById = (allRequests || []).reduce((map, request) => {
+      const shift = shiftsById[request.requester_shift_id];
+      map[request.id] = {
+        ...request,
+        shift_date: shift ? shift.date : 'Unknown'
+      };
+      return map;
+    }, {} as Record<string, any>);
+    
+    // Enrich preferred dates with request info (including shift date)
     const enrichedDates = (preferredDates || []).map(date => ({
       ...date,
       request: requestsById[date.request_id] || null
