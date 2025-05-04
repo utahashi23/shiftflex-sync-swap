@@ -32,6 +32,7 @@ serve(async (req) => {
     // Get authorization header
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.log('Missing authorization header');
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
@@ -56,14 +57,14 @@ serve(async (req) => {
     } = await supabaseClient.auth.getUser()
 
     if (userError || !user) {
-      console.error('Auth error:', userError)
+      console.error('Auth error:', userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized - Check authentication token' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       )
     }
 
-    console.log('Authenticated user:', user.id)
+    console.log('Authenticated user:', user.id);
     
     // Create admin client to bypass RLS
     const supabaseAdmin = createClient(
@@ -87,7 +88,7 @@ serve(async (req) => {
       .single()
     
     if (requestError) {
-      console.error('Error finding request:', requestError)
+      console.error('Error finding request:', requestError);
       return new Response(
         JSON.stringify({ error: 'Request not found' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
@@ -109,7 +110,7 @@ serve(async (req) => {
       .eq('request_id', request_id)
     
     if (datesError) {
-      console.error('Error deleting preferred dates:', datesError)
+      console.error('Error deleting preferred dates:', datesError);
       return new Response(
         JSON.stringify({ error: 'Failed to delete preferred dates' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -123,7 +124,7 @@ serve(async (req) => {
       .eq('id', request_id)
     
     if (deleteError) {
-      console.error('Error deleting request:', deleteError)
+      console.error('Error deleting request:', deleteError);
       return new Response(
         JSON.stringify({ error: deleteError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -136,7 +137,7 @@ serve(async (req) => {
     )
     
   } catch (error) {
-    console.error('Error in delete_swap_request function:', error)
+    console.error('Error in delete_swap_request function:', error);
     
     return new Response(
       JSON.stringify({ error: error.message }),
