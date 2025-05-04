@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
 import { Button } from "./ui/button";
@@ -36,6 +36,9 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     isOpen: false,
     matchId: null
   });
+  
+  // Add a ref to track if we're currently refreshing to prevent loops
+  const isRefreshingRef = useRef(false);
   
   const { user, isAdmin } = useAuth();
   const { findSwapMatches, isProcessing } = useSwapMatcher();
@@ -89,11 +92,13 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   // Fetch matches using findSwapMatches from useSwapMatcher hook
   const fetchMatches = async () => {
-    if (!user || !user.id) return;
-    
-    setIsLoading(true);
+    // Prevent multiple simultaneous refresh operations
+    if (isRefreshingRef.current || !user || !user.id) return;
     
     try {
+      isRefreshingRef.current = true;
+      setIsLoading(true);
+      
       console.log('Finding matches for user:', user.id);
       
       // Setting all parameters for consistent results with testing tool
@@ -117,7 +122,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           description: "No potential swap matches were found at this time.",
         });
         
-        setIsLoading(false);
         return;
       }
       
@@ -165,6 +169,10 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       });
     } finally {
       setIsLoading(false);
+      // Reset the refreshing flag after a short delay to prevent immediate re-triggers
+      setTimeout(() => {
+        isRefreshingRef.current = false;
+      }, 500);
     }
   };
 
@@ -226,8 +234,13 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     let mounted = true;
     
     const loadInitialData = async () => {
-      if (user && mounted) {
+      if (user && mounted && !isRefreshingRef.current) {
+        isRefreshingRef.current = true;
         await fetchMatches();
+        // Reset the refreshing flag after initial load
+        setTimeout(() => {
+          isRefreshingRef.current = false;
+        }, 500);
       }
     };
     
@@ -287,8 +300,13 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           </TabsList>
           <div className="flex gap-2">
             <Button 
-              onClick={fetchMatches}
-              disabled={isLoading || isProcessing}
+              onClick={() => {
+                // Only trigger if not already refreshing
+                if (!isRefreshingRef.current) {
+                  fetchMatches();
+                }
+              }}
+              disabled={isLoading || isProcessing || isRefreshingRef.current}
               className="bg-green-500 hover:bg-green-600 text-white"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />

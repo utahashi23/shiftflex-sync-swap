@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
+import { useState } from 'react';
 
 interface SwapMatchDebugProps {
   onRefreshMatches?: () => void;
@@ -12,6 +13,7 @@ interface SwapMatchDebugProps {
 export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
   const { user } = useAuth();
   const { findSwapMatches, isProcessing } = useSwapMatcher();
+  const [hasResultData, setHasResultData] = useState(false);
 
   const runFindMatches = async () => {
     if (!user?.id) {
@@ -35,16 +37,20 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
       
       console.log("Match find result:", result);
       
-      // After finding matches, trigger parent refresh if provided
-      if (onRefreshMatches && typeof onRefreshMatches === 'function') {
+      // Check if we have actual results before triggering a refresh
+      const hasResults = result && Array.isArray(result) && result.length > 0;
+      setHasResultData(hasResults);
+      
+      // After finding matches, trigger parent refresh if provided and we have results
+      if (onRefreshMatches && typeof onRefreshMatches === 'function' && hasResults) {
         console.log("Triggering parent refresh after finding matches");
         setTimeout(() => {
           onRefreshMatches();
-        }, 100); // Small delay to ensure state updates complete
+        }, 300); // Increased delay to ensure state updates complete
       }
       
       // Show toast about results
-      if (result && Array.isArray(result) && result.length > 0) {
+      if (hasResults) {
         toast({
           title: "Matches found!",
           description: `Found ${result.length} potential swap matches.`,
