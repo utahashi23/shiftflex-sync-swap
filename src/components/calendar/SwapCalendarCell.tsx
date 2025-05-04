@@ -71,10 +71,6 @@ export const SwapCalendarCell = ({
         </>
       )}
       
-      {!shift && !isDisabled && (
-        <div className="text-xs text-gray-400 mt-2">Available for swap</div>
-      )}
-      
       {isDisabled && !shift && (
         <div className="absolute inset-0 bg-gray-100 bg-opacity-50"></div>
       )}
