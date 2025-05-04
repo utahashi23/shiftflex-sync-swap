@@ -25,6 +25,7 @@ interface SwapSelectionPanelProps {
     afternoon: boolean;
     night: boolean;
   }>>;
+  onShiftChange?: () => void; // Added the onShiftChange prop as optional
 }
 
 export const SwapSelectionPanel = ({
