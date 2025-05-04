@@ -17,8 +17,8 @@ serve(async (req) => {
   }
 
   try {
-    // Get the request body
-    const { user_id } = await req.json()
+    // Get the request body and parse any options
+    const { user_id, verbose = false } = await req.json()
 
     if (!user_id) {
       return new Response(
@@ -27,7 +27,7 @@ serve(async (req) => {
       )
     }
     
-    console.log(`Processing request for user_id: ${user_id}`);
+    console.log(`Processing request for user_id: ${user_id}, verbose: ${verbose}`);
 
     // Create a Supabase client with the Auth context of the logged in user
     const supabaseClient = createClient(
@@ -39,8 +39,23 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
     
-    // Skip the direct query approach which causes RLS recursion
-    // Instead use the RPC function directly as our primary method
+    // Let's first check for active swap requests that might be matched
+    const { data: requestsData, error: requestsError } = await supabaseClient
+      .from('shift_swap_requests')
+      .select('id, requester_id, requester_shift_id, status')
+      .eq('status', 'pending');
+      
+    if (requestsError) {
+      console.error('Error checking requests:', requestsError);
+    }
+    
+    // Check how many requests we have to debug
+    console.log(`Found ${requestsData?.length || 0} pending swap requests in total`);
+    if (verbose && requestsData?.length) {
+      console.log('Sample requests:', requestsData.slice(0, 3));
+    }
+    
+    // Try the RPC function which has worked reliably
     console.log(`Using RPC function to get matches for user ${user_id}`);
     
     const { data: matchesData, error: matchesError } = await supabaseClient
@@ -56,6 +71,11 @@ serve(async (req) => {
     
     console.log(`Found ${matches.length} potential matches via RPC`);
     
+    // Debug output in verbose mode
+    if (verbose && matches.length > 0) {
+      console.log('First match details:', matches[0]);
+    }
+    
     // Get only distinct matches by match_id
     const seen = new Set<string>();
     const distinctMatches = matches.filter(match => {
@@ -67,6 +87,31 @@ serve(async (req) => {
     });
     
     console.log(`Returning ${distinctMatches.length} distinct matches after deduplication`);
+    
+    // Check if we need to query the potential_matches table directly for debugging
+    if (verbose) {
+      const { data: potentialMatches, error: potentialMatchesError } = await supabaseClient
+        .from('shift_swap_potential_matches')
+        .select('*');
+        
+      if (potentialMatchesError) {
+        console.error('Error checking potential matches directly:', potentialMatchesError);
+      } else {
+        console.log(`Direct check: Found ${potentialMatches?.length || 0} entries in potential_matches table`);
+      }
+      
+      // Debug: Check if we have any matches in the database at all for this user
+      const { data: userRequests, error: userRequestsError } = await supabaseClient
+        .from('shift_swap_requests')
+        .select('*')
+        .eq('requester_id', user_id);
+        
+      if (userRequestsError) {
+        console.error('Error checking user requests:', userRequestsError);
+      } else {
+        console.log(`User has ${userRequests?.length || 0} total swap requests`);
+      }
+    }
     
     return new Response(
       JSON.stringify(distinctMatches),

@@ -33,6 +33,18 @@ export const useSwapMatcher = () => {
     try {
       setIsFindingMatches(true);
       console.log(`Finding swap matches for user: ${userId || user?.id}, force check: ${forceCheck}, verbose: ${verbose}`);
+      
+      // Call the edge function directly first for debugging if verbose
+      if (verbose) {
+        try {
+          console.log("Testing direct call to edge function...");
+          const result = await executeFindMatches(userId || user?.id, forceCheck, verbose);
+          console.log("Direct edge function result:", result);
+        } catch (error) {
+          console.error("Error in direct edge function call:", error);
+        }
+      }
+      
       await executeFindMatches(userId || user?.id, forceCheck, verbose);
     } catch (error) {
       console.error('Error in findSwapMatches:', error);

@@ -1,13 +1,14 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Loader2, Bug, AlertTriangle } from 'lucide-react';
+import { Loader2, Bug, AlertTriangle, Info } from 'lucide-react';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 
 export function SwapMatchDebug() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -15,7 +16,58 @@ export function SwapMatchDebug() {
   const [forceCheck, setForceCheck] = useState(true); // Default to true to check all matches
   const [showLogs, setShowLogs] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
+  const [potentialMatches, setPotentialMatches] = useState<any[]>([]);
+  const [isCheckingDatabase, setIsCheckingDatabase] = useState(false);
   const { findSwapMatches, isProcessing, isFindingMatches } = useSwapMatcher();
+  
+  const checkDatabaseStatus = async () => {
+    setIsCheckingDatabase(true);
+    setLogs(prev => [...prev, "Checking database status..."]);
+    
+    try {
+      // Check potential matches table
+      const { data: matches, error: matchesError } = await supabase
+        .from('shift_swap_potential_matches')
+        .select('*');
+        
+      if (matchesError) {
+        setLogs(prev => [...prev, `Error checking matches: ${matchesError.message}`]);
+      } else {
+        setPotentialMatches(matches || []);
+        setLogs(prev => [...prev, `Found ${matches?.length || 0} potential matches in database`]);
+        
+        if (matches && matches.length > 0) {
+          setLogs(prev => [...prev, `First match: ${JSON.stringify(matches[0])}`]);
+        }
+      }
+      
+      // Check requests table
+      const { data: requests, error: requestsError } = await supabase
+        .from('shift_swap_requests')
+        .select('*');
+        
+      if (requestsError) {
+        setLogs(prev => [...prev, `Error checking requests: ${requestsError.message}`]);
+      } else {
+        setLogs(prev => [...prev, `Found ${requests?.length || 0} swap requests in database`]);
+      }
+      
+      // Check direct function call
+      try {
+        const result = await supabase.functions.invoke('get_user_matches', {
+          body: { user_id: (await supabase.auth.getUser()).data.user?.id, verbose: true }
+        });
+        setLogs(prev => [...prev, `Direct function call result: ${JSON.stringify(result)}`]);
+      } catch (error: any) {
+        setLogs(prev => [...prev, `Error calling function: ${error.message}`]);
+      }
+      
+    } catch (error: any) {
+      setLogs(prev => [...prev, `General error: ${error.message}`]);
+    } finally {
+      setIsCheckingDatabase(false);
+    }
+  };
   
   const handleFindMatches = async () => {
     try {
@@ -103,7 +155,7 @@ export function SwapMatchDebug() {
                 </div>
               </div>
               
-              <div className="flex gap-2 items-center">
+              <div className="flex flex-wrap gap-2 items-center">
                 <Button 
                   onClick={handleFindMatches}
                   disabled={isProcessing || isFindingMatches}
@@ -123,6 +175,23 @@ export function SwapMatchDebug() {
                 <Button 
                   variant="outline" 
                   size="sm"
+                  onClick={checkDatabaseStatus}
+                  disabled={isCheckingDatabase}
+                  className="h-9"
+                >
+                  {isCheckingDatabase ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" /> 
+                      Checking...
+                    </>
+                  ) : (
+                    <>Check Database Status</>
+                  )}
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm"
                   onClick={() => setShowLogs(!showLogs)}
                   className="h-9"
                 >
@@ -130,7 +199,30 @@ export function SwapMatchDebug() {
                 </Button>
               </div>
               
-              {showLogs && logs.length > 0 && (
+              {potentialMatches.length > 0 && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="flex items-center gap-1 text-sm font-medium text-blue-700 mb-2">
+                    <Info className="h-4 w-4" />
+                    <span>Database contains {potentialMatches.length} potential matches</span>
+                  </div>
+                  <div className="text-xs text-blue-600 overflow-x-auto">
+                    {potentialMatches.slice(0, 2).map((match, idx) => (
+                      <div key={idx} className="mb-1 p-1 bg-blue-100 rounded">
+                        ID: {match.id}<br/>
+                        Status: {match.status}<br/>
+                        Requests: {match.requester_request_id} ↔ {match.acceptor_request_id}
+                      </div>
+                    ))}
+                    {potentialMatches.length > 2 && (
+                      <div className="text-blue-500 mt-1">
+                        + {potentialMatches.length - 2} more matches
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {showLogs && (
                 <div className="mt-4">
                   <div className="text-sm font-medium mb-2 flex items-center gap-1">
                     <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -149,9 +241,10 @@ export function SwapMatchDebug() {
               <div className="flex flex-col gap-2 text-sm">
                 <div className="text-sm font-medium">Troubleshooting Tips</div>
                 <ul className="list-disc list-inside text-xs text-muted-foreground pl-2 space-y-1">
-                  <li>Enable verbose logging to see detailed match information</li>
-                  <li>Force check will search for all possible matches regardless of status</li>
-                  <li>If no matches are found, verify that swap requests exist with preferred dates</li>
+                  <li>Check that you have active swap requests in the system</li>
+                  <li>Ensure swap requests have preferred dates assigned</li>
+                  <li>Verify that there are multiple users with compatible swap preferences</li>
+                  <li>The "Check Database Status" will show if any potential matches exist</li>
                 </ul>
               </div>
             </div>

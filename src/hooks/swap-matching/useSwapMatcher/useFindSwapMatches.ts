@@ -30,10 +30,10 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
         // Test calling the edge function directly for debugging
         console.log("Testing direct call to edge function with user ID:", userId);
         try {
-          const testResult = await supabase.functions.invoke('get_user_matches', {
-            body: { user_id: userId }
+          const testResponse = await supabase.functions.invoke('get_user_matches', {
+            body: { user_id: userId, verbose: true }
           });
-          console.log("Test result from edge function:", testResult);
+          console.log("Direct edge function response:", testResponse);
         } catch (error) {
           console.error("Test call to edge function failed:", error);
         }
@@ -57,14 +57,14 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
         return;
       }
       
-      // Log data to diagnose issues
+      // Always log core data regardless of verbose mode
+      console.log(`Found ${allRequests.length} swap requests, ${allShifts.length} shifts, ${preferredDates.length} preferred dates`);
+      
+      // Log detailed data in verbose mode
       if (verbose) {
-        console.log(`Found ${allRequests.length} swap requests, ${allShifts.length} shifts, ${preferredDates.length} preferred dates`);
-        console.log('Sample request:', allRequests[0]);
-        console.log('Sample shift:', allShifts[0]);
-        console.log('Sample preferred date:', preferredDates[0]);
-      } else {
-        console.log(`Found ${allRequests.length} swap requests, ${allShifts.length} shifts, ${preferredDates.length} preferred dates`);
+        console.log('First few requests:', allRequests.slice(0, 2));
+        console.log('First few shifts:', allShifts.slice(0, 2));
+        console.log('First few preferred dates:', preferredDates.slice(0, 2));
       }
       
       // Separate my requests from other users' requests if userId is provided
@@ -104,10 +104,11 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
       // Find potential matches - Pass userId to ensure it works for non-admin users
       // If forceCheck is true, this will check for matches regardless of existing matches
       const matches = findMatches(allRequests, allShifts, preferredDates, profilesMap, userId, forceCheck, verbose);
+      
       if (verbose) {
-        console.log('Found potential matches:', matches);
+        console.log('Potential matches details:', matches);
       } else {
-        console.log('Found potential matches:', matches.length);
+        console.log('Found potential matches count:', matches.length);
       }
       
       // Process matches
@@ -121,7 +122,7 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
         const matchResults = await processMatches(matches, userId);
         
         if (verbose) {
-          console.log('Match results:', matchResults);
+          console.log('Match results details:', matchResults);
         } else {
           console.log('Match results count:', matchResults.length);
         }
@@ -153,6 +154,9 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
     } finally {
       setIsProcessing(false);
     }
+    
+    // Return an empty object to show the function ran successfully
+    return {};
   };
 
   return {
