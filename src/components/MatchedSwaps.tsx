@@ -9,7 +9,7 @@ import { useSwapMatches } from "@/hooks/swap-matches";
 import { useSwapMatcher } from "@/hooks/swap-matching";
 import MatchCard from "@/components/swaps/MatchCard";
 import MatchCardSkeleton from "@/components/swaps/MatchCardSkeleton";
-import DebugPanel from "@/components/matched-swaps/DebugPanel";
+import { DebugPanel } from "@/components/matched-swaps/DebugPanel";
 
 interface MatchedSwapsProps {
   setRefreshTrigger?: (refreshTrigger: number) => void;
