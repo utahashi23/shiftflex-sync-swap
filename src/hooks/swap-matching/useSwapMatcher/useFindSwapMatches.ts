@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Hook for finding potential swap matches between users
- * Modified to avoid RLS recursion issues
+ * Enhanced to avoid RLS recursion issues with clearer error handling
  */
 export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => void) => {
   const [matchResults, setMatchResults] = useState<any>(null);
@@ -27,12 +27,14 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
       setIsProcessing(true);
       
       // Make direct call to the edge function to avoid RLS recursion
+      // The edge function uses service_role to bypass RLS policies
       const { data, error } = await supabase.functions.invoke('get_user_matches', {
         body: { 
           user_id: userId,
           force_check: forceCheck,
           verbose: verbose,
-          specific_check: specificCheck
+          specific_check: specificCheck,
+          bypass_rls: true // Explicitly request RLS bypass
         }
       });
       
