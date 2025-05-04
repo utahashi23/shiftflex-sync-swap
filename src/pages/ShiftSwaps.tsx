@@ -25,6 +25,11 @@ const ShiftSwaps = () => {
     setTimeout(() => setActiveTab(currentTab), 10);
   }, [refreshTrigger]);
   
+  // Handle manual refresh
+  const handleRefreshRequest = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
+  
   return (
     <AppLayout>
       <div className="mb-8">

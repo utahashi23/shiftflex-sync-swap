@@ -86,25 +86,38 @@ export const createSwapMatchSafe = async (request1Id: string, request2Id: string
 };
 
 /**
- * Fetches all matches for debug purposes
+ * Fetches all matches for debug purposes using the edge function to avoid recursion
  */
 export const fetchAllMatchesSafe = async () => {
+  try {
+    const { data, error } = await supabase.functions.invoke('get_user_matches', {
+      body: { show_all_matches: true, verbose: true }
+    });
+    
+    if (error) {
+      console.error('Error fetching all matches via edge function:', error);
+      return { error };
+    }
+    
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error fetching all matches:', error);
+    return { data: null, error };
+  }
+};
+
+/**
+ * Updates a match status safely
+ */
+export const updateMatchStatusSafe = async (matchId: string, status: string) => {
   const { data, error } = await supabase
     .from('shift_swap_potential_matches')
-    .select(`
-      id,
-      status,
-      created_at,
-      match_date,
-      requester_request_id,
-      acceptor_request_id,
-      requester_shift_id,
-      acceptor_shift_id
-    `)
-    .order('created_at', { ascending: false });
+    .update({ status })
+    .eq('id', matchId)
+    .select();
     
   if (error) {
-    console.error('Error fetching all matches:', error);
+    console.error(`Error updating match status to ${status}:`, error);
   }
   
   return { data, error };

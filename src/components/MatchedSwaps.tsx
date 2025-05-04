@@ -16,7 +16,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { SwapMatch } from '@/hooks/useSwapMatches';
 import { getShiftType } from '@/utils/shiftUtils';
-import AllMatchesDebug from './matched-swaps/AllMatchesDebug';
 import SimpleMatchTester from './testing/SimpleMatchTester';
 
 interface MatchedSwapsProps {
@@ -38,9 +37,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   
   const { user, isAdmin } = useAuth();
 
-  // Always show debug tools - we'll remove this visibility limitation
-  const [showDebugTools] = useState(true);
-
   // Fetch matches data directly
   const fetchMatches = async () => {
     if (!user || !user.id) return;
@@ -50,9 +46,13 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     try {
       console.log('Fetching matches for user:', user.id);
       
-      // Call the get_user_matches function
+      // Call the get_user_matches function with verbose option to get more info
       const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
-        body: { user_id: user.id }
+        body: { 
+          user_id: user.id,
+          verbose: true,
+          force_check: true
+        }
       });
         
       if (matchesError) throw matchesError;
@@ -206,9 +206,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         </p>
         <SimpleMatchTester onMatchCreated={fetchMatches} />
       </div>
-      
-      {/* All matches view (always visible for easier debugging) */}
-      <AllMatchesDebug />
       
       <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
         <div className="flex justify-between items-center mb-4">
