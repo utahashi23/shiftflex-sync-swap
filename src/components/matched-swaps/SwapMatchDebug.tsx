@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
+import { useAuth } from '@/hooks/useAuth';
 import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -10,10 +9,11 @@ import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { useAuth } from '@/hooks/useAuth';
+import { Button } from '../ui/button';
 
 export function SwapMatchDebug() {
-  const [isExpanded, setIsExpanded] = useState(false);
+  // Start expanded by default for better visibility
+  const [isExpanded, setIsExpanded] = useState(true);
   const [verbose, setVerbose] = useState(true); // Default to true for better debugging
   const [forceCheck, setForceCheck] = useState(true); // Default to true to check all matches
   const [specificCheck, setSpecificCheck] = useState(true); // Default to true for specific issues
@@ -356,7 +356,7 @@ export function SwapMatchDebug() {
               <div className="flex items-center gap-2">
                 <Bug className="h-4 w-4 text-amber-600" />
                 <span>Swap Matching Debug Tools</span>
-                <Badge variant="outline" className="bg-amber-100 text-amber-800 text-xs">Admin</Badge>
+                <Badge variant="outline" className="bg-amber-100 text-amber-800 text-xs">Debug</Badge>
               </div>
               <span 
                 className="text-xs cursor-pointer text-muted-foreground hover:text-primary"
@@ -618,7 +618,7 @@ export function SwapMatchDebug() {
             className="text-xs flex items-center"
           >
             <Bug className="h-3.5 w-3.5 mr-1" />
-            Debug Tools
+            Show Debug Tools
           </Button>
         </div>
       )}

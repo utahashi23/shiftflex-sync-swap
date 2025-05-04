@@ -9,12 +9,15 @@ import MatchedSwaps from '@/components/MatchedSwaps';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Bug } from 'lucide-react';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('calendar');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
   
   // Force tab refresh when coming back to this page or after finding matches
   useEffect(() => {
@@ -31,7 +34,32 @@ const ShiftSwaps = () => {
           Request and manage your shift swaps
           {isAdmin && <span className="ml-2 text-blue-500">(Admin Access)</span>}
         </p>
+        
+        {/* Add debug tools toggle button */}
+        <div className="mt-2 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDebugPanel(!showDebugPanel)}
+            className="flex items-center text-xs"
+          >
+            <Bug className="h-3.5 w-3.5 mr-1" />
+            Debug Tools
+          </Button>
+        </div>
       </div>
+
+      {/* Show debug panel explicitly if enabled */}
+      {showDebugPanel && (
+        <div className="mb-6">
+          <div className="p-4 border border-amber-300 rounded-lg bg-amber-50">
+            <h2 className="text-lg font-bold text-amber-700">Debug Tools</h2>
+            <p className="text-sm text-amber-600">
+              Navigate to the "Matched Swaps" tab to access the full debugging interface.
+            </p>
+          </div>
+        </div>
+      )}
 
       <TooltipProvider>
         <Tabs 

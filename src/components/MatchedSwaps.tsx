@@ -36,6 +36,9 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   
   const { user, isAdmin } = useAuth();
 
+  // Always show debug tools - we'll remove this visibility limitation
+  const [showDebugTools] = useState(true);
+
   // Fetch matches data directly
   const fetchMatches = async () => {
     if (!user || !user.id) return;
@@ -190,7 +193,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   return (
     <div className="space-y-6">
-      {isAdmin && <SwapMatchDebug />}
+      {/* Always show debug tools as they're now crucial for debugging */}
+      <SwapMatchDebug />
       
       <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
         <div className="flex justify-between items-center mb-4">

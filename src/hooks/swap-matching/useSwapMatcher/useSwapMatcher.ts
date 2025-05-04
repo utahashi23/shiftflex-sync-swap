@@ -38,7 +38,7 @@ export const useSwapMatcher = () => {
     
     try {
       setIsFindingMatches(true);
-      console.log(`Finding swap matches for user: ${userId || user?.id}, force check: ${forceCheck}, verbose: ${verbose}`);
+      console.log(`Finding swap matches for user: ${userId || user?.id}, force check: ${forceCheck}, verbose: ${verbose}, specific check: ${specificCheck}`);
       
       // Log known problem IDs (from user message)
       const knownUserIds = ['0dba6413-6ab5-46c9-9db1-ecca3b444e34', 'b6da71dc-3749-4b92-849a-1977ff196e67'];
@@ -49,19 +49,14 @@ export const useSwapMatcher = () => {
         specificCheck = true;
       }
       
-      // Only perform direct call if verbose is enabled
-      if (verbose) {
-        try {
-          console.log("Testing direct call to edge function...");
-          const result = await executeFindMatches(userId || user?.id, forceCheck, verbose, specificCheck);
-          console.log("Direct edge function result:", result);
-        } catch (error) {
-          console.error("Error in direct edge function call:", error);
-        }
+      // Always perform direct call to ensure debugging is visible
+      console.log("Testing direct call to edge function...");
+      try {
+        const result = await executeFindMatches(userId || user?.id, forceCheck, verbose, specificCheck);
+        console.log("Direct edge function result:", result);
+      } catch (error) {
+        console.error("Error in direct edge function call:", error);
       }
-      
-      // Normal execution
-      await executeFindMatches(userId || user?.id, forceCheck, verbose, specificCheck);
       
       // When debugging known issues, provide feedback
       if (specificCheck || knownUserIds.includes(userId || user?.id)) {
