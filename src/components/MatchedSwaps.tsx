@@ -36,82 +36,64 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   });
   
   const { user, isAdmin } = useAuth();
-  const { findSwapMatches } = useSwapMatcher();
+  const { findSwapMatches, isProcessing } = useSwapMatcher();
 
-  // Fetch matches data
+  // Process matches data from API response
+  const processMatchesData = (matchesData: any[]) => {
+    if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
+      return [];
+    }
+    
+    // Process and deduplicate the matches data
+    const uniqueMatches = Array.from(
+      new Map(matchesData.map((match: any) => [match.match_id, match])).values()
+    );
+    
+    // Process the data
+    return uniqueMatches.map((match: any) => {
+      return {
+        id: match.match_id,
+        status: match.match_status,
+        myShift: {
+          id: match.my_shift_id,
+          date: match.my_shift_date,
+          startTime: match.my_shift_start_time,
+          endTime: match.my_shift_end_time,
+          truckName: match.my_shift_truck,
+          type: getShiftType(match.my_shift_start_time)
+        },
+        otherShift: {
+          id: match.other_shift_id,
+          date: match.other_shift_date,
+          startTime: match.other_shift_start_time,
+          endTime: match.other_shift_end_time,
+          truckName: match.other_shift_truck,
+          type: getShiftType(match.other_shift_start_time),
+          userId: match.other_user_id,
+          userName: match.other_user_name || 'Unknown User'
+        },
+        myRequestId: match.my_request_id,
+        otherRequestId: match.other_request_id,
+        createdAt: match.created_at
+      };
+    });
+  };
+
+  // Fetch matches data using findSwapMatches directly
   const fetchMatches = async () => {
     if (!user || !user.id) return;
     
     setIsLoading(true);
     
     try {
-      console.log('Fetching matches for user:', user.id);
+      console.log('Finding matches for user:', user.id);
       
-      // First, try to run find matches to create potential matches
-      if (user.id) {
-        try {
-          await findSwapMatches(user.id, true, true, true, true);
-        } catch (error) {
-          console.error("Error finding matches:", error);
-          // Continue anyway to fetch existing matches
-        }
-      }
-      
-      // Then call the get_user_matches function to retrieve all matches
-      const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
-        body: { 
-          user_id: user.id,
-          verbose: true,
-          force_check: true,
-          user_perspective_only: true,
-          user_initiator_only: true
-        }
-      });
-        
-      if (matchesError) throw matchesError;
-      
+      // Directly use findSwapMatches to find and retrieve matches
+      const matchesData = await findSwapMatches(user.id, true, true, true, true);
       console.log('Raw match data from function:', matchesData);
       
-      if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
-        setMatches([]);
-        setPastMatches([]);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Process and deduplicate the matches data
-      const uniqueMatches = Array.from(
-        new Map(matchesData.map((match: any) => [match.match_id, match])).values()
-      );
-      
-      // Process the data
-      const formattedMatches = uniqueMatches.map((match: any) => {
-        return {
-          id: match.match_id,
-          status: match.match_status,
-          myShift: {
-            id: match.my_shift_id,
-            date: match.my_shift_date,
-            startTime: match.my_shift_start_time,
-            endTime: match.my_shift_end_time,
-            truckName: match.my_shift_truck,
-            type: getShiftType(match.my_shift_start_time)
-          },
-          otherShift: {
-            id: match.other_shift_id,
-            date: match.other_shift_date,
-            startTime: match.other_shift_start_time,
-            endTime: match.other_shift_end_time,
-            truckName: match.other_shift_truck,
-            type: getShiftType(match.other_shift_start_time),
-            userId: match.other_user_id,
-            userName: match.other_user_name || 'Unknown User'
-          },
-          myRequestId: match.my_request_id,
-          otherRequestId: match.other_request_id,
-          createdAt: match.created_at
-        };
-      });
+      // Process the matches data
+      const formattedMatches = processMatchesData(matchesData);
       
       // Separate active and past matches
       const activeMatches = formattedMatches.filter((match: SwapMatch) => 
@@ -239,11 +221,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           <div className="flex gap-2">
             <Button 
               onClick={fetchMatches}
-              disabled={isLoading}
+              disabled={isLoading || isProcessing}
               className="bg-green-500 hover:bg-green-600 text-white"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              {isLoading ? 'Finding Matches...' : 'Refresh Matches'}
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />
+              {isLoading || isProcessing ? 'Finding Matches...' : 'Refresh Matches'}
             </Button>
           </div>
         </div>
