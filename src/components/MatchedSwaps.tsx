@@ -17,6 +17,7 @@ import { toast } from '@/hooks/use-toast';
 import { SwapMatch } from '@/hooks/useSwapMatches';
 import { getShiftType } from '@/utils/shiftUtils';
 import AllMatchesDebug from './matched-swaps/AllMatchesDebug';
+import SimpleMatchTester from './testing/SimpleMatchTester';
 
 interface MatchedSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
@@ -112,6 +113,14 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       
       setMatches(activeMatches);
       setPastMatches(completedMatches);
+      
+      // If we've found matches, update parent tabs if needed
+      if (activeMatches.length > 0 && setRefreshTrigger) {
+        setRefreshTrigger(prevVal => prevVal + 1);
+        if (activeTab !== 'active') {
+          setActiveTab('active');
+        }
+      }
     } catch (error) {
       console.error('Error fetching matches:', error);
       toast({
@@ -184,18 +193,19 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     }
   }, [user]);
 
-  // Log debug info
-  console.log('Matched swaps component:', {
-    matchCount: matches.length,
-    pastMatchCount: pastMatches.length,
-    isLoading,
-    hasError: false
-  });
-
   return (
     <div className="space-y-6">
       {/* Debug tools */}
-      <SwapMatchDebug />
+      <SwapMatchDebug onRefreshMatches={fetchMatches} />
+      
+      {/* Simple Match Tester integrated to refresh matches when a match is created */}
+      <div className="border border-amber-300 rounded-lg bg-amber-50 p-4 mb-4">
+        <h2 className="text-lg font-bold text-amber-700 mb-2">Simple Match Testing</h2>
+        <p className="text-sm text-amber-600 mb-4">
+          Test and create matches between swap requests. Created matches will appear in the Active Matches tab.
+        </p>
+        <SimpleMatchTester onMatchCreated={fetchMatches} />
+      </div>
       
       {/* All matches view (always visible for easier debugging) */}
       <AllMatchesDebug />

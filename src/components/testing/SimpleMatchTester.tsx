@@ -15,7 +15,11 @@ interface MatchTestResult {
   matchReason: string;
 }
 
-const SimpleMatchTester = () => {
+interface SimpleMatchTesterProps {
+  onMatchCreated?: () => void; // Add callback for when a match is created
+}
+
+const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [allRequests, setAllRequests] = useState<any[]>([]);
   const [allPreferredDates, setAllPreferredDates] = useState<any[]>([]);
@@ -192,6 +196,11 @@ const SimpleMatchTester = () => {
           .update({ status: 'matched' })
           .eq('id', match.request2Id)
       ]);
+      
+      // Call the callback if provided
+      if (onMatchCreated) {
+        onMatchCreated();
+      }
     } catch (error) {
       console.error('Error creating match:', error);
       toast({

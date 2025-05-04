@@ -7,13 +7,21 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import AllMatchesDebug from './AllMatchesDebug';
 
-export function SwapMatchDebug() {
+interface SwapMatchDebugProps {
+  onRefreshMatches?: () => void;  // Added prop for refreshing parent components
+}
+
+export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
   const { user } = useAuth();
   const { findSwapMatches, isProcessing } = useSwapMatcher();
   const [debugMode, setDebugMode] = useState(false);
 
   const runDebugMatchFind = async () => {
     await findSwapMatches(user?.id, true, true);
+    // After finding matches, trigger parent refresh if provided
+    if (onRefreshMatches) {
+      onRefreshMatches();
+    }
   };
 
   return (

@@ -6,8 +6,6 @@ import AppLayout from '@/layouts/AppLayout';
 import ShiftSwapCalendar from '@/components/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
-import AllSwapsTable from '@/components/testing/AllSwapsTable';
-import SimpleMatchTester from '@/components/testing/SimpleMatchTester';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -49,28 +47,6 @@ const ShiftSwaps = () => {
           </Button>
         </div>
       </div>
-
-      {/* Show debug panel explicitly if enabled */}
-      {showDebugPanel && (
-        <div className="mb-6">
-          <div className="p-4 border border-amber-300 rounded-lg bg-amber-50">
-            <h2 className="text-lg font-bold text-amber-700">Debug Tools</h2>
-            <p className="text-sm text-amber-600 mb-4">
-              These tools help test the shift swap matching algorithm and view all swap requests in the system.
-            </p>
-            
-            {/* Simple match tester - prominently displayed for easy testing */}
-            <div className="border border-gray-200 rounded-lg bg-white p-4 mb-4">
-              <SimpleMatchTester />
-            </div>
-            
-            {/* All swaps table - for reference */}
-            <div className="border border-gray-200 rounded-lg bg-white p-4">
-              <AllSwapsTable />
-            </div>
-          </div>
-        </div>
-      )}
 
       <TooltipProvider>
         <Tabs 
