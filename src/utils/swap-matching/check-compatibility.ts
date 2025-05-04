@@ -39,7 +39,7 @@ export const checkSwapCompatibility = (
   
   if (!firstUserWantsSecondDate || !firstUserWantsSecondType) {
     console.log(`No match: User ${request.requester_id} doesn't want the other shift`);
-    return { isCompatible: false };
+    return { isCompatible: false, reason: `User ${request.requester_id} doesn't want the other shift` };
   }
   
   // Check if the second user wants the first user's shift date and type
@@ -64,25 +64,25 @@ export const checkSwapCompatibility = (
   
   if (!secondUserWantsFirstDate || !secondUserWantsFirstType) {
     console.log(`No match: User ${otherRequest.requester_id} doesn't want the other shift`);
-    return { isCompatible: false };
+    return { isCompatible: false, reason: `User ${otherRequest.requester_id} doesn't want the other shift` };
   }
   
   // Check if either user is already rostered on the swap date
   const user1HasConflict = (shiftsByUser[request.requester_id] || []).includes(otherRequestShift.normalizedDate);
   if (user1HasConflict) {
     console.log(`User ${request.requester_id} already has a shift on ${otherRequestShift.normalizedDate}`);
-    return { isCompatible: false };
+    return { isCompatible: false, reason: `User ${request.requester_id} already has a shift on ${otherRequestShift.normalizedDate}` };
   }
   
   const user2HasConflict = (shiftsByUser[otherRequest.requester_id] || []).includes(requestShift.normalizedDate);
   if (user2HasConflict) {
     console.log(`User ${otherRequest.requester_id} already has a shift on ${requestShift.normalizedDate}`);
-    return { isCompatible: false };
+    return { isCompatible: false, reason: `User ${otherRequest.requester_id} already has a shift on ${requestShift.normalizedDate}` };
   }
   
   // We have a match!
   console.log(`🎉 MATCH FOUND between requests ${request.id} and ${otherRequest.id}`);
   console.log(`User ${request.requester_id} wants to swap with User ${otherRequest.requester_id}`);
   
-  return { isCompatible: true };
+  return { isCompatible: true, reason: 'Match found' };
 };
