@@ -280,8 +280,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     console.log("Current matches state:", matches);
   }, [matches]);
 
-  // New function to render rows of matches
-  const renderRows = () => {
+  // Fixed renderRows function to explicitly return JSX
+  const renderRows = (): JSX.Element => {
     return (
       <>
         {/* Collapsible Swap Match Testing section */}
