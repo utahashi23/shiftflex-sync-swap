@@ -16,7 +16,6 @@ import { toast } from '@/hooks/use-toast';
 import { SwapMatch } from '@/hooks/useSwapMatches';
 import { getShiftType } from '@/utils/shiftUtils';
 import SimpleMatchTester from './testing/SimpleMatchTester';
-import { SwapMatchDebug } from './matched-swaps/SwapMatchDebug';
 import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
 
 interface MatchedSwapsProps {
@@ -230,9 +229,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         </p>
         <SimpleMatchTester onMatchCreated={fetchMatches} />
       </div>
-      
-      {/* Find Potential Matches button */}
-      <SwapMatchDebug onRefreshMatches={fetchMatches} />
       
       <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
         <div className="flex justify-between items-center mb-4">
