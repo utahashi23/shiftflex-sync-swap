@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { fetchAllSwapRequestsSafe, fetchAllPreferredDatesWithRequestsSafe } from '@/utils/rls-helpers';
+import { fetchAllSwapRequestsSafe, fetchAllPreferredDatesWithRequestsSafe, createSwapMatchSafe } from '@/utils/rls-helpers';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, RefreshCw } from 'lucide-react';
 
@@ -171,42 +170,14 @@ const SimpleMatchTester = () => {
         return;
       }
       
-      // Get shift IDs for both requests
-      const { data: request1Data } = await supabase
-        .from('shift_swap_requests')
-        .select('requester_shift_id')
-        .eq('id', match.request1Id)
-        .single();
-        
-      const { data: request2Data } = await supabase
-        .from('shift_swap_requests')
-        .select('requester_shift_id')
-        .eq('id', match.request2Id)
-        .single();
-      
-      if (!request1Data || !request2Data) {
-        throw new Error("Could not find request data");
-      }
-      
-      // Create the match in the database
-      const { data: newMatch, error } = await supabase
-        .from('shift_swap_potential_matches')
-        .insert({
-          requester_request_id: match.request1Id,
-          acceptor_request_id: match.request2Id,
-          requester_shift_id: request1Data.requester_shift_id,
-          acceptor_shift_id: request2Data.requester_shift_id,
-          match_date: new Date().toISOString().split('T')[0],
-          status: 'pending'
-        })
-        .select('id')
-        .single();
+      // Use the helper function to create the match
+      const { data, error } = await createSwapMatchSafe(match.request1Id, match.request2Id);
       
       if (error) throw error;
       
       toast({
         title: "Match created successfully",
-        description: `Created match with ID: ${newMatch.id}`,
+        description: `Created match with ID: ${data?.[0].id || 'unknown'}`,
         variant: "default"
       });
       

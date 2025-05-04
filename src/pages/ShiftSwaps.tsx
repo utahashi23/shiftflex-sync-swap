@@ -9,7 +9,6 @@ import MatchedSwaps from '@/components/MatchedSwaps';
 import AllSwapsTable from '@/components/testing/AllSwapsTable';
 import SimpleMatchTester from '@/components/testing/SimpleMatchTester';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Bug } from 'lucide-react';
@@ -19,7 +18,7 @@ const ShiftSwaps = () => {
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('calendar');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(true); // Default to true for better visibility
   
   // Force tab refresh when coming back to this page or after finding matches
   useEffect(() => {
@@ -40,13 +39,13 @@ const ShiftSwaps = () => {
         {/* Add debug tools toggle button */}
         <div className="mt-2 flex justify-end">
           <Button
-            variant="outline"
+            variant={showDebugPanel ? "default" : "outline"}
             size="sm"
             onClick={() => setShowDebugPanel(!showDebugPanel)}
             className="flex items-center text-xs"
           >
             <Bug className="h-3.5 w-3.5 mr-1" />
-            Debug Tools
+            {showDebugPanel ? "Hide Debug Tools" : "Show Debug Tools"}
           </Button>
         </div>
       </div>
@@ -56,18 +55,18 @@ const ShiftSwaps = () => {
         <div className="mb-6">
           <div className="p-4 border border-amber-300 rounded-lg bg-amber-50">
             <h2 className="text-lg font-bold text-amber-700">Debug Tools</h2>
-            <p className="text-sm text-amber-600">
-              Navigate to the "Matched Swaps" tab to access the full debugging interface.
+            <p className="text-sm text-amber-600 mb-4">
+              These tools help test the shift swap matching algorithm and view all swap requests in the system.
             </p>
             
-            {/* Add the new AllSwapsTable component for testing */}
-            <div className="mt-4 border border-gray-200 rounded-lg bg-white p-4">
-              <AllSwapsTable />
-            </div>
-
-            {/* Add the new SimpleMatchTester component */}
-            <div className="mt-4 border border-gray-200 rounded-lg bg-white p-4">
+            {/* Simple match tester - prominently displayed for easy testing */}
+            <div className="border border-gray-200 rounded-lg bg-white p-4 mb-4">
               <SimpleMatchTester />
+            </div>
+            
+            {/* All swaps table - for reference */}
+            <div className="border border-gray-200 rounded-lg bg-white p-4">
+              <AllSwapsTable />
             </div>
           </div>
         </div>

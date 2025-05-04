@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { SwapMatch } from '@/hooks/useSwapMatches';
 import { getShiftType } from '@/utils/shiftUtils';
+import AllMatchesDebug from './matched-swaps/AllMatchesDebug';
 
 interface MatchedSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
@@ -193,8 +194,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Always show debug tools as they're now crucial for debugging */}
+      {/* Debug tools */}
       <SwapMatchDebug />
+      
+      {/* All matches view (always visible for easier debugging) */}
+      <AllMatchesDebug />
       
       <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
         <div className="flex justify-between items-center mb-4">

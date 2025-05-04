@@ -84,3 +84,28 @@ export const createSwapMatchSafe = async (request1Id: string, request2Id: string
   
   return { data, error };
 };
+
+/**
+ * Fetches all matches for debug purposes
+ */
+export const fetchAllMatchesSafe = async () => {
+  const { data, error } = await supabase
+    .from('shift_swap_potential_matches')
+    .select(`
+      id,
+      status,
+      created_at,
+      match_date,
+      requester_request_id,
+      acceptor_request_id,
+      requester_shift_id,
+      acceptor_shift_id
+    `)
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching all matches:', error);
+  }
+  
+  return { data, error };
+};
