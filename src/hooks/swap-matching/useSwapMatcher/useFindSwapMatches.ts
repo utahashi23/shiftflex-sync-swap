@@ -1,11 +1,15 @@
 
 import { toast } from '@/hooks/use-toast';
 import { fetchAllData, findMatches, processMatches } from '../operations';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 /**
  * Hook for finding swap matches
  */
 export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) => {
+  const { isAdmin } = useAuth();
+
   /**
    * Find potential matches for a user's swap requests
    * @param userId - The ID of the current user (optional for admins)
@@ -20,6 +24,20 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
       console.log('Current user ID:', userId || 'No user ID provided (admin mode)');
       console.log('Force check:', forceCheck);
       console.log('Verbose logging:', verbose);
+      console.log('Is admin:', isAdmin);
+      
+      if (verbose) {
+        // Test calling the edge function directly for debugging
+        console.log("Testing direct call to edge function with user ID:", userId);
+        try {
+          const testResult = await supabase.functions.invoke('get_user_matches', {
+            body: { user_id: userId }
+          });
+          console.log("Test result from edge function:", testResult);
+        } catch (error) {
+          console.error("Test call to edge function failed:", error);
+        }
+      }
       
       // Fetch all necessary data from the database
       const result = await fetchAllData();

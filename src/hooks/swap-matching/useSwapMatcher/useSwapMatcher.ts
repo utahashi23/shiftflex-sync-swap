@@ -32,6 +32,7 @@ export const useSwapMatcher = () => {
     
     try {
       setIsFindingMatches(true);
+      console.log(`Finding swap matches for user: ${userId || user?.id}, force check: ${forceCheck}, verbose: ${verbose}`);
       await executeFindMatches(userId || user?.id, forceCheck, verbose);
     } catch (error) {
       console.error('Error in findSwapMatches:', error);
