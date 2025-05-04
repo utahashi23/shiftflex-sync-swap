@@ -43,7 +43,9 @@ export const createCalendarRenderer = (
       const shift = getShiftForDate(dateStr);
       const isSelected = selectedShift?.date === dateStr;
       const isSwapSelected = isDateSelectedForSwap(dateStr);
-      const isDisabled = swapMode && isDateDisabled(dateStr);
+      
+      // If it's a day without a shift and we're not in swap mode, disable it
+      const isDisabled = (swapMode) ? isDateDisabled(dateStr) : !shift;
       
       daysArray.push(
         <SwapCalendarCell
@@ -54,7 +56,7 @@ export const createCalendarRenderer = (
           isSelected={isSelected}
           isDisabled={isDisabled}
           isSwapSelected={isSwapSelected}
-          onClick={() => shift ? onShiftClick(shift) : onDateSelect(dateStr)}
+          onClick={() => shift ? onShiftClick(shift) : (swapMode ? onDateSelect(dateStr) : () => {})}
           acceptableShiftTypes={acceptableShiftTypes}
         />
       );

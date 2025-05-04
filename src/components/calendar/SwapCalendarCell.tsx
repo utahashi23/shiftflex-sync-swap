@@ -29,7 +29,7 @@ export const SwapCalendarCell = ({
   acceptableShiftTypes
 }: SwapCalendarCellProps) => {
   if (empty) {
-    return <div key={`empty-${day}`} className="calendar-cell"></div>;
+    return <div className="calendar-cell"></div>;
   }
 
   return (
@@ -38,7 +38,7 @@ export const SwapCalendarCell = ({
         "calendar-cell relative",
         shift && "has-shift",
         isSelected && "selected",
-        isDisabled ? "day-disabled bg-gray-300 cursor-not-allowed" : "cursor-pointer hover:bg-secondary/30",
+        isDisabled ? "day-disabled bg-gray-100 cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-secondary/30",
         isSwapSelected && "day-selected bg-green-50",
         "transition-colors"
       )}
@@ -71,8 +71,12 @@ export const SwapCalendarCell = ({
         </>
       )}
       
-      {isDisabled && (
-        <div className="absolute inset-0 bg-gray-200 bg-opacity-50"></div>
+      {!shift && !isDisabled && (
+        <div className="text-xs text-gray-400 mt-2">Available for swap</div>
+      )}
+      
+      {isDisabled && !shift && (
+        <div className="absolute inset-0 bg-gray-100 bg-opacity-50"></div>
       )}
     </div>
   );
