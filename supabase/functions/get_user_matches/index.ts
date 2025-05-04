@@ -39,41 +39,164 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
     
-    // Use our RPC function to bypass RLS issues
-    const { data: matchesData, error: matchesError } = await supabaseClient
-      .rpc('get_user_matches_with_rls', { user_id });
+    // Check if there are any potential matches that include the user
+    const { data: existingMatches, error: potentialError } = await supabaseClient
+      .from('shift_swap_potential_matches')
+      .select(`
+        id, 
+        status, 
+        created_at, 
+        match_date,
+        requester_request_id, 
+        acceptor_request_id,
+        requester_shift_id,
+        acceptor_shift_id,
+        shift_swap_requests!requester_request_id(requester_id),
+        shift_swap_requests!acceptor_request_id(requester_id)
+      `)
+      .or(`shift_swap_requests.requester_id.eq.${user_id},shift_swap_requests!acceptor_request_id.requester_id.eq.${user_id}`)
     
-    if (matchesError) {
-      console.error('Error fetching matches:', matchesError);
-      throw matchesError;
+    if (potentialError) {
+      console.log('Error fetching potential matches:', potentialError);
+      throw potentialError;
     }
     
-    // Ensure we have an array to work with
-    const matches = matchesData || [];
+    console.log(`Found ${existingMatches?.length || 0} potential matches that include user ${user_id}`);
     
-    // Get only distinct matches by match_id
-    const seen = new Set<string>();
-    const distinctMatches = matches.filter(match => {
-      if (!match || !match.match_id || seen.has(match.match_id)) {
-        return false;
+    if (!existingMatches || existingMatches.length === 0) {
+      console.log(`No matches found for user ${user_id}, checking for direct matches...`);
+      
+      // As a fallback, try to use the RPC function
+      const { data: matchesData, error: matchesError } = await supabaseClient
+        .rpc('get_user_matches_with_rls', { user_id });
+      
+      if (matchesError) {
+        console.error('Error fetching matches via RPC:', matchesError);
+        throw matchesError;
       }
-      seen.add(match.match_id);
-      return true;
-    });
-    
-    console.log(`Found ${distinctMatches.length} potential matches`);
-    
-    if (distinctMatches.length === 0) {
-      console.log('No matches found for this user');
+      
+      // Ensure we have an array to work with
+      const matches = matchesData || [];
+      
+      // Get only distinct matches by match_id
+      const seen = new Set<string>();
+      const distinctMatches = matches.filter(match => {
+        if (!match || !match.match_id || seen.has(match.match_id)) {
+          return false;
+        }
+        seen.add(match.match_id);
+        return true;
+      });
+      
+      console.log(`Found ${distinctMatches.length} potential matches via RPC`);
+      
+      if (distinctMatches.length === 0) {
+        console.log('No matches found for this user via any method');
+        return new Response(
+          JSON.stringify([]),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+      
       return new Response(
-        JSON.stringify([]),
+        JSON.stringify(distinctMatches),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
     
-    // Return the distinct matches
+    // Process the matches to format them properly
+    const processedMatches = [];
+    
+    for (const match of existingMatches) {
+      // Get the shift data for both sides of the match
+      const requesterRequestId = match.requester_request_id;
+      const acceptorRequestId = match.acceptor_request_id;
+      
+      // Determine which request belongs to the current user
+      const requesterData = match.shift_swap_requests;
+      const acceptorData = match.shift_swap_requests;
+      
+      const isRequester = requesterData?.requester_id === user_id;
+      const isAcceptor = acceptorData?.requester_id === user_id;
+      
+      if (!isRequester && !isAcceptor) {
+        console.log(`Match ${match.id} does not involve user ${user_id}, skipping`);
+        continue;
+      }
+      
+      // Get shift details for both sides
+      let myShiftId, otherShiftId, myRequestId, otherRequestId, otherUserId;
+      
+      if (isRequester) {
+        myShiftId = match.requester_shift_id;
+        otherShiftId = match.acceptor_shift_id;
+        myRequestId = requesterRequestId;
+        otherRequestId = acceptorRequestId;
+        otherUserId = acceptorData?.requester_id;
+      } else {
+        myShiftId = match.acceptor_shift_id;
+        otherShiftId = match.requester_shift_id;
+        myRequestId = acceptorRequestId;
+        otherRequestId = requesterRequestId;
+        otherUserId = requesterData?.requester_id;
+      }
+      
+      // Get shift details
+      const { data: myShift } = await supabaseClient
+        .from('shifts')
+        .select('*')
+        .eq('id', myShiftId)
+        .single();
+        
+      const { data: otherShift } = await supabaseClient
+        .from('shifts')
+        .select('*')
+        .eq('id', otherShiftId)
+        .single();
+        
+      if (!myShift || !otherShift) {
+        console.log(`Missing shift data for match ${match.id}, skipping`);
+        continue;
+      }
+      
+      // Get user profile for the other user
+      const { data: otherUserProfile } = await supabaseClient
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', otherUserId)
+        .maybeSingle();
+      
+      const otherUserName = otherUserProfile 
+        ? `${otherUserProfile.first_name || ''} ${otherUserProfile.last_name || ''}`.trim()
+        : 'Unknown User';
+      
+      // Format the match data
+      processedMatches.push({
+        match_id: match.id,
+        match_status: match.status,
+        created_at: match.created_at,
+        match_date: match.match_date,
+        my_request_id: myRequestId,
+        other_request_id: otherRequestId,
+        my_shift_id: myShiftId,
+        my_shift_date: myShift.date,
+        my_shift_start_time: myShift.start_time,
+        my_shift_end_time: myShift.end_time,
+        my_shift_truck: myShift.truck_name,
+        other_shift_id: otherShiftId,
+        other_shift_date: otherShift.date,
+        other_shift_start_time: otherShift.start_time,
+        other_shift_end_time: otherShift.end_time,
+        other_shift_truck: otherShift.truck_name,
+        other_user_id: otherUserId,
+        other_user_name: otherUserName
+      });
+    }
+    
+    console.log(`Processed ${processedMatches.length} matches for user ${user_id}`);
+    
     return new Response(
-      JSON.stringify(distinctMatches),
+      JSON.stringify(processedMatches),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
   } catch (error) {

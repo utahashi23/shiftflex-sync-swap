@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
 import { Button } from "./ui/button";
+import { SwapMatchDebug } from './matched-swaps/SwapMatchDebug';
 import {
   Tabs,
   TabsContent,
@@ -33,7 +34,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     matchId: null
   });
   
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   // Fetch matches data directly
   const fetchMatches = async () => {
@@ -189,6 +190,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   return (
     <div className="space-y-6">
+      {isAdmin && <SwapMatchDebug />}
+      
       <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
         <div className="flex justify-between items-center mb-4">
           <TabsList>

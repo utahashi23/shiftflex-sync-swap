@@ -19,6 +19,7 @@ export const findMatches = (
   forceCheck: boolean = false
 ) => {
   console.log('Finding matches among', allRequests.length, 'requests');
+  console.log('Force check mode:', forceCheck);
   
   // Create mappings for faster lookups
   const shiftMap = new Map();
@@ -48,24 +49,45 @@ export const findMatches = (
     preferredDatesByRequest[date.request_id].push(date);
   });
   
+  // For debugging
+  console.log(`Mapped ${Object.keys(shiftsByUser).length} users with shifts`);
+  console.log(`Mapped ${Object.keys(preferredDatesByRequest).length} requests with preferred dates`);
+  
   const matches = [];
   const checkedPairs = new Set();
+
+  // Filter requests to those with preferred dates
+  const validRequests = allRequests.filter(req => {
+    const hasPreferredDates = preferredDatesByRequest[req.id] && 
+                              preferredDatesByRequest[req.id].length > 0;
+    
+    // When force checking, include matched requests too
+    const validStatus = forceCheck ? 
+      (req.status === 'pending' || req.status === 'matched') : 
+      req.status === 'pending';
+    
+    return hasPreferredDates && validStatus;
+  });
+  
+  console.log(`Found ${validRequests.length} valid requests with preferred dates`);
   
   // If userId is provided, split requests into user's and others'
   const myRequests = userId 
-    ? allRequests.filter(req => req.requester_id === userId)
-    : allRequests;
+    ? validRequests.filter(req => req.requester_id === userId)
+    : validRequests;
     
   const otherRequests = userId
-    ? allRequests.filter(req => req.requester_id !== userId)
-    : allRequests;
+    ? validRequests.filter(req => req.requester_id !== userId)
+    : validRequests;
+  
+  console.log(`User ${userId || 'admin'} has ${myRequests.length} requests, other users have ${otherRequests.length} requests`);
   
   // For admin or when no userId is provided, compare all requests with each other
   if (!userId) {
-    for (let i = 0; i < allRequests.length; i++) {
-      for (let j = i + 1; j < allRequests.length; j++) {
-        const request1 = allRequests[i];
-        const request2 = allRequests[j];
+    for (let i = 0; i < validRequests.length; i++) {
+      for (let j = i + 1; j < validRequests.length; j++) {
+        const request1 = validRequests[i];
+        const request2 = validRequests[j];
         
         // Skip checks between the same user's requests
         if (request1.requester_id === request2.requester_id) {
@@ -106,8 +128,10 @@ export const findMatches = (
       return;
     }
     
+    console.log(`Checking compatibility between requests ${request1.id.substring(0,6)} and ${request2.id.substring(0,6)}`);
+    
     // Check if the shifts are compatible for swapping
-    const { isCompatible } = checkSwapCompatibility(
+    const { isCompatible, reason } = checkSwapCompatibility(
       request1, 
       request2,
       shift1,
@@ -117,10 +141,13 @@ export const findMatches = (
     );
     
     if (isCompatible) {
+      console.log(`✓ COMPATIBLE MATCH: ${request1.id.substring(0,6)} <-> ${request2.id.substring(0,6)}`);
       matches.push({
         request: request1,
         otherRequest: request2
       });
+    } else {
+      console.log(`✗ INCOMPATIBLE: ${request1.id.substring(0,6)} <-> ${request2.id.substring(0,6)} (${reason || 'unknown reason'})`);
     }
   }
   
