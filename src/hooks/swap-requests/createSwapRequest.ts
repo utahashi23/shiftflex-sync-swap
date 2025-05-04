@@ -16,22 +16,6 @@ export const createSwapRequestApi = async (
   try {
     console.log('Creating swap request with preferred dates:', preferredDates);
     
-    // Get the current session
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      toast({
-        title: "Authentication Error",
-        description: "You must be logged in to create a swap request.",
-        variant: "destructive"
-      });
-      throw new Error('Authentication required');
-    }
-    
-    // Get the auth token
-    const authToken = session.access_token;
-    console.log('Got auth token, length:', authToken.length);
-    
     // Use the edge function to create the swap request
     console.log('Creating swap request using edge function for shift:', shiftId);
     
