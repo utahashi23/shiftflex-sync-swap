@@ -10,7 +10,11 @@ interface SwapTabContentProps {
 }
 
 export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabContentProps) => {
+  // Add debugging to see what's being passed to the component
+  console.log(`SwapTabContent received ${swaps?.length || 0} swaps, isPast: ${isPast}`);
+  
   if (!swaps || swaps.length === 0) {
+    console.log("No swaps to display, showing empty state");
     return (
       <EmptySwapState 
         message={isPast ? "No Past Swaps" : "No Matched Swaps"} 
@@ -23,6 +27,8 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
   const uniqueSwaps = Array.from(
     new Map(swaps.map(swap => [swap.id, swap])).values()
   );
+  
+  console.log(`Rendering ${uniqueSwaps.length} unique swaps`);
 
   return (
     <div className="space-y-4">

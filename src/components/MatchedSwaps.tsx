@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
@@ -59,34 +60,38 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     
     console.log(`Deduplicated from ${matchesData.length} to ${uniqueMatches.length} matches`);
     
-    // Process the data
+    // Process the data with additional error handling
     return uniqueMatches.map((match: any) => {
       console.log('Processing match:', match);
-      return {
-        id: match.match_id,
+      
+      // Ensure all required fields exist with fallbacks
+      const processedMatch = {
+        id: match.match_id || `unknown-${Date.now()}`,
         status: match.match_status || 'pending',
         myShift: {
-          id: match.my_shift_id,
-          date: match.my_shift_date,
+          id: match.my_shift_id || 'unknown',
+          date: match.my_shift_date || new Date().toISOString().split('T')[0],
           startTime: match.my_shift_start_time || '00:00:00',
           endTime: match.my_shift_end_time || '00:00:00',
           truckName: match.my_shift_truck || 'Unknown',
           type: getShiftType(match.my_shift_start_time || '00:00:00')
         },
         otherShift: {
-          id: match.other_shift_id,
-          date: match.other_shift_date,
+          id: match.other_shift_id || 'unknown',
+          date: match.other_shift_date || new Date().toISOString().split('T')[0],
           startTime: match.other_shift_start_time || '00:00:00',
           endTime: match.other_shift_end_time || '00:00:00',
           truckName: match.other_shift_truck || 'Unknown',
           type: getShiftType(match.other_shift_start_time || '00:00:00'),
-          userId: match.other_user_id,
+          userId: match.other_user_id || 'unknown',
           userName: match.other_user_name || 'Unknown User'
         },
-        myRequestId: match.my_request_id,
-        otherRequestId: match.other_request_id,
-        createdAt: match.created_at
+        myRequestId: match.my_request_id || 'unknown',
+        otherRequestId: match.other_request_id || 'unknown',
+        createdAt: match.created_at || new Date().toISOString()
       };
+      
+      return processedMatch;
     });
   };
 
@@ -129,35 +134,48 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       const formattedMatches = processMatchesData(matchesData);
       console.log('Processed matches:', formattedMatches);
       
-      // Separate active and past matches
-      const activeMatches = formattedMatches.filter((match: SwapMatch) => 
-        match.status === 'pending' || match.status === 'accepted'
-      );
-      
-      const completedMatches = formattedMatches.filter((match: SwapMatch) => 
-        match.status === 'completed'
-      );
-      
-      console.log(`Separated into ${activeMatches.length} active and ${completedMatches.length} completed matches`);
-      
-      setMatches(activeMatches);
-      setPastMatches(completedMatches);
-      
-      // If we've found matches, update parent tabs if needed
-      if (activeMatches.length > 0 && setRefreshTrigger) {
-        setRefreshTrigger(prevVal => prevVal + 1);
-      }
-      
-      // Show toast message about the results
-      if (activeMatches.length > 0) {
-        toast({
-          title: "Matches found!",
-          description: `Found ${activeMatches.length} potential swap matches.`,
-        });
+      // Ensure we have valid matches before updating state
+      if (formattedMatches && formattedMatches.length > 0) {
+        // Separate active and past matches
+        const activeMatches = formattedMatches.filter((match: SwapMatch) => 
+          match.status === 'pending' || match.status === 'accepted'
+        );
+        
+        const completedMatches = formattedMatches.filter((match: SwapMatch) => 
+          match.status === 'completed'
+        );
+        
+        console.log(`Separated into ${activeMatches.length} active and ${completedMatches.length} completed matches`);
+        
+        // Set state with the processed matches
+        setMatches(activeMatches);
+        setPastMatches(completedMatches);
+        
+        // If we've found matches, update parent tabs if needed
+        if (activeMatches.length > 0 && setRefreshTrigger) {
+          setRefreshTrigger(prevVal => prevVal + 1);
+        }
+        
+        // Show toast message about the results
+        if (activeMatches.length > 0) {
+          toast({
+            title: "Matches found!",
+            description: `Found ${activeMatches.length} potential swap matches.`,
+          });
+        } else {
+          toast({
+            title: "No active matches found",
+            description: "No active swap matches were found at this time.",
+          });
+        }
       } else {
+        console.log('No valid matches after processing');
+        setMatches([]);
+        setPastMatches([]);
+        
         toast({
-          title: "No matches found",
-          description: "No potential swap matches were found at this time.",
+          title: "No valid matches found",
+          description: "No valid swap matches were found after processing.",
         });
       }
     } catch (error) {

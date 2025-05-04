@@ -18,14 +18,28 @@ interface SwapCardProps {
 
 // Format date to a readable string
 const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  });
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (e) {
+    console.error('Error formatting date:', dateStr, e);
+    return dateStr || 'Unknown date';
+  }
 };
 
 export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
+  // Add debugging to help identify issues
+  console.log('Rendering SwapCard with data:', swap);
+  
+  // Ensure swap object and required properties exist
+  if (!swap) {
+    console.error('Missing swap data in SwapCard');
+    return null;
+  }
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="bg-secondary/30 pb-3">
@@ -83,7 +97,7 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
               <div className="flex items-center justify-between">
                 <ShiftTypeBadge type={swap.otherShift.type} />
                 <div className="text-xs font-medium text-muted-foreground">
-                  {swap.otherShift.userName}
+                  {swap.otherShift.userName || 'Unknown User'}
                 </div>
               </div>
               
