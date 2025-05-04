@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -98,7 +97,12 @@ export const fetchAllPreferredDatesWithRequestsSafe = async () => {
   try {
     // Testing for admin access first
     const { data: adminCheck } = await supabase.rpc('test_admin_access');
-    const isAdmin = adminCheck && adminCheck.is_admin;
+    
+    // Fix the type checking issue by properly checking the returned structure
+    let isAdmin = false;
+    if (adminCheck && typeof adminCheck === 'object' && 'is_admin' in adminCheck) {
+      isAdmin = !!adminCheck.is_admin;
+    }
     
     if (!isAdmin) {
       console.warn('User is not an admin, but trying to fetch all preferred dates');
