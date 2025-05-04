@@ -15,6 +15,22 @@ export const fetchAllSwapRequestsSafe = async () => {
 };
 
 /**
+ * Fetches user swap requests safely bypassing RLS restrictions
+ */
+export const fetchUserSwapRequestsSafe = async (userId: string, status: string = 'pending') => {
+  const { data, error } = await supabase.rpc('get_user_swap_requests_safe', { 
+    p_user_id: userId,
+    p_status: status
+  });
+  
+  if (error) {
+    console.error(`Error fetching user swap requests with status ${status}:`, error);
+  }
+  
+  return { data, error };
+};
+
+/**
  * Fetches all preferred dates with their associated requests
  */
 export const fetchAllPreferredDatesWithRequestsSafe = async () => {

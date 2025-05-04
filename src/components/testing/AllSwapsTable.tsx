@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { fetchAllSwapRequestsSafe, fetchAllPreferredDatesWithRequestsSafe } from '@/utils/rls-helpers';
@@ -25,7 +24,7 @@ interface SwapRequest {
   status: string;
   created_at: string;
   preferred_dates_count: number;
-  shift_date?: string; // Add shift_date property
+  shift_date?: string; 
 }
 
 interface PreferredDate {
@@ -63,8 +62,35 @@ export const AllSwapsTable = () => {
       setSwapRequests(enrichedRequests || []);
       
       // Fetch all preferred dates with related request data
-      const { data: datesData } = await fetchAllPreferredDatesWithRequestsSafe();
-      setPreferredDates(datesData || []);
+      const { data: rawDatesData } = await fetchAllPreferredDatesWithRequestsSafe();
+      
+      if (rawDatesData) {
+        // Transform the data to match the PreferredDate interface
+        const transformedDates: PreferredDate[] = await Promise.all(rawDatesData.map(async (date: any) => {
+          // For each date, get its associated request with shift date
+          const requestInfo = enrichedRequests?.find(req => req.id === date.request_id) || null;
+          
+          return {
+            id: date.id,
+            date: date.date,
+            accepted_types: date.accepted_types,
+            request_id: date.request_id,
+            request: requestInfo ? {
+              id: requestInfo.id,
+              requester_id: requestInfo.requester_id,
+              requester_shift_id: requestInfo.requester_shift_id,
+              status: requestInfo.status,
+              created_at: requestInfo.created_at,
+              preferred_dates_count: requestInfo.preferred_dates_count,
+              shift_date: requestInfo.shift_date
+            } : {} as SwapRequest
+          };
+        }));
+        
+        setPreferredDates(transformedDates);
+      } else {
+        setPreferredDates([]);
+      }
     } catch (error) {
       console.error('Error fetching test data:', error);
     } finally {
