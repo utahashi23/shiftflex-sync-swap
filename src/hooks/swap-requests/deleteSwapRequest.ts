@@ -25,8 +25,12 @@ export const deleteSwapRequestApi = async (requestId: string) => {
     }
     
     // Use the edge function to safely delete the request
+    // Include auth headers to pass the session token
     const { data, error } = await supabase.functions.invoke('delete_swap_request', {
-      body: { request_id: requestId }
+      body: { request_id: requestId },
+      headers: {
+        Authorization: `Bearer ${sessionData.session.access_token}`
+      }
     });
       
     if (error) {
