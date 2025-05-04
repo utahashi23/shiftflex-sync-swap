@@ -29,18 +29,6 @@ const ShiftSwapCalendar = () => {
 
   return (
     <div className="flex flex-col">
-      <div className="flex justify-end mb-4">
-        <Button
-          onClick={findSwapMatches}
-          disabled={isProcessing}
-          className="bg-green-500 hover:bg-green-600 text-white"
-          size="sm"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
-          {isProcessing ? 'Finding Matches...' : 'Find Matches'}
-        </Button>
-      </div>
-      
       {/* Calendar Header */}
       <CalendarHeader currentDate={currentDate} onChangeMonth={changeMonth} />
       
