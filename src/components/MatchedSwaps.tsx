@@ -17,6 +17,7 @@ import { SwapMatch } from '@/hooks/useSwapMatches';
 import { getShiftType } from '@/utils/shiftUtils';
 import SimpleMatchTester from './testing/SimpleMatchTester';
 import { SwapMatchDebug } from './matched-swaps/SwapMatchDebug';
+import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
 
 interface MatchedSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
@@ -36,6 +37,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   });
   
   const { user, isAdmin } = useAuth();
+  const { findSwapMatches } = useSwapMatcher();
 
   // Fetch matches data
   const fetchMatches = async () => {
@@ -46,7 +48,17 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     try {
       console.log('Fetching matches for user:', user.id);
       
-      // Call the get_user_matches function with verbose option and user as initiator
+      // First, try to run find matches to create potential matches
+      if (user.id) {
+        try {
+          await findSwapMatches(user.id, true, true, true, true);
+        } catch (error) {
+          console.error("Error finding matches:", error);
+          // Continue anyway to fetch existing matches
+        }
+      }
+      
+      // Then call the get_user_matches function to retrieve all matches
       const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
         body: { 
           user_id: user.id,
@@ -122,6 +134,19 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         if (activeTab !== 'active') {
           setActiveTab('active');
         }
+      }
+      
+      // Show toast message about the results
+      if (activeMatches.length > 0) {
+        toast({
+          title: "Matches found!",
+          description: `Found ${activeMatches.length} potential swap matches.`,
+        });
+      } else {
+        toast({
+          title: "No matches found",
+          description: "No potential swap matches were found at this time.",
+        });
       }
     } catch (error) {
       console.error('Error fetching matches:', error);

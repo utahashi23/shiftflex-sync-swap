@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 
 interface SwapMatchDebugProps {
   onRefreshMatches?: () => void;
@@ -14,10 +15,19 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
   const { findSwapMatches, isProcessing } = useSwapMatcher();
 
   const runFindMatches = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication required",
+        description: "You must be logged in to find swap matches.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     try {
       // Always set userInitiatorOnly to true to ensure the current user's request is always the requester
       // This ensures "Your Shift" is always the shift the user is trying to swap
-      const result = await findSwapMatches(user?.id, true, true, true, true);
+      const result = await findSwapMatches(user.id, true, true, true, true);
       console.log("Match find result:", result);
       
       // After finding matches, trigger parent refresh if provided
@@ -25,8 +35,26 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
         console.log("Triggering parent refresh after finding matches");
         onRefreshMatches();
       }
+      
+      // Show toast about results
+      if (result && Array.isArray(result) && result.length > 0) {
+        toast({
+          title: "Matches found!",
+          description: `Found ${result.length} potential swap matches.`,
+        });
+      } else {
+        toast({
+          title: "No matches found",
+          description: "No potential swap matches were found at this time.",
+        });
+      }
     } catch (error) {
       console.error("Error during match find:", error);
+      toast({
+        title: "Error finding matches",
+        description: "There was a problem finding potential matches.",
+        variant: "destructive"
+      });
     }
   };
 
