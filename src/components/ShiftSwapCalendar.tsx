@@ -5,7 +5,6 @@ import { SwapSelectionPanel } from './calendar/SwapSelectionPanel';
 import { CalendarHeader, WeekdayHeader } from './calendar/CalendarHeader';
 import { CalendarLegend } from './calendar/CalendarLegend';
 import { useSwapCalendarState } from '@/hooks/useSwapCalendarState';
-import { useAuth } from '@/hooks/useAuth';
 
 const ShiftSwapCalendar = () => {
   const {
@@ -23,15 +22,10 @@ const ShiftSwapCalendar = () => {
     setAcceptableShiftTypes
   } = useSwapCalendarState();
 
-  const { user } = useAuth();
-
   return (
     <div className="flex flex-col">
       {/* Calendar Header */}
-      <CalendarHeader 
-        currentDate={currentDate} 
-        onChangeMonth={changeMonth}
-      />
+      <CalendarHeader currentDate={currentDate} onChangeMonth={changeMonth} />
       
       {/* Days of Week Header */}
       <WeekdayHeader />

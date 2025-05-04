@@ -1,19 +1,21 @@
 
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
 import ShiftSwapCalendar from '@/components/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useSwapMatching } from '@/hooks/useSwapMatching';
+import { RefreshCw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
-  const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('calendar');
+  const { findSwapMatches, isProcessing } = useSwapMatching();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Force tab refresh when coming back to this page or after finding matches
@@ -23,14 +25,35 @@ const ShiftSwaps = () => {
     setTimeout(() => setActiveTab(currentTab), 10);
   }, [refreshTrigger]);
   
+  const handleFindMatches = async () => {
+    console.log('Find Matches button clicked');
+    await findSwapMatches();
+    // Refresh the tabs to show updated data
+    setRefreshTrigger(prev => prev + 1);
+    toast({
+      title: "Refresh complete",
+      description: "The swap data has been refreshed.",
+    });
+  };
+  
   return (
     <AppLayout>
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Shift Swaps</h1>
         <p className="text-gray-500 mt-1">
           Request and manage your shift swaps
-          {isAdmin && <span className="ml-2 text-blue-500">(Admin Access)</span>}
         </p>
+      </div>
+
+      <div className="flex justify-end items-center mb-4">
+        <Button 
+          onClick={handleFindMatches}
+          disabled={isProcessing}
+          className="bg-green-500 hover:bg-green-600 text-white"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
+          {isProcessing ? 'Finding Matches...' : 'Find Matches'}
+        </Button>
       </div>
 
       <TooltipProvider>
@@ -57,7 +80,7 @@ const ShiftSwaps = () => {
             <RequestedSwaps key={`requested-${refreshTrigger}`} />
           </TabsContent>
           <TabsContent value="matched">
-            <MatchedSwaps key={`matched-${refreshTrigger}`} setRefreshTrigger={setRefreshTrigger} />
+            <MatchedSwaps key={`matched-${refreshTrigger}`} />
           </TabsContent>
         </Tabs>
       </TooltipProvider>
