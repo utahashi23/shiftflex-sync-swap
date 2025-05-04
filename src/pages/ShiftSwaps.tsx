@@ -6,6 +6,7 @@ import AppLayout from '@/layouts/AppLayout';
 import ShiftSwapCalendar from '@/components/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
+import AllSwapsTable from '@/components/testing/AllSwapsTable';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -57,6 +58,11 @@ const ShiftSwaps = () => {
             <p className="text-sm text-amber-600">
               Navigate to the "Matched Swaps" tab to access the full debugging interface.
             </p>
+            
+            {/* Add the new AllSwapsTable component for testing */}
+            <div className="mt-4 border border-gray-200 rounded-lg bg-white p-4">
+              <AllSwapsTable />
+            </div>
           </div>
         </div>
       )}

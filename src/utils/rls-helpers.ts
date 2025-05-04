@@ -89,3 +89,50 @@ export const fetchSwapRequestByIdSafe = async (requestId: string) => {
     return { data: null, error };
   }
 };
+
+/**
+ * Helper function to fetch all preferred dates with detailed swap request information
+ * For admin and testing purposes only
+ */
+export const fetchAllPreferredDatesWithRequestsSafe = async () => {
+  try {
+    // Testing for admin access first
+    const { data: adminCheck } = await supabase.rpc('test_admin_access');
+    const isAdmin = adminCheck && adminCheck.is_admin;
+    
+    if (!isAdmin) {
+      console.warn('User is not an admin, but trying to fetch all preferred dates');
+    }
+    
+    // Get all preferred dates using the bypass function
+    const { data: preferredDates, error: datesError } = await supabase.rpc('get_all_preferred_dates');
+    
+    if (datesError) {
+      throw datesError;
+    }
+    
+    // Also get all swap requests for reference
+    const { data: allRequests, error: requestsError } = await supabase.rpc('get_all_swap_requests');
+    
+    if (requestsError) {
+      throw requestsError;
+    }
+    
+    // Map requests by ID for easy lookup
+    const requestsById = (allRequests || []).reduce((map, request) => {
+      map[request.id] = request;
+      return map;
+    }, {} as Record<string, any>);
+    
+    // Enrich preferred dates with request info
+    const enrichedDates = (preferredDates || []).map(date => ({
+      ...date,
+      request: requestsById[date.request_id] || null
+    }));
+    
+    return { data: enrichedDates, error: null };
+  } catch (error) {
+    console.error('Error fetching all preferred dates:', error);
+    return { data: null, error };
+  }
+};
