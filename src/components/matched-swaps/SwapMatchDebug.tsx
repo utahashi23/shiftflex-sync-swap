@@ -1,7 +1,6 @@
 
 import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
 import { Button } from '../ui/button';
-import { Card, CardContent } from '../ui/card';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -25,8 +24,7 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
     }
     
     try {
-      // Always set userInitiatorOnly to true to ensure the current user's request is always the requester
-      // This ensures "Your Shift" is always the shift the user is trying to swap
+      // Using the simple match algorithm now for quicker user feedback
       const result = await findSwapMatches(
         user.id, 
         true, // forceCheck: true
