@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
@@ -281,97 +280,106 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     console.log("Current matches state:", matches);
   }, [matches]);
 
-  return (
-    <div className="space-y-6">
-      {/* Collapsible Swap Match Testing section */}
-      <Collapsible
-        open={showTestingTools}
-        onOpenChange={setShowTestingTools}
-        className="border border-amber-300 rounded-lg bg-amber-50 overflow-hidden"
-      >
-        <div className="flex justify-between items-center p-4">
-          <h2 className="text-lg font-bold text-amber-700">Swap Match Testing</h2>
-          <CollapsibleTrigger asChild>
-            <Button variant="outline" size="sm" className="border-amber-400 hover:bg-amber-100">
-              {showTestingTools ? (
-                <>Hide Testing Tools <ChevronUp className="ml-1 h-4 w-4" /></>
-              ) : (
-                <>Show Testing Tools <ChevronDown className="ml-1 h-4 w-4" /></>
-              )}
-            </Button>
-          </CollapsibleTrigger>
-        </div>
+  // New function to render rows of matches
+  const renderRows = () => {
+    return (
+      <>
+        {/* Collapsible Swap Match Testing section */}
+        <Collapsible
+          open={showTestingTools}
+          onOpenChange={setShowTestingTools}
+          className="border border-amber-300 rounded-lg bg-amber-50 overflow-hidden"
+        >
+          <div className="flex justify-between items-center p-4">
+            <h2 className="text-lg font-bold text-amber-700">Swap Match Testing</h2>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm" className="border-amber-400 hover:bg-amber-100">
+                {showTestingTools ? (
+                  <>Hide Testing Tools <ChevronUp className="ml-1 h-4 w-4" /></>
+                ) : (
+                  <>Show Testing Tools <ChevronDown className="ml-1 h-4 w-4" /></>
+                )}
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+          
+          <CollapsibleContent>
+            <div className="p-4 pt-0">
+              <p className="text-sm text-amber-600 mb-4">
+                Test and create matches between swap requests. Created matches will appear in the Active Matches tab.
+              </p>
+              <SimpleMatchTester onMatchCreated={fetchMatches} />
+              
+              {/* Add the SwapMatchDebug component to help with troubleshooting */}
+              <div className="mt-4 pt-4 border-t border-amber-200">
+                <h3 className="text-md font-semibold text-amber-700 mb-2">Find Matches Directly</h3>
+                <SwapMatchDebug onRefreshMatches={fetchMatches} />
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
         
-        <CollapsibleContent>
-          <div className="p-4 pt-0">
-            <p className="text-sm text-amber-600 mb-4">
-              Test and create matches between swap requests. Created matches will appear in the Active Matches tab.
-            </p>
-            <SimpleMatchTester onMatchCreated={fetchMatches} />
-            
-            {/* Add the SwapMatchDebug component to help with troubleshooting */}
-            <div className="mt-4 pt-4 border-t border-amber-200">
-              <h3 className="text-md font-semibold text-amber-700 mb-2">Find Matches Directly</h3>
-              <SwapMatchDebug onRefreshMatches={fetchMatches} />
+        <Tabs 
+          defaultValue="active" 
+          value={activeTab} 
+          onValueChange={setActiveTab}
+        >
+          <div className="flex justify-between items-center mb-4">
+            <TabsList>
+              <TabsTrigger value="active">Active Matches</TabsTrigger>
+              <TabsTrigger value="past">Past Swaps</TabsTrigger>
+            </TabsList>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => {
+                  // Only trigger if not already refreshing
+                  if (!isRefreshingRef.current) {
+                    fetchMatches();
+                  }
+                }}
+                disabled={isLoading || isProcessing || isRefreshingRef.current}
+                className="bg-green-500 hover:bg-green-600 text-white"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />
+                {isLoading || isProcessing ? 'Finding Matches...' : 'Refresh Matches'}
+              </Button>
             </div>
           </div>
-        </CollapsibleContent>
-      </Collapsible>
-      
-      <Tabs 
-        defaultValue="active" 
-        value={activeTab} 
-        onValueChange={setActiveTab}
-      >
-        <div className="flex justify-between items-center mb-4">
-          <TabsList>
-            <TabsTrigger value="active">Active Matches</TabsTrigger>
-            <TabsTrigger value="past">Past Swaps</TabsTrigger>
-          </TabsList>
-          <div className="flex gap-2">
-            <Button 
-              onClick={() => {
-                // Only trigger if not already refreshing
-                if (!isRefreshingRef.current) {
-                  fetchMatches();
-                }
-              }}
-              disabled={isLoading || isProcessing || isRefreshingRef.current}
-              className="bg-green-500 hover:bg-green-600 text-white"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />
-              {isLoading || isProcessing ? 'Finding Matches...' : 'Refresh Matches'}
-            </Button>
-          </div>
-        </div>
-        
-        <TabsContent value="active">
-          {/* Bug fix: Make the React state updates more explicit */}
-          {console.log("Rendering active tab with matches:", matches)}
-          <SwapTabContent 
-            swaps={matches} 
-            onAcceptSwap={handleAcceptClick}
-          />
-        </TabsContent>
-        
-        <TabsContent value="past">
-          <SwapTabContent 
-            swaps={pastMatches} 
-            isPast={true}
-          />
-        </TabsContent>
-      </Tabs>
+          
+          <TabsContent value="active">
+            {/* Bug fix: Make the React state updates more explicit */}
+            {console.log("Rendering active tab with matches:", matches)}
+            <SwapTabContent 
+              swaps={matches} 
+              onAcceptSwap={handleAcceptClick}
+            />
+          </TabsContent>
+          
+          <TabsContent value="past">
+            <SwapTabContent 
+              swaps={pastMatches} 
+              isPast={true}
+            />
+          </TabsContent>
+        </Tabs>
 
-      <SwapConfirmDialog
-        open={confirmDialog.isOpen}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setConfirmDialog({ isOpen: false, matchId: null });
-          }
-        }}
-        onConfirm={handleAcceptSwap}
-        isLoading={isLoading}
-      />
+        <SwapConfirmDialog
+          open={confirmDialog.isOpen}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setConfirmDialog({ isOpen: false, matchId: null });
+            }
+          }}
+          onConfirm={handleAcceptSwap}
+          isLoading={isLoading}
+        />
+      </>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {renderRows()}
     </div>
   );
 };
