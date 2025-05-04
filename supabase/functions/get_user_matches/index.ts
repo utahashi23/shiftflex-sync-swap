@@ -1,3 +1,4 @@
+
 // Follow this setup guide to integrate the Supabase Edge Functions with your app:
 // https://supabase.com/docs/guides/functions/getting-started
 
@@ -204,34 +205,38 @@ serve(async (req) => {
         console.log(`Direct check: Found ${directMatches?.length || 0} entries in potential_matches table`);
         
         if (directMatches && directMatches.length > 0) {
-          // Filter matches that involve the current user
+          // Get all request IDs associated with the current user
           const userMatchRequests = await getUserRequestIds(serviceClient, user_id);
+          console.log(`User has ${userMatchRequests.length} request IDs:`, userMatchRequests);
           
-          let userInvolvedMatches;
+          let userInvolvedMatches = [];
           
           if (user_initiator_only) {
-            // Only show matches where the user is the requester (initiator)
+            // ONLY show matches where the user's request is the requester_request_id
             // This ensures "Your Shift" is always the current user's shift being swapped
             userInvolvedMatches = directMatches.filter(match => 
               userMatchRequests.includes(match.requester_request_id)
             );
             console.log(`Found ${userInvolvedMatches.length} matches where user ${user_id} is the initiator`);
-          } else if (user_perspective_only) {
-            // Show matches where the user is involved on either side
+          } else {
+            // Show matches where the user is involved on either side (not used anymore)
             userInvolvedMatches = directMatches.filter(match => 
               userMatchRequests.includes(match.requester_request_id) || 
               userMatchRequests.includes(match.acceptor_request_id)
             );
             console.log(`Found ${userInvolvedMatches.length} matches involving user ${user_id}`);
-          } else {
-            // If not filtering by user perspective, return all matches (admin view)
-            userInvolvedMatches = directMatches;
-            console.log(`Returning all ${userInvolvedMatches.length} matches (admin view)`);
           }
           
           if (userInvolvedMatches.length > 0) {
             // Try to get detailed info for these matches
             const matchData = await getMatchDetails(serviceClient, userInvolvedMatches, user_id);
+            
+            // Log the final results
+            console.log(`Returning ${matchData.length} formatted matches to client`);
+            if (verbose && matchData.length > 0) {
+              console.log("Sample match data:", matchData[0]);
+            }
+            
             return new Response(
               JSON.stringify(matchData),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -331,76 +336,90 @@ async function getMatchDetails(serviceClient, matches, userId) {
   const results = [];
   
   for (const match of matches) {
-    // Determine which request belongs to the current user
-    const { data: requests, error: reqError } = await serviceClient
-      .from('shift_swap_requests')
-      .select('*')
-      .in('id', [match.requester_request_id, match.acceptor_request_id]);
+    try {
+      // Get the requester request (which should always be the user's request when user_initiator_only=true)
+      const { data: reqData, error: reqError } = await serviceClient
+        .from('shift_swap_requests')
+        .select('*')
+        .eq('id', match.requester_request_id)
+        .single();
+        
+      if (reqError || !reqData) {
+        console.error('Error fetching requester request:', reqError);
+        continue;
+      }
       
-    if (reqError) {
-      console.error('Error fetching requests for match:', reqError);
-      continue;
-    }
-    
-    if (!requests || requests.length < 2) {
-      console.log('Incomplete match data, skipping');
-      continue;
-    }
-    
-    // Figure out which request is the user's and which is the other person's
-    const userRequest = requests.find(r => r.requester_id === userId);
-    const otherRequest = requests.find(r => r.requester_id !== userId);
-    
-    if (!userRequest || !otherRequest) {
-      console.log('Could not determine user and other request, skipping');
-      continue;
-    }
-    
-    // Get shift details
-    const { data: shifts, error: shiftsError } = await serviceClient
-      .from('shifts')
-      .select('*')
-      .in('id', [userRequest.requester_shift_id, otherRequest.requester_shift_id]);
+      // Get the acceptor request (which should always be the other user's request)
+      const { data: acceptorData, error: acceptorError } = await serviceClient
+        .from('shift_swap_requests')
+        .select('*')
+        .eq('id', match.acceptor_request_id)
+        .single();
+        
+      if (acceptorError || !acceptorData) {
+        console.error('Error fetching acceptor request:', acceptorError);
+        continue;
+      }
       
-    if (shiftsError || !shifts || shifts.length < 2) {
-      console.log('Could not fetch shift details, skipping');
-      continue;
+      // Double check that the requester request belongs to the current user
+      if (reqData.requester_id !== userId) {
+        console.log(`Skipping match ${match.id} - requester is not the current user`);
+        continue;
+      }
+      
+      // Get shift details for both requests
+      const { data: shifts, error: shiftsError } = await serviceClient
+        .from('shifts')
+        .select('*')
+        .in('id', [reqData.requester_shift_id, acceptorData.requester_shift_id]);
+        
+      if (shiftsError || !shifts || shifts.length < 2) {
+        console.log('Could not fetch shift details, skipping');
+        continue;
+      }
+      
+      // Match shifts to requests - user's shift is always the requester shift
+      const userShift = shifts.find(s => s.id === reqData.requester_shift_id);
+      const otherShift = shifts.find(s => s.id === acceptorData.requester_shift_id);
+      
+      if (!userShift || !otherShift) {
+        console.log('Could not match shifts to requests, skipping');
+        continue;
+      }
+      
+      // Get other user's profile
+      const { data: otherProfile, error: profileError } = await serviceClient
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', acceptorData.requester_id)
+        .single();
+      
+      // Format the match data - here "my" always refers to the current user
+      results.push({
+        match_id: match.id,
+        match_status: match.status,
+        created_at: match.created_at,
+        match_date: match.match_date,
+        my_request_id: reqData.id,
+        other_request_id: acceptorData.id,
+        my_shift_id: userShift.id,
+        my_shift_date: userShift.date,
+        my_shift_start_time: userShift.start_time,
+        my_shift_end_time: userShift.end_time,
+        my_shift_truck: userShift.truck_name || null,
+        other_shift_id: otherShift.id,
+        other_shift_date: otherShift.date,
+        other_shift_start_time: otherShift.start_time,
+        other_shift_end_time: otherShift.end_time,
+        other_shift_truck: otherShift.truck_name || null,
+        other_user_id: acceptorData.requester_id,
+        other_user_name: otherProfile ? 
+          `${otherProfile.first_name || ''} ${otherProfile.last_name || ''}`.trim() : 
+          'Unknown User'
+      });
+    } catch (error) {
+      console.error(`Error processing match ${match.id}:`, error);
     }
-    
-    // Match shifts to requests
-    const userShift = shifts.find(s => s.id === userRequest.requester_shift_id);
-    const otherShift = shifts.find(s => s.id === otherRequest.requester_shift_id);
-    
-    // Get other user's profile
-    const { data: otherProfile, error: profileError } = await serviceClient
-      .from('profiles')
-      .select('first_name, last_name')
-      .eq('id', otherRequest.requester_id)
-      .single();
-    
-    // Format the match data
-    results.push({
-      match_id: match.id,
-      match_status: match.status,
-      created_at: match.created_at,
-      match_date: match.match_date,
-      my_request_id: userRequest.id,
-      other_request_id: otherRequest.id,
-      my_shift_id: userShift.id,
-      my_shift_date: userShift.date,
-      my_shift_start_time: userShift.start_time,
-      my_shift_end_time: userShift.end_time,
-      my_shift_truck: userShift.truck_name || null,
-      other_shift_id: otherShift.id,
-      other_shift_date: otherShift.date,
-      other_shift_start_time: otherShift.start_time,
-      other_shift_end_time: otherShift.end_time,
-      other_shift_truck: otherShift.truck_name || null,
-      other_user_id: otherRequest.requester_id,
-      other_user_name: otherProfile ? 
-        `${otherProfile.first_name || ''} ${otherProfile.last_name || ''}`.trim() : 
-        'Unknown User'
-    });
   }
   
   return results;
@@ -497,17 +516,7 @@ async function attemptManualMatching(serviceClient, userId, userInitiatorOnly = 
         // Skip if users are the same
         if (userRequest.requester_id === otherRequest.requester_id) continue;
         
-        // When userInitiatorOnly is true, ALWAYS ensure the user's request is the requester
-        // This is crucial to ensure "Your Shift" is always the user's shift they want to swap
-        if (userInitiatorOnly) {
-          // Since we're explicitly ensuring the current user is the requester/initiator,
-          // we don't need additional ID comparison logic here
-          console.log(`Processing match between user request ${userRequest.id} and other request ${otherRequest.id}`);
-        } else {
-          // This branch is no longer really used since we default to userInitiatorOnly=true
-          // But keeping it for completeness
-          console.log(`Processing match between ${userRequest.id} and ${otherRequest.id}`);
-        }
+        console.log(`Processing match between user request ${userRequest.id} and other request ${otherRequest.id}`);
         
         const otherShift = shiftsById[otherRequest.requester_shift_id];
         if (!otherShift) continue;
@@ -535,8 +544,8 @@ async function attemptManualMatching(serviceClient, userId, userInitiatorOnly = 
             .limit(1);
             
           if (!matchCheckError && (!existingMatch || existingMatch.length === 0)) {
-            // Record the new match - ALWAYS with the user request as requester
-            // This ensures "Your Shift" is consistently the user's actual shift
+            // ALWAYS create match with user request as the requester
+            // This ensures "Your Shift" is always the user's shift they want to swap
             const { data: newMatch, error: createError } = await serviceClient
               .from('shift_swap_potential_matches')
               .insert({
