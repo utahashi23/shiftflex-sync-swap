@@ -72,15 +72,7 @@ export const SwapCalendarCell = ({
       )}
       
       {isDisabled && (
-        <div className="absolute inset-0 bg-gray-200 bg-opacity-50 flex items-center justify-center">
-          {acceptableShiftTypes && (acceptableShiftTypes.day || acceptableShiftTypes.afternoon) ? (
-            <div className="text-xs text-gray-600 font-medium text-center p-1">
-              Cannot follow night shift
-            </div>
-          ) : (
-            <div className="text-xs text-gray-600 font-medium">Unavailable</div>
-          )}
-        </div>
+        <div className="absolute inset-0 bg-gray-200 bg-opacity-50"></div>
       )}
     </div>
   );
