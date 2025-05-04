@@ -7,6 +7,7 @@ import ShiftSwapCalendar from '@/components/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
 import AllSwapsTable from '@/components/testing/AllSwapsTable';
+import SimpleMatchTester from '@/components/testing/SimpleMatchTester';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -62,6 +63,11 @@ const ShiftSwaps = () => {
             {/* Add the new AllSwapsTable component for testing */}
             <div className="mt-4 border border-gray-200 rounded-lg bg-white p-4">
               <AllSwapsTable />
+            </div>
+
+            {/* Add the new SimpleMatchTester component */}
+            <div className="mt-4 border border-gray-200 rounded-lg bg-white p-4">
+              <SimpleMatchTester />
             </div>
           </div>
         </div>

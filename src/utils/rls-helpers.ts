@@ -2,160 +2,69 @@
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Helper function to safely fetch swap requests without RLS recursion
- * Using the custom server function that avoids RLS recursion issues
+ * Fetches all swap requests safely bypassing RLS restrictions
  */
-export const fetchUserSwapRequestsSafe = async (userId: string, status: string = 'pending') => {
-  try {
-    console.log(`Fetching swap requests for user ${userId} with status ${status} using RPC function`);
-    
-    // Using an RPC function that has SECURITY DEFINER to bypass RLS
-    const { data, error } = await supabase.rpc(
-      'get_user_swap_requests_safe',
-      { p_user_id: userId, p_status: status }
-    );
-    
-    if (error) {
-      console.error('Error in fetchUserSwapRequestsSafe:', error);
-      throw error;
-    }
-    
-    console.log('RPC function returned swap requests:', data);
-    return { data, error: null };
-  } catch (error) {
-    console.error('Error in fetchUserSwapRequestsSafe:', error);
-    return { data: null, error };
-  }
-};
-
-/**
- * Helper function to check a user's admin status safely
- */
-export const checkAdminStatus = async (userId: string) => {
-  try {
-    const { data, error } = await supabase.rpc('has_role', { 
-      _user_id: userId,
-      _role: 'admin'
-    });
-    
-    if (error) throw error;
-    
-    return { isAdmin: !!data, error: null };
-  } catch (error) {
-    console.error('Error checking admin status:', error);
-    return { isAdmin: false, error };
-  }
-};
-
-// Additional helper to fetch all swap requests for an admin safely
 export const fetchAllSwapRequestsSafe = async () => {
-  try {
-    // Using the RPC function that has SECURITY DEFINER to bypass RLS
-    const { data, error } = await supabase.rpc('get_all_swap_requests');
-    
-    if (error) {
-      console.error('Error in fetchAllSwapRequestsSafe:', error);
-      throw error;
-    }
-    
-    return { data, error: null };
-  } catch (error) {
-    console.error('Error in fetchAllSwapRequestsSafe:', error);
-    return { data: null, error };
+  const { data, error } = await supabase.rpc('get_all_swap_requests');
+  
+  if (error) {
+    console.error('Error fetching all swap requests:', error);
   }
+  
+  return { data, error };
 };
 
 /**
- * Helper function to fetch a specific swap request by ID safely
- */
-export const fetchSwapRequestByIdSafe = async (requestId: string) => {
-  try {
-    // Using a function with SECURITY DEFINER to bypass RLS
-    // Cast the function name to any to bypass TypeScript's strict checking
-    // since the function exists in the database but not in TypeScript definitions
-    const { data, error } = await supabase.rpc(
-      'get_swap_request_by_id' as any,
-      { p_request_id: requestId }
-    );
-    
-    if (error) {
-      console.error('Error in fetchSwapRequestByIdSafe:', error);
-      throw error;
-    }
-    
-    return { data, error: null };
-  } catch (error) {
-    console.error('Error in fetchSwapRequestByIdSafe:', error);
-    return { data: null, error };
-  }
-};
-
-/**
- * Helper function to fetch all preferred dates with detailed swap request information
- * For admin and testing purposes only
+ * Fetches all preferred dates with their associated requests
  */
 export const fetchAllPreferredDatesWithRequestsSafe = async () => {
-  try {
-    // Testing for admin access first
-    const { data: adminCheck } = await supabase.rpc('test_admin_access');
-    
-    // Fix the type checking issue by properly checking the returned structure
-    let isAdmin = false;
-    if (adminCheck && typeof adminCheck === 'object' && 'is_admin' in adminCheck) {
-      isAdmin = !!adminCheck.is_admin;
-    }
-    
-    if (!isAdmin) {
-      console.warn('User is not an admin, but trying to fetch all preferred dates');
-    }
-    
-    // Get all preferred dates using the bypass function
-    const { data: preferredDates, error: datesError } = await supabase.rpc('get_all_preferred_dates');
-    
-    if (datesError) {
-      throw datesError;
-    }
-    
-    // Also get all swap requests for reference
-    const { data: allRequests, error: requestsError } = await supabase.rpc('get_all_swap_requests');
-    
-    if (requestsError) {
-      throw requestsError;
-    }
-    
-    // Get all shifts for the requests to include shift dates
-    const shiftIds = (allRequests || []).map(req => req.requester_shift_id).filter(Boolean);
-    const { data: shifts, error: shiftsError } = await supabase.rpc('get_all_shifts');
-    
-    if (shiftsError) {
-      throw shiftsError;
-    }
-    
-    // Create a map of shifts by ID for easy lookup
-    const shiftsById = (shifts || []).reduce((map, shift) => {
-      map[shift.id] = shift;
-      return map;
-    }, {} as Record<string, any>);
-    
-    // Map requests by ID for easy lookup and add shift data
-    const requestsById = (allRequests || []).reduce((map, request) => {
-      const shift = shiftsById[request.requester_shift_id];
-      map[request.id] = {
-        ...request,
-        shift_date: shift ? shift.date : 'Unknown'
-      };
-      return map;
-    }, {} as Record<string, any>);
-    
-    // Enrich preferred dates with request info (including shift date)
-    const enrichedDates = (preferredDates || []).map(date => ({
-      ...date,
-      request: requestsById[date.request_id] || null
-    }));
-    
-    return { data: enrichedDates, error: null };
-  } catch (error) {
+  const { data, error } = await supabase.rpc('get_all_preferred_dates');
+  
+  if (error) {
     console.error('Error fetching all preferred dates:', error);
-    return { data: null, error };
   }
+  
+  return { data, error };
+};
+
+/**
+ * Creates a match between two swap requests
+ */
+export const createSwapMatchSafe = async (request1Id: string, request2Id: string) => {
+  // First get shift IDs
+  const { data: request1, error: error1 } = await supabase
+    .from('shift_swap_requests')
+    .select('requester_shift_id')
+    .eq('id', request1Id)
+    .single();
+    
+  const { data: request2, error: error2 } = await supabase
+    .from('shift_swap_requests')
+    .select('requester_shift_id')
+    .eq('id', request2Id)
+    .single();
+    
+  if (error1 || error2 || !request1 || !request2) {
+    console.error('Error getting request data:', error1 || error2);
+    return { error: error1 || error2 };
+  }
+  
+  // Create the match
+  const { data, error } = await supabase
+    .from('shift_swap_potential_matches')
+    .insert({
+      requester_request_id: request1Id,
+      acceptor_request_id: request2Id,
+      requester_shift_id: request1.requester_shift_id,
+      acceptor_shift_id: request2.requester_shift_id,
+      match_date: new Date().toISOString().split('T')[0],
+      status: 'pending'
+    })
+    .select();
+    
+  if (error) {
+    console.error('Error creating match:', error);
+  }
+  
+  return { data, error };
 };
