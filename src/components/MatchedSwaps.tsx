@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
 import { Button } from "./ui/button";
-import { SwapMatchDebug } from './matched-swaps/SwapMatchDebug';
 import {
   Tabs,
   TabsContent,
@@ -37,7 +36,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   
   const { user, isAdmin } = useAuth();
 
-  // Fetch matches data directly
+  // Fetch matches data
   const fetchMatches = async () => {
     if (!user || !user.id) return;
     
@@ -195,12 +194,9 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Debug tools */}
-      <SwapMatchDebug onRefreshMatches={fetchMatches} />
-      
       {/* Simple Match Tester integrated to refresh matches when a match is created */}
       <div className="border border-amber-300 rounded-lg bg-amber-50 p-4 mb-4">
-        <h2 className="text-lg font-bold text-amber-700 mb-2">Simple Match Testing</h2>
+        <h2 className="text-lg font-bold text-amber-700 mb-2">Swap Match Testing</h2>
         <p className="text-sm text-amber-600 mb-4">
           Test and create matches between swap requests. Created matches will appear in the Active Matches tab.
         </p>

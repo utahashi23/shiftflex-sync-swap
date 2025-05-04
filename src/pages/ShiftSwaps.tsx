@@ -8,15 +8,12 @@ import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Bug } from 'lucide-react';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('calendar');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [showDebugPanel, setShowDebugPanel] = useState(true); // Default to true for better visibility
   
   // Force tab refresh when coming back to this page or after finding matches
   useEffect(() => {
@@ -38,19 +35,6 @@ const ShiftSwaps = () => {
           Request and manage your shift swaps
           {isAdmin && <span className="ml-2 text-blue-500">(Admin Access)</span>}
         </p>
-        
-        {/* Add debug tools toggle button */}
-        <div className="mt-2 flex justify-end">
-          <Button
-            variant={showDebugPanel ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowDebugPanel(!showDebugPanel)}
-            className="flex items-center text-xs"
-          >
-            <Bug className="h-3.5 w-3.5 mr-1" />
-            {showDebugPanel ? "Hide Debug Tools" : "Show Debug Tools"}
-          </Button>
-        </div>
       </div>
 
       <TooltipProvider>

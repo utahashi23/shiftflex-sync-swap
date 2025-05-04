@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { fetchAllSwapRequestsSafe, fetchAllPreferredDatesWithRequestsSafe, createSwapMatchSafe } from '@/utils/rls-helpers';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, RefreshCw } from 'lucide-react';
+import { SwapCard } from '../matched-swaps/SwapCard';
 
 interface MatchTestResult {
   request1Id: string;
@@ -13,6 +15,11 @@ interface MatchTestResult {
   request1ShiftDate: string;
   request2ShiftDate: string;
   matchReason: string;
+  // Add additional data for displaying shift details
+  request1Shift?: any;
+  request2Shift?: any;
+  request1User?: any;
+  request2User?: any;
 }
 
 interface SimpleMatchTesterProps {
@@ -37,9 +44,18 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
         // Get the shift data using the request's requester_shift_id
         const { data: shiftData } = await supabase.rpc('get_shift_by_id', { shift_id: request.requester_shift_id });
         
+        // Get the user data
+        const { data: userData } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', request.requester_id)
+          .single();
+        
         return {
           ...request,
-          shift_date: shiftData?.[0]?.date || 'Unknown'
+          shift_date: shiftData?.[0]?.date || 'Unknown',
+          shift: shiftData?.[0] || {},
+          user: userData || { first_name: 'Unknown', last_name: 'User' }
         };
       }));
       
@@ -121,7 +137,11 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
             request2Id: request2.id,
             request1ShiftDate,
             request2ShiftDate,
-            matchReason: "Both users want each other's shift dates"
+            matchReason: "Both users want each other's shift dates",
+            request1Shift: request1.shift,
+            request2Shift: request2.shift,
+            request1User: request1.user,
+            request2User: request2.user
           });
         }
       }
@@ -213,11 +233,59 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
     }
   };
 
+  // Create SwapMatch objects for displaying
+  const createSwapMatchCard = (match: MatchTestResult) => {
+    const shift1 = match.request1Shift;
+    const shift2 = match.request2Shift;
+    
+    if (!shift1 || !shift2) return null;
+    
+    const user1 = match.request1User;
+    const user2 = match.request2User;
+    
+    return {
+      id: `potential-${match.request1Id}-${match.request2Id}`,
+      status: 'potential',
+      myShift: {
+        id: shift1.id,
+        date: shift1.date,
+        startTime: shift1.start_time,
+        endTime: shift1.end_time,
+        truckName: shift1.truck_name,
+        type: getShiftType(shift1.start_time)
+      },
+      otherShift: {
+        id: shift2.id,
+        date: shift2.date,
+        startTime: shift2.start_time,
+        endTime: shift2.end_time,
+        truckName: shift2.truck_name,
+        type: getShiftType(shift2.start_time),
+        userId: shift2.user_id,
+        userName: user2 ? `${user2.first_name} ${user2.last_name}` : 'Unknown User'
+      },
+      myRequestId: match.request1Id,
+      otherRequestId: match.request2Id,
+      createdAt: new Date().toISOString()
+    };
+  };
+  
+  // Helper function to get shift type
+  const getShiftType = (startTime: string): string => {
+    if (!startTime) return 'unknown';
+    
+    const hour = parseInt(startTime.split(':')[0], 10);
+    
+    if (hour <= 8) return 'day';
+    if (hour > 8 && hour < 16) return 'afternoon';
+    return 'night';
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-xl flex items-center justify-between">
-          Simple Match Tester
+          Swap Match Testing
           <div className="flex gap-2">
             <Button 
               variant="outline" 
@@ -263,32 +331,39 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
           {matchResults.length > 0 && (
             <div>
               <h3 className="font-semibold text-lg mb-2">Match Results:</h3>
-              <div className="space-y-3">
-                {matchResults.map((match, index) => (
-                  <div key={index} className="border border-green-200 bg-green-50 rounded-md p-3">
-                    <div className="flex justify-between mb-2">
-                      <div className="font-semibold">Match #{index + 1}</div>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-7 text-xs"
-                        onClick={() => createMatch(match)}
-                        disabled={isLoading}
-                      >
-                        Create in Database
-                      </Button>
+              <div className="space-y-4 mt-4">
+                {matchResults.map((match, index) => {
+                  // Create swap match object for the card
+                  const swapMatch = createSwapMatchCard(match);
+                  
+                  return (
+                    <div key={index} className="border border-green-200 rounded-md p-3">
+                      <div className="flex justify-between mb-3">
+                        <div className="font-semibold">Potential Match #{index + 1}</div>
+                        <Button 
+                          size="sm" 
+                          variant="default"
+                          className="bg-green-600 hover:bg-green-700 h-7 text-xs"
+                          onClick={() => createMatch(match)}
+                          disabled={isLoading}
+                        >
+                          Create This Match
+                        </Button>
+                      </div>
+                      
+                      {swapMatch && (
+                        <SwapCard 
+                          swap={swapMatch} 
+                          isPast={false}
+                        />
+                      )}
+                      
+                      <div className="mt-2">
+                        <Badge variant="outline" className="bg-green-100">{match.matchReason}</Badge>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                      <div><span className="font-semibold">Request 1 ID:</span> {match.request1Id.substring(0, 8)}...</div>
-                      <div><span className="font-semibold">Request 2 ID:</span> {match.request2Id.substring(0, 8)}...</div>
-                      <div><span className="font-semibold">Shift Date:</span> {formatDate(match.request1ShiftDate)}</div>
-                      <div><span className="font-semibold">Shift Date:</span> {formatDate(match.request2ShiftDate)}</div>
-                    </div>
-                    <div className="mt-2">
-                      <Badge variant="outline" className="bg-green-100">{match.matchReason}</Badge>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
