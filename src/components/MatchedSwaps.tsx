@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { SwapMatch } from '@/hooks/useSwapMatches';
 import { getShiftType } from '@/utils/shiftUtils';
-import { SwapMatchInfoPanel } from './matched-swaps/SwapMatchInfoPanel';
+import SimpleMatchTester from './testing/SimpleMatchTester';
 import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
 
 interface MatchedSwapsProps {
@@ -221,8 +221,14 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Swap Match Information Panel */}
-      <SwapMatchInfoPanel />
+      {/* Simple Match Tester integrated to refresh matches when a match is created */}
+      <div className="border border-amber-300 rounded-lg bg-amber-50 p-4 mb-4">
+        <h2 className="text-lg font-bold text-amber-700 mb-2">Swap Match Testing</h2>
+        <p className="text-sm text-amber-600 mb-4">
+          Test and create matches between swap requests. Created matches will appear in the Active Matches tab.
+        </p>
+        <SimpleMatchTester onMatchCreated={fetchMatches} />
+      </div>
       
       <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
         <div className="flex justify-between items-center mb-4">
