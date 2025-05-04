@@ -15,7 +15,7 @@ export interface Shift {
   colleagueType?: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown';
 }
 
-export const useShiftData = (currentDate: Date, userId?: string) => {
+export const useShiftData = (currentDate: Date, userId?: string, refreshTrigger = 0) => {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -76,7 +76,7 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
     };
 
     fetchShifts();
-  }, [currentDate, userId]);
+  }, [currentDate, userId, refreshTrigger]);
 
   return { shifts, isLoading };
 };

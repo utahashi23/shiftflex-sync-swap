@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useShiftData, getShiftForDate, Shift } from '@/hooks/useShiftData';
 import { getDaysInMonth, getFirstDayOfMonth, formatDateString } from '@/utils/dateUtils';
@@ -21,8 +21,9 @@ const ShiftCalendar = ({
   setSelectedShift 
 }: ShiftCalendarProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { user } = useAuth();
-  const { shifts, isLoading } = useShiftData(currentDate, user?.id);
+  const { shifts, isLoading } = useShiftData(currentDate, user?.id, refreshTrigger);
 
   const handleDateClick = (date: Date, shift: Shift | null) => {
     if (shift) {
@@ -38,6 +39,11 @@ const ShiftCalendar = ({
     newDate.setMonth(newDate.getMonth() + increment);
     setCurrentDate(newDate);
   };
+
+  // Callback to refresh calendar data
+  const refreshCalendar = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
 
   const renderCalendar = () => {
     const year = currentDate.getFullYear();

@@ -18,9 +18,10 @@ export const useSwapCalendarState = () => {
     afternoon: false,
     night: false,
   });
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   const { user } = useAuth();
-  const { shifts, isLoading, setShifts } = useSwapCalendarData(currentDate, user?.id);
+  const { shifts, isLoading, setShifts } = useSwapCalendarData(currentDate, user?.id, refreshTrigger);
 
   // When a shift is selected, set the corresponding shift type to true
   useEffect(() => {
@@ -72,6 +73,11 @@ export const useSwapCalendarState = () => {
     actions.toggleDateSelection
   );
 
+  // Function to refresh calendar data
+  const refreshCalendar = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   return {
     currentDate,
     shifts,
@@ -85,6 +91,7 @@ export const useSwapCalendarState = () => {
     ...helpers,
     ...actions,
     renderCalendar,
-    setAcceptableShiftTypes
+    setAcceptableShiftTypes,
+    refreshCalendar
   };
 };

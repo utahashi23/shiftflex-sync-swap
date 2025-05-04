@@ -20,7 +20,8 @@ const ShiftSwapCalendar = () => {
     handleCancelSwapRequest,
     renderCalendar,
     changeMonth,
-    setAcceptableShiftTypes
+    setAcceptableShiftTypes,
+    refreshCalendar
   } = useSwapCalendarState();
 
   const { user } = useAuth();
@@ -53,6 +54,7 @@ const ShiftSwapCalendar = () => {
           handleSaveSwapRequest={handleSaveSwapRequest}
           handleCancelSwapRequest={handleCancelSwapRequest}
           setAcceptableShiftTypes={setAcceptableShiftTypes}
+          onShiftChange={refreshCalendar}
         />
       )}
       

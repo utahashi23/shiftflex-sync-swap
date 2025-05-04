@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { getMonthDateRange } from '@/utils/dateUtils';
 import { Shift } from '@/hooks/useShiftData';
 
-export const useSwapCalendarData = (currentDate: Date, userId?: string) => {
+export const useSwapCalendarData = (currentDate: Date, userId?: string, refreshTrigger = 0) => {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -77,7 +77,7 @@ export const useSwapCalendarData = (currentDate: Date, userId?: string) => {
     };
 
     fetchShifts();
-  }, [currentDate, userId]);
+  }, [currentDate, userId, refreshTrigger]);
 
   return { shifts, isLoading, setShifts };
 };
