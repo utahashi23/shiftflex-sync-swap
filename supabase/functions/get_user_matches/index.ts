@@ -40,6 +40,7 @@ serve(async (req) => {
     )
     
     // Check if there are any potential matches that include the user
+    // Fix: Use proper OR filter syntax with parentheses
     const { data: existingMatches, error: potentialError } = await supabaseClient
       .from('shift_swap_potential_matches')
       .select(`
@@ -54,7 +55,7 @@ serve(async (req) => {
         shift_swap_requests!requester_request_id(requester_id),
         shift_swap_requests!acceptor_request_id(requester_id)
       `)
-      .or(`shift_swap_requests.requester_id.eq.${user_id},shift_swap_requests!acceptor_request_id.requester_id.eq.${user_id}`)
+      .or(`shift_swap_requests!requester_request_id(requester_id).eq.${user_id},shift_swap_requests!acceptor_request_id(requester_id).eq.${user_id}`)
     
     if (potentialError) {
       console.log('Error fetching potential matches:', potentialError);
