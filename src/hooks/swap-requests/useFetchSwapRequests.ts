@@ -1,99 +1,80 @@
 
-import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { User } from '@supabase/supabase-js';
 import { SwapRequest } from './types';
+import { fetchUserSwapRequestsSafe } from '@/utils/rls-helpers';
 
+/**
+ * Fetches swap requests using the safe RPC function that avoids RLS recursion
+ */
 export const useFetchSwapRequests = (user: User | null) => {
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchSwapRequests = useCallback(async () => {
-    if (!user) return;
+    if (!user || !user.id) {
+      console.log('No user or user ID available, skipping fetch');
+      return;
+    }
     
     setIsLoading(true);
+    setError(null);
+    
     try {
       console.log('Fetching swap requests for user:', user.id);
       
-      // Modified query to use the direct relationship between shift_swap_preferred_dates and shifts
-      const { data: preferredDates, error: preferredDatesError } = await supabase
-        .from('shift_swap_preferred_dates')
-        .select(`
-          id, 
-          date, 
-          accepted_types, 
-          shifts:shift_id (
-            id, 
-            date, 
-            start_time, 
-            end_time, 
-            truck_name,
-            user_id
-          )
-        `)
-        .eq('shifts.user_id', user.id);
+      // Use our safe function that won't cause RLS recursion
+      const { data, error: fetchError } = await fetchUserSwapRequestsSafe(user.id, 'pending');
       
-      if (preferredDatesError) throw preferredDatesError;
+      if (fetchError) throw fetchError;
       
-      console.log('Fetched preferred dates:', preferredDates);
-      
-      if (!preferredDates || preferredDates.length === 0) {
+      if (!data || data.length === 0) {
+        console.log('No pending swap requests found');
         setSwapRequests([]);
         setIsLoading(false);
         return;
       }
       
-      // Group by shift id
-      const groupedByShift = preferredDates.reduce((acc, item) => {
-        const shiftId = item.shifts.id;
-        
-        // Determine shift type based on start time
-        let shiftType: "day" | "afternoon" | "night" = 'day';
-        const startHour = new Date(`2000-01-01T${item.shifts.start_time}`).getHours();
-        
-        if (startHour <= 8) {
-          shiftType = 'day';
-        } else if (startHour > 8 && startHour < 16) {
-          shiftType = 'afternoon';
-        } else {
-          shiftType = 'night';
-        }
-        
-        if (!acc[shiftId]) {
-          acc[shiftId] = {
-            id: shiftId,
-            requesterId: item.shifts.user_id,
-            status: 'pending',
-            originalShift: {
-              id: item.shifts.id,
-              date: item.shifts.date,
-              title: item.shifts.truck_name || `Shift-${item.shifts.id.substring(0, 5)}`,
-              startTime: item.shifts.start_time.substring(0, 5), // Format as HH:MM
-              endTime: item.shifts.end_time.substring(0, 5),     // Format as HH:MM
-              type: shiftType
-            },
-            preferredDates: []
-          };
-        }
-        
-        acc[shiftId].preferredDates.push({
-          id: item.id,
-          date: item.date,
-          acceptedTypes: item.accepted_types as ("day" | "afternoon" | "night")[]
-        });
-        
-        return acc;
-      }, {} as Record<string, SwapRequest>);
+      console.log('Received swap requests data:', data);
       
-      // Convert to array
-      const formattedRequests = Object.values(groupedByShift);
+      // Format the received data into SwapRequest objects
+      const formattedRequests: SwapRequest[] = data.map((item: any) => {
+        const shift = item.shift;
+        const preferredDates = item.preferred_dates || [];
+        
+        if (!shift) return null;
+        
+        // Format preferred dates
+        const formattedDates = preferredDates.map((date: any) => ({
+          id: date.id,
+          date: date.date,
+          acceptedTypes: date.accepted_types as ("day" | "afternoon" | "night")[]
+        }));
+        
+        return {
+          id: item.id,
+          requesterId: item.requester_id,
+          status: item.status,
+          originalShift: {
+            id: shift.id,
+            date: shift.date,
+            title: shift.truckName || `Shift-${shift.id.substring(0, 5)}`,
+            startTime: shift.startTime.substring(0, 5),
+            endTime: shift.endTime.substring(0, 5),
+            type: shift.type
+          },
+          preferredDates: formattedDates
+        };
+      }).filter(Boolean) as SwapRequest[];
       
       console.log('Formatted requests:', formattedRequests);
       setSwapRequests(formattedRequests);
       
-    } catch (error) {
-      console.error('Error fetching swap requests:', error);
+    } catch (err) {
+      console.error('Error fetching swap requests:', err);
+      setError(err as Error);
       toast({
         title: "Error",
         description: "Failed to load swap requests. Please try again.",
@@ -104,11 +85,18 @@ export const useFetchSwapRequests = (user: User | null) => {
     }
   }, [user]);
 
+  // Load swap requests on mount or when user changes
+  useEffect(() => {
+    if (user) {
+      fetchSwapRequests();
+    }
+  }, [user, fetchSwapRequests]);
+
   return { 
     swapRequests, 
     setSwapRequests, 
     isLoading, 
-    setIsLoading, 
+    error,
     fetchSwapRequests 
   };
 };
