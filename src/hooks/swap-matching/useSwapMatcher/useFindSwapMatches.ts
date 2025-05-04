@@ -15,15 +15,17 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
    * @param forceCheck - Whether to check all requests even if already matched
    * @param verbose - Whether to enable verbose logging
    * @param userPerspectiveOnly - Whether to only show matches from the user's perspective
+   * @param userInitiatorOnly - Whether to only show matches where the user is the initiator
    */
   const findSwapMatches = async (
     userId: string, 
     forceCheck: boolean = false,
     verbose: boolean = false,
-    userPerspectiveOnly: boolean = true
+    userPerspectiveOnly: boolean = true,
+    userInitiatorOnly: boolean = true
   ) => {
     try {
-      console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly})`);
+      console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}, user initiator only: ${userInitiatorOnly})`);
       setIsProcessing(true);
       
       // Make direct call to the edge function to avoid RLS recursion
@@ -34,6 +36,7 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
           force_check: forceCheck,
           verbose: verbose,
           user_perspective_only: userPerspectiveOnly,
+          user_initiator_only: userInitiatorOnly,
           bypass_rls: true // Explicitly request RLS bypass
         }
       });

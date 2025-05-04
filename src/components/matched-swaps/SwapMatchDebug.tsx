@@ -16,7 +16,8 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
   const runFindMatches = async () => {
     try {
       // Call findSwapMatches with the current user ID, verbose and user perspective only
-      const result = await findSwapMatches(user?.id, true, true, true);
+      // We explicitly set userInitiatorOnly to true to prevent showing duplicated matches
+      const result = await findSwapMatches(user?.id, true, true, true, true);
       console.log("Match find result:", result);
       
       // After finding matches, trigger parent refresh if provided

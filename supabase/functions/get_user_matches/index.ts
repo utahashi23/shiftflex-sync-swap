@@ -1,4 +1,3 @@
-
 // Follow this setup guide to integrate the Supabase Edge Functions with your app:
 // https://supabase.com/docs/guides/functions/getting-started
 
@@ -18,7 +17,14 @@ serve(async (req) => {
 
   try {
     // Get the request body and parse any options
-    const { user_id, verbose = false, specific_check = false, force_check = false } = await req.json()
+    const { 
+      user_id, 
+      verbose = false, 
+      specific_check = false, 
+      force_check = false,
+      user_perspective_only = true,
+      user_initiator_only = true
+    } = await req.json()
 
     if (!user_id) {
       return new Response(
@@ -27,7 +33,7 @@ serve(async (req) => {
       )
     }
     
-    console.log(`Processing request for user_id: ${user_id}, verbose: ${verbose}, force_check: ${force_check}`);
+    console.log(`Processing request for user_id: ${user_id}, verbose: ${verbose}, force_check: ${force_check}, user_perspective_only: ${user_perspective_only}, user_initiator_only: ${user_initiator_only}`);
 
     // Create a Supabase client with the Auth context of the logged in user
     const supabaseClient = createClient(
@@ -200,12 +206,27 @@ serve(async (req) => {
         if (directMatches && directMatches.length > 0) {
           // Filter matches that involve the current user
           const userMatchRequests = await getUserRequestIds(serviceClient, user_id);
-          const userInvolvedMatches = directMatches.filter(match => 
-            userMatchRequests.includes(match.requester_request_id) || 
-            userMatchRequests.includes(match.acceptor_request_id)
-          );
           
-          console.log(`Found ${userInvolvedMatches.length} matches involving user ${user_id}`);
+          let userInvolvedMatches;
+          
+          if (user_initiator_only) {
+            // Only show matches where the user is the initiator of the request
+            userInvolvedMatches = directMatches.filter(match => 
+              userMatchRequests.includes(match.requester_request_id)
+            );
+            console.log(`Found ${userInvolvedMatches.length} matches where user ${user_id} is the initiator`);
+          } else if (user_perspective_only) {
+            // Show matches where the user is involved on either side
+            userInvolvedMatches = directMatches.filter(match => 
+              userMatchRequests.includes(match.requester_request_id) || 
+              userMatchRequests.includes(match.acceptor_request_id)
+            );
+            console.log(`Found ${userInvolvedMatches.length} matches involving user ${user_id}`);
+          } else {
+            // If not filtering by user perspective, return all matches (admin view)
+            userInvolvedMatches = directMatches;
+            console.log(`Returning all ${userInvolvedMatches.length} matches (admin view)`);
+          }
           
           if (userInvolvedMatches.length > 0) {
             // Try to get detailed info for these matches
@@ -221,7 +242,7 @@ serve(async (req) => {
       // If no matches found and verbose mode is enabled, try manual matching
       if (verbose || force_check) {
         console.log("No matches found - attempting to run manual matching process");
-        const manualMatches = await attemptManualMatching(serviceClient, user_id);
+        const manualMatches = await attemptManualMatching(serviceClient, user_id, user_initiator_only);
         
         if (manualMatches && manualMatches.length > 0) {
           console.log(`Manual matching found ${manualMatches.length} potential matches`);
@@ -385,7 +406,7 @@ async function getMatchDetails(serviceClient, matches, userId) {
 }
 
 // Helper function to attempt manual matching using service role client
-async function attemptManualMatching(serviceClient, userId) {
+async function attemptManualMatching(serviceClient, userId, userInitiatorOnly = true) {
   try {
     console.log("Starting manual matching process");
     
@@ -474,6 +495,13 @@ async function attemptManualMatching(serviceClient, userId) {
       for (const otherRequest of otherRequests) {
         // Skip if users are the same
         if (userRequest.requester_id === otherRequest.requester_id) continue;
+        
+        // If user initiator only is enabled and user's request ID is greater than other's request ID, skip
+        // This ensures we only create matches where the user is the initiator
+        if (userInitiatorOnly && userRequest.id > otherRequest.id) {
+          console.log(`Skipping match between ${userRequest.id} and ${otherRequest.id} because user is not initiator`);
+          continue;
+        }
         
         const otherShift = shiftsById[otherRequest.requester_shift_id];
         if (!otherShift) continue;
