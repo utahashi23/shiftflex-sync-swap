@@ -39,9 +39,8 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
     
-    // Check if there are any potential matches that include the user
-    // Fix: Use proper OR filter syntax with parentheses
-    const { data: existingMatches, error: potentialError } = await supabaseClient
+    // Use a different approach for querying - use two separate queries to avoid filter syntax issues
+    const { data: requesterMatches, error: requesterError } = await supabaseClient
       .from('shift_swap_potential_matches')
       .select(`
         id, 
@@ -52,15 +51,43 @@ serve(async (req) => {
         acceptor_request_id,
         requester_shift_id,
         acceptor_shift_id,
-        shift_swap_requests!requester_request_id(requester_id),
+        shift_swap_requests!requester_request_id(requester_id)
+      `)
+      .filter('shift_swap_requests.requester_id', 'eq', user_id);
+    
+    if (requesterError) {
+      console.log('Error fetching requester matches:', requesterError);
+      throw requesterError;
+    }
+    
+    const { data: acceptorMatches, error: acceptorError } = await supabaseClient
+      .from('shift_swap_potential_matches')
+      .select(`
+        id, 
+        status, 
+        created_at, 
+        match_date,
+        requester_request_id, 
+        acceptor_request_id,
+        requester_shift_id,
+        acceptor_shift_id,
         shift_swap_requests!acceptor_request_id(requester_id)
       `)
-      .or(`shift_swap_requests!requester_request_id(requester_id).eq.${user_id},shift_swap_requests!acceptor_request_id(requester_id).eq.${user_id}`)
-    
-    if (potentialError) {
-      console.log('Error fetching potential matches:', potentialError);
-      throw potentialError;
+      .filter('shift_swap_requests.requester_id', 'eq', user_id);
+      
+    if (acceptorError) {
+      console.log('Error fetching acceptor matches:', acceptorError);
+      throw acceptorError;
     }
+    
+    // Combine and deduplicate results
+    const allMatches = [...(requesterMatches || []), ...(acceptorMatches || [])];
+    const uniqueMatchIds = new Set();
+    const existingMatches = allMatches.filter(match => {
+      if (uniqueMatchIds.has(match.id)) return false;
+      uniqueMatchIds.add(match.id);
+      return true;
+    });
     
     console.log(`Found ${existingMatches?.length || 0} potential matches that include user ${user_id}`);
     
@@ -113,12 +140,27 @@ serve(async (req) => {
       const requesterRequestId = match.requester_request_id;
       const acceptorRequestId = match.acceptor_request_id;
       
-      // Determine which request belongs to the current user
-      const requesterData = match.shift_swap_requests;
-      const acceptorData = match.shift_swap_requests;
+      // Get the requester information for both requests
+      const { data: requesterData } = await supabaseClient
+        .from('shift_swap_requests')
+        .select('requester_id')
+        .eq('id', requesterRequestId)
+        .single();
+        
+      const { data: acceptorData } = await supabaseClient
+        .from('shift_swap_requests')
+        .select('requester_id')
+        .eq('id', acceptorRequestId)
+        .single();
       
-      const isRequester = requesterData?.requester_id === user_id;
-      const isAcceptor = acceptorData?.requester_id === user_id;
+      if (!requesterData || !acceptorData) {
+        console.log(`Missing request data for match ${match.id}, skipping`);
+        continue;
+      }
+      
+      // Determine which request belongs to the current user
+      const isRequester = requesterData.requester_id === user_id;
+      const isAcceptor = acceptorData.requester_id === user_id;
       
       if (!isRequester && !isAcceptor) {
         console.log(`Match ${match.id} does not involve user ${user_id}, skipping`);
@@ -133,13 +175,13 @@ serve(async (req) => {
         otherShiftId = match.acceptor_shift_id;
         myRequestId = requesterRequestId;
         otherRequestId = acceptorRequestId;
-        otherUserId = acceptorData?.requester_id;
+        otherUserId = acceptorData.requester_id;
       } else {
         myShiftId = match.acceptor_shift_id;
         otherShiftId = match.requester_shift_id;
         myRequestId = acceptorRequestId;
         otherRequestId = requesterRequestId;
-        otherUserId = requesterData?.requester_id;
+        otherUserId = requesterData.requester_id;
       }
       
       // Get shift details

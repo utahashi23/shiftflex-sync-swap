@@ -9,6 +9,7 @@ import { checkSwapCompatibility } from '@/utils/swap-matching';
  * @param profilesMap Map of user profiles
  * @param userId Optional user ID to filter requests (for non-admin users)
  * @param forceCheck Optional flag to check for matches even if already matched
+ * @param verbose Optional flag to enable verbose logging
  */
 export const findMatches = (
   allRequests: any[],
@@ -16,10 +17,12 @@ export const findMatches = (
   preferredDates: any[],
   profilesMap: Record<string, any>,
   userId?: string,
-  forceCheck: boolean = false
+  forceCheck: boolean = false,
+  verbose: boolean = false
 ) => {
   console.log('Finding matches among', allRequests.length, 'requests');
   console.log('Force check mode:', forceCheck);
+  console.log('Verbose logging mode:', verbose);
   
   // Create mappings for faster lookups
   const shiftMap = new Map();
@@ -50,8 +53,16 @@ export const findMatches = (
   });
   
   // For debugging
-  console.log(`Mapped ${Object.keys(shiftsByUser).length} users with shifts`);
-  console.log(`Mapped ${Object.keys(preferredDatesByRequest).length} requests with preferred dates`);
+  if (verbose) {
+    console.log(`Mapped ${Object.keys(shiftsByUser).length} users with shifts`);
+    console.log(`Mapped ${Object.keys(preferredDatesByRequest).length} requests with preferred dates`);
+    console.log('Sample shift mapping:', Array.from(shiftMap.entries())[0]);
+    console.log('Sample shiftsByUser mapping:', Object.entries(shiftsByUser)[0]);
+    console.log('Sample preferredDatesByRequest mapping:', Object.entries(preferredDatesByRequest)[0]);
+  } else {
+    console.log(`Mapped ${Object.keys(shiftsByUser).length} users with shifts`);
+    console.log(`Mapped ${Object.keys(preferredDatesByRequest).length} requests with preferred dates`);
+  }
   
   const matches = [];
   const checkedPairs = new Set();
@@ -128,7 +139,13 @@ export const findMatches = (
       return;
     }
     
-    console.log(`Checking compatibility between requests ${request1.id.substring(0,6)} and ${request2.id.substring(0,6)}`);
+    if (verbose) {
+      console.log(`Checking compatibility between requests ${request1.id} and ${request2.id}`);
+      console.log(`  Request 1 shift: ${shift1.date}, ${shift1.start_time} - ${shift1.end_time}, ${shift1.truck_name || 'No truck'}`);
+      console.log(`  Request 2 shift: ${shift2.date}, ${shift2.start_time} - ${shift2.end_time}, ${shift2.truck_name || 'No truck'}`);
+    } else if (Math.random() < 0.1) { // Only log some checks to avoid console spam
+      console.log(`Checking compatibility between requests ${request1.id.substring(0,6)} and ${request2.id.substring(0,6)}`);
+    }
     
     // Check if the shifts are compatible for swapping
     const { isCompatible, reason } = checkSwapCompatibility(
@@ -142,11 +159,14 @@ export const findMatches = (
     
     if (isCompatible) {
       console.log(`✓ COMPATIBLE MATCH: ${request1.id.substring(0,6)} <-> ${request2.id.substring(0,6)}`);
+      if (verbose) {
+        console.log(`  Match details: ${shift1.date} <-> ${shift2.date}`);
+      }
       matches.push({
         request: request1,
         otherRequest: request2
       });
-    } else {
+    } else if (verbose) {
       console.log(`✗ INCOMPATIBLE: ${request1.id.substring(0,6)} <-> ${request2.id.substring(0,6)} (${reason || 'unknown reason'})`);
     }
   }

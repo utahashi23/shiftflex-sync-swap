@@ -18,8 +18,9 @@ export const useSwapMatcher = () => {
    * Find potential matches for a user's swap requests
    * @param userId - The ID of the current user (optional for admins)
    * @param forceCheck - Force checking for matches even if already matched
+   * @param verbose - Whether to enable verbose logging
    */
-  const findSwapMatches = async (userId?: string, forceCheck: boolean = false) => {
+  const findSwapMatches = async (userId?: string, forceCheck: boolean = false, verbose: boolean = false) => {
     if (!user && !userId) {
       toast({
         title: "Authentication required",
@@ -31,7 +32,7 @@ export const useSwapMatcher = () => {
     
     try {
       setIsFindingMatches(true);
-      await executeFindMatches(userId || user?.id, forceCheck);
+      await executeFindMatches(userId || user?.id, forceCheck, verbose);
     } catch (error) {
       console.error('Error in findSwapMatches:', error);
       toast({

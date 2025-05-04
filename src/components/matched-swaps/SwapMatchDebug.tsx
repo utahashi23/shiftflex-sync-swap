@@ -23,7 +23,8 @@ export function SwapMatchDebug() {
       // Force debugging in the console
       console.log('Starting match finding process (debug mode)');
       
-      await findSwapMatches(undefined, true);
+      // Pass the verbose option to enable more detailed logs
+      await findSwapMatches(undefined, true, verbose);
       
       toast({
         title: "Match finding complete",

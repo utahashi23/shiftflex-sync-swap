@@ -10,14 +10,16 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
    * Find potential matches for a user's swap requests
    * @param userId - The ID of the current user (optional for admins)
    * @param forceCheck - Force checking for matches even if already matched
+   * @param verbose - Whether to enable verbose logging
    */
-  const findSwapMatches = async (userId?: string, forceCheck: boolean = false) => {
+  const findSwapMatches = async (userId?: string, forceCheck: boolean = false, verbose: boolean = false) => {
     setIsProcessing(true);
     
     try {
       console.log('----------- SWAP MATCHING STARTED -----------');
       console.log('Current user ID:', userId || 'No user ID provided (admin mode)');
       console.log('Force check:', forceCheck);
+      console.log('Verbose logging:', verbose);
       
       // Fetch all necessary data from the database
       const result = await fetchAllData();
@@ -38,10 +40,14 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
       }
       
       // Log data to diagnose issues
-      console.log(`Found ${allRequests.length} swap requests, ${allShifts.length} shifts, ${preferredDates.length} preferred dates`);
-      console.log('Sample request:', allRequests[0]);
-      console.log('Sample shift:', allShifts[0]);
-      console.log('Sample preferred date:', preferredDates[0]);
+      if (verbose) {
+        console.log(`Found ${allRequests.length} swap requests, ${allShifts.length} shifts, ${preferredDates.length} preferred dates`);
+        console.log('Sample request:', allRequests[0]);
+        console.log('Sample shift:', allShifts[0]);
+        console.log('Sample preferred date:', preferredDates[0]);
+      } else {
+        console.log(`Found ${allRequests.length} swap requests, ${allShifts.length} shifts, ${preferredDates.length} preferred dates`);
+      }
       
       // Separate my requests from other users' requests if userId is provided
       const myRequests = userId 
@@ -79,8 +85,12 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
       
       // Find potential matches - Pass userId to ensure it works for non-admin users
       // If forceCheck is true, this will check for matches regardless of existing matches
-      const matches = findMatches(allRequests, allShifts, preferredDates, profilesMap, userId, forceCheck);
-      console.log('Found potential matches:', matches);
+      const matches = findMatches(allRequests, allShifts, preferredDates, profilesMap, userId, forceCheck, verbose);
+      if (verbose) {
+        console.log('Found potential matches:', matches);
+      } else {
+        console.log('Found potential matches:', matches.length);
+      }
       
       // Process matches
       if (matches.length === 0) {
@@ -92,7 +102,11 @@ export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) =>
         // Process the matches and handle the case of already existing matches
         const matchResults = await processMatches(matches, userId);
         
-        console.log('Match results:', matchResults);
+        if (verbose) {
+          console.log('Match results:', matchResults);
+        } else {
+          console.log('Match results count:', matchResults.length);
+        }
         
         const newMatches = matchResults.filter(result => !result.alreadyExists).length;
         
