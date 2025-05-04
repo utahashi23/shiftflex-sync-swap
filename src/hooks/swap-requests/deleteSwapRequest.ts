@@ -11,10 +11,11 @@ export const deleteSwapRequestApi = async (requestId: string) => {
   }
   
   try {
-    // Get the current session to pass the auth token
-    const { data: { session } } = await supabase.auth.getSession();
+    // Get the current session
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     
-    if (!session) {
+    if (sessionError || !sessionData.session) {
+      console.error('Authentication error:', sessionError);
       toast({
         title: "Authentication Error",
         description: "You must be logged in to delete a swap request.",
@@ -23,24 +24,29 @@ export const deleteSwapRequestApi = async (requestId: string) => {
       throw new Error('Authentication required');
     }
     
-    const authToken = session.access_token;
-    
     // Use the edge function to safely delete the request
-    const response = await supabase.functions.invoke('delete_swap_request', {
-      body: { 
-        request_id: requestId,
-        auth_token: authToken
-      }
+    const { data, error } = await supabase.functions.invoke('delete_swap_request', {
+      body: { request_id: requestId }
     });
       
-    if (response.error) {
-      console.error('Error deleting swap request:', response.error);
-      throw response.error;
+    if (error) {
+      console.error('Error deleting swap request:', error);
+      throw error;
     }
+    
+    toast({
+      title: "Swap Request Deleted",
+      description: "Your swap request has been deleted successfully."
+    });
     
     return { success: true };
   } catch (error) {
     console.error('Error deleting swap request:', error);
+    toast({
+      title: "Delete Failed",
+      description: "There was a problem deleting your swap request.",
+      variant: "destructive"
+    });
     throw error;
   }
 };

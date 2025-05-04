@@ -1,8 +1,7 @@
-
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { SwapRequest } from './types';
-import { deletePreferredDateApi, deleteSwapRequestApi } from './api';
+import { deleteSwapRequestApi } from './api';
 import { useAuth } from '@/hooks/useAuth';
 
 export const useDeleteSwapRequest = (
@@ -33,19 +32,9 @@ export const useDeleteSwapRequest = (
       // Update local state after successful deletion
       setSwapRequests(prev => prev.filter(req => req.id !== requestId));
       
-      toast({
-        title: "Swap Request Deleted",
-        description: "Your swap request has been deleted."
-      });
-      
       return true;
     } catch (error) {
       console.error('Error deleting swap request:', error);
-      toast({
-        title: "Failed to delete request",
-        description: "There was a problem deleting your swap request",
-        variant: "destructive"
-      });
       return false;
     } finally {
       setIsLoading(false);
@@ -61,39 +50,43 @@ export const useDeleteSwapRequest = (
     try {
       console.log('Deleting preferred day with id:', dayId);
       
-      // Call the API to delete the preferred day
-      const result = await deletePreferredDateApi(dayId, requestId);
-      
-      // Check if the entire request was deleted (no preferred days left)
-      const requestDeleted = result?.requestDeleted || false;
-      
-      if (requestDeleted) {
-        // Remove the entire request from state
-        setSwapRequests(prev => prev.filter(req => req.id !== requestId));
+      // For now, we'll just delete the entire request if it's the last preferred date
+      // This is simpler than implementing another edge function just for preferred date deletion
+      const { data: preferredDates } = await supabase
+        .from('shift_swap_preferred_dates')
+        .select('id')
+        .eq('request_id', requestId);
         
-        toast({
-          title: "Swap Request Deleted",
-          description: "Your swap request has been deleted as it had no remaining preferred dates."
-        });
-      } else {
-        // Update local state to remove just the preferred day
-        setSwapRequests(prev => {
-          return prev.map(req => {
-            if (req.id === requestId) {
-              return {
-                ...req,
-                preferredDates: req.preferredDates.filter(date => date.id !== dayId)
-              };
-            }
-            return req;
-          });
-        });
-        
-        toast({
-          title: "Preferred Date Removed",
-          description: "The selected date has been removed from your swap request."
-        });
+      // If this is the only preferred date, delete the entire request
+      if (preferredDates && preferredDates.length <= 1) {
+        return await handleDeleteSwapRequest(requestId);
       }
+      
+      // Otherwise, delete just the preferred date
+      const { error } = await supabase
+        .from('shift_swap_preferred_dates')
+        .delete()
+        .eq('id', dayId);
+        
+      if (error) throw error;
+      
+      // Update local state to remove just the preferred day
+      setSwapRequests(prev => {
+        return prev.map(req => {
+          if (req.id === requestId) {
+            return {
+              ...req,
+              preferredDates: req.preferredDates.filter(date => date.id !== dayId)
+            };
+          }
+          return req;
+        });
+      });
+      
+      toast({
+        title: "Date Removed",
+        description: "The selected date has been removed from your swap request."
+      });
       
       return true;
     } catch (error) {
