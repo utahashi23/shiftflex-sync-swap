@@ -41,28 +41,22 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   const { user, isAdmin } = useAuth();
   const { findSwapMatches, isProcessing } = useSwapMatcher();
 
-  // Process matches data from API response - improved version
+  // Process matches data from API response
   const processMatchesData = (matchesData: any[]) => {
     if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
-      console.log('No matches data to process or empty array returned');
       return [];
     }
-    
-    console.log('Processing raw matches data:', matchesData);
     
     // Process and deduplicate the matches data
     const uniqueMatches = Array.from(
       new Map(matchesData.map((match: any) => [match.match_id, match])).values()
     );
     
-    console.log(`Deduplicated from ${matchesData.length} to ${uniqueMatches.length} matches`);
-    
     // Process the data
     return uniqueMatches.map((match: any) => {
-      console.log('Processing match:', match);
       return {
         id: match.match_id,
-        status: match.match_status || 'pending',
+        status: match.match_status,
         myShift: {
           id: match.my_shift_id,
           date: match.my_shift_date,
@@ -88,7 +82,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     });
   };
 
-  // Fetch matches using findSwapMatches from useSwapMatcher hook
+  // Fetch matches data using findSwapMatches directly
   const fetchMatches = async () => {
     if (!user || !user.id) return;
     
@@ -97,34 +91,12 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     try {
       console.log('Finding matches for user:', user.id);
       
-      // Setting all parameters for consistent results with testing tool
-      const matchesData = await findSwapMatches(
-        user.id,   // user ID
-        true,      // forceCheck - check all requests even if already matched
-        true,      // verbose - enable more detailed logging
-        true,      // userPerspectiveOnly - only fetch matches from user's perspective
-        true       // userInitiatorOnly - only fetch matches where user is initiator
-      );
-      
-      console.log('Raw match data returned from findSwapMatches:', matchesData);
-      
-      if (!matchesData || (Array.isArray(matchesData) && matchesData.length === 0)) {
-        console.log('No matches found');
-        setMatches([]);
-        setPastMatches([]);
-        
-        toast({
-          title: "No matches found",
-          description: "No potential swap matches were found at this time.",
-        });
-        
-        setIsLoading(false);
-        return;
-      }
+      // Directly use findSwapMatches to find and retrieve matches
+      const matchesData = await findSwapMatches(user.id, true, true, true, true);
+      console.log('Raw match data from function:', matchesData);
       
       // Process the matches data
       const formattedMatches = processMatchesData(matchesData);
-      console.log('Processed matches:', formattedMatches);
       
       // Separate active and past matches
       const activeMatches = formattedMatches.filter((match: SwapMatch) => 
@@ -135,7 +107,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         match.status === 'completed'
       );
       
-      console.log(`Separated into ${activeMatches.length} active and ${completedMatches.length} completed matches`);
+      console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
       
       setMatches(activeMatches);
       setPastMatches(completedMatches);
@@ -259,12 +231,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
               Test and create matches between swap requests. Created matches will appear in the Active Matches tab.
             </p>
             <SimpleMatchTester onMatchCreated={fetchMatches} />
-            
-            {/* Add the SwapMatchDebug component to help with troubleshooting */}
-            <div className="mt-4 pt-4 border-t border-amber-200">
-              <h3 className="text-md font-semibold text-amber-700 mb-2">Find Matches Directly</h3>
-              <SwapMatchDebug onRefreshMatches={fetchMatches} />
-            </div>
           </div>
         </CollapsibleContent>
       </Collapsible>
