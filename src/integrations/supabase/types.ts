@@ -401,6 +401,20 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_swap_request_by_id: {
+        Args: { p_request_id: string }
+        Returns: {
+          acceptor_id: string | null
+          acceptor_shift_id: string | null
+          created_at: string
+          id: string
+          preferred_dates_count: number | null
+          requester_id: string
+          requester_shift_id: string
+          status: string
+          updated_at: string
+        }[]
+      }
       get_user_matches_with_rls: {
         Args: { user_id: string }
         Returns: {

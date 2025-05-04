@@ -71,8 +71,10 @@ export const fetchAllSwapRequestsSafe = async () => {
 export const fetchSwapRequestByIdSafe = async (requestId: string) => {
   try {
     // Using a function with SECURITY DEFINER to bypass RLS
+    // Cast the function name to any to bypass TypeScript's strict checking
+    // since the function exists in the database but not in TypeScript definitions
     const { data, error } = await supabase.rpc(
-      'get_swap_request_by_id',
+      'get_swap_request_by_id' as any,
       { p_request_id: requestId }
     );
     
