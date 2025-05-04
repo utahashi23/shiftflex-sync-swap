@@ -37,7 +37,8 @@ export const SwapSelectionPanel = ({
   handleRequestSwap,
   handleSaveSwapRequest,
   handleCancelSwapRequest,
-  setAcceptableShiftTypes
+  setAcceptableShiftTypes,
+  onShiftChange
 }: SwapSelectionPanelProps) => {
   return (
     <Card className="mt-4">
