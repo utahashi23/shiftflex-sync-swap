@@ -185,7 +185,7 @@ export const useSimpleSwapMatches = () => {
     const { data: requests, error: requestsError } = await supabase
       .from('shift_swap_requests')
       .select('id, requester_id')
-      .in('id', Array.from(requestIds));
+      .in('id', Array.from(requestIds) as string[]);
       
     if (requestsError) {
       console.error("Error fetching requests for display:", requestsError);
@@ -196,7 +196,7 @@ export const useSimpleSwapMatches = () => {
     const { data: shifts, error: shiftsError } = await supabase
       .from('shifts')
       .select('id, date, start_time, end_time, truck_name, user_id')
-      .in('id', Array.from(shiftIds));
+      .in('id', Array.from(shiftIds) as string[]);
       
     if (shiftsError) {
       console.error("Error fetching shifts for display:", shiftsError);
@@ -219,7 +219,7 @@ export const useSimpleSwapMatches = () => {
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, first_name, last_name')
-      .in('id', Array.from(userIds));
+      .in('id', Array.from(userIds) as string[]);
       
     if (profilesError) {
       console.error("Error fetching profiles:", profilesError);
