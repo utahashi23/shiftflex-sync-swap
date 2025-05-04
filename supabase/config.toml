@@ -1,6 +1,6 @@
 
-# A string used to distinguish different Supabase projects on the same host. Defaults to the working
-# directory name when running `supabase init`.
+# A string used to distinguish different Supabase projects on the same host. Defaults to the
+# working directory name when running `supabase init`.
 project_id = "ponhfgbpxehsdlxjpszg"
 
 [api]
@@ -18,8 +18,10 @@ max_rows = 1000
 [db]
 # Port to use for the local database URL.
 port = 54322
+# Port used by db diff command to initialize the shadow database.
+shadow_port = 54320
 # The database major version to use. This has to be the same as your remote database's. Run `SHOW
-# server_version;` on the remote database to check.
+# server_version` on the remote database to check.
 major_version = 15
 
 [studio]
@@ -41,18 +43,18 @@ file_size_limit = "50MiB"
 [auth]
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "https://example.com"
+site_url = "http://localhost:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = ["https://localhost:3000"]
-# How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 seconds (one
-# week).
+# How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
+# If disabled, the refresh token will never expire.
+enable_refresh_token_rotation = true
+# Allows refresh tokens to be reused after expiry, up to the specified interval in seconds.
+# Requires enable_refresh_token_rotation = true.
+refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
 enable_signup = true
-# If disabled, the server will return an HTTP 401 status for non-administrative users trying to access
-# a protected resource. Note that in August 2023, we found that setting this to true is 400ms faster.
-# This is the default as of September 1, 2023. Learn more: https://github.com/supabase/supabase/issues/13909
-enable_401_handling = false
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
@@ -80,13 +82,16 @@ url = ""
 enabled = false
 port = 54327
 vector_port = 54328
-# Setup BigQuery for analytics
-[analytics.big_query]
-enabled = false
-# The BigQuery Project ID
-project_id = ""
-# The BigQuery Dataset ID
-dataset_id = ""
+# Setup BigQuery project to enable log viewer on local development stack.
+gcp_project_id = ""
+gcp_project_number = ""
+gcp_jwt_path = "supabase/gcloud.json"
 
 [experimental]
-enable_observability = true
+# Enable experimental features. These features may be removed at any time.
+
+# Configures Postgres storage to stream changes.
+stream_changes = false
+
+# Configures S3 storage to stream changes.
+storage_stream_changes = false

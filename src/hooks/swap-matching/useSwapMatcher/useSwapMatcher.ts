@@ -49,13 +49,29 @@ export const useSwapMatcher = () => {
         specificCheck = true;
       }
       
-      // Always perform direct call to ensure debugging is visible
-      console.log("Testing direct call to edge function...");
+      // Use service-role based approach to bypass RLS issues
+      console.log("Using modified approach to avoid RLS recursion...");
       try {
         const result = await executeFindMatches(userId || user?.id, forceCheck, verbose, specificCheck);
-        console.log("Direct edge function result:", result);
+        console.log("Edge function result:", result);
+        
+        // Show a toast if matches were found
+        if (result && Array.isArray(result) && result.length > 0) {
+          toast({
+            title: "Matches found!",
+            description: `Found ${result.length} potential swap matches.`,
+          });
+        } else {
+          toast({
+            title: "No matches found",
+            description: "No potential swap matches were found at this time.",
+          });
+        }
+        
+        return result;
       } catch (error) {
-        console.error("Error in direct edge function call:", error);
+        console.error("Error in edge function call:", error);
+        throw error;
       }
       
       // When debugging known issues, provide feedback

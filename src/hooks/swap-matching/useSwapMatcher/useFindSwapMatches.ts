@@ -1,212 +1,59 @@
 
-import { toast } from '@/hooks/use-toast';
-import { fetchAllData, findMatches, processMatches } from '../operations';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 
 /**
- * Hook for finding swap matches
+ * Hook for finding potential swap matches between users
+ * Modified to avoid RLS recursion issues
  */
-export const useFindSwapMatches = (setIsProcessing: (value: boolean) => void) => {
-  const { isAdmin } = useAuth();
+export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => void) => {
+  const [matchResults, setMatchResults] = useState<any>(null);
 
   /**
-   * Find potential matches for a user's swap requests
-   * @param userId - The ID of the current user (optional for admins)
-   * @param forceCheck - Force checking for matches even if already matched
+   * Find potential matches for swap requests
+   * @param userId - User ID to find matches for
+   * @param forceCheck - Whether to check all requests even if already matched
    * @param verbose - Whether to enable verbose logging
-   * @param specificCheck - Whether to check for specific users mentioned in issues
+   * @param specificCheck - Whether to check specific user IDs mentioned in issues
    */
   const findSwapMatches = async (
-    userId?: string, 
-    forceCheck: boolean = false, 
+    userId: string, 
+    forceCheck: boolean = false,
     verbose: boolean = false,
     specificCheck: boolean = false
   ) => {
-    setIsProcessing(true);
-    
     try {
-      console.log('----------- SWAP MATCHING STARTED -----------');
-      console.log('Current user ID:', userId || 'No user ID provided (admin mode)');
-      console.log('Force check:', forceCheck);
-      console.log('Verbose logging:', verbose);
-      console.log('Specific check:', specificCheck);
-      console.log('Is admin:', isAdmin);
+      console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose}, specific: ${specificCheck})`);
+      setIsProcessing(true);
       
-      // Test calling the edge function directly
-      if (verbose || specificCheck) {
-        console.log("Testing direct call to edge function with user ID:", userId);
-        try {
-          const testResponse = await supabase.functions.invoke('get_user_matches', {
-            body: { 
-              user_id: userId, 
-              verbose: true,
-              specific_check: specificCheck
-            }
-          });
-          console.log("Direct edge function response:", testResponse);
-          
-          // If the edge function returned matches, we can return early
-          if (testResponse?.data && Array.isArray(testResponse.data) && testResponse.data.length > 0) {
-            console.log(`Edge function found ${testResponse.data.length} matches directly`);
-            toast({
-              title: "Matches Found!",
-              description: `Found ${testResponse.data.length} potential swap match${testResponse.data.length !== 1 ? 'es' : ''}.`,
-            });
-            setIsProcessing(false);
-            return testResponse;
-          }
-        } catch (error) {
-          console.error("Test call to edge function failed:", error);
+      // Make direct call to the edge function to avoid RLS recursion
+      const { data, error } = await supabase.functions.invoke('get_user_matches', {
+        body: { 
+          user_id: userId,
+          force_check: forceCheck,
+          verbose: verbose,
+          specific_check: specificCheck
         }
-      }
-      
-      // Fetch all necessary data from the database
-      const result = await fetchAllData();
-      
-      if (!result.success) {
-        throw new Error(result.message);
-      }
-      
-      const { allRequests, allShifts, preferredDates, profilesMap } = result;
-      
-      if (!allRequests || allRequests.length === 0) {
-        toast({
-          title: "No pending swap requests",
-          description: "There are no pending swap requests in the system to match.",
-        });
-        setIsProcessing(false);
-        return;
-      }
-      
-      // Always log core data regardless of verbose mode
-      console.log(`Found ${allRequests.length} swap requests, ${allShifts.length} shifts, ${preferredDates.length} preferred dates`);
-      
-      // If checking for specific issues, log detailed request IDs
-      if (specificCheck || verbose) {
-        console.log('All request IDs:', allRequests.map(r => r.id));
-        console.log('All shift IDs:', allShifts.map(s => s.id));
-        
-        // Check for specific requests mentioned in issue
-        const specificRequestIds = ['b70b145b-965f-462c-b8c0-366865dc7f02', '3ecb141f-5b7e-4cb2-bd83-532345876ed6'];
-        const foundSpecificRequests = allRequests.filter(r => specificRequestIds.includes(r.id));
-        
-        if (foundSpecificRequests.length > 0) {
-          console.log('Found specific requests mentioned in issue:', foundSpecificRequests);
-          
-          // Get shift data for these requests
-          const specificShiftIds = foundSpecificRequests.map(r => r.requester_shift_id);
-          const specificShifts = allShifts.filter(s => specificShiftIds.includes(s.id));
-          console.log('Shifts for specific requests:', specificShifts);
-          
-          // Get preferred dates for these requests
-          const specificPrefDates = preferredDates.filter(d => 
-            foundSpecificRequests.some(r => r.id === d.request_id)
-          );
-          console.log('Preferred dates for specific requests:', specificPrefDates);
-        }
-      }
-      
-      // Log detailed data in verbose mode
-      if (verbose) {
-        console.log('First few requests:', allRequests.slice(0, 2));
-        console.log('First few shifts:', allShifts.slice(0, 2));
-        console.log('First few preferred dates:', preferredDates.slice(0, 2));
-      }
-      
-      // Separate my requests from other users' requests if userId is provided
-      const myRequests = userId 
-        ? allRequests.filter(req => req.requester_id === userId)
-        : allRequests;
-        
-      const otherUsersRequests = userId
-        ? allRequests.filter(req => req.requester_id !== userId)
-        : [];
-      
-      if (userId) {
-        console.log('My requests:', myRequests.length);
-        console.log('Other users requests:', otherUsersRequests.length);
-      } else {
-        console.log('Admin mode: processing all requests together');
-      }
-      
-      if (userId && myRequests.length === 0) {
-        toast({
-          title: "No pending swap requests",
-          description: "You don't have any pending swap requests to match.",
-        });
-        setIsProcessing(false);
-        return;
-      }
-      
-      if (userId && otherUsersRequests.length === 0) {
-        toast({
-          title: "No potential matches",
-          description: "No other users currently have pending swap requests.",
-        });
-        setIsProcessing(false);
-        return;
-      }
-      
-      // Find potential matches - Pass userId to ensure it works for non-admin users
-      // If forceCheck is true, this will check for matches regardless of existing matches
-      const matches = findMatches(allRequests, allShifts, preferredDates, profilesMap, userId, forceCheck, verbose);
-      
-      if (verbose) {
-        console.log('Potential matches details:', matches);
-      } else {
-        console.log('Found potential matches count:', matches.length);
-      }
-      
-      // Process matches
-      if (matches.length === 0) {
-        toast({
-          title: "No new matches found",
-          description: "We couldn't find any matching swaps right now. Try again later or adjust your preferences.",
-        });
-      } else {
-        // Process the matches and handle the case of already existing matches
-        const matchResults = await processMatches(matches, userId);
-        
-        if (verbose) {
-          console.log('Match results details:', matchResults);
-        } else {
-          console.log('Match results count:', matchResults.length);
-        }
-        
-        const newMatches = matchResults.filter(result => !result.alreadyExists).length;
-        
-        if (newMatches > 0) {
-          toast({
-            title: "Matches Found!",
-            description: `Found ${newMatches} potential swap match${newMatches !== 1 ? 'es' : ''}.`,
-          });
-        } else if (matchResults.length > 0) {
-          toast({
-            title: "Matches Already Exist",
-            description: "All potential matches have already been recorded.",
-          });
-        }
-      }
-      
-      console.log('----------- SWAP MATCHING COMPLETED -----------');
-      
-    } catch (error) {
-      console.error('Error finding swap matches:', error);
-      toast({
-        title: "Error finding matches",
-        description: "There was a problem finding swap matches. Please try again.",
-        variant: "destructive"
       });
+      
+      if (error) {
+        console.error('Error finding matches:', error);
+        throw error;
+      }
+      
+      console.log('Found matches:', data);
+      setMatchResults(data);
+      return data;
+    } catch (error) {
+      console.error('Error in findSwapMatches:', error);
+      throw error;
     } finally {
       setIsProcessing(false);
     }
-    
-    // Return an empty object to show the function ran successfully
-    return {};
   };
 
   return {
-    findSwapMatches
+    findSwapMatches,
+    matchResults
   };
 };
