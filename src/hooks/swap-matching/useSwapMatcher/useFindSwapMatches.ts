@@ -3,6 +3,15 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllSwapRequestsSafe, fetchAllPreferredDatesWithRequestsSafe } from '@/utils/rls-helpers';
 
+// Define a type for the shift object to avoid TypeScript errors
+interface ShiftData {
+  date?: string;
+  start_time?: string;
+  end_time?: string;
+  truck_name?: string;
+  [key: string]: any; // Allow other properties
+}
+
 /**
  * Hook for finding potential swap matches between users
  * Enhanced with simple matching logic for immediate user feedback
@@ -59,7 +68,7 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
         return {
           ...request,
           shift_date: shiftData?.[0]?.date || 'Unknown',
-          shift: shiftData?.[0] || null,
+          shift: shiftData?.[0] as ShiftData || null,
           user: userData || { first_name: 'Unknown', last_name: 'User' }
         };
       }));
@@ -143,8 +152,9 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
             }
             
             // Get the shift objects, ensuring they have the required properties
-            const shift1 = request1.shift || {};
-            const shift2 = request2.shift || {};
+            // Use type assertion to ensure TypeScript knows these properties exist
+            const shift1: ShiftData = (request1.shift || {}) as ShiftData;
+            const shift2: ShiftData = (request2.shift || {}) as ShiftData;
             
             // Construct match object in the format expected by the UI
             matches.push({
