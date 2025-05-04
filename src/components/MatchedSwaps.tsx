@@ -1,249 +1,191 @@
 
 import { useState, useEffect } from 'react';
-import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
-import { SwapTabContent } from './matched-swaps/SwapTabContent';
-import { Button } from "./ui/button";
-import { SwapMatchDebug } from './matched-swaps/SwapMatchDebug';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "./ui/tabs";
-import { Filter, RefreshCw } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { SwapMatch } from '@/hooks/useSwapMatches';
-import { getShiftType } from '@/utils/shiftUtils';
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { RefreshCw, Search } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useSwapMatches } from "@/hooks/swap-matches";
+import { useSwapMatcher } from "@/hooks/swap-matching";
+import MatchCard from "@/components/swaps/MatchCard";
+import MatchCardSkeleton from "@/components/swaps/MatchCardSkeleton";
+import DebugPanel from "@/components/matched-swaps/DebugPanel";
 
 interface MatchedSwapsProps {
-  setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
+  setRefreshTrigger?: (refreshTrigger: number) => void;
 }
 
-const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
-  const [matches, setMatches] = useState<SwapMatch[]>([]);
-  const [pastMatches, setPastMatches] = useState<SwapMatch[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('active');
-  const [confirmDialog, setConfirmDialog] = useState<{ 
-    isOpen: boolean;
-    matchId: string | null;
-  }>({
-    isOpen: false,
-    matchId: null
-  });
-  
+const MatchedSwaps = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   const { user, isAdmin } = useAuth();
-
-  // Always show debug tools - we'll remove this visibility limitation
-  const [showDebugTools] = useState(true);
-
-  // Fetch matches data directly
-  const fetchMatches = async () => {
-    if (!user || !user.id) return;
-    
-    setIsLoading(true);
-    
-    try {
-      console.log('Fetching matches for user:', user.id);
-      
-      // Call the get_user_matches function
-      const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
-        body: { user_id: user.id }
-      });
-        
-      if (matchesError) throw matchesError;
-      
-      console.log('Raw match data from function:', matchesData);
-      
-      if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
-        setMatches([]);
-        setPastMatches([]);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Process and deduplicate the matches data
-      const uniqueMatches = Array.from(
-        new Map(matchesData.map((match: any) => [match.match_id, match])).values()
-      );
-      
-      // Process the data
-      const formattedMatches = uniqueMatches.map((match: any) => {
-        return {
-          id: match.match_id,
-          status: match.match_status,
-          myShift: {
-            id: match.my_shift_id,
-            date: match.my_shift_date,
-            startTime: match.my_shift_start_time,
-            endTime: match.my_shift_end_time,
-            truckName: match.my_shift_truck,
-            type: getShiftType(match.my_shift_start_time)
-          },
-          otherShift: {
-            id: match.other_shift_id,
-            date: match.other_shift_date,
-            startTime: match.other_shift_start_time,
-            endTime: match.other_shift_end_time,
-            truckName: match.other_shift_truck,
-            type: getShiftType(match.other_shift_start_time),
-            userId: match.other_user_id,
-            userName: match.other_user_name || 'Unknown User'
-          },
-          myRequestId: match.my_request_id,
-          otherRequestId: match.other_request_id,
-          createdAt: match.created_at
-        };
-      });
-      
-      // Separate active and past matches
-      const activeMatches = formattedMatches.filter((match: SwapMatch) => 
-        match.status === 'pending' || match.status === 'accepted'
-      );
-      
-      const completedMatches = formattedMatches.filter((match: SwapMatch) => 
-        match.status === 'completed'
-      );
-      
-      console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
-      
-      setMatches(activeMatches);
-      setPastMatches(completedMatches);
-    } catch (error) {
-      console.error('Error fetching matches:', error);
-      toast({
-        title: "Failed to load matches",
-        description: "Could not load your swap matches. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Accept a swap match
-  const acceptMatch = async (matchId: string) => {
-    if (!user || !matchId) return false;
-    
-    setIsLoading(true);
+  const { matches, pastMatches, isLoading, error, fetchMatches, acceptMatch, completeMatch, rawApiData } = useSwapMatches();
+  const { findSwapMatches, isProcessing, isFindingMatches } = useSwapMatcher();
+  const [debugEnabled, setDebugEnabled] = useState(false);
+  
+  // Log component state for debugging
+  useEffect(() => {
+    console.info("Matched swaps component:", {
+      matchCount: matches.length,
+      pastMatchCount: pastMatches.length,
+      isLoading,
+      hasError: !!error
+    });
+  }, [matches.length, pastMatches.length, isLoading, error]);
+  
+  const handleFindMatches = async () => {
+    if (!user) return;
     
     try {
-      const { data, error } = await supabase.functions.invoke('accept_swap_match', {
-        body: { match_id: matchId }
-      });
-      
-      if (error) throw error;
-      
       toast({
-        title: "Swap Accepted",
-        description: "You have successfully accepted the swap.",
+        title: "Finding matches...",
+        description: "Checking for potential shift swaps"
       });
       
-      // Refresh matches after accepting
+      // Use enhanced options for more detailed matching
+      const result = await findSwapMatches(
+        user.id,    // user ID
+        true,       // force check even if matches exist
+        true,       // verbose mode for more debugging
+        false       // specific check for known issues
+      );
+      
+      console.log("Find matches result:", result);
+      
+      // Refresh match data after finding matches
       await fetchMatches();
       
-      return true;
+      // Also trigger parent refresh if provided
+      if (setRefreshTrigger) {
+        setRefreshTrigger(Date.now());
+      }
+      
     } catch (error) {
-      console.error('Error accepting swap:', error);
+      console.error("Error finding matches:", error);
       toast({
-        title: "Failed to accept swap",
-        description: "There was a problem accepting the swap. Please try again.",
+        title: "Error finding matches",
+        description: "There was a problem finding potential matches",
         variant: "destructive"
       });
-      setIsLoading(false);
-      return false;
     }
   };
-
-  // Handle accept button click
-  const handleAcceptClick = (matchId: string) => {
-    setConfirmDialog({ isOpen: true, matchId });
-  };
-
-  // Handle confirm accept in dialog
-  const handleAcceptSwap = async () => {
-    if (!confirmDialog.matchId) return;
-    
-    const success = await acceptMatch(confirmDialog.matchId);
-    
-    setConfirmDialog({ isOpen: false, matchId: null });
-    
-    // If passed from parent, update the parent refresh trigger to update all tabs
+  
+  const handleAcceptMatch = async (matchId: string) => {
+    const success = await acceptMatch(matchId);
     if (success && setRefreshTrigger) {
-      setRefreshTrigger(prev => prev + 1);
+      setRefreshTrigger(Date.now());
     }
   };
-
-  // Initial load
-  useEffect(() => {
-    if (user) {
-      fetchMatches();
+  
+  const handleCompleteMatch = async (matchId: string) => {
+    const success = await completeMatch(matchId);
+    if (success && setRefreshTrigger) {
+      setRefreshTrigger(Date.now());
     }
-  }, [user]);
-
-  // Log debug info
-  console.log('Matched swaps component:', {
-    matchCount: matches.length,
-    pastMatchCount: pastMatches.length,
-    isLoading,
-    hasError: false
-  });
+  };
 
   return (
     <div className="space-y-6">
-      {/* Always show debug tools as they're now crucial for debugging */}
-      <SwapMatchDebug />
-      
-      <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex justify-between items-center mb-4">
-          <TabsList>
-            <TabsTrigger value="active">Active Matches</TabsTrigger>
-            <TabsTrigger value="past">Past Swaps</TabsTrigger>
-          </TabsList>
-          <div className="flex gap-2">
-            <Button 
-              onClick={fetchMatches}
-              disabled={isLoading}
-              className="bg-green-500 hover:bg-green-600 text-white"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              {isLoading ? 'Finding Matches...' : 'Refresh Matches'}
-            </Button>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-1" /> Filter
-            </Button>
-          </div>
+      {/* Debug button for admins */}
+      {isAdmin && (
+        <div className="flex justify-end mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDebugEnabled(!debugEnabled)}
+            className="text-xs"
+          >
+            {debugEnabled ? "Hide Debug" : "Show Debug"}
+          </Button>
         </div>
-        
-        <TabsContent value="active">
-          <SwapTabContent 
-            swaps={matches} 
-            onAcceptSwap={handleAcceptClick}
-          />
-        </TabsContent>
-        
-        <TabsContent value="past">
-          <SwapTabContent 
-            swaps={pastMatches} 
-            isPast={true}
-          />
-        </TabsContent>
-      </Tabs>
-
-      <SwapConfirmDialog
-        open={confirmDialog.isOpen}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setConfirmDialog({ isOpen: false, matchId: null });
-          }
-        }}
-        onConfirm={handleAcceptSwap}
-        isLoading={isLoading}
-      />
+      )}
+      
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold">
+          Matched Swaps {isAdmin && <span className="text-sm text-blue-500">(Admin)</span>}
+        </h2>
+        <Button
+          onClick={handleFindMatches}
+          disabled={isFindingMatches || isProcessing}
+        >
+          {(isFindingMatches || isProcessing) ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              Finding Matches...
+            </>
+          ) : (
+            <>
+              <Search className="mr-2 h-4 w-4" />
+              Find Matches
+            </>
+          )}
+        </Button>
+      </div>
+      
+      {/* Debug panel for admins */}
+      {isAdmin && debugEnabled && (
+        <DebugPanel
+          matches={matches}
+          rawData={rawApiData}
+          error={error}
+          onRefresh={fetchMatches}
+          isLoading={isLoading}
+        />
+      )}
+      
+      {/* Active matches */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle>Active Matches</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-4">
+              {[...Array(2)].map((_, i) => (
+                <MatchCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : matches.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No matches found</p>
+              <p className="text-sm mt-1">
+                Use the "Find Matches" button to look for new potential swaps
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {matches.map((match) => (
+                <MatchCard 
+                  key={match.id}
+                  match={match}
+                  onAccept={handleAcceptMatch}
+                  onComplete={handleCompleteMatch}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Past matches */}
+      {pastMatches.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Past Matches</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {pastMatches.map((match) => (
+                <MatchCard 
+                  key={match.id}
+                  match={match}
+                  isPast={true}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
 
-export default MatchedSwapsComponent;
+export default MatchedSwaps;

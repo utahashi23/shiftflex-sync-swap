@@ -17,28 +17,45 @@ export const checkMatchCompatibility = (
   console.log(`Request ${request.id} shift: ${requestShift.normalizedDate} (${requestShift.type})`);
   console.log(`Request ${otherRequest.id} shift: ${otherRequestShift.normalizedDate} (${otherRequestShift.type})`);
   
+  // Enhanced logging for debugging
+  console.log(`Requester ${request.requester_id} wants to swap shift on ${requestShift.normalizedDate}`);
+  console.log(`Other requester ${otherRequest.requester_id} wants to swap shift on ${otherRequestShift.normalizedDate}`);
+  
+  // Log preferred dates to help debug
+  const prefDates = preferredDatesByRequest[request.id] || [];
+  const otherPrefDates = preferredDatesByRequest[otherRequest.id] || [];
+  
+  console.log(`Requester preferred dates:`, prefDates);
+  console.log(`Other requester preferred dates:`, otherPrefDates);
+  
   // Check if the first user wants the second user's shift date and type
   let firstUserWantsSecondDate = false;
   let firstUserWantsSecondType = false;
-  const prefDates = preferredDatesByRequest[request.id] || [];
   
   for (const prefDate of prefDates) {
-    if (prefDate.date === otherRequestShift.normalizedDate) {
+    // Convert dates to strings for reliable comparison
+    const prefDateStr = prefDate.date;
+    const otherShiftDateStr = otherRequestShift.normalizedDate;
+    
+    console.log(`Comparing preferred date ${prefDateStr} with other shift date ${otherShiftDateStr}`);
+    
+    if (prefDateStr === otherShiftDateStr) {
       firstUserWantsSecondDate = true;
-      console.log(`User ${request.requester_id} wants date ${otherRequestShift.normalizedDate}`);
+      console.log(`User ${request.requester_id} wants date ${otherShiftDateStr} ✓`);
       
       if (!prefDate.accepted_types || prefDate.accepted_types.length === 0 || 
           prefDate.accepted_types.includes(otherRequestShift.type)) {
         firstUserWantsSecondType = true;
-        console.log(`User ${request.requester_id} wants shift type ${otherRequestShift.type}`);
+        console.log(`User ${request.requester_id} wants shift type ${otherRequestShift.type} ✓`);
       } else {
-        console.log(`User ${request.requester_id} doesn't want shift type ${otherRequestShift.type}`);
+        console.log(`User ${request.requester_id} doesn't want shift type ${otherRequestShift.type} ✗`);
       }
       break;
     }
   }
   
   if (!firstUserWantsSecondDate || !firstUserWantsSecondType) {
+    console.log(`No match: User ${request.requester_id} doesn't want the other shift ✗`);
     return { 
       isCompatible: false, 
       reason: `User ${request.requester_id} doesn't want the other shift`
@@ -48,34 +65,41 @@ export const checkMatchCompatibility = (
   // Check if the second user wants the first user's shift date and type
   let secondUserWantsFirstDate = false;
   let secondUserWantsFirstType = false;
-  const otherPrefDates = preferredDatesByRequest[otherRequest.id] || [];
   
   for (const prefDate of otherPrefDates) {
-    if (prefDate.date === requestShift.normalizedDate) {
+    // Convert dates to strings for reliable comparison
+    const prefDateStr = prefDate.date;
+    const requestShiftDateStr = requestShift.normalizedDate;
+    
+    console.log(`Comparing other user's preferred date ${prefDateStr} with requester shift date ${requestShiftDateStr}`);
+    
+    if (prefDateStr === requestShiftDateStr) {
       secondUserWantsFirstDate = true;
-      console.log(`User ${otherRequest.requester_id} wants date ${requestShift.normalizedDate}`);
+      console.log(`User ${otherRequest.requester_id} wants date ${requestShiftDateStr} ✓`);
       
       if (!prefDate.accepted_types || prefDate.accepted_types.length === 0 || 
           prefDate.accepted_types.includes(requestShift.type)) {
         secondUserWantsFirstType = true;
-        console.log(`User ${otherRequest.requester_id} wants shift type ${requestShift.type}`);
+        console.log(`User ${otherRequest.requester_id} wants shift type ${requestShift.type} ✓`);
       } else {
-        console.log(`User ${otherRequest.requester_id} doesn't want shift type ${requestShift.type}`);
+        console.log(`User ${otherRequest.requester_id} doesn't want shift type ${requestShift.type} ✗`);
       }
       break;
     }
   }
   
   if (!secondUserWantsFirstDate || !secondUserWantsFirstType) {
+    console.log(`No match: User ${otherRequest.requester_id} doesn't want the other shift ✗`);
     return { 
       isCompatible: false, 
       reason: `User ${otherRequest.requester_id} doesn't want the other shift`
     };
   }
   
-  // Check if either user is already rostered on the swap date
+  // Additional check: verify both users are not already scheduled on the days they want to swap to
   const user1HasConflict = (shiftsByUser[request.requester_id] || []).includes(otherRequestShift.normalizedDate);
   if (user1HasConflict) {
+    console.log(`User ${request.requester_id} already has a shift on ${otherRequestShift.normalizedDate} ✗`);
     return { 
       isCompatible: false, 
       reason: `User ${request.requester_id} already has a shift on ${otherRequestShift.normalizedDate}`
@@ -84,6 +108,7 @@ export const checkMatchCompatibility = (
   
   const user2HasConflict = (shiftsByUser[otherRequest.requester_id] || []).includes(requestShift.normalizedDate);
   if (user2HasConflict) {
+    console.log(`User ${otherRequest.requester_id} already has a shift on ${requestShift.normalizedDate} ✗`);
     return { 
       isCompatible: false, 
       reason: `User ${otherRequest.requester_id} already has a shift on ${requestShift.normalizedDate}`
@@ -114,5 +139,14 @@ export const logMatchInfo = (
   } else {
     console.log(`❌ NO MATCH: ${request.requester_id.substring(0, 6)} <-> ${otherRequest.requester_id.substring(0, 6)}`);
     console.log(`  Reason: ${reason}`);
+    
+    // Additional debug info for failed matches
+    const requestId = request.id;
+    const otherRequestId = otherRequest.id;
+    
+    console.log(`  Details for request ${requestId.substring(0, 6)}:`);
+    console.log(`    - Shift date: ${myShift?.normalizedDate || myShift?.date}`);
+    console.log(`  Details for request ${otherRequestId.substring(0, 6)}:`);
+    console.log(`    - Shift date: ${theirShift?.normalizedDate || theirShift?.date}`);
   }
 };
