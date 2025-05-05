@@ -35,7 +35,7 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
         // Fetch shifts for the current month
         const { data, error } = await supabase
           .from('shifts')
-          .select('*, profiles:user_id(organization)')
+          .select('*')
           .eq('user_id', userId)
           .gte('date', startDate)
           .lte('date', endDate)
@@ -51,25 +51,6 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
           // Create title from truck name or use default format
           const title = shift.truck_name || `Shift-${shift.id.substring(0, 5)}`;
           
-          // Determine colleague type based on organization information
-          // Set default to Unknown since organization is not required
-          let colleagueType: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown' = 'Unknown';
-          
-          // Safe access to profiles data - only try to determine colleagueType if profileData exists
-          if (shift.profiles) {
-            const organization = shift.profiles.organization;
-            
-            if (organization) {
-              if (organization.includes('Graduate')) {
-                colleagueType = 'Graduate';
-              } else if (organization.includes('ACO')) {
-                colleagueType = 'ACO';
-              } else if (organization.includes('Qualified')) {
-                colleagueType = 'Qualified';
-              }
-            }
-          }
-          
           return {
             id: shift.id,
             date: shift.date,
@@ -77,7 +58,7 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
             startTime: shift.start_time.substring(0, 5), // Format as HH:MM
             endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
             type,
-            colleagueType
+            colleagueType: 'Unknown'  // Default value as we don't have colleague type in the database yet
           };
         }) || [];
         

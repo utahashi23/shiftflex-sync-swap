@@ -19,7 +19,6 @@ export interface SwapMatch {
     type: string;
     userId: string;
     userName: string;
-    colleagueType?: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown';
   };
   myRequestId: string;
   otherRequestId: string;

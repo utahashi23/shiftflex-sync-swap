@@ -243,20 +243,6 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
     const user1 = match.request1User;
     const user2 = match.request2User;
     
-    // Determine colleague type from user data
-    let colleagueType: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown' = 'Unknown';
-    if (user2) {
-      // Check if user name or organization contains keywords
-      const userData = JSON.stringify(user2).toLowerCase();
-      if (userData.includes('graduate')) {
-        colleagueType = 'Graduate';
-      } else if (userData.includes('aco')) {
-        colleagueType = 'ACO';
-      } else if (userData.includes('qualified')) {
-        colleagueType = 'Qualified';
-      }
-    }
-    
     return {
       id: `potential-${match.request1Id}-${match.request2Id}`,
       status: 'potential',
@@ -276,8 +262,7 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
         truckName: shift2.truck_name,
         type: getShiftType(shift2.start_time),
         userId: shift2.user_id,
-        userName: user2 ? `${user2.first_name} ${user2.last_name}` : 'Unknown User',
-        colleagueType: colleagueType
+        userName: user2 ? `${user2.first_name} ${user2.last_name}` : 'Unknown User'
       },
       myRequestId: match.request1Id,
       otherRequestId: match.request2Id,
