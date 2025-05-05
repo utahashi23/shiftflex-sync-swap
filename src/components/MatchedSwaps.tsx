@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
 import { Button } from "./ui/button";
@@ -31,6 +31,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   const [activeTab, setActiveTab] = useState('active');
   const [showTestingTools, setShowTestingTools] = useState(false);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
+  const fetchInProgressRef = useRef(false); // Ref to track ongoing fetch operations
   const [confirmDialog, setConfirmDialog] = useState<{ 
     isOpen: boolean;
     matchId: string | null;
@@ -85,9 +86,12 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   // Fetch matches data using findSwapMatches directly
   const fetchMatches = async () => {
-    if (!user || !user.id || isLoading) return;
+    // Check if user exists and there's no ongoing fetch operation
+    if (!user || !user.id || isLoading || fetchInProgressRef.current) return;
     
+    // Set loading state and operation flag
     setIsLoading(true);
+    fetchInProgressRef.current = true;
     
     try {
       console.log('Finding matches for user:', user.id);
@@ -145,6 +149,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       });
     } finally {
       setIsLoading(false);
+      fetchInProgressRef.current = false; // Reset the operation flag
     }
   };
 
@@ -201,12 +206,24 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     }
   };
 
-  // Initial load
+  // Initial fetch when component mounts and user exists
   useEffect(() => {
-    if (user && !initialFetchDone && !isLoading) {
-      fetchMatches();
+    let mounted = true;
+    
+    if (user && !initialFetchDone && !isLoading && !fetchInProgressRef.current) {
+      (async () => {
+        // Only proceed if component is still mounted
+        if (mounted) {
+          await fetchMatches();
+        }
+      })();
     }
-  }, [user, initialFetchDone, isLoading]);
+    
+    // Cleanup function to handle component unmounting
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
 
   return (
     <div className="space-y-6">
@@ -248,11 +265,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           <div className="flex gap-2">
             <Button 
               onClick={fetchMatches}
-              disabled={isLoading || isProcessing}
+              disabled={isLoading || isProcessing || fetchInProgressRef.current}
               className="bg-green-500 hover:bg-green-600 text-white"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />
-              {isLoading || isProcessing ? 'Finding Matches...' : 'Refresh Matches'}
+              <RefreshCw className={`h-4 w-4 mr-2 ${(isLoading || isProcessing) ? 'animate-spin' : ''}`} />
+              {(isLoading || isProcessing) ? 'Finding Matches...' : 'Refresh Matches'}
             </Button>
           </div>
         </div>

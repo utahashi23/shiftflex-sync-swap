@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useFindSwapMatches } from './useFindSwapMatches';
@@ -14,6 +14,7 @@ export const useSwapMatcher = () => {
   const [isFindingMatches, setIsFindingMatches] = useState(false);
   const [matchesCache, setMatchesCache] = useState<Record<string, any[]>>({});
   const { findSwapMatches: executeFindMatches } = useFindSwapMatches(setIsProcessing);
+  const requestInProgressRef = useRef<boolean>(false);
   
   /**
    * Find potential matches for a user's swap requests
@@ -48,13 +49,16 @@ export const useSwapMatcher = () => {
       return matchesCache[targetUserId];
     }
     
+    // Prevent concurrent API calls
+    if (isFindingMatches || requestInProgressRef.current) {
+      console.log('Already finding matches, returning cached or empty results');
+      return matchesCache[targetUserId] || [];
+    }
+    
     try {
-      if (isFindingMatches) {
-        console.log('Already finding matches, returning cached or empty results');
-        return matchesCache[targetUserId] || [];
-      }
-      
       setIsFindingMatches(true);
+      requestInProgressRef.current = true;
+      
       console.log(`Finding swap matches for user: ${targetUserId}, force check: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}, user initiator only: ${userInitiatorOnly}`);
       
       // Use service-role based approach to bypass RLS issues
@@ -70,7 +74,7 @@ export const useSwapMatcher = () => {
         );
         console.log("Edge function result:", result);
         
-        // Cache the results
+        // Cache the results if we have valid data
         if (result && Array.isArray(result)) {
           setMatchesCache(prev => ({
             ...prev,
@@ -108,6 +112,7 @@ export const useSwapMatcher = () => {
       return [];
     } finally {
       setIsFindingMatches(false);
+      requestInProgressRef.current = false;
     }
   };
 

@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => void) => {
   const [matchResults, setMatchResults] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const requestInProgressRef = useRef<boolean>(false);
 
   /**
    * Find potential matches for swap requests
@@ -27,13 +28,14 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
   ) => {
     try {
       // Prevent multiple concurrent calls
-      if (isLoading) {
+      if (isLoading || requestInProgressRef.current) {
         console.log('Already loading matches, skipping duplicate call');
         return matchResults;
       }
       
       setIsLoading(true);
       setIsProcessing(true);
+      requestInProgressRef.current = true;
       
       console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}, user initiator only: ${userInitiatorOnly})`);
       
@@ -64,6 +66,7 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
     } finally {
       setIsLoading(false);
       setIsProcessing(false);
+      requestInProgressRef.current = false;
     }
   };
 

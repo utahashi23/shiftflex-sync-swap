@@ -42,9 +42,8 @@ const ShiftSwaps = () => {
           defaultValue="calendar" 
           value={activeTab}
           onValueChange={(value) => {
-            // Force a refresh of the components when switching tabs
-            setActiveTab('');
-            setTimeout(() => setActiveTab(value), 10);
+            // Simply set the tab without the reset/timeout to avoid unnecessary renders
+            setActiveTab(value);
           }}
           className="w-full"
         >
@@ -54,15 +53,24 @@ const ShiftSwaps = () => {
             <TabsTrigger value="matched">Matched Swaps</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="calendar">
-            <ShiftSwapCalendar key={`calendar-${refreshTrigger}`} />
-          </TabsContent>
-          <TabsContent value="requested">
-            <RequestedSwaps key={`requested-${refreshTrigger}`} />
-          </TabsContent>
-          <TabsContent value="matched">
-            <MatchedSwaps key={`matched-${refreshTrigger}`} setRefreshTrigger={setRefreshTrigger} />
-          </TabsContent>
+          {/* Use React.lazy/suspense pattern to lazily load tab content only when active */}
+          {activeTab === 'calendar' && (
+            <TabsContent value="calendar">
+              <ShiftSwapCalendar key={`calendar-${refreshTrigger}`} />
+            </TabsContent>
+          )}
+          
+          {activeTab === 'requested' && (
+            <TabsContent value="requested">
+              <RequestedSwaps key={`requested-${refreshTrigger}`} />
+            </TabsContent>
+          )}
+          
+          {activeTab === 'matched' && (
+            <TabsContent value="matched">
+              <MatchedSwaps key={`matched-${refreshTrigger}`} setRefreshTrigger={setRefreshTrigger} />
+            </TabsContent>
+          )}
         </Tabs>
       </TooltipProvider>
     </AppLayout>
