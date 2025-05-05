@@ -35,12 +35,7 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
         // Fetch shifts for the current month
         const { data, error } = await supabase
           .from('shifts')
-          .select(`
-            *,
-            profiles:user_id (
-              organization
-            )
-          `)
+          .select('*')
           .eq('user_id', userId)
           .gte('date', startDate)
           .lte('date', endDate)
@@ -56,17 +51,6 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
           // Create title from truck name or use default format
           const title = shift.truck_name || `Shift-${shift.id.substring(0, 5)}`;
           
-          // Get colleague type from profiles join
-          // Safely access profile organization and convert to one of the expected literal types
-          let colleagueType: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown' = 'Unknown';
-          
-          if (shift.profiles && typeof shift.profiles === 'object' && 'organization' in shift.profiles) {
-            const org = shift.profiles.organization as string;
-            if (org === 'Qualified' || org === 'Graduate' || org === 'ACO') {
-              colleagueType = org;
-            }
-          }
-          
           return {
             id: shift.id,
             date: shift.date,
@@ -74,7 +58,7 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
             startTime: shift.start_time.substring(0, 5), // Format as HH:MM
             endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
             type,
-            colleagueType
+            colleagueType: 'Unknown'  // Default value as we don't have colleague type in the database yet
           };
         }) || [];
         

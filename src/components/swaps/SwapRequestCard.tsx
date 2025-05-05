@@ -39,30 +39,21 @@ const ShiftHeader = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
 
 const OriginalShiftInfo = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between">
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-muted-foreground">Original Shift</div>
-          <div className="font-medium">
-            {formatDate(shift.date)}
-          </div>
-        </div>
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-muted-foreground">Shift Type</div>
-          <ShiftTypeBadge type={shift.type} />
-        </div>
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-muted-foreground">Time</div>
-          <div className="font-medium">{shift.startTime} - {shift.endTime}</div>
+    <div className="flex justify-between">
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-muted-foreground">Original Shift</div>
+        <div className="font-medium">
+          {formatDate(shift.date)}
         </div>
       </div>
-      
-      {shift.colleagueType && (
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-muted-foreground">Organization</div>
-          <div className="text-sm italic">{shift.colleagueType}</div>
-        </div>
-      )}
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-muted-foreground">Shift Type</div>
+        <ShiftTypeBadge type={shift.type} />
+      </div>
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-muted-foreground">Time</div>
+        <div className="font-medium">{shift.startTime} - {shift.endTime}</div>
+      </div>
     </div>
   );
 };

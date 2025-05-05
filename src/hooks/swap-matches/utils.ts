@@ -31,8 +31,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
             startTime: match.my_shift_start_time,
             endTime: match.my_shift_end_time,
             truckName: match.my_shift_truck,
-            type: myShiftType,
-            colleagueType: match.my_colleague_type || undefined
+            type: myShiftType
           },
           otherShift: {
             id: match.other_shift_id,
@@ -42,8 +41,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
             truckName: match.other_shift_truck,
             type: otherShiftType,
             userId: match.other_user_id,
-            userName: match.other_user_name,
-            colleagueType: match.other_colleague_type || undefined
+            userName: match.other_user_name
           },
           myRequestId: match.my_request_id,
           otherRequestId: match.other_request_id,

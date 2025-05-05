@@ -57,9 +57,6 @@ export const CalendarDayCell = ({
         <>
           <div className="text-xs font-medium mb-0.5 truncate">{shift.title}</div>
           <div className="shift-detail">{shift.startTime} - {shift.endTime}</div>
-          {shift.colleagueType && (
-            <div className="text-xs italic mt-0.5">{shift.colleagueType}</div>
-          )}
         </>
       )}
     </div>

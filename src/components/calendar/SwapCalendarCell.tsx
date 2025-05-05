@@ -15,7 +15,6 @@ interface SwapCalendarCellProps {
   onClick: () => void;
   empty?: boolean;
   acceptableShiftTypes?: AcceptableShiftTypes;
-  colleagueType?: string;
 }
 
 export const SwapCalendarCell = ({
@@ -27,8 +26,7 @@ export const SwapCalendarCell = ({
   isSwapSelected = false,
   onClick,
   empty = false,
-  acceptableShiftTypes,
-  colleagueType
+  acceptableShiftTypes
 }: SwapCalendarCellProps) => {
   if (empty) {
     return <div className="calendar-cell"></div>;
@@ -70,11 +68,6 @@ export const SwapCalendarCell = ({
         <>
           <div className={cn("text-xs font-medium mb-0.5 truncate", isDisabled && "text-gray-500")}>{shift.title}</div>
           <div className={cn("shift-detail", isDisabled && "text-gray-500")}>{shift.startTime} - {shift.endTime}</div>
-          {shift.colleagueType && (
-            <div className={cn("text-xs italic mt-0.5", isDisabled && "text-gray-500")}>
-              {shift.colleagueType}
-            </div>
-          )}
         </>
       )}
       

@@ -36,7 +36,7 @@ export const SwapSelectionPanel = ({
   handleRequestSwap,
   handleSaveSwapRequest,
   handleCancelSwapRequest,
-  setAcceptableShiftTypes,
+  setAcceptableShiftTypes
 }: SwapSelectionPanelProps) => {
   return (
     <Card className="mt-4">
@@ -89,13 +89,6 @@ export const SwapSelectionPanel = ({
               <div className="font-medium">{selectedShift.startTime} - {selectedShift.endTime}</div>
             </div>
           </div>
-          
-          {selectedShift.colleagueType && (
-            <div className="space-y-1">
-              <div className="text-sm text-gray-500">Organization</div>
-              <div className="font-medium text-sm">{selectedShift.colleagueType}</div>
-            </div>
-          )}
           
           {swapMode ? (
             <>

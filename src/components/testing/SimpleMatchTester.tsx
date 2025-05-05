@@ -47,7 +47,7 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
         // Get the user data
         const { data: userData } = await supabase
           .from('profiles')
-          .select('first_name, last_name, organization, employee_id')
+          .select('first_name, last_name')
           .eq('id', request.requester_id)
           .single();
         
@@ -55,8 +55,7 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
           ...request,
           shift_date: shiftData?.[0]?.date || 'Unknown',
           shift: shiftData?.[0] || {},
-          user: userData || { first_name: 'Unknown', last_name: 'User' },
-          colleagueType: userData?.organization || 'Unspecified'
+          user: userData || { first_name: 'Unknown', last_name: 'User' }
         };
       }));
       
@@ -253,8 +252,7 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
         startTime: shift1.start_time,
         endTime: shift1.end_time,
         truckName: shift1.truck_name,
-        type: getShiftType(shift1.start_time),
-        colleagueType: user1?.organization || 'Unspecified'
+        type: getShiftType(shift1.start_time)
       },
       otherShift: {
         id: shift2.id,
@@ -264,8 +262,7 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
         truckName: shift2.truck_name,
         type: getShiftType(shift2.start_time),
         userId: shift2.user_id,
-        userName: user2 ? `${user2.first_name} ${user2.last_name}` : 'Unknown User',
-        colleagueType: user2?.organization || 'Unspecified'
+        userName: user2 ? `${user2.first_name} ${user2.last_name}` : 'Unknown User'
       },
       myRequestId: match.request1Id,
       otherRequestId: match.request2Id,
