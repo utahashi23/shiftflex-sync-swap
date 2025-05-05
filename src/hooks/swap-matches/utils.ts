@@ -15,16 +15,19 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
     // Log raw match data for debugging
     console.log('Raw match data to process:', match);
     
-    // Directly extract colleague types from the API response
-    // These fields should exist in the response as my_shift_colleague_type and other_shift_colleague_type
-    const myShiftColleagueType = match.my_shift_colleague_type;
-    const otherShiftColleagueType = match.other_shift_colleague_type;
-    
-    // Log the colleague types we extracted
-    console.log(`Match ID ${match.match_id} extracted colleague types:`, {
-      my: myShiftColleagueType || 'Not provided in API response',
-      other: otherShiftColleagueType || 'Not provided in API response'
+    // Explicitly log the colleague_type fields to see if they're present in the API response
+    console.log(`Match ID ${match.match_id} colleague types:`, {
+      my_shift_colleague_type: match.my_shift_colleague_type,
+      other_shift_colleague_type: match.other_shift_colleague_type
     });
+    
+    // If the colleague_type fields aren't in the direct API response,
+    // we need to look for them in the specific field expected from the database
+    const myShiftColleagueType = match.my_shift_colleague_type || 
+                                 (match.my_shift_data && match.my_shift_data.colleague_type);
+    
+    const otherShiftColleagueType = match.other_shift_colleague_type || 
+                                    (match.other_shift_data && match.other_shift_data.colleague_type);
     
     return {
       id: match.match_id,
@@ -36,7 +39,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         endTime: match.my_shift_end_time,
         truckName: match.my_shift_truck,
         type: getShiftType(match.my_shift_start_time),
-        colleagueType: myShiftColleagueType || 'Unknown' // Use null fallback instead of empty string
+        colleagueType: myShiftColleagueType || 'Unknown' // Use fallback if missing
       },
       otherShift: {
         id: match.other_shift_id,
@@ -47,7 +50,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         type: getShiftType(match.other_shift_start_time),
         userId: match.other_user_id,
         userName: match.other_user_name || 'Unknown User',
-        colleagueType: otherShiftColleagueType || 'Unknown' // Use null fallback instead of empty string
+        colleagueType: otherShiftColleagueType || 'Unknown' // Use fallback if missing
       },
       myRequestId: match.my_request_id,
       otherRequestId: match.other_request_id,

@@ -8,13 +8,14 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
   console.log('Fetching matches for user:', userId);
   
   try {
-    // Explicitly request colleague types in the function call
+    // Explicitly request to include colleague types and full shift data in the function call
     const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
       body: { 
         user_id: userId,
         user_perspective_only: userPerspectiveOnly,
         user_initiator_only: userInitiatorOnly,
-        include_colleague_types: true // Make sure this is set to true
+        include_colleague_types: true, // Request colleague types explicitly
+        include_full_shift_data: true  // Ask for complete shift data including colleague_type
       }
     });
     
@@ -24,9 +25,12 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
     
     // Log the first match to see if colleague_type is present
     if (matchesData && Array.isArray(matchesData) && matchesData.length > 0) {
-      console.log('First match data sample:', {
+      console.log('First match data sample with colleague_type:', {
         my_shift_colleague_type: matchesData[0].my_shift_colleague_type,
-        other_shift_colleague_type: matchesData[0].other_shift_colleague_type
+        other_shift_colleague_type: matchesData[0].other_shift_colleague_type,
+        // Also check if data is nested in shift data objects
+        my_shift_data: matchesData[0].my_shift_data,
+        other_shift_data: matchesData[0].other_shift_data
       });
     }
     
