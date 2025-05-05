@@ -61,7 +61,7 @@ serve(async (req) => {
     formData.append('subject', subject);
     
     // Default from address using the domain or use the provided one
-    const fromAddress = from || `Shift Swap <no-reply@${MAILGUN_DOMAIN}>`;
+    const fromAddress = from || `Shift Swap <admin@shiftflex.au>`;
     formData.append('from', fromAddress);
     console.log(`From address: ${fromAddress}`);
     

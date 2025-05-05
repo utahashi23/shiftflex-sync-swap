@@ -86,7 +86,7 @@ export const sendSwapEmail = async (
     to,
     subject,
     html,
-    from: `Shift Swap <no-reply@shiftswap.app>`
+    from: `Shift Swap <admin@shiftflex.au>`
   });
   
   if (!result.success) {

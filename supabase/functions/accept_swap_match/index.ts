@@ -1,4 +1,3 @@
-
 // Follow this setup guide to integrate the Supabase Edge Functions with your app:
 // https://supabase.com/docs/guides/functions/getting-started
 
@@ -200,7 +199,7 @@ serve(async (req) => {
           
           // Send email to requester using Mailgun
           const formData = new FormData();
-          formData.append('from', `Shift Swap <notifications@${MAILGUN_DOMAIN}>`);
+          formData.append('from', `Shift Swap <admin@shiftflex.au>`);
           formData.append('to', requesterEmail);
           formData.append('subject', 'Your Shift Swap Has Been Accepted');
           formData.append('html', requesterEmailContent);
@@ -235,7 +234,7 @@ serve(async (req) => {
           
           // Send email to acceptor using Mailgun
           const formData = new FormData();
-          formData.append('from', `Shift Swap <notifications@${MAILGUN_DOMAIN}>`);
+          formData.append('from', `Shift Swap <admin@shiftflex.au>`);
           formData.append('to', acceptorEmail);
           formData.append('subject', 'Shift Swap Confirmation');
           formData.append('html', acceptorEmailContent);
