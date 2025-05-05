@@ -44,6 +44,10 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       fetchMatches(); // Refresh the matches after accepting
     }, 500);
   });
+  
+  // Debug logging for matches
+  console.log("MatchedSwaps - Current matches:", matches);
+  console.log("MatchedSwaps - Accepted matches:", matches?.filter(m => m.status === 'accepted'));
 
   return (
     <div className="space-y-6">

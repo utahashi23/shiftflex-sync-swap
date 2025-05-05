@@ -27,6 +27,7 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
     if (matchesData && Array.isArray(matchesData) && matchesData.length > 0) {
       console.log('First match from API with colleague types:', {
         match_id: matchesData[0].match_id,
+        match_status: matchesData[0].match_status,
         my_shift_colleague_type: matchesData[0].my_shift_colleague_type,
         other_shift_colleague_type: matchesData[0].other_shift_colleague_type
       });
@@ -50,6 +51,11 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
     
     const formattedMatches = formatSwapMatches(uniqueMatches);
     
+    // Additional logging for debugging status issues
+    formattedMatches.forEach((match: SwapMatch) => {
+      console.log(`Formatted match ${match.id} has status: ${match.status}`);
+    });
+    
     // Separate active and past matches
     const activeMatches = formattedMatches.filter((match: SwapMatch) => 
       match.status === 'pending' || match.status === 'accepted'
@@ -60,6 +66,7 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
     );
     
     console.log(`Processed ${activeMatches.length} active matches and ${pastMatches.length} past matches`);
+    console.log(`Active matches with 'accepted' status: ${activeMatches.filter((m: SwapMatch) => m.status === 'accepted').length}`);
     
     return {
       matches: activeMatches,

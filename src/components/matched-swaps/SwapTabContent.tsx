@@ -11,16 +11,21 @@ interface SwapTabContentProps {
 }
 
 export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap, onFinalizeSwap }: SwapTabContentProps) => {
-  // Detailed logging of swaps data including colleague types
+  // Detailed logging of swaps data including colleague types and statuses
   console.log(`SwapTabContent: Rendering ${swaps?.length || 0} ${isPast ? 'past' : 'active'} swaps`);
   
   if (swaps && swaps.length > 0) {
-    // Log the colleague types of all swaps for debugging
+    // Log the colleague types and status of all swaps for debugging
     swaps.forEach((swap, index) => {
-      console.log(`Swap ${index} (ID: ${swap.id}) colleague types:`, {
+      console.log(`Swap ${index} (ID: ${swap.id}, Status: ${swap.status}) colleague types:`, {
         myShift: swap.myShift?.colleagueType,
         otherShift: swap.otherShift?.colleagueType
       });
+      
+      // Debug output for accepted swaps
+      if (swap.status === 'accepted') {
+        console.log(`Found ACCEPTED swap with ID: ${swap.id}`);
+      }
     });
   }
 
@@ -40,7 +45,7 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap, onFinalize
   swaps.forEach(swap => {
     if (swap && typeof swap === 'object' && 'id' in swap) {
       // Log each swap's colleague types for debugging
-      console.log(`Adding swap ${swap.id} to map with colleague types:`, {
+      console.log(`Adding swap ${swap.id} to map with status ${swap.status} and colleague types:`, {
         myShift: swap.myShift?.colleagueType,
         otherShift: swap.otherShift?.colleagueType
       });
@@ -59,8 +64,8 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap, onFinalize
           key={swap.id}
           swap={swap} 
           isPast={isPast}
-          onAccept={onAcceptSwap}
-          onFinalize={onFinalizeSwap}
+          onAccept={!isPast && swap.status === 'pending' ? onAcceptSwap : undefined}
+          onFinalize={!isPast && swap.status === 'accepted' ? onFinalizeSwap : undefined}
         />
       ))}
     </div>

@@ -27,8 +27,8 @@ const formatDate = (dateStr: string) => {
 };
 
 export const SwapCard = ({ swap, isPast = false, onAccept, onFinalize }: SwapCardProps) => {
-  // Debug logging for colleague types
-  console.log(`SwapCard rendering for match ${swap.id} with colleague types:`, {
+  // Debug logging for colleague types and status
+  console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
     otherShift: swap.otherShift.colleagueType
   });
@@ -138,6 +138,7 @@ export const SwapCard = ({ swap, isPast = false, onAccept, onFinalize }: SwapCar
               </Button>
             )}
             
+            {/* Explicitly check for 'accepted' status */}
             {swap.status === 'accepted' && onFinalize && (
               <Button 
                 onClick={() => onFinalize(swap.id)}

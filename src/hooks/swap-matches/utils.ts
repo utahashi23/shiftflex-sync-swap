@@ -13,7 +13,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
   // Process and format the matches data
   return matchesData.map(match => {
     // Log raw match data for debugging
-    console.log(`Processing match ID ${match.match_id}:`, match);
+    console.log(`Processing match ID ${match.match_id} with status ${match.match_status}:`, match);
     
     // Look for colleague_type in various possible locations
     const myShiftColleagueType = 
@@ -26,7 +26,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
       (match.other_shift_data && match.other_shift_data.colleague_type) ||
       'Unknown';
     
-    console.log(`Match ${match.match_id} colleague types:`, {
+    console.log(`Match ${match.match_id} status: ${match.match_status}, colleague types:`, {
       myShift: myShiftColleagueType,
       otherShift: otherShiftColleagueType
     });

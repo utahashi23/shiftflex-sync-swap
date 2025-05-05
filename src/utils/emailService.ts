@@ -81,3 +81,49 @@ export const sendSwapEmail = async (
     html
   });
 };
+
+// Function to send notifications to both users involved in a swap
+export const sendSwapStatusNotification = async (
+  requesterEmail: string,
+  acceptorEmail: string,
+  status: 'accepted' | 'finalized' | 'completed',
+  swapDetails: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    let subject = '';
+    let content = '';
+    
+    switch (status) {
+      case 'accepted':
+        subject = "Shift Swap Accepted";
+        content = `Your shift swap has been accepted and is now waiting for roster approval. ${swapDetails}`;
+        break;
+      case 'finalized':
+        subject = "Shift Swap Finalized";
+        content = `Your shift swap has been finalized by roster management. Your calendars have been updated. ${swapDetails}`;
+        break;
+      case 'completed':
+        subject = "Shift Swap Completed";
+        content = `Your shift swap has been completed successfully. ${swapDetails}`;
+        break;
+    }
+    
+    // Send emails to both parties
+    const [requesterResult, acceptorResult] = await Promise.all([
+      sendSwapEmail(requesterEmail, subject, content),
+      sendSwapEmail(acceptorEmail, subject, content)
+    ]);
+    
+    if (!requesterResult.success || !acceptorResult.success) {
+      return { 
+        success: false, 
+        error: requesterResult.error || acceptorResult.error 
+      };
+    }
+    
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error sending swap notifications:', err);
+    return { success: false, error: err.message };
+  }
+};
