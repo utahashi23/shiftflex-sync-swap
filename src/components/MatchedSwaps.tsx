@@ -30,6 +30,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
   const [showTestingTools, setShowTestingTools] = useState(false);
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ 
     isOpen: boolean;
     matchId: string | null;
@@ -84,7 +85,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   // Fetch matches data using findSwapMatches directly
   const fetchMatches = async () => {
-    if (!user || !user.id) return;
+    if (!user || !user.id || isLoading) return;
     
     setIsLoading(true);
     
@@ -96,7 +97,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       console.log('Raw match data from function:', matchesData);
       
       // Process the matches data
-      const formattedMatches = processMatchesData(matchesData);
+      const formattedMatches = processMatchesData(matchesData || []);
       
       // Separate active and past matches
       const activeMatches = formattedMatches.filter((match: SwapMatch) => 
@@ -121,16 +122,19 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       }
       
       // Show toast message about the results
-      if (activeMatches.length > 0) {
-        toast({
-          title: "Matches found!",
-          description: `Found ${activeMatches.length} potential swap matches.`,
-        });
-      } else {
-        toast({
-          title: "No matches found",
-          description: "No potential swap matches were found at this time.",
-        });
+      if (!initialFetchDone) {
+        if (activeMatches.length > 0) {
+          toast({
+            title: "Matches found!",
+            description: `Found ${activeMatches.length} potential swap matches.`,
+          });
+        } else {
+          toast({
+            title: "No matches found",
+            description: "No potential swap matches were found at this time.",
+          });
+        }
+        setInitialFetchDone(true);
       }
     } catch (error) {
       console.error('Error fetching matches:', error);
@@ -199,10 +203,10 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   // Initial load
   useEffect(() => {
-    if (user) {
+    if (user && !initialFetchDone && !isLoading) {
       fetchMatches();
     }
-  }, [user]);
+  }, [user, initialFetchDone, isLoading]);
 
   return (
     <div className="space-y-6">

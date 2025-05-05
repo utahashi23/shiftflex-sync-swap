@@ -145,8 +145,9 @@ export const fetchAllMatchesSafe = async () => {
         return { data: [], error };
       }
       
-      console.log(`Successfully fetched ${Array.isArray(data) ? data.length : 0} matches using direct query`);
-      return { data, error: null };
+      const arrayData = Array.isArray(data) ? data : [];
+      console.log(`Successfully fetched ${arrayData.length} matches using direct query`);
+      return { data: arrayData, error: null };
     }
     
     // Last resort, try using edge function if available
@@ -156,8 +157,9 @@ export const fetchAllMatchesSafe = async () => {
         const response = await supabase.functions.invoke('get_all_matches', {});
         
         if (!response.error && response.data) {
-          console.log(`Successfully fetched ${Array.isArray(response.data) ? response.data.length : 0} matches using edge function`);
-          return { data: response.data, error: null };
+          const arrayData = Array.isArray(response.data) ? response.data : [];
+          console.log(`Successfully fetched ${arrayData.length} matches using edge function`);
+          return { data: arrayData, error: null };
         }
       }
     } catch (edgeFnError) {

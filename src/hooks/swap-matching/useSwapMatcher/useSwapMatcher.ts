@@ -12,6 +12,7 @@ export const useSwapMatcher = () => {
   const { user } = useAuth();
   const { isProcessing, setIsProcessing } = useProcessingState();
   const [isFindingMatches, setIsFindingMatches] = useState(false);
+  const [matchesCache, setMatchesCache] = useState<Record<string, any[]>>({});
   const { findSwapMatches: executeFindMatches } = useFindSwapMatches(setIsProcessing);
   
   /**
@@ -35,19 +36,33 @@ export const useSwapMatcher = () => {
         description: "You must be logged in to find swap matches.",
         variant: "destructive"
       });
-      return;
+      return [];
+    }
+    
+    // Use the user ID that was passed in or fall back to the current user's ID
+    const targetUserId = userId || user?.id;
+    
+    // Check if we have cached results and forceCheck is false
+    if (!forceCheck && matchesCache[targetUserId]) {
+      console.log(`Using cached matches for user ${targetUserId}`);
+      return matchesCache[targetUserId];
     }
     
     try {
+      if (isFindingMatches) {
+        console.log('Already finding matches, returning cached or empty results');
+        return matchesCache[targetUserId] || [];
+      }
+      
       setIsFindingMatches(true);
-      console.log(`Finding swap matches for user: ${userId || user?.id}, force check: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}, user initiator only: ${userInitiatorOnly}`);
+      console.log(`Finding swap matches for user: ${targetUserId}, force check: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}, user initiator only: ${userInitiatorOnly}`);
       
       // Use service-role based approach to bypass RLS issues
       console.log("Using modified approach to avoid RLS recursion...");
       try {
         // Always force userInitiatorOnly to true to ensure consistent behavior
         const result = await executeFindMatches(
-          userId || user?.id, 
+          targetUserId, 
           forceCheck, 
           verbose, 
           userPerspectiveOnly,
@@ -55,17 +70,27 @@ export const useSwapMatcher = () => {
         );
         console.log("Edge function result:", result);
         
-        // Show a toast if matches were found
-        if (result && Array.isArray(result) && result.length > 0) {
-          toast({
-            title: "Matches found!",
-            description: `Found ${result.length} potential swap matches.`,
-          });
-        } else {
-          toast({
-            title: "No matches found",
-            description: "No potential swap matches were found at this time.",
-          });
+        // Cache the results
+        if (result && Array.isArray(result)) {
+          setMatchesCache(prev => ({
+            ...prev,
+            [targetUserId]: result
+          }));
+        }
+        
+        // Show a toast if matches were found and forceCheck is true
+        if (forceCheck && result && Array.isArray(result)) {
+          if (result.length > 0) {
+            toast({
+              title: "Matches found!",
+              description: `Found ${result.length} potential swap matches.`,
+            });
+          } else {
+            toast({
+              title: "No matches found",
+              description: "No potential swap matches were found at this time.",
+            });
+          }
         }
         
         return result;
@@ -80,6 +105,7 @@ export const useSwapMatcher = () => {
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
+      return [];
     } finally {
       setIsFindingMatches(false);
     }

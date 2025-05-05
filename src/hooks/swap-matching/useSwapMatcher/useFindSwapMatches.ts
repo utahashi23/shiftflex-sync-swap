@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
  */
 export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => void) => {
   const [matchResults, setMatchResults] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   /**
    * Find potential matches for swap requests
@@ -25,8 +26,16 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
     userInitiatorOnly: boolean = true
   ) => {
     try {
-      console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}, user initiator only: ${userInitiatorOnly})`);
+      // Prevent multiple concurrent calls
+      if (isLoading) {
+        console.log('Already loading matches, skipping duplicate call');
+        return matchResults;
+      }
+      
+      setIsLoading(true);
       setIsProcessing(true);
+      
+      console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}, user initiator only: ${userInitiatorOnly})`);
       
       // Make direct call to the edge function to avoid RLS recursion
       // The edge function uses service_role to bypass RLS policies
@@ -53,12 +62,14 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
       console.error('Error in findSwapMatches:', error);
       throw error;
     } finally {
+      setIsLoading(false);
       setIsProcessing(false);
     }
   };
 
   return {
     findSwapMatches,
-    matchResults
+    matchResults,
+    isLoading
   };
 };
