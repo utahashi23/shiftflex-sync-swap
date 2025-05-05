@@ -52,12 +52,12 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
           const title = shift.truck_name || `Shift-${shift.id.substring(0, 5)}`;
           
           // Determine colleague type based on organization information
+          // Set default to Unknown since organization is not required
           let colleagueType: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown' = 'Unknown';
           
-          // Safe access to profiles data
-          const profileData = shift.profiles;
-          if (profileData && typeof profileData === 'object') {
-            const organization = profileData.organization;
+          // Safe access to profiles data - only try to determine colleagueType if profileData exists
+          if (shift.profiles) {
+            const organization = shift.profiles.organization;
             
             if (organization) {
               if (organization.includes('Graduate')) {

@@ -22,10 +22,10 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         const myShiftType = getShiftType(match.my_shift_start_time);
         const otherShiftType = getShiftType(match.other_shift_start_time);
         
-        // Determine colleague type
+        // Determine colleague type - set default to Unknown since organization is not required
         let colleagueType: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown' = 'Unknown';
         
-        // Try to determine colleague type from organization or name
+        // Try to determine colleague type from organization or name if available
         if (match.other_user_name) {
           const userName = match.other_user_name.toLowerCase();
           if (userName.includes('graduate')) {
