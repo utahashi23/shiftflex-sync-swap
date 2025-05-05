@@ -63,7 +63,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           startTime: match.my_shift_start_time,
           endTime: match.my_shift_end_time,
           truckName: match.my_shift_truck,
-          type: getShiftType(match.my_shift_start_time)
+          type: getShiftType(match.my_shift_start_time),
+          colleagueType: match.my_colleague_type || 'Unspecified'
         },
         otherShift: {
           id: match.other_shift_id,
@@ -73,7 +74,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           truckName: match.other_shift_truck,
           type: getShiftType(match.other_shift_start_time),
           userId: match.other_user_id,
-          userName: match.other_user_name || 'Unknown User'
+          userName: match.other_user_name || 'Unknown User',
+          colleagueType: match.other_colleague_type || 'Unspecified'
         },
         myRequestId: match.my_request_id,
         otherRequestId: match.other_request_id,

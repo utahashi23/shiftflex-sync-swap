@@ -15,6 +15,7 @@ export interface SwapRequest {
     startTime: string;
     endTime: string;
     type: string;
+    colleagueType?: string;
   };
   preferredDates: PreferredDate[];
   requesterId: string;

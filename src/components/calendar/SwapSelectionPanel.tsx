@@ -25,6 +25,7 @@ interface SwapSelectionPanelProps {
     afternoon: boolean;
     night: boolean;
   }>>;
+  colleagueType?: string;
 }
 
 export const SwapSelectionPanel = ({
@@ -36,7 +37,8 @@ export const SwapSelectionPanel = ({
   handleRequestSwap,
   handleSaveSwapRequest,
   handleCancelSwapRequest,
-  setAcceptableShiftTypes
+  setAcceptableShiftTypes,
+  colleagueType
 }: SwapSelectionPanelProps) => {
   return (
     <Card className="mt-4">
@@ -89,6 +91,13 @@ export const SwapSelectionPanel = ({
               <div className="font-medium">{selectedShift.startTime} - {selectedShift.endTime}</div>
             </div>
           </div>
+          
+          {colleagueType && (
+            <div className="space-y-1">
+              <div className="text-sm text-gray-500">Organization</div>
+              <div className="font-medium text-sm">{colleagueType}</div>
+            </div>
+          )}
           
           {swapMode ? (
             <>
