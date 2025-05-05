@@ -86,7 +86,7 @@ export const sendSwapEmail = async (
     to,
     subject,
     html,
-    from: `Shift Swap <admin@shiftflex.au>`
+    from: `postmaster@shiftflex.au`
   });
   
   if (!result.success) {
@@ -186,8 +186,9 @@ export const testEmailFunctionality = async (): Promise<{
     
     // Test the direct API implementation
     const directResponse = await sendEmail({
-      to: "postmaster@shiftflex.au",
+      to: "njalasankhulani@gmail.com",
       subject: "Test Email via Direct API",
+      from: "postmaster@shiftflex.au",
       html: `
         <h2>Testing Direct API Email Function</h2>
         <p>This is a test email sent using the regular send_email function.</p>

@@ -27,13 +27,13 @@ serve(async (req) => {
       password: "3kh9umujora5", // In production, use Deno.env.get() instead of hardcoding
     });
     
-    const recipient = "postmaster@shiftflex.au";
+    const recipient = "njalasankhulani@gmail.com";
     
     console.log(`Sending test email to ${recipient}`);
     
     try {
       await client.send({
-        from: "admin@shiftflex.au",
+        from: "postmaster@shiftflex.au",
         to: recipient,
         subject: "Testing Mailgun SMTP Integration",
         content: "This is a test email sent using the SMTP protocol from a Supabase Edge Function.",
