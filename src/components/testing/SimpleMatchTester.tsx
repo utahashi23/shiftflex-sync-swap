@@ -86,6 +86,20 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
           preferred_dates_count: enrichedRequests[0].preferred_dates_count
         });
       }
+      
+      // Extra logging for demo1@maildrop.cc user
+      if (user?.email === "demo1@maildrop.cc") {
+        const userRequests = enrichedRequests?.filter(r => r.requester_id === user.id) || [];
+        console.log(`Found ${userRequests.length} requests for demo1@maildrop.cc:`);
+        userRequests.forEach((req, i) => {
+          console.log(`Demo user request ${i+1}:`, {
+            id: req.id,
+            status: req.status,
+            shift_date: req.shift_date,
+            preferred_dates_count: req.preferred_dates_count
+          });
+        });
+      }
     } catch (error) {
       console.error('Error fetching test data:', error);
       toast({
@@ -112,7 +126,7 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
     console.log("Running simple match with", allRequests.length, "requests and", allPreferredDates.length, "preferred dates");
     
     // Group preferred dates by request ID for faster lookups
-    const preferredDatesByRequest = {};
+    const preferredDatesByRequest: Record<string, string[]> = {};
     allPreferredDates.forEach(date => {
       if (!preferredDatesByRequest[date.request_id]) {
         preferredDatesByRequest[date.request_id] = [];
