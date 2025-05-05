@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/auth';
 import { SwapMatch } from '../types';
@@ -46,15 +45,25 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
     console.log(`Processing ${uniqueMatches.length} unique matches`);
     
     // Log all matches data for debugging
-    console.log('Raw matches data:', uniqueMatches);
+    console.log('Raw matches data to process:', uniqueMatches);
     
     // Process the data
     return uniqueMatches.map((match: any) => {
-      // Extract colleague types with defensive checks
-      const myColleagueType = match.my_shift_colleague_type !== undefined ? match.my_shift_colleague_type : 'Unknown';
-      const otherColleagueType = match.other_shift_colleague_type !== undefined ? match.other_shift_colleague_type : 'Unknown';
+      // Extract colleague types directly from the match data
+      // Log the raw values for debugging
+      console.log(`Raw values for match ${match.match_id}:`, {
+        my_shift_colleague_type: match.my_shift_colleague_type,
+        other_shift_colleague_type: match.other_shift_colleague_type
+      });
       
-      console.log(`Match ID ${match.match_id} colleague types:`, { my: myColleagueType, other: otherColleagueType });
+      // Use the values directly or fallback to default
+      const myColleagueType = match.my_shift_colleague_type || null;
+      const otherColleagueType = match.other_shift_colleague_type || null;
+      
+      console.log(`Match ID ${match.match_id} processed colleague types:`, { 
+        my: myColleagueType, 
+        other: otherColleagueType 
+      });
       
       return {
         id: match.match_id,

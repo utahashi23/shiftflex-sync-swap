@@ -12,17 +12,17 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
   
   // Process and format the matches data
   return matchesData.map(match => {
-    // Check if fields exist to avoid undefined errors
-    const myShiftColleagueType = match.my_shift_colleague_type !== undefined ? 
-      match.my_shift_colleague_type : 'Unknown';
+    // Log raw match data for debugging
+    console.log('Raw match data:', match);
     
-    const otherShiftColleagueType = match.other_shift_colleague_type !== undefined ? 
-      match.other_shift_colleague_type : 'Unknown';
+    // Extract colleague types with better error handling
+    const myShiftColleagueType = match.my_shift_colleague_type || null;
+    const otherShiftColleagueType = match.other_shift_colleague_type || null;
     
-    // Log the colleague types for debugging
-    console.log('Raw colleague types:', {
-      my: match.my_shift_colleague_type,
-      other: match.other_shift_colleague_type
+    // Log the colleague types to debug
+    console.log(`Match ID ${match.match_id} colleague types:`, {
+      my: myShiftColleagueType,
+      other: otherShiftColleagueType
     });
     
     return {

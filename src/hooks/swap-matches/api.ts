@@ -12,7 +12,8 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
       body: { 
         user_id: userId,
         user_perspective_only: userPerspectiveOnly,
-        user_initiator_only: userInitiatorOnly
+        user_initiator_only: userInitiatorOnly,
+        include_colleague_types: true // Explicitly request colleague types
       }
     });
     
@@ -27,6 +28,15 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
         pastMatches: [],
         rawApiData: matchesData
       };
+    }
+    
+    // Check if colleague types are present in the data
+    if (matchesData.length > 0) {
+      const sampleMatch = matchesData[0];
+      console.log('Sample match colleague types:', {
+        my: sampleMatch.my_shift_colleague_type,
+        other: sampleMatch.other_shift_colleague_type
+      });
     }
     
     // Deduplicate matches by ID before processing

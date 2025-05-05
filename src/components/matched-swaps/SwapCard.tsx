@@ -26,7 +26,7 @@ const formatDate = (dateStr: string) => {
 };
 
 export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
-  // Log the colleague types for debugging
+  // Debug logging for colleague types
   console.log('SwapCard colleague types:', {
     myShift: swap.myShift.colleagueType,
     otherShift: swap.otherShift.colleagueType
@@ -73,14 +73,12 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
                 <span className="text-sm">{swap.myShift.startTime} - {swap.myShift.endTime}</span>
               </div>
               
-              {swap.myShift.colleagueType && (
-                <div className="flex items-center mt-1">
-                  <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm">
-                    {swap.myShift.colleagueType}
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center mt-1">
+                <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                <span className="text-sm">
+                  {swap.myShift.colleagueType || 'Unknown'}
+                </span>
+              </div>
               
               <div className="mt-2 text-xs font-medium text-muted-foreground">
                 {swap.myShift.truckName || 'Shift'}
@@ -112,14 +110,12 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
                 <span className="text-sm">{swap.otherShift.startTime} - {swap.otherShift.endTime}</span>
               </div>
               
-              {swap.otherShift.colleagueType && (
-                <div className="flex items-center mt-1">
-                  <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm">
-                    {swap.otherShift.colleagueType}
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center mt-1">
+                <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                <span className="text-sm">
+                  {swap.otherShift.colleagueType || 'Unknown'}
+                </span>
+              </div>
               
               <div className="mt-2 text-xs font-medium text-muted-foreground">
                 {swap.otherShift.truckName || 'Shift'}

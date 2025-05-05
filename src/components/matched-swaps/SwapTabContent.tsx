@@ -35,9 +35,14 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
   // We ensure uniqueness by ID when displaying swaps
   const uniqueSwapsMap = new Map<string, SwapMatch>();
   
-  // Only add items to the map if they're actually SwapMatch objects
+  // Only add items to the map if they're actually SwapMatch objects with colleague type
   swaps.forEach(swap => {
     if (swap && typeof swap === 'object' && 'id' in swap) {
+      // Log each swap's colleague types for debugging
+      console.log(`Adding swap ${swap.id} to map with colleague types:`, {
+        myShift: swap.myShift?.colleagueType,
+        otherShift: swap.otherShift?.colleagueType
+      });
       uniqueSwapsMap.set(swap.id, swap);
     }
   });
