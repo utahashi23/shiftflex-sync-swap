@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -53,7 +52,10 @@ export const useShiftForm = ({
       setShiftStartTime(selectedShift.startTime);
       setShiftEndTime(selectedShift.endTime);
       setShiftType(selectedShift.type);
-      setColleagueType(selectedShift.colleagueType);
+      
+      // Make sure we're properly setting the colleague type from the selected shift
+      setColleagueType(selectedShift.colleagueType || 'Unknown');
+      
       setShiftLength('custom');
     } else if (selectedDate) {
       // Adding new shift - ensure correct timezone handling
@@ -185,7 +187,7 @@ export const useShiftForm = ({
         truck_name: truckName,
         start_time: shiftStartTime,
         end_time: shiftEndTime,
-        colleague_type: colleagueType, // Ensure colleague_type is included
+        colleague_type: colleagueType, // Make sure colleague_type is included
       };
       
       let result;
@@ -270,7 +272,7 @@ export const useShiftForm = ({
     setSearchTerm(name);
     setIsTruckDropdownOpen(false);
   };
-
+  
   return {
     formTitle,
     isLoading,

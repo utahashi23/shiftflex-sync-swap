@@ -59,7 +59,7 @@ export const useSwapCalendarData = (currentDate: Date, userId?: string) => {
             startTime: shift.start_time.substring(0, 5), // Format as HH:MM
             endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
             type,
-            colleagueType: 'Unknown'  // Default value
+            colleagueType: shift.colleague_type || 'Unknown' // Properly fetch colleague_type
           };
         }) || [];
         
