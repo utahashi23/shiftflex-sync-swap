@@ -12,7 +12,7 @@ export interface Shift {
   startTime: string;
   endTime: string;
   type: 'day' | 'afternoon' | 'night';
-  colleagueType?: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown';
+  colleagueType?: string; // Changed from enum to string to match implementation
 }
 
 export const useShiftData = (currentDate: Date, userId?: string) => {
