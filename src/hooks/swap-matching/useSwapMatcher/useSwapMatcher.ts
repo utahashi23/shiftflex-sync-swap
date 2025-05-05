@@ -46,7 +46,13 @@ export const useSwapMatcher = () => {
     
     // For explicitly requested checks, don't use cache
     if (!forceCheck && isFindingMatches) {
-      console.log('Already finding matches, returning cached or empty results');
+      console.log('Already finding matches, returning cached results');
+      return matchesCache[targetUserId] || [];
+    }
+    
+    // Prevent concurrent requests
+    if (requestInProgressRef.current) {
+      console.log('Request already in progress, returning cached results');
       return matchesCache[targetUserId] || [];
     }
     
@@ -80,7 +86,7 @@ export const useSwapMatcher = () => {
           // Mark initial fetch as completed
           setInitialFetchCompleted(true);
           
-          // Show a toast if matches were found and forceCheck is true
+          // Show a toast if explicitly requested (via forceCheck)
           if (forceCheck) {
             if (result.length > 0) {
               toast({
@@ -94,6 +100,8 @@ export const useSwapMatcher = () => {
               });
             }
           }
+        } else {
+          console.warn("Received invalid result from edge function:", result);
         }
         
         return result;

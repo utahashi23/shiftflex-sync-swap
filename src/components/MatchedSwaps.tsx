@@ -45,6 +45,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   // Process matches data from API response
   const processMatchesData = (matchesData: any[]) => {
     if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
+      console.log('No matches data to process');
       return [];
     }
     
@@ -101,6 +102,17 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       const matchesData = await findSwapMatches(user.id, true, true, true, true);
       console.log('Raw match data from function:', matchesData);
       
+      if (!matchesData || matchesData.length === 0) {
+        console.log('No matches found');
+        setMatches([]);
+        setPastMatches([]);
+        toast({
+          title: "No matches found",
+          description: "No potential swap matches were found at this time.",
+        });
+        return;
+      }
+      
       // Process the matches data
       const formattedMatches = processMatchesData(matchesData || []);
       console.log('Formatted matches:', formattedMatches);
@@ -116,9 +128,14 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       
       console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
       
-      // Update the state with the new matches
+      // Update the state with the new matches - IMPORTANT: Make sure state gets updated here
       setMatches(activeMatches);
       setPastMatches(completedMatches);
+      
+      // Force a re-render of the component to reflect the new state immediately
+      setTimeout(() => {
+        console.log('State after update (setTimeout):', { activeMatches: activeMatches.length, matches: matches.length });
+      }, 0);
       
       // If we've found matches, update parent tabs if needed
       if (activeMatches.length > 0 && setRefreshTrigger) {
@@ -256,6 +273,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
               onClick={fetchMatches}
               disabled={isLoading || isProcessing || fetchInProgressRef.current}
               className="bg-green-500 hover:bg-green-600 text-white"
+              data-testid="find-matches-button"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${(isLoading || isProcessing) ? 'animate-spin' : ''}`} />
               {(isLoading || isProcessing) ? 'Finding Matches...' : 'Find Matches'}
