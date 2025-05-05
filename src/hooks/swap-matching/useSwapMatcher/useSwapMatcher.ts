@@ -35,7 +35,13 @@ export const useSwapMatcher = () => {
         description: "You must be logged in to find swap matches.",
         variant: "destructive"
       });
-      return;
+      return [];
+    }
+    
+    // Guard against concurrent requests
+    if (isFindingMatches || isProcessing) {
+      console.log("Already processing a request, skipping");
+      return [];
     }
     
     try {
@@ -80,6 +86,7 @@ export const useSwapMatcher = () => {
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
+      return [];
     } finally {
       setIsFindingMatches(false);
     }

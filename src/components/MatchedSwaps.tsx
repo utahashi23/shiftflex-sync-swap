@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { SwapTabContent } from './matched-swaps/SwapTabContent';
@@ -85,6 +86,9 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   const fetchMatches = async () => {
     if (!user || !user.id) return;
     
+    // Prevent duplicate requests if already loading
+    if (isLoading || isProcessing) return;
+    
     setIsLoading(true);
     
     try {
@@ -117,19 +121,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         if (activeTab !== 'active') {
           setActiveTab('active');
         }
-      }
-      
-      // Show toast message about the results
-      if (activeMatches.length > 0) {
-        toast({
-          title: "Matches found!",
-          description: `Found ${activeMatches.length} potential swap matches.`,
-        });
-      } else {
-        toast({
-          title: "No matches found",
-          description: "No potential swap matches were found at this time.",
-        });
       }
     } catch (error) {
       console.error('Error fetching matches:', error);

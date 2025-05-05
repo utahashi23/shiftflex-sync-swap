@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 import { getShiftType } from '@/utils/shiftUtils';
+import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
 
 // Define the MatchTestResult type
 interface MatchTestResult {
@@ -66,6 +68,7 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
   const [request2Id, setRequest2Id] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [testResult, setTestResult] = useState<MatchTestResult | null>(null);
+  const { findSwapMatches } = useSwapMatcher();
 
   const handleTestMatch = async () => {
     if (!request1Id || !request2Id) {
@@ -200,6 +203,28 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
     }
   };
 
+  const handleFindMatches = async () => {
+    setIsLoading(true);
+    try {
+      // Use the findSwapMatches function from the hook
+      await findSwapMatches(undefined, true, true);
+      
+      // Call the callback if provided to refresh matches display
+      if (onMatchCreated) {
+        onMatchCreated();
+      }
+    } catch (error) {
+      console.error("Error finding matches:", error);
+      toast({
+        title: "Error finding matches",
+        description: "Could not find potential matches",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <Card className="border-amber-300 bg-amber-50/70">
       <CardHeader className="pb-3">
@@ -207,6 +232,21 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
       </CardHeader>
       <CardContent>
         <div className="grid gap-4">
+          <div className="grid grid-cols-1 gap-4">
+            <Button
+              type="button"
+              onClick={handleFindMatches}
+              disabled={isLoading}
+              className="bg-blue-500 hover:bg-blue-600 text-white"
+            >
+              Run Match Finder
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <p className="text-sm text-gray-500">Or manually test specific matches:</p>
+          </div>
+          
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="request1">Request ID 1</Label>
@@ -272,90 +312,4 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
       </CardContent>
     </Card>
   );
-};
-
-// Add the missing handleTestMatch function which was in the original code
-SimpleMatchTester.handleTestMatch = async function(this: any) {
-  if (!this.request1Id || !this.request2Id) {
-    toast({
-      title: "Missing request IDs",
-      description: "Please enter both request IDs to test a match",
-      variant: "destructive"
-    });
-    return;
-  }
-
-  this.setIsLoading(true);
-  this.setTestResult(null);
-
-  try {
-    // Get request 1 details
-    const { data: request1 } = await supabase
-      .from('shift_swap_requests')
-      .select('*')
-      .eq('id', this.request1Id)
-      .single();
-      
-    if (!request1) throw new Error('Request 1 not found');
-    
-    // Get request 1 shift
-    const { data: shift1 } = await supabase.rpc('get_shift_by_id', { 
-      shift_id: request1.requester_shift_id 
-    });
-    
-    if (!shift1 || shift1.length === 0) throw new Error('Request 1 shift not found');
-    
-    // Get request 2 details
-    const { data: request2 } = await supabase
-      .from('shift_swap_requests')
-      .select('*')
-      .eq('id', this.request2Id)
-      .single();
-      
-    if (!request2) throw new Error('Request 2 not found');
-    
-    // Get request 2 shift
-    const { data: shift2 } = await supabase.rpc('get_shift_by_id', { 
-      shift_id: request2.requester_shift_id 
-    });
-    
-    if (!shift2 || shift2.length === 0) throw new Error('Request 2 shift not found');
-    
-    // Get user details
-    const { data: user1 } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', request1.requester_id)
-      .single();
-      
-    const { data: user2 } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', request2.requester_id)
-      .single();
-    
-    // Set test result
-    this.setTestResult({
-      request1Id: request1.id,
-      request2Id: request2.id,
-      request1Shift: shift1[0],
-      request2Shift: shift2[0],
-      request1User: user1,
-      request2User: user2
-    });
-    
-    toast({
-      title: "Match test completed",
-      description: "Both requests and shifts were found",
-    });
-  } catch (error: any) {
-    console.error('Error testing match:', error);
-    toast({
-      title: "Error testing match",
-      description: error.message || "Could not complete the match test",
-      variant: "destructive"
-    });
-  } finally {
-    this.setIsLoading(false);
-  }
 };
