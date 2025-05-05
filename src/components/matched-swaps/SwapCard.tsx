@@ -70,7 +70,11 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
               {swap.myShift.colleagueType && (
                 <div className="flex items-center mt-1">
                   <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm">{swap.myShift.colleagueType}</span>
+                  <span className="text-sm">
+                    {typeof swap.myShift.colleagueType === 'string' 
+                      ? swap.myShift.colleagueType 
+                      : 'Not specified'}
+                  </span>
                 </div>
               )}
               
@@ -107,7 +111,11 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
               {swap.otherShift.colleagueType && (
                 <div className="flex items-center mt-1">
                   <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm">{swap.otherShift.colleagueType}</span>
+                  <span className="text-sm">
+                    {typeof swap.otherShift.colleagueType === 'string' 
+                      ? swap.otherShift.colleagueType 
+                      : 'Not specified'}
+                  </span>
                 </div>
               )}
               
