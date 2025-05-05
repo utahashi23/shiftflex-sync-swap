@@ -35,19 +35,6 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
         console.log("Triggering parent refresh after finding matches");
         onRefreshMatches();
       }
-      
-      // Show toast about results
-      if (result && Array.isArray(result) && result.length > 0) {
-        toast({
-          title: "Matches found!",
-          description: `Found ${result.length} potential swap matches.`,
-        });
-      } else {
-        toast({
-          title: "No matches found",
-          description: "No potential swap matches were found at this time.",
-        });
-      }
     } catch (error) {
       console.error("Error during match find:", error);
       toast({

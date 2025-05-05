@@ -15,6 +15,7 @@ export const useSwapMatcher = () => {
   const [matchesCache, setMatchesCache] = useState<Record<string, any[]>>({});
   const { findSwapMatches: executeFindMatches } = useFindSwapMatches(setIsProcessing);
   const requestInProgressRef = useRef<boolean>(false);
+  const [initialFetchCompleted, setInitialFetchCompleted] = useState<boolean>(false);
   
   /**
    * Find potential matches for a user's swap requests
@@ -43,16 +44,16 @@ export const useSwapMatcher = () => {
     // Use the user ID that was passed in or fall back to the current user's ID
     const targetUserId = userId || user?.id;
     
-    // Check if we have cached results and forceCheck is false
-    if (!forceCheck && matchesCache[targetUserId]) {
-      console.log(`Using cached matches for user ${targetUserId}`);
-      return matchesCache[targetUserId];
-    }
-    
-    // Prevent concurrent API calls
+    // Check if the request is already being processed
     if (isFindingMatches || requestInProgressRef.current) {
       console.log('Already finding matches, returning cached or empty results');
       return matchesCache[targetUserId] || [];
+    }
+    
+    // Check if we have cached results and aren't forcing a check
+    if (!forceCheck && matchesCache[targetUserId]) {
+      console.log(`Using cached matches for user ${targetUserId}`);
+      return matchesCache[targetUserId];
     }
     
     try {
@@ -80,20 +81,23 @@ export const useSwapMatcher = () => {
             ...prev,
             [targetUserId]: result
           }));
-        }
-        
-        // Show a toast if matches were found and forceCheck is true
-        if (forceCheck && result && Array.isArray(result)) {
-          if (result.length > 0) {
-            toast({
-              title: "Matches found!",
-              description: `Found ${result.length} potential swap matches.`,
-            });
-          } else {
-            toast({
-              title: "No matches found",
-              description: "No potential swap matches were found at this time.",
-            });
+          
+          // Mark initial fetch as completed
+          setInitialFetchCompleted(true);
+          
+          // Show a toast if matches were found and forceCheck is true
+          if (forceCheck && result && Array.isArray(result)) {
+            if (result.length > 0) {
+              toast({
+                title: "Matches found!",
+                description: `Found ${result.length} potential swap matches.`,
+              });
+            } else {
+              toast({
+                title: "No matches found",
+                description: "No potential swap matches were found at this time.",
+              });
+            }
           }
         }
         
@@ -119,6 +123,7 @@ export const useSwapMatcher = () => {
   return {
     findSwapMatches,
     isProcessing,
-    isFindingMatches
+    isFindingMatches,
+    initialFetchCompleted
   };
 };

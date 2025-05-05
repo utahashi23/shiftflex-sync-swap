@@ -41,7 +41,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   });
   
   const { user, isAdmin } = useAuth();
-  const { findSwapMatches, isProcessing } = useSwapMatcher();
+  const { findSwapMatches, isProcessing, initialFetchCompleted } = useSwapMatcher();
 
   // Process matches data from API response
   const processMatchesData = (matchesData: any[]) => {
@@ -84,7 +84,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     });
   };
 
-  // Fetch matches data using findSwapMatches directly
+  // Fetch matches data using findSwapMatches - but ONLY when explicit button is clicked
+  // Not calling this automatically on component mount
   const fetchMatches = async () => {
     // Check if user exists and there's no ongoing fetch operation
     if (!user || !user.id || isLoading || fetchInProgressRef.current) return;
@@ -125,20 +126,20 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         }
       }
       
+      // Mark fetch as done only if we actually performed a fetch
+      setInitialFetchDone(true);
+      
       // Show toast message about the results
-      if (!initialFetchDone) {
-        if (activeMatches.length > 0) {
-          toast({
-            title: "Matches found!",
-            description: `Found ${activeMatches.length} potential swap matches.`,
-          });
-        } else {
-          toast({
-            title: "No matches found",
-            description: "No potential swap matches were found at this time.",
-          });
-        }
-        setInitialFetchDone(true);
+      if (activeMatches.length > 0) {
+        toast({
+          title: "Matches found!",
+          description: `Found ${activeMatches.length} potential swap matches.`,
+        });
+      } else {
+        toast({
+          title: "No matches found",
+          description: "No potential swap matches were found at this time.",
+        });
       }
     } catch (error) {
       console.error('Error fetching matches:', error);
@@ -206,25 +207,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     }
   };
 
-  // Initial fetch when component mounts and user exists
-  useEffect(() => {
-    let mounted = true;
-    
-    if (user && !initialFetchDone && !isLoading && !fetchInProgressRef.current) {
-      (async () => {
-        // Only proceed if component is still mounted
-        if (mounted) {
-          await fetchMatches();
-        }
-      })();
-    }
-    
-    // Cleanup function to handle component unmounting
-    return () => {
-      mounted = false;
-    };
-  }, [user]);
-
   return (
     <div className="space-y-6">
       {/* Collapsible Swap Match Testing section */}
@@ -269,7 +251,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
               className="bg-green-500 hover:bg-green-600 text-white"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${(isLoading || isProcessing) ? 'animate-spin' : ''}`} />
-              {(isLoading || isProcessing) ? 'Finding Matches...' : 'Refresh Matches'}
+              {(isLoading || isProcessing) ? 'Finding Matches...' : 'Find Matches'}
             </Button>
           </div>
         </div>
