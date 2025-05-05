@@ -75,12 +75,10 @@ const ShiftSwaps = () => {
         </Tabs>
       </TooltipProvider>
       
-      {/* Add EmailTestPanel component */}
-      {isAdmin && (
-        <div className="mt-8">
-          <EmailTestPanel />
-        </div>
-      )}
+      {/* Make EmailTestPanel visible to all users */}
+      <div className="mt-8">
+        <EmailTestPanel />
+      </div>
     </AppLayout>
   );
 };
