@@ -18,13 +18,15 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
   const { user } = useAuth();
   const { findSwapMatches, isProcessing, initialFetchCompleted } = useSwapMatcher();
 
-  // Auto-fetch matches on component mount
+  // Auto-fetch matches on component mount - only once
   useEffect(() => {
     if (user && !initialFetchDone) {
       console.log('Auto-fetching matches on component mount');
       fetchMatches();
+      // Mark initial fetch as done to prevent further auto-fetches
+      setInitialFetchDone(true);
     }
-  }, [user]);
+  }, [user, initialFetchDone]);
 
   /**
    * Process matches data from API response
@@ -129,29 +131,9 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       
       console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
       
-      // IMPORTANT: Update the state with the new matches
-      setMatches([...activeMatches]);
-      setPastMatches([...completedMatches]);
-      
-      // Force a re-render of the component to reflect the new state immediately
-      setTimeout(() => {
-        console.log('State after update (setTimeout):', { 
-          activeMatches: activeMatches.length, 
-          matches: matches.length,
-          matchesState: matches
-        });
-      }, 0);
-      
-      // If we've found matches, update parent tabs if needed
-      if (activeMatches.length > 0 && setRefreshTrigger) {
-        setRefreshTrigger(prevVal => prevVal + 1);
-        if (activeTab !== 'active') {
-          setActiveTab('active');
-        }
-      }
-      
-      // Mark fetch as done only if we actually performed a fetch
-      setInitialFetchDone(true);
+      // Update the state with the new matches
+      setMatches(activeMatches);
+      setPastMatches(completedMatches);
       
       // Show toast message about the results
       if (activeMatches.length > 0) {
@@ -159,6 +141,14 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
           title: "Matches found!",
           description: `Found ${activeMatches.length} potential swap matches.`,
         });
+        
+        // If we've found matches, update parent tabs if needed
+        if (setRefreshTrigger && activeTab !== 'active') {
+          setActiveTab('active');
+          setTimeout(() => {
+            setRefreshTrigger(prevVal => prevVal + 1);
+          }, 100);
+        }
       } else {
         toast({
           title: "No matches found",

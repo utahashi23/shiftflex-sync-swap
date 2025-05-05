@@ -24,9 +24,16 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
   }
 
   // We ensure uniqueness by ID when displaying swaps
-  const uniqueSwaps = Array.from(
-    new Map(swaps.map(swap => [swap.id, swap])).values()
-  );
+  const uniqueSwapsMap = new Map<string, SwapMatch>();
+  
+  // Only add items to the map if they're actually SwapMatch objects
+  swaps.forEach(swap => {
+    if (swap && typeof swap === 'object' && 'id' in swap) {
+      uniqueSwapsMap.set(swap.id, swap);
+    }
+  });
+  
+  const uniqueSwaps = Array.from(uniqueSwapsMap.values());
   
   console.log(`SwapTabContent: Displaying ${uniqueSwaps.length} unique swaps`, uniqueSwaps);
 

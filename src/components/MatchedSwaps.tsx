@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { TestingTools } from './matched-swaps/TestingTools';
 import { MatchedSwapsTabs } from './matched-swaps/MatchedSwapsTabs';
@@ -33,17 +33,20 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     handleAcceptClick,
     handleAcceptSwap
   } = useSwapConfirmation(() => {
-    // Callback after successful acceptance
-    if (setRefreshTrigger) {
-      setRefreshTrigger(prev => prev + 1);
-    }
-    fetchMatches(); // Refresh the matches after accepting
+    // Callback after successful acceptance - use setRefreshTrigger after a delay to avoid infinite re-renders
+    setTimeout(() => {
+      if (setRefreshTrigger) {
+        setRefreshTrigger(prev => prev + 1);
+      }
+      fetchMatches(); // Refresh the matches after accepting
+    }, 500);
   });
 
-  const handleShowMatchesPopup = () => {
+  // Memoize the handler to prevent re-renders
+  const handleShowMatchesPopup = useCallback(() => {
     console.log('Showing matches popup with', matches.length, 'matches');
     setShowMatchesPopup(true);
-  };
+  }, [matches.length]);
 
   return (
     <div className="space-y-6">
