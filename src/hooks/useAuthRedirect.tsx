@@ -26,25 +26,30 @@ export const useAuthRedirect = ({
 
     // For routes requiring authentication (e.g., dashboard, settings)
     if (protectedRoute && !user) {
-      navigate('/login', { state: { returnUrl: location.pathname } });
+      // Store the current path to redirect back after login
+      navigate('/login', { 
+        state: { returnUrl: location.pathname },
+        replace: true  // Use replace to prevent back button issues
+      });
       return;
     }
 
     // For admin-only routes
     if (adminRoute && (!user || !isAdmin)) {
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
       return;
     }
 
     // For routes requiring email verification
     if (verificationRequired && user && !isEmailVerified) {
-      navigate('/verify-email');
+      navigate('/verify-email', { replace: true });
       return;
     }
 
     // For authentication routes (login, register) - redirect authenticated users away
     if (authRoutes && user) {
-      navigate('/dashboard');
+      const returnUrl = location.state?.returnUrl || '/dashboard';
+      navigate(returnUrl, { replace: true });
       return;
     }
 

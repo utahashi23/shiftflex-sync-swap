@@ -19,13 +19,36 @@ export const useAuthActions = () => {
 
   // Sign out function
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error("Sign out error:", error);
+        toast({
+          title: "Sign out failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      // Navigate to home page after successful sign out
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out of your account.",
+      });
+      
+      // Force navigation to the root page
+      navigate('/', { replace: true });
+      return true;
+    } catch (error: any) {
+      console.error("Sign out exception:", error);
       toast({
         title: "Sign out failed",
-        description: error.message,
+        description: error?.message || "An unexpected error occurred",
         variant: "destructive",
       });
+      return false;
     }
   };
 

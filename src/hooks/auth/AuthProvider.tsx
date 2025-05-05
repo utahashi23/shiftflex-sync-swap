@@ -14,11 +14,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     session, 
     isLoading, 
     isAdmin, 
-    isEmailVerified 
+    isEmailVerified, 
+    setUser,
+    setSession
   } = useAuthState();
 
   const {
-    signOut,
+    signOut: signOutAction,
     refreshSession,
     signUp,
     signIn,
@@ -28,7 +30,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkOrganizationCode,
   } = useAuthActions();
 
-  // Handle authentication events in useEffect inside useAuthState
+  // Enhanced sign out to ensure state is cleared
+  const signOut = async () => {
+    const result = await signOutAction();
+    
+    // Clear local state regardless of API success
+    if (user || session) {
+      setUser(null);
+      setSession(null);
+    }
+    
+    return result;
+  };
 
   const value: AuthContextType = {
     user,

@@ -1,5 +1,6 @@
+
 import { ReactNode, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -21,24 +22,35 @@ type AppLayoutProps = {
 const AppLayout = ({ children }: AppLayoutProps) => {
   const { user, signOut, isAdmin } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Get user's first name from user_metadata, fallback to email if not available
   const userFirstName = user?.user_metadata?.first_name || 'User';
 
   const handleSignOut = async () => {
+    if (isSigningOut) return;
+    
     try {
-      await signOut();
-      toast({
-        title: "Signed out successfully",
-        description: "You have been logged out of your account.",
-      });
+      setIsSigningOut(true);
+      
+      // Call the signOut function
+      const success = await signOut();
+      
+      // If signOut didn't navigate, do it explicitly
+      if (success !== false) {
+        navigate('/', { replace: true });
+      }
     } catch (error) {
+      console.error('Sign out error:', error);
       toast({
         title: "Sign out failed",
         description: "There was a problem signing you out.",
         variant: "destructive",
       });
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -105,8 +117,10 @@ const AppLayout = ({ children }: AppLayoutProps) => {
             variant="outline" 
             className="w-full justify-start text-gray-700 hover:text-primary" 
             onClick={handleSignOut}
+            disabled={isSigningOut}
           >
-            <LogOut className="w-4 h-4 mr-2" /> Sign Out
+            <LogOut className="w-4 h-4 mr-2" /> 
+            {isSigningOut ? 'Signing Out...' : 'Sign Out'}
           </Button>
         </div>
       </div>

@@ -18,6 +18,8 @@ export const useAuthState = () => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
+        console.log('Auth state changed event:', event);
+        
         setSession(newSession);
         
         if (newSession?.user) {
@@ -52,6 +54,11 @@ export const useAuthState = () => {
                 console.error("Error checking admin role:", error);
               }
             }
+          } else if (event === 'SIGNED_OUT') {
+            // Clear user state on sign out
+            setUser(null);
+            setIsEmailVerified(false);
+            setIsAdmin(false);
           }
         } else {
           setUser(null);
