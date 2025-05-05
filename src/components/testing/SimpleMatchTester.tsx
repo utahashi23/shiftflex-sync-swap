@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +22,7 @@ interface SimpleMatchTesterProps {
 }
 
 // Create the swap match card function
-const createSwapMatchCard = (match: MatchTestResult) => {
+export const createSwapMatchCard = (match: MatchTestResult) => {
   const shift1 = match.request1Shift;
   const shift2 = match.request2Shift;
   
@@ -275,5 +274,88 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
   );
 };
 
-// Make the createSwapMatchCard function accessible for testing
-SimpleMatchTester.prototype.createSwapMatchCard = createSwapMatchCard;
+// Add the missing handleTestMatch function which was in the original code
+SimpleMatchTester.handleTestMatch = async function(this: any) {
+  if (!this.request1Id || !this.request2Id) {
+    toast({
+      title: "Missing request IDs",
+      description: "Please enter both request IDs to test a match",
+      variant: "destructive"
+    });
+    return;
+  }
+
+  this.setIsLoading(true);
+  this.setTestResult(null);
+
+  try {
+    // Get request 1 details
+    const { data: request1 } = await supabase
+      .from('shift_swap_requests')
+      .select('*')
+      .eq('id', this.request1Id)
+      .single();
+      
+    if (!request1) throw new Error('Request 1 not found');
+    
+    // Get request 1 shift
+    const { data: shift1 } = await supabase.rpc('get_shift_by_id', { 
+      shift_id: request1.requester_shift_id 
+    });
+    
+    if (!shift1 || shift1.length === 0) throw new Error('Request 1 shift not found');
+    
+    // Get request 2 details
+    const { data: request2 } = await supabase
+      .from('shift_swap_requests')
+      .select('*')
+      .eq('id', this.request2Id)
+      .single();
+      
+    if (!request2) throw new Error('Request 2 not found');
+    
+    // Get request 2 shift
+    const { data: shift2 } = await supabase.rpc('get_shift_by_id', { 
+      shift_id: request2.requester_shift_id 
+    });
+    
+    if (!shift2 || shift2.length === 0) throw new Error('Request 2 shift not found');
+    
+    // Get user details
+    const { data: user1 } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', request1.requester_id)
+      .single();
+      
+    const { data: user2 } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', request2.requester_id)
+      .single();
+    
+    // Set test result
+    this.setTestResult({
+      request1Id: request1.id,
+      request2Id: request2.id,
+      request1Shift: shift1[0],
+      request2Shift: shift2[0],
+      request1User: user1,
+      request2User: user2
+    });
+    
+    toast({
+      title: "Match test completed",
+      description: "Both requests and shifts were found",
+    });
+  } catch (error: any) {
+    console.error('Error testing match:', error);
+    toast({
+      title: "Error testing match",
+      description: error.message || "Could not complete the match test",
+      variant: "destructive"
+    });
+  } finally {
+    this.setIsLoading(false);
+  }
+};
