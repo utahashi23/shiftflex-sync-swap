@@ -6,6 +6,7 @@ export interface SwapShift {
   endTime: string;
   truckName: string | null;
   type: 'day' | 'afternoon' | 'night' | 'unknown';
+  colleagueType?: string | null;
 }
 
 export interface OtherSwapShift extends SwapShift {

@@ -73,6 +73,13 @@ export const MatchResultsPopup = ({
                     <div className="font-semibold pl-2">Type:</div>
                     <div>{match.myShift.type}</div>
                     
+                    {match.myShift.colleagueType && (
+                      <>
+                        <div className="font-semibold pl-2">Colleague Type:</div>
+                        <div>{match.myShift.colleagueType}</div>
+                      </>
+                    )}
+                    
                     <div className="font-semibold mt-2">Their Shift:</div>
                     <div></div>
                     
@@ -87,6 +94,13 @@ export const MatchResultsPopup = ({
                     
                     <div className="font-semibold pl-2">Type:</div>
                     <div>{match.otherShift.type}</div>
+                    
+                    {match.otherShift.colleagueType && (
+                      <>
+                        <div className="font-semibold pl-2">Colleague Type:</div>
+                        <div>{match.otherShift.colleagueType}</div>
+                      </>
+                    )}
                     
                     <div className="font-semibold pl-2">User:</div>
                     <div>{match.otherShift.userName}</div>

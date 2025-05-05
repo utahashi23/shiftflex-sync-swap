@@ -6,7 +6,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { ArrowRightLeft, Calendar, Clock } from "lucide-react";
+import { ArrowRightLeft, Calendar, Clock, UserCircle2 } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "@/hooks/useSwapMatches";
 
@@ -67,6 +67,13 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
                 <span className="text-sm">{swap.myShift.startTime} - {swap.myShift.endTime}</span>
               </div>
               
+              {swap.myShift.colleagueType && (
+                <div className="flex items-center mt-1">
+                  <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="text-sm">{swap.myShift.colleagueType}</span>
+                </div>
+              )}
+              
               <div className="mt-2 text-xs font-medium text-muted-foreground">
                 {swap.myShift.truckName || 'Shift'}
               </div>
@@ -96,6 +103,13 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
                 <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
                 <span className="text-sm">{swap.otherShift.startTime} - {swap.otherShift.endTime}</span>
               </div>
+              
+              {swap.otherShift.colleagueType && (
+                <div className="flex items-center mt-1">
+                  <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="text-sm">{swap.otherShift.colleagueType}</span>
+                </div>
+              )}
               
               <div className="mt-2 text-xs font-medium text-muted-foreground">
                 {swap.otherShift.truckName || 'Shift'}
