@@ -8,16 +8,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export const PromotionPopup = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
 
   // Show popup after a short delay
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Check if we've shown this before
-      const hasSeenPopup = localStorage.getItem('hasSeenPromotionPopup');
-      if (!hasSeenPopup) {
+      // Check if user has opted out of seeing this popup
+      const hasOptedOut = localStorage.getItem('hasOptedOutPromotionPopup') === 'true';
+      if (!hasOptedOut) {
         setIsOpen(true);
       }
     }, 1500);
@@ -27,8 +29,10 @@ export const PromotionPopup = () => {
 
   const handleClose = () => {
     setIsOpen(false);
-    // Remember that user has seen this popup
-    localStorage.setItem('hasSeenPromotionPopup', 'true');
+    // If "Don't show again" is checked, remember this preference
+    if (dontShowAgain) {
+      localStorage.setItem('hasOptedOutPromotionPopup', 'true');
+    }
   };
 
   return (
@@ -58,6 +62,21 @@ export const PromotionPopup = () => {
               <p><strong>Password:</strong> SfDemoUser2Pass#</p>
             </div>
           </div>
+          
+          <div className="flex items-center space-x-2 mt-6 mb-4">
+            <Checkbox 
+              id="dontShowAgain" 
+              checked={dontShowAgain}
+              onCheckedChange={(checked) => setDontShowAgain(checked === true)} 
+            />
+            <label 
+              htmlFor="dontShowAgain" 
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Don't show again
+            </label>
+          </div>
+          
           <div className="flex justify-center mt-4">
             <Button onClick={handleClose} size="lg">
               Got it
