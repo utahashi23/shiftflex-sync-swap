@@ -31,28 +31,3 @@ export interface ConfirmDialogState {
   isOpen: boolean;
   matchId: string | null;
 }
-
-// Define a type for matched swaps used in older files (for compatibility)
-export type MatchedSwap = {
-  id: string;
-  originalShift: {
-    id: string;
-    date: string;
-    type: string;
-    title: string;
-    startTime: string;
-    endTime: string;
-    colleagueType: string;
-  };
-  matchedShift: {
-    id: string;
-    date: string;
-    type: string;
-    title: string;
-    startTime: string;
-    endTime: string;
-    colleagueType: string;
-    colleague: string;
-  };
-  status: string;
-}
