@@ -6,7 +6,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { ArrowRightLeft, Calendar, Clock } from "lucide-react";
+import { ArrowRightLeft, Calendar, Clock, UserCheck } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "@/hooks/useSwapMatches";
 
@@ -55,6 +55,9 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
             <div className="p-3 border rounded-md bg-background">
               <div className="flex items-center justify-between">
                 <ShiftTypeBadge type={swap.myShift.type} />
+                <div className="text-xs font-medium text-muted-foreground">
+                  {swap.myShift.colleagueType || 'Unknown'}
+                </div>
               </div>
               
               <div className="flex items-center mt-2">
@@ -82,8 +85,9 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
             <div className="p-3 border rounded-md bg-background">
               <div className="flex items-center justify-between">
                 <ShiftTypeBadge type={swap.otherShift.type} />
-                <div className="text-xs font-medium text-muted-foreground">
-                  {swap.otherShift.userName}
+                <div className="flex items-center text-xs font-medium text-muted-foreground">
+                  <UserCheck className="h-3 w-3 mr-1" />
+                  {swap.otherShift.colleagueType || 'Unknown'}
                 </div>
               </div>
               
@@ -97,8 +101,13 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
                 <span className="text-sm">{swap.otherShift.startTime} - {swap.otherShift.endTime}</span>
               </div>
               
-              <div className="mt-2 text-xs font-medium text-muted-foreground">
-                {swap.otherShift.truckName || 'Shift'}
+              <div className="mt-2 flex justify-between items-center">
+                <div className="text-xs font-medium text-muted-foreground">
+                  {swap.otherShift.truckName || 'Shift'}
+                </div>
+                <div className="text-xs font-medium text-muted-foreground">
+                  {swap.otherShift.userName}
+                </div>
               </div>
             </div>
           </div>

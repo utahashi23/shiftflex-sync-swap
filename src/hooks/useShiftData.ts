@@ -58,7 +58,7 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
             startTime: shift.start_time.substring(0, 5), // Format as HH:MM
             endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
             type,
-            colleagueType: 'Unknown'  // Default value as we don't have colleague type in the database yet
+            colleagueType: shift.colleague_type || 'Unknown'
           };
         }) || [];
         
