@@ -1,5 +1,5 @@
 
-// Auth module barrel file - corrected to avoid circular dependencies
+// Auth module barrel file
 import { AuthProvider } from './AuthProvider';
 import { useAuth } from './useAuth';
 import type { ExtendedUser, AuthContextType } from './types';

@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/auth"; // Import from the correct barrel file
+import { AuthProvider } from "@/hooks/auth"; // Ensure we're importing from the correct barrel
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -23,9 +23,9 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
       <BrowserRouter>
+        <Toaster />
+        <Sonner />
         <AuthProvider>
           <Routes>
             {/* Landing Page */}
