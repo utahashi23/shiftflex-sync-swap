@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { ArrowRightLeft, Calendar, Clock, UserCircle2 } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
-import { SwapMatch } from "@/hooks/useSwapMatches";
+import { SwapMatch } from "./types";
 
 interface SwapCardProps {
   swap: SwapMatch;
