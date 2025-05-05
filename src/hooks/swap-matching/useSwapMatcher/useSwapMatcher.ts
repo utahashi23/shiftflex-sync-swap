@@ -57,7 +57,7 @@ export const useSwapMatcher = () => {
           forceCheck, 
           verbose, 
           userPerspectiveOnly,
-          true // Always use true for userInitiatorOnly
+          userInitiatorOnly
         );
         console.log("Edge function result:", result);
         
@@ -67,7 +67,8 @@ export const useSwapMatcher = () => {
             title: "Matches found!",
             description: `Found ${result.length} potential swap matches.`,
           });
-        } else {
+        } else if (result) {
+          // Only show "no matches" if we got a valid response
           toast({
             title: "No matches found",
             description: "No potential swap matches were found at this time.",
@@ -88,6 +89,7 @@ export const useSwapMatcher = () => {
       });
       return [];
     } finally {
+      // Always reset the loading state, regardless of outcome
       setIsFindingMatches(false);
     }
   };

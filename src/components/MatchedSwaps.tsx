@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { SwapMatch } from '@/hooks/useSwapMatches';
 import { getShiftType } from '@/utils/shiftUtils';
-import { SimpleMatchTester } from './testing/SimpleMatchTester'; // Fixed import to use named import
+import { SimpleMatchTester } from './testing/SimpleMatchTester';
 import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
 import { SwapMatchDebug } from './matched-swaps/SwapMatchDebug';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
@@ -39,7 +39,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   });
   
   const { user, isAdmin } = useAuth();
-  const { findSwapMatches, isProcessing } = useSwapMatcher();
+  const { findSwapMatches, isProcessing, isFindingMatches } = useSwapMatcher();
 
   // Process matches data from API response
   const processMatchesData = (matchesData: any[]) => {
@@ -87,7 +87,10 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     if (!user || !user.id) return;
     
     // Prevent duplicate requests if already loading
-    if (isLoading || isProcessing) return;
+    if (isLoading || isProcessing || isFindingMatches) {
+      console.log("Already processing a request, skipping fetchMatches");
+      return;
+    }
     
     setIsLoading(true);
     
@@ -98,29 +101,33 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       const matchesData = await findSwapMatches(user.id, true, true, true, true);
       console.log('Raw match data from function:', matchesData);
       
-      // Process the matches data
-      const formattedMatches = processMatchesData(matchesData);
-      
-      // Separate active and past matches
-      const activeMatches = formattedMatches.filter((match: SwapMatch) => 
-        match.status === 'pending' || match.status === 'accepted'
-      );
-      
-      const completedMatches = formattedMatches.filter((match: SwapMatch) => 
-        match.status === 'completed'
-      );
-      
-      console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
-      
-      setMatches(activeMatches);
-      setPastMatches(completedMatches);
-      
-      // If we've found matches, update parent tabs if needed
-      if (activeMatches.length > 0 && setRefreshTrigger) {
-        setRefreshTrigger(prevVal => prevVal + 1);
-        if (activeTab !== 'active') {
-          setActiveTab('active');
+      // Process the matches data only if we got a valid response
+      if (matchesData && Array.isArray(matchesData)) {
+        const formattedMatches = processMatchesData(matchesData);
+        
+        // Separate active and past matches
+        const activeMatches = formattedMatches.filter((match: SwapMatch) => 
+          match.status === 'pending' || match.status === 'accepted'
+        );
+        
+        const completedMatches = formattedMatches.filter((match: SwapMatch) => 
+          match.status === 'completed'
+        );
+        
+        console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
+        
+        setMatches(activeMatches);
+        setPastMatches(completedMatches);
+        
+        // If we've found matches, update parent tabs if needed
+        if (activeMatches.length > 0 && setRefreshTrigger) {
+          setRefreshTrigger(prevVal => prevVal + 1);
+          if (activeTab !== 'active') {
+            setActiveTab('active');
+          }
         }
+      } else {
+        console.log('No valid match data returned');
       }
     } catch (error) {
       console.error('Error fetching matches:', error);
@@ -194,6 +201,9 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     }
   }, [user]);
 
+  // Calculate combined loading state
+  const combinedLoadingState = isLoading || isProcessing || isFindingMatches;
+
   return (
     <div className="space-y-6">
       {/* Collapsible Swap Match Testing section */}
@@ -234,11 +244,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           <div className="flex gap-2">
             <Button 
               onClick={fetchMatches}
-              disabled={isLoading || isProcessing}
+              disabled={combinedLoadingState}
               className="bg-green-500 hover:bg-green-600 text-white"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />
-              {isLoading || isProcessing ? 'Finding Matches...' : 'Refresh Matches'}
+              <RefreshCw className={`h-4 w-4 mr-2 ${combinedLoadingState ? 'animate-spin' : ''}`} />
+              {combinedLoadingState ? 'Finding Matches...' : 'Refresh Matches'}
             </Button>
           </div>
         </div>

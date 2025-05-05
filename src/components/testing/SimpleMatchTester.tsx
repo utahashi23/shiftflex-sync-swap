@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 import { getShiftType } from '@/utils/shiftUtils';
 import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
+import { Loader2 } from 'lucide-react';
 
 // Define the MatchTestResult type
 interface MatchTestResult {
@@ -68,7 +69,7 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
   const [request2Id, setRequest2Id] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [testResult, setTestResult] = useState<MatchTestResult | null>(null);
-  const { findSwapMatches } = useSwapMatcher();
+  const { findSwapMatches, isProcessing, isFindingMatches } = useSwapMatcher();
 
   const handleTestMatch = async () => {
     if (!request1Id || !request2Id) {
@@ -204,7 +205,6 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
   };
 
   const handleFindMatches = async () => {
-    setIsLoading(true);
     try {
       // Use the findSwapMatches function from the hook
       await findSwapMatches(undefined, true, true);
@@ -220,10 +220,11 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
         description: "Could not find potential matches",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
     }
   };
+
+  // Combined loading state
+  const combinedLoadingState = isLoading || isProcessing || isFindingMatches;
 
   return (
     <Card className="border-amber-300 bg-amber-50/70">
@@ -236,10 +237,17 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
             <Button
               type="button"
               onClick={handleFindMatches}
-              disabled={isLoading}
+              disabled={combinedLoadingState}
               className="bg-blue-500 hover:bg-blue-600 text-white"
             >
-              Run Match Finder
+              {combinedLoadingState ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Finding Matches...
+                </>
+              ) : (
+                <>Run Match Finder</>
+              )}
             </Button>
           </div>
 
@@ -272,14 +280,14 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
             <Button
               type="button"
               variant="secondary"
-              disabled={isLoading || !request1Id || !request2Id}
+              disabled={combinedLoadingState || !request1Id || !request2Id}
               onClick={handleTestMatch}
             >
               Test Match
             </Button>
             <Button
               type="button"
-              disabled={isLoading || !testResult}
+              disabled={combinedLoadingState || !testResult}
               onClick={handleCreateMatch}
               className="bg-amber-500 hover:bg-amber-600 text-white"
             >
