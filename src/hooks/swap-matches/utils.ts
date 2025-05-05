@@ -22,6 +22,21 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         const myShiftType = getShiftType(match.my_shift_start_time);
         const otherShiftType = getShiftType(match.other_shift_start_time);
         
+        // Determine colleague type
+        let colleagueType: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown' = 'Unknown';
+        
+        // Try to determine colleague type from organization or name
+        if (match.other_user_name) {
+          const userName = match.other_user_name.toLowerCase();
+          if (userName.includes('graduate')) {
+            colleagueType = 'Graduate';
+          } else if (userName.includes('aco')) {
+            colleagueType = 'ACO'; 
+          } else if (userName.includes('qualified')) {
+            colleagueType = 'Qualified';
+          }
+        }
+        
         return {
           id: match.match_id,
           status: match.match_status,
@@ -41,7 +56,8 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
             truckName: match.other_shift_truck,
             type: otherShiftType,
             userId: match.other_user_id,
-            userName: match.other_user_name
+            userName: match.other_user_name,
+            colleagueType: colleagueType
           },
           myRequestId: match.my_request_id,
           otherRequestId: match.other_request_id,

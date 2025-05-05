@@ -9,6 +9,7 @@ import {
 import { ArrowRightLeft, Calendar, Clock } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "@/hooks/useSwapMatches";
+import { Badge } from "@/components/ui/badge";
 
 interface SwapCardProps {
   swap: SwapMatch;
@@ -97,8 +98,20 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
                 <span className="text-sm">{swap.otherShift.startTime} - {swap.otherShift.endTime}</span>
               </div>
               
-              <div className="mt-2 text-xs font-medium text-muted-foreground">
-                {swap.otherShift.truckName || 'Shift'}
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {swap.otherShift.truckName || 'Shift'}
+                </span>
+                {swap.otherShift.colleagueType && (
+                  <Badge variant="outline" className={`
+                    ${swap.otherShift.colleagueType === 'Graduate' ? 'bg-blue-50 text-blue-700 border-blue-200' : 
+                      swap.otherShift.colleagueType === 'ACO' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                      swap.otherShift.colleagueType === 'Qualified' ? 'bg-green-50 text-green-700 border-green-200' :
+                      'bg-gray-50 text-gray-700 border-gray-200'}
+                  `}>
+                    {swap.otherShift.colleagueType}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
