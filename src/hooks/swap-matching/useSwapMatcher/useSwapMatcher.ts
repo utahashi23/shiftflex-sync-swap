@@ -51,7 +51,7 @@ export const useSwapMatcher = () => {
     }
     
     // Check if we have cached results and aren't forcing a check
-    if (!forceCheck && matchesCache[targetUserId]) {
+    if (!forceCheck && matchesCache[targetUserId] && matchesCache[targetUserId].length > 0) {
       console.log(`Using cached matches for user ${targetUserId}`);
       return matchesCache[targetUserId];
     }

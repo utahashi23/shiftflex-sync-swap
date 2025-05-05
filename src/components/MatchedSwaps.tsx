@@ -103,6 +103,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       
       // Process the matches data
       const formattedMatches = processMatchesData(matchesData || []);
+      console.log('Formatted matches:', formattedMatches);
       
       // Separate active and past matches
       const activeMatches = formattedMatches.filter((match: SwapMatch) => 
@@ -115,6 +116,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       
       console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
       
+      // Update the state with the new matches
       setMatches(activeMatches);
       setPastMatches(completedMatches);
       
