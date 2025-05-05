@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '../use-toast';
 import { formatSwapMatches } from './utils';
@@ -84,6 +85,23 @@ export const acceptSwapMatch = async (matchId: string) => {
     return data;
   } catch (error) {
     console.error('Error in acceptSwapMatch:', error);
+    throw error;
+  }
+};
+
+export const finalizeSwapMatch = async (matchId: string) => {
+  console.log('Finalizing swap match:', matchId);
+  
+  try {
+    const { data, error } = await supabase.functions.invoke('finalize_swap_match', {
+      body: { match_id: matchId }
+    });
+    
+    if (error) throw error;
+    
+    return data;
+  } catch (error) {
+    console.error('Error in finalizeSwapMatch:', error);
     throw error;
   }
 };

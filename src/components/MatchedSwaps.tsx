@@ -1,6 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
+import { FinalizeSwapDialog } from './matched-swaps/FinalizeSwapDialog';
 import { TestingTools } from './matched-swaps/TestingTools';
 import { MatchedSwapsTabs } from './matched-swaps/MatchedSwapsTabs';
 import { useMatchedSwapsData } from './matched-swaps/hooks/useMatchedSwapsData';
@@ -27,9 +28,13 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   const {
     confirmDialog,
     setConfirmDialog,
-    isLoading: isAcceptLoading,
+    finalizeDialog,
+    setFinalizeDialog,
+    isLoading: isActionLoading,
     handleAcceptClick,
-    handleAcceptSwap
+    handleFinalizeClick,
+    handleAcceptSwap,
+    handleFinalizeSwap
   } = useSwapConfirmation(() => {
     // Callback after successful acceptance - use setRefreshTrigger after a delay to avoid infinite re-renders
     setTimeout(() => {
@@ -57,8 +62,9 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         matches={matches}
         pastMatches={pastMatches}
         onAcceptSwap={handleAcceptClick}
+        onFinalizeSwap={handleFinalizeClick}
         onRefresh={fetchMatches}
-        isLoading={isLoading || isAcceptLoading}
+        isLoading={isLoading || isActionLoading}
         isProcessing={isProcessing}
       />
 
@@ -71,7 +77,19 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           }
         }}
         onConfirm={handleAcceptSwap}
-        isLoading={isLoading || isAcceptLoading}
+        isLoading={isLoading || isActionLoading}
+      />
+
+      {/* Finalize Dialog */}
+      <FinalizeSwapDialog
+        open={finalizeDialog.isOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setFinalizeDialog({ isOpen: false, matchId: null });
+          }
+        }}
+        onConfirm={handleFinalizeSwap}
+        isLoading={isLoading || isActionLoading}
       />
     </div>
   );

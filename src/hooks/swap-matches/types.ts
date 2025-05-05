@@ -35,5 +35,6 @@ export interface SwapMatchesState {
 export interface UseSwapMatchesReturn extends SwapMatchesState {
   fetchMatches: (userPerspectiveOnly?: boolean, userInitiatorOnly?: boolean) => Promise<void>;
   acceptMatch: (matchId: string) => Promise<boolean>;
+  finalizeMatch: (matchId: string) => Promise<boolean>;
   completeMatch: (matchId: string) => Promise<boolean>;
 }

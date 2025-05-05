@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../useAuth';
 import { toast } from '../use-toast';
-import { fetchUserMatches, acceptSwapMatch, completeSwapMatch } from './api';
+import { fetchUserMatches, acceptSwapMatch, finalizeSwapMatch, completeSwapMatch } from './api';
 import { SwapMatchesState, UseSwapMatchesReturn } from './types';
 
 export const useSwapMatches = (): UseSwapMatchesReturn => {
@@ -65,7 +65,7 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
       
       toast({
         title: "Swap Accepted",
-        description: "You have successfully accepted the swap",
+        description: "You have successfully accepted the swap. Waiting for roster approval.",
       });
       
       return true;
@@ -74,6 +74,35 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
       toast({
         title: "Failed to accept swap",
         description: "There was a problem accepting the swap",
+        variant: "destructive"
+      });
+      setState(prev => ({ ...prev, isLoading: false }));
+      return false;
+    }
+  };
+  
+  const finalizeMatch = async (matchId: string) => {
+    if (!user || !matchId) return false;
+    
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+      
+      await finalizeSwapMatch(matchId);
+      
+      // Refresh matches after finalizing
+      await fetchMatches();
+      
+      toast({
+        title: "Swap Finalized",
+        description: "The shift swap has been finalized and calendars have been updated",
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error finalizing swap match:', error);
+      toast({
+        title: "Failed to finalize swap",
+        description: "There was a problem finalizing the swap",
         variant: "destructive"
       });
       setState(prev => ({ ...prev, isLoading: false }));
@@ -122,6 +151,7 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
     ...state,
     fetchMatches,
     acceptMatch,
+    finalizeMatch,
     completeMatch
   };
 };

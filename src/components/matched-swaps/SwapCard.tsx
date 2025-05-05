@@ -14,6 +14,7 @@ interface SwapCardProps {
   swap: SwapMatch;
   isPast?: boolean;
   onAccept?: (matchId: string) => void;
+  onFinalize?: (matchId: string) => void;
 }
 
 // Format date to a readable string
@@ -25,7 +26,7 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
+export const SwapCard = ({ swap, isPast = false, onAccept, onFinalize }: SwapCardProps) => {
   // Debug logging for colleague types
   console.log(`SwapCard rendering for match ${swap.id} with colleague types:`, {
     myShift: swap.myShift.colleagueType,
@@ -125,15 +126,26 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
         </div>
       </CardContent>
       
-      {!isPast && swap.status === 'pending' && onAccept && (
+      {!isPast && (
         <CardFooter className="bg-secondary/20 border-t px-4 py-3">
-          <div className="w-full flex justify-end">
-            <Button 
-              onClick={() => onAccept(swap.id)}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              Accept Swap
-            </Button>
+          <div className="w-full flex justify-end gap-2">
+            {swap.status === 'pending' && onAccept && (
+              <Button 
+                onClick={() => onAccept(swap.id)}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Accept Swap
+              </Button>
+            )}
+            
+            {swap.status === 'accepted' && onFinalize && (
+              <Button 
+                onClick={() => onFinalize(swap.id)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Finalize Swap
+              </Button>
+            )}
           </div>
         </CardFooter>
       )}

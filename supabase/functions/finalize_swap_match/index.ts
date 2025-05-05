@@ -27,7 +27,7 @@ serve(async (req) => {
       )
     }
 
-    console.log(`Processing accept_swap_match for match ID: ${match_id}`)
+    console.log(`Processing finalize_swap_match for match ID: ${match_id}`)
 
     // Create a Supabase client with the Auth context of the logged in user
     const supabaseClient = createClient(
@@ -65,6 +65,11 @@ serve(async (req) => {
 
     if (!matchData) {
       throw new Error('Match not found')
+    }
+
+    // Check if the match is in "accepted" status
+    if (matchData.status !== 'accepted') {
+      throw new Error(`Cannot finalize match in ${matchData.status} status. Match must be accepted first.`)
     }
 
     console.log(`Found match data:`, matchData)
@@ -125,12 +130,12 @@ serve(async (req) => {
     const shiftsPromises = [
       supabaseAdmin
         .from('shifts')
-        .select('date, start_time, end_time, truck_name')
+        .select('id, date, start_time, end_time, truck_name, user_id')
         .eq('id', matchData.requester_shift_id)
         .single(),
       supabaseAdmin
         .from('shifts')
-        .select('date, start_time, end_time, truck_name')
+        .select('id, date, start_time, end_time, truck_name, user_id')
         .eq('id', matchData.acceptor_shift_id)
         .single()
     ]
@@ -147,10 +152,36 @@ serve(async (req) => {
       // Continue even if we can't get shift details
     }
 
-    // Update match status to "accepted"
+    // Begin transaction to swap user assignments on the shifts
+    // This is the critical part where we actually swap the shifts between users
+    const updateShiftsPromises = [
+      // Update requester's original shift to now be assigned to the acceptor
+      supabaseAdmin
+        .from('shifts')
+        .update({ user_id: acceptorUserId })
+        .eq('id', requesterShift.data.id),
+      
+      // Update acceptor's original shift to now be assigned to the requester
+      supabaseAdmin
+        .from('shifts')
+        .update({ user_id: requesterUserId })
+        .eq('id', acceptorShift.data.id)
+    ]
+
+    const [updateRequesterShift, updateAcceptorShift] = await Promise.all(updateShiftsPromises)
+    
+    if (updateRequesterShift.error) {
+      throw new Error(`Error updating requester shift: ${updateRequesterShift.error.message}`)
+    }
+    
+    if (updateAcceptorShift.error) {
+      throw new Error(`Error updating acceptor shift: ${updateAcceptorShift.error.message}`)
+    }
+
+    // Update match status to "completed"
     const { data: updateData, error: updateError } = await supabaseAdmin
       .from('shift_swap_potential_matches')
-      .update({ status: 'accepted' })
+      .update({ status: 'completed' })
       .eq('id', match_id)
       .select()
     
@@ -158,9 +189,9 @@ serve(async (req) => {
       throw new Error(`Error updating match: ${updateError.message}`)
     }
 
-    console.log(`Successfully updated match status to accepted`)
+    console.log(`Successfully updated match status to completed and swapped shift assignments`)
 
-    // Send emails in the background - we don't need to await this
+    // Send emails in the background
     const sendEmails = async () => {
       try {
         // Format the shift dates and times for email content
@@ -180,13 +211,12 @@ serve(async (req) => {
         // Only attempt to send emails if we have email addresses
         if (requesterEmail) {
           const requesterEmailContent = `
-            <h2>Shift Swap Accepted</h2>
-            <p>Good news! Your shift swap has been accepted by your colleague.</p>
+            <h2>Shift Swap Finalized</h2>
+            <p>Your shift swap has been finalized and your calendar has been updated.</p>
             <h3>Swap Details:</h3>
             <p><strong>Your Original Shift:</strong> ${formatDate(requesterShift.data?.date)} from ${formatTime(requesterShift.data?.start_time)} to ${formatTime(requesterShift.data?.end_time)} at ${requesterShift.data?.truck_name || 'your assigned location'}</p>
             <p><strong>Your New Shift:</strong> ${formatDate(acceptorShift.data?.date)} from ${formatTime(acceptorShift.data?.start_time)} to ${formatTime(acceptorShift.data?.end_time)} at ${acceptorShift.data?.truck_name || 'your colleague\'s location'}</p>
-            <p>This swap is pending approval from Rosters. Once approved, you'll be notified to finalize the swap.</p>
-            <p><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
+            <p><strong>Important:</strong> Your official schedule has been updated. Please make sure to update any personal calendars you maintain.</p>
             <p>Thank you for using the Shift Swap system!</p>
           `
           
@@ -200,7 +230,7 @@ serve(async (req) => {
             body: JSON.stringify({
               from: 'Shift Swap <notifications@shiftswap.com>',
               to: requesterEmail,
-              subject: 'Your Shift Swap Has Been Accepted',
+              subject: 'Your Shift Swap Has Been Finalized',
               html: requesterEmailContent
             })
           })
@@ -210,13 +240,12 @@ serve(async (req) => {
 
         if (acceptorEmail) {
           const acceptorEmailContent = `
-            <h2>Shift Swap Confirmation</h2>
-            <p>You have successfully accepted a shift swap.</p>
+            <h2>Shift Swap Finalized</h2>
+            <p>Your shift swap has been finalized and your calendar has been updated.</p>
             <h3>Swap Details:</h3>
             <p><strong>Your Original Shift:</strong> ${formatDate(acceptorShift.data?.date)} from ${formatTime(acceptorShift.data?.start_time)} to ${formatTime(acceptorShift.data?.end_time)} at ${acceptorShift.data?.truck_name || 'your assigned location'}</p>
             <p><strong>Your New Shift:</strong> ${formatDate(requesterShift.data?.date)} from ${formatTime(requesterShift.data?.start_time)} to ${formatTime(requesterShift.data?.end_time)} at ${requesterShift.data?.truck_name || 'your colleague\'s location'}</p>
-            <p>This swap is pending approval from Rosters. Once approved, you'll be notified to finalize the swap.</p>
-            <p><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
+            <p><strong>Important:</strong> Your official schedule has been updated. Please make sure to update any personal calendars you maintain.</p>
             <p>Thank you for using the Shift Swap system!</p>
           `
           
@@ -230,7 +259,7 @@ serve(async (req) => {
             body: JSON.stringify({
               from: 'Shift Swap <notifications@shiftswap.com>',
               to: acceptorEmail,
-              subject: 'Shift Swap Confirmation',
+              subject: 'Shift Swap Finalized',
               html: acceptorEmailContent
             })
           })
@@ -257,7 +286,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
   } catch (error) {
-    console.error('Error in accept_swap_match:', error)
+    console.error('Error in finalize_swap_match:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
