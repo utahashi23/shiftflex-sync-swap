@@ -1,4 +1,3 @@
-
 import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -35,13 +34,11 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     try {
       setIsSigningOut(true);
       
-      // Call the signOut function
-      const success = await signOut();
+      // Call the signOut function - it now returns void not boolean
+      await signOut();
       
-      // If signOut didn't navigate, do it explicitly
-      if (success !== false) {
-        navigate('/', { replace: true });
-      }
+      // Always navigate after sign-out attempt
+      navigate('/', { replace: true });
     } catch (error) {
       console.error('Sign out error:', error);
       toast({

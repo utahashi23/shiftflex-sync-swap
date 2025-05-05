@@ -1,5 +1,6 @@
 
-import { AuthProvider, useAuth } from './auth/AuthProvider';
+// Import and re-export from the auth barrel file
+import { AuthProvider, useAuth } from './auth/index';
 import type { ExtendedUser, AuthContextType } from './auth/types';
 
 export { AuthProvider, useAuth };

@@ -18,7 +18,7 @@ export interface AuthContextType {
   isEmailVerified: boolean;
   signUp: (email: string, password: string, metadata?: { firstName?: string, lastName?: string, organization?: string, organizationCode?: string, employeeId?: string }) => Promise<{ success: boolean; error?: any }>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: any }>;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<void>; // Changed from boolean to void to match implementation
   resetPassword: (email: string) => Promise<{ success: boolean; error?: any }>;
   updateUser: (data: { firstName?: string; lastName?: string; employeeId?: string; }) => Promise<{ success: boolean; error?: any }>;
   updatePassword: (password: string) => Promise<{ success: boolean; error?: any }>;

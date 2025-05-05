@@ -1,7 +1,7 @@
 
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from './useAuth';
+import { useAuth } from './auth'; // Import from the main auth barrel file
 
 type UseAuthRedirectOptions = {
   protectedRoute?: boolean;

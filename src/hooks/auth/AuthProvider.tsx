@@ -32,15 +32,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Enhanced sign out to ensure state is cleared
   const signOut = async () => {
-    const result = await signOutAction();
-    
-    // Clear local state regardless of API success
-    if (user || session) {
-      setUser(null);
-      setSession(null);
+    try {
+      const result = await signOutAction();
+      
+      // Clear local state regardless of API success
+      if (user || session) {
+        setUser(null);
+        setSession(null);
+      }
+      
+      // Return void instead of a boolean to match the type in AuthContextType
+      return;
+    } catch (error) {
+      console.error("Error in signOut:", error);
+      // Still return void to match the expected type
+      return;
     }
-    
-    return result;
   };
 
   const value: AuthContextType = {
