@@ -209,6 +209,7 @@ const ShiftForm = ({
         truck_name: truckName,
         start_time: shiftStartTime,
         end_time: shiftEndTime,
+        colleague_type: colleagueType, // Add colleague_type to the database record
       };
       
       let result;
