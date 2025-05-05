@@ -1,10 +1,10 @@
-
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Truck, Shuffle, Settings } from "lucide-react";
+import { PromotionPopup } from '@/components/PromotionPopup';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -60,6 +60,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+      <PromotionPopup />
+      
       <div className="container mx-auto px-4 py-16">
         <header className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
