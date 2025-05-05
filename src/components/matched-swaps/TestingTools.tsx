@@ -1,90 +1,55 @@
 
-import { ChevronDown, ChevronUp, Search, Beaker } from 'lucide-react';
-import { 
-  Collapsible, 
-  CollapsibleContent, 
-  CollapsibleTrigger 
-} from '../ui/collapsible';
-import { Button } from '../ui/button';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { ArrowDownUp, ChevronDown, ChevronRight } from 'lucide-react';
 import SimpleMatchTester from '../testing/SimpleMatchTester';
 import { SwapMatch } from './types';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
 interface TestingToolsProps {
   showTestingTools: boolean;
   setShowTestingTools: (show: boolean) => void;
-  onMatchCreated: () => void;
+  onMatchCreated?: () => void;
   matches: SwapMatch[];
-  onShowMatchesPopup: () => void;
 }
 
 export const TestingTools = ({ 
-  showTestingTools,
-  setShowTestingTools,
+  showTestingTools, 
+  setShowTestingTools, 
   onMatchCreated,
-  matches,
-  onShowMatchesPopup
+  matches
 }: TestingToolsProps) => {
-  if (!showTestingTools) {
-    // Small indicator/toggle when collapsed
-    return (
-      <div className="flex justify-end">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-amber-500 opacity-60 hover:opacity-100 hover:bg-amber-50"
-              onClick={() => setShowTestingTools(true)}
-              data-testid="show-testing-tools"
-            >
-              <Beaker className="h-4 w-4 mr-1" />
-              <span className="text-xs">Test Tools</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Show testing tools (for development only)</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
-    );
-  }
-
   return (
-    <Collapsible
-      open={true}
-      className="border border-amber-300 rounded-lg bg-amber-50 overflow-hidden"
-    >
-      <div className="flex justify-between items-center p-4">
-        <h2 className="text-lg font-bold text-amber-700">Swap Match Testing</h2>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="border-amber-400 hover:bg-amber-100"
-          onClick={() => setShowTestingTools(false)}
+    <>
+      <div className="flex items-center justify-between mb-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-gray-400 hover:text-gray-700"
+          onClick={() => setShowTestingTools(!showTestingTools)}
         >
-          Hide Testing Tools <ChevronUp className="ml-1 h-4 w-4" />
+          {showTestingTools ? <ChevronDown className="h-4 w-4 mr-1" /> : <ChevronRight className="h-4 w-4 mr-1" />}
+          Testing Tools
+          <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+            {matches.length} matches
+          </span>
         </Button>
       </div>
       
-      <div className="p-4 pt-0">
-        <div className="flex justify-between items-center mb-4">
-          <p className="text-sm text-amber-600">
-            Test and create matches between swap requests. Created matches will appear in the Active Matches tab.
-          </p>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="border-amber-400 hover:bg-amber-100 flex items-center"
-            onClick={onShowMatchesPopup}
-            data-testid="show-matches-popup"
-          >
-            <Search className="mr-1 h-4 w-4" />
-            View Raw Matches ({matches.length})
-          </Button>
+      {showTestingTools && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+          <div className="mb-4 text-sm text-amber-800">
+            <p className="flex items-center font-medium mb-1">
+              <ArrowDownUp className="h-4 w-4 mr-1" />
+              Swap Match Testing
+            </p>
+            <p className="text-xs ml-5">
+              Use these tools to test the swap matching functionality.
+            </p>
+          </div>
+          
+          <SimpleMatchTester onMatchCreated={onMatchCreated} />
         </div>
-        <SimpleMatchTester onMatchCreated={onMatchCreated} />
-      </div>
-    </Collapsible>
+      )}
+    </>
   );
 };
