@@ -27,10 +27,10 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
     new Map(swaps.map(swap => [swap.id, swap])).values()
   );
   
-  console.log(`SwapTabContent: Displaying ${uniqueSwaps.length} unique swaps`);
+  console.log(`SwapTabContent: Displaying ${uniqueSwaps.length} unique swaps`, uniqueSwaps);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="swap-list">
       {uniqueSwaps.map(swap => (
         <SwapCard 
           key={swap.id}

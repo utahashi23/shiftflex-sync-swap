@@ -17,7 +17,6 @@ import { SwapMatch } from '@/hooks/swap-matches';
 import { getShiftType } from '@/utils/shiftUtils';
 import SimpleMatchTester from './testing/SimpleMatchTester';
 import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
-import { SwapMatchDebug } from './matched-swaps/SwapMatchDebug';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 
 interface MatchedSwapsProps {
@@ -31,7 +30,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   const [activeTab, setActiveTab] = useState('active');
   const [showTestingTools, setShowTestingTools] = useState(false);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
-  const fetchInProgressRef = useRef(false); // Ref to track ongoing fetch operations
+  const fetchInProgressRef = useRef(false);
   const [confirmDialog, setConfirmDialog] = useState<{ 
     isOpen: boolean;
     matchId: string | null;
@@ -117,7 +116,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       
       console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
       
-      // Update the state with the new matches - IMPORTANT: This was missing a setState call
+      // Update the state with the new matches
       setMatches(activeMatches);
       setPastMatches(completedMatches);
       
@@ -209,6 +208,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       setRefreshTrigger(prev => prev + 1);
     }
   };
+
+  // For debugging: log matches whenever they change
+  useEffect(() => {
+    console.log('Current matches in state:', matches);
+  }, [matches]);
 
   return (
     <div className="space-y-6">

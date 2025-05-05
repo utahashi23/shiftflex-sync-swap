@@ -1,5 +1,5 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/auth';
 import { useFindSwapMatches } from './useFindSwapMatches';
@@ -25,7 +25,7 @@ export const useSwapMatcher = () => {
    * @param userPerspectiveOnly - Whether to only show matches from the user's perspective
    * @param userInitiatorOnly - Whether to only show matches where the user is the initiator
    */
-  const findSwapMatches = async (
+  const findSwapMatches = useCallback(async (
     userId?: string, 
     forceCheck: boolean = false, 
     verbose: boolean = false,
@@ -44,14 +44,11 @@ export const useSwapMatcher = () => {
     // Use the user ID that was passed in or fall back to the current user's ID
     const targetUserId = userId || user?.id;
     
-    // Check if the request is already being processed
-    if (isFindingMatches || requestInProgressRef.current) {
+    // For explicitly requested checks, don't use cache
+    if (!forceCheck && isFindingMatches) {
       console.log('Already finding matches, returning cached or empty results');
       return matchesCache[targetUserId] || [];
     }
-    
-    // Always force a check when the user explicitly requests it with the Find Matches button
-    // This ensures we always get the latest data
     
     try {
       setIsFindingMatches(true);
@@ -84,7 +81,7 @@ export const useSwapMatcher = () => {
           setInitialFetchCompleted(true);
           
           // Show a toast if matches were found and forceCheck is true
-          if (forceCheck && result && Array.isArray(result)) {
+          if (forceCheck) {
             if (result.length > 0) {
               toast({
                 title: "Matches found!",
@@ -116,7 +113,7 @@ export const useSwapMatcher = () => {
       setIsFindingMatches(false);
       requestInProgressRef.current = false;
     }
-  };
+  }, [user, executeFindMatches, isFindingMatches, matchesCache]);
 
   return {
     findSwapMatches,
