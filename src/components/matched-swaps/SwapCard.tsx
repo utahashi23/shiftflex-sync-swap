@@ -6,7 +6,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { ArrowRightLeft, Calendar, Clock, UserCircle2 } from "lucide-react";
+import { ArrowRightLeft, Calendar, Clock, Mail, UserCircle2 } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "./types";
 
@@ -15,6 +15,7 @@ interface SwapCardProps {
   isPast?: boolean;
   onAccept?: (matchId: string) => void;
   onFinalize?: (matchId: string) => void;
+  onResendEmail?: (matchId: string) => void;
 }
 
 // Format date to a readable string
@@ -26,7 +27,13 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-export const SwapCard = ({ swap, isPast = false, onAccept, onFinalize }: SwapCardProps) => {
+export const SwapCard = ({ 
+  swap, 
+  isPast = false, 
+  onAccept, 
+  onFinalize, 
+  onResendEmail 
+}: SwapCardProps) => {
   // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
@@ -139,13 +146,28 @@ export const SwapCard = ({ swap, isPast = false, onAccept, onFinalize }: SwapCar
             )}
             
             {/* Explicitly check for 'accepted' status */}
-            {swap.status === 'accepted' && onFinalize && (
-              <Button 
-                onClick={() => onFinalize(swap.id)}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Finalize Swap
-              </Button>
+            {swap.status === 'accepted' && (
+              <>
+                {onResendEmail && (
+                  <Button 
+                    onClick={() => onResendEmail(swap.id)}
+                    variant="outline"
+                    className="flex items-center"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Resend Email
+                  </Button>
+                )}
+                
+                {onFinalize && (
+                  <Button 
+                    onClick={() => onFinalize(swap.id)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Finalize Swap
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </CardFooter>

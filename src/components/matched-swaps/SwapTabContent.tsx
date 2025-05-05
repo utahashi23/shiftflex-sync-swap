@@ -8,9 +8,16 @@ interface SwapTabContentProps {
   isPast?: boolean;
   onAcceptSwap?: (matchId: string) => void;
   onFinalizeSwap?: (matchId: string) => void;
+  onResendEmail?: (matchId: string) => void;
 }
 
-export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap, onFinalizeSwap }: SwapTabContentProps) => {
+export const SwapTabContent = ({ 
+  swaps, 
+  isPast = false, 
+  onAcceptSwap, 
+  onFinalizeSwap,
+  onResendEmail
+}: SwapTabContentProps) => {
   // Detailed logging of swaps data including colleague types and statuses
   console.log(`SwapTabContent: Rendering ${swaps?.length || 0} ${isPast ? 'past' : 'active'} swaps`);
   
@@ -66,6 +73,7 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap, onFinalize
           isPast={isPast}
           onAccept={!isPast && swap.status === 'pending' ? onAcceptSwap : undefined}
           onFinalize={!isPast && swap.status === 'accepted' ? onFinalizeSwap : undefined}
+          onResendEmail={!isPast && swap.status === 'accepted' ? onResendEmail : undefined}
         />
       ))}
     </div>

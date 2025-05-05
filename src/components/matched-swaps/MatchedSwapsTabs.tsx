@@ -1,7 +1,8 @@
 
+import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { SwapMatch } from "./types";
 import { SwapTabContent } from "./SwapTabContent";
 
@@ -12,92 +13,63 @@ interface MatchedSwapsTabsProps {
   pastMatches: SwapMatch[];
   onAcceptSwap?: (matchId: string) => void;
   onFinalizeSwap?: (matchId: string) => void;
+  onResendEmail?: (matchId: string) => void;
   onRefresh?: () => void;
-  isLoading?: boolean;
-  isProcessing?: boolean;
+  isLoading: boolean;
+  isProcessing: boolean;
 }
 
-export const MatchedSwapsTabs = ({
+export const MatchedSwapsTabs: React.FC<MatchedSwapsTabsProps> = ({
   activeTab,
   setActiveTab,
   matches,
   pastMatches,
   onAcceptSwap,
   onFinalizeSwap,
+  onResendEmail,
   onRefresh,
-  isLoading = false,
-  isProcessing = false
-}: MatchedSwapsTabsProps) => {
-  // Calculate counts for badges
-  const pendingCount = matches ? matches.filter(m => m.status === 'pending').length : 0;
-  const acceptedCount = matches ? matches.filter(m => m.status === 'accepted').length : 0;
-  const activeCount = pendingCount + acceptedCount;
-
+  isLoading,
+  isProcessing
+}) => {
   return (
-    <div>
+    <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab} className="w-full">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Matched Swaps</h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onRefresh}
-          disabled={isLoading || isProcessing}
-          className="flex gap-1 items-center"
-        >
-          <RefreshCcw className="h-4 w-4" />
-          <span>Refresh</span>
-        </Button>
-      </div>
-
-      <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        defaultValue="active"
-        className="w-full"
-      >
-        <TabsList className="grid grid-cols-2 mb-6">
-          <TabsTrigger value="active" className="relative">
-            Active
-            {activeCount > 0 && (
-              <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-primary text-primary-foreground rounded-full">
-                {activeCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="past">
-            Past
-            {pastMatches && pastMatches.length > 0 && (
-              <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-muted text-muted-foreground rounded-full">
-                {pastMatches.length}
-              </span>
-            )}
-          </TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="active" disabled={isLoading}>Active</TabsTrigger>
+          <TabsTrigger value="past" disabled={isLoading}>Past</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="active" className="space-y-6">
-          {isLoading || isProcessing ? (
-            <div className="w-full p-8 flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>
-            </div>
-          ) : (
-            <SwapTabContent 
-              swaps={matches} 
-              onAcceptSwap={onAcceptSwap} 
-              onFinalizeSwap={onFinalizeSwap}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="past" className="space-y-6">
-          {isLoading || isProcessing ? (
-            <div className="w-full p-8 flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>
-            </div>
-          ) : (
-            <SwapTabContent swaps={pastMatches} isPast={true} />
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
+        
+        {onRefresh && (
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={onRefresh}
+            disabled={isLoading || isProcessing}
+          >
+            {isLoading || isProcessing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Refresh
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+      
+      <TabsContent value="active" className="mt-0">
+        <SwapTabContent 
+          swaps={matches} 
+          onAcceptSwap={onAcceptSwap}
+          onFinalizeSwap={onFinalizeSwap}
+          onResendEmail={onResendEmail}
+        />
+      </TabsContent>
+      
+      <TabsContent value="past" className="mt-0">
+        <SwapTabContent swaps={pastMatches} isPast />
+      </TabsContent>
+    </Tabs>
   );
 };

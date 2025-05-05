@@ -127,3 +127,27 @@ export const sendSwapStatusNotification = async (
     return { success: false, error: err.message };
   }
 };
+
+/**
+ * Function to resend notifications for accepted swaps
+ */
+export const resendSwapNotification = async (
+  matchId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // Call our edge function to resend the email
+    const { data, error } = await supabase.functions.invoke('resend_swap_notification', {
+      body: { match_id: matchId }
+    });
+    
+    if (error) {
+      console.error('Error resending notification:', error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error in resendSwapNotification:', err);
+    return { success: false, error: err.message };
+  }
+};
