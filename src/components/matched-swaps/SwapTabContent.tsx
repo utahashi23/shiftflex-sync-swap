@@ -1,5 +1,5 @@
 
-import { SwapMatch } from "@/hooks/useSwapMatches";
+import { SwapMatch } from "@/hooks/swap-matches";
 import { SwapCard } from "./SwapCard";
 import { EmptySwapState } from "./EmptySwapState";
 
@@ -10,6 +10,9 @@ interface SwapTabContentProps {
 }
 
 export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabContentProps) => {
+  // Log the swaps for debugging
+  console.log(`SwapTabContent: Rendering ${swaps?.length || 0} ${isPast ? 'past' : 'active'} swaps`);
+
   if (!swaps || swaps.length === 0) {
     return (
       <EmptySwapState 
@@ -23,6 +26,8 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
   const uniqueSwaps = Array.from(
     new Map(swaps.map(swap => [swap.id, swap])).values()
   );
+  
+  console.log(`SwapTabContent: Displaying ${uniqueSwaps.length} unique swaps`);
 
   return (
     <div className="space-y-4">

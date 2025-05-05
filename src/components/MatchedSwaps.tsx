@@ -10,10 +10,10 @@ import {
   TabsTrigger,
 } from "./ui/tabs";
 import { RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { SwapMatch } from '@/hooks/useSwapMatches';
+import { SwapMatch } from '@/hooks/swap-matches';
 import { getShiftType } from '@/utils/shiftUtils';
 import SimpleMatchTester from './testing/SimpleMatchTester';
 import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
@@ -54,6 +54,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       new Map(matchesData.map((match: any) => [match.match_id, match])).values()
     );
     
+    console.log(`Processing ${uniqueMatches.length} unique matches`);
+    
     // Process the data
     return uniqueMatches.map((match: any) => {
       return {
@@ -85,7 +87,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   };
 
   // Fetch matches data using findSwapMatches - but ONLY when explicit button is clicked
-  // Not calling this automatically on component mount
   const fetchMatches = async () => {
     // Check if user exists and there's no ongoing fetch operation
     if (!user || !user.id || isLoading || fetchInProgressRef.current) return;
@@ -116,7 +117,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       
       console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
       
-      // Update the state with the new matches
+      // Update the state with the new matches - IMPORTANT: This was missing a setState call
       setMatches(activeMatches);
       setPastMatches(completedMatches);
       
@@ -243,8 +244,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
         <div className="flex justify-between items-center mb-4">
           <TabsList>
-            <TabsTrigger value="active">Active Matches</TabsTrigger>
-            <TabsTrigger value="past">Past Swaps</TabsTrigger>
+            <TabsTrigger value="active">Active Matches ({matches.length})</TabsTrigger>
+            <TabsTrigger value="past">Past Swaps ({pastMatches.length})</TabsTrigger>
           </TabsList>
           <div className="flex gap-2">
             <Button 
@@ -258,14 +259,14 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           </div>
         </div>
         
-        <TabsContent value="active">
+        <TabsContent value="active" className="min-h-[200px]">
           <SwapTabContent 
             swaps={matches} 
             onAcceptSwap={handleAcceptClick}
           />
         </TabsContent>
         
-        <TabsContent value="past">
+        <TabsContent value="past" className="min-h-[200px]">
           <SwapTabContent 
             swaps={pastMatches} 
             isPast={true}

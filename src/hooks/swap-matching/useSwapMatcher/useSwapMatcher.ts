@@ -1,7 +1,7 @@
 
 import { useState, useRef } from 'react';
 import { toast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/auth';
 import { useFindSwapMatches } from './useFindSwapMatches';
 import { useProcessingState } from './useProcessingState';
 
@@ -28,7 +28,7 @@ export const useSwapMatcher = () => {
   const findSwapMatches = async (
     userId?: string, 
     forceCheck: boolean = false, 
-    verbose: boolean = true,
+    verbose: boolean = false,
     userPerspectiveOnly: boolean = true,
     userInitiatorOnly: boolean = true
   ) => {
@@ -50,11 +50,8 @@ export const useSwapMatcher = () => {
       return matchesCache[targetUserId] || [];
     }
     
-    // Check if we have cached results and aren't forcing a check
-    if (!forceCheck && matchesCache[targetUserId] && matchesCache[targetUserId].length > 0) {
-      console.log(`Using cached matches for user ${targetUserId}`);
-      return matchesCache[targetUserId];
-    }
+    // Always force a check when the user explicitly requests it with the Find Matches button
+    // This ensures we always get the latest data
     
     try {
       setIsFindingMatches(true);
@@ -77,6 +74,7 @@ export const useSwapMatcher = () => {
         
         // Cache the results if we have valid data
         if (result && Array.isArray(result)) {
+          // Always update the cache with the latest data
           setMatchesCache(prev => ({
             ...prev,
             [targetUserId]: result
