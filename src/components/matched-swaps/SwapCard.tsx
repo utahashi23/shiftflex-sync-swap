@@ -27,7 +27,7 @@ const formatDate = (dateStr: string) => {
 
 export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
   // Debug logging for colleague types
-  console.log('SwapCard colleague types:', {
+  console.log('SwapCard rendering with colleague types:', {
     myShift: swap.myShift.colleagueType,
     otherShift: swap.otherShift.colleagueType
   });

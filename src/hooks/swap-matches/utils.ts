@@ -13,16 +13,17 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
   // Process and format the matches data
   return matchesData.map(match => {
     // Log raw match data for debugging
-    console.log('Raw match data:', match);
+    console.log('Raw match data to process:', match);
     
-    // Extract colleague types with better error handling
-    const myShiftColleagueType = match.my_shift_colleague_type || null;
-    const otherShiftColleagueType = match.other_shift_colleague_type || null;
+    // Directly extract colleague types from the API response
+    // These fields should exist in the response as my_shift_colleague_type and other_shift_colleague_type
+    const myShiftColleagueType = match.my_shift_colleague_type;
+    const otherShiftColleagueType = match.other_shift_colleague_type;
     
-    // Log the colleague types to debug
-    console.log(`Match ID ${match.match_id} colleague types:`, {
-      my: myShiftColleagueType,
-      other: otherShiftColleagueType
+    // Log the colleague types we extracted
+    console.log(`Match ID ${match.match_id} extracted colleague types:`, {
+      my: myShiftColleagueType || 'Not provided in API response',
+      other: otherShiftColleagueType || 'Not provided in API response'
     });
     
     return {
@@ -35,7 +36,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         endTime: match.my_shift_end_time,
         truckName: match.my_shift_truck,
         type: getShiftType(match.my_shift_start_time),
-        colleagueType: myShiftColleagueType
+        colleagueType: myShiftColleagueType || 'Unknown' // Use null fallback instead of empty string
       },
       otherShift: {
         id: match.other_shift_id,
@@ -46,7 +47,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         type: getShiftType(match.other_shift_start_time),
         userId: match.other_user_id,
         userName: match.other_user_name || 'Unknown User',
-        colleagueType: otherShiftColleagueType
+        colleagueType: otherShiftColleagueType || 'Unknown' // Use null fallback instead of empty string
       },
       myRequestId: match.my_request_id,
       otherRequestId: match.other_request_id,

@@ -8,18 +8,27 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
   console.log('Fetching matches for user:', userId);
   
   try {
+    // Explicitly request colleague types in the function call
     const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
       body: { 
         user_id: userId,
         user_perspective_only: userPerspectiveOnly,
         user_initiator_only: userInitiatorOnly,
-        include_colleague_types: true // Explicitly request colleague types
+        include_colleague_types: true // Make sure this is set to true
       }
     });
     
     if (matchesError) throw matchesError;
     
     console.log('Raw match data from function:', matchesData);
+    
+    // Log the first match to see if colleague_type is present
+    if (matchesData && Array.isArray(matchesData) && matchesData.length > 0) {
+      console.log('First match data sample:', {
+        my_shift_colleague_type: matchesData[0].my_shift_colleague_type,
+        other_shift_colleague_type: matchesData[0].other_shift_colleague_type
+      });
+    }
     
     if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
       console.log('No matches found');
@@ -28,15 +37,6 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
         pastMatches: [],
         rawApiData: matchesData
       };
-    }
-    
-    // Check if colleague types are present in the data
-    if (matchesData.length > 0) {
-      const sampleMatch = matchesData[0];
-      console.log('Sample match colleague types:', {
-        my: sampleMatch.my_shift_colleague_type,
-        other: sampleMatch.other_shift_colleague_type
-      });
     }
     
     // Deduplicate matches by ID before processing

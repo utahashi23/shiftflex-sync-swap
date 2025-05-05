@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/auth';
 import { SwapMatch } from '../types';
@@ -44,25 +45,21 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
     
     console.log(`Processing ${uniqueMatches.length} unique matches`);
     
-    // Log all matches data for debugging
-    console.log('Raw matches data to process:', uniqueMatches);
+    // Log all raw matches data for debugging
+    console.log('All raw matches data:', uniqueMatches);
     
     // Process the data
     return uniqueMatches.map((match: any) => {
       // Extract colleague types directly from the match data
-      // Log the raw values for debugging
-      console.log(`Raw values for match ${match.match_id}:`, {
-        my_shift_colleague_type: match.my_shift_colleague_type,
-        other_shift_colleague_type: match.other_shift_colleague_type
-      });
+      console.log(`Raw match data for ${match.match_id}:`, match);
       
-      // Use the values directly or fallback to default
-      const myColleagueType = match.my_shift_colleague_type || null;
-      const otherColleagueType = match.other_shift_colleague_type || null;
+      // Make sure we're extracting the colleague_type fields correctly
+      const myShiftColleagueType = match.my_shift_colleague_type;
+      const otherShiftColleagueType = match.other_shift_colleague_type;
       
-      console.log(`Match ID ${match.match_id} processed colleague types:`, { 
-        my: myColleagueType, 
-        other: otherColleagueType 
+      console.log(`Match ${match.match_id} extracted colleague types:`, {
+        my: myShiftColleagueType,
+        other: otherShiftColleagueType
       });
       
       return {
@@ -75,7 +72,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
           endTime: match.my_shift_end_time,
           truckName: match.my_shift_truck,
           type: getShiftType(match.my_shift_start_time),
-          colleagueType: myColleagueType
+          colleagueType: myShiftColleagueType || 'Unknown'
         },
         otherShift: {
           id: match.other_shift_id,
@@ -86,7 +83,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
           type: getShiftType(match.other_shift_start_time),
           userId: match.other_user_id,
           userName: match.other_user_name || 'Unknown User',
-          colleagueType: otherColleagueType
+          colleagueType: otherShiftColleagueType || 'Unknown'
         },
         myRequestId: match.my_request_id,
         otherRequestId: match.other_request_id,
@@ -109,7 +106,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
     try {
       console.log('Finding matches for user:', user.id);
       
-      // Directly use findSwapMatches to find and retrieve matches
+      // Explicitly request colleague types inclusion
       const matchesData = await findSwapMatches(user.id, true, true, true, true);
       console.log('Raw match data from function:', matchesData);
       
