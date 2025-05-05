@@ -1,0 +1,7 @@
+
+{
+  "imports": {
+    "npm:mailgun.js": "https://esm.sh/mailgun.js@11.1.0",
+    "npm:form-data": "https://esm.sh/form-data@4.0.1"
+  }
+}

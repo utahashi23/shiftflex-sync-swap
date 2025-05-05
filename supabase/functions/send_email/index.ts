@@ -32,11 +32,11 @@ serve(async (req) => {
   try {
     // Get API key and domain from environment variables
     const MAILGUN_API_KEY = Deno.env.get('MAILGUN_API_KEY');
-    const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN');
+    const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN') || "shiftflex.au";
     
-    if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN) {
-      console.error('Missing Mailgun configuration. API Key exists:', !!MAILGUN_API_KEY, ', Domain exists:', !!MAILGUN_DOMAIN);
-      throw new Error('Missing Mailgun configuration (API key or domain)');
+    if (!MAILGUN_API_KEY) {
+      console.error('Missing Mailgun API key');
+      throw new Error('Missing Mailgun configuration (API key)');
     }
 
     // Get email data from request

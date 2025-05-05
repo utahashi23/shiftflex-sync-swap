@@ -28,14 +28,14 @@ export const sendEmail = async (options: EmailOptions): Promise<{ success: boole
     
     if (error) {
       console.error('Error calling send_email function:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message || String(error) };
     }
     
     console.log('Email function response:', data);
     return data;
   } catch (err: any) {
     console.error('Error in sendEmail:', err);
-    return { success: false, error: err.message };
+    return { success: false, error: err.message || String(err) };
   }
 };
 
@@ -140,7 +140,7 @@ export const sendSwapStatusNotification = async (
     return { success: true };
   } catch (err: any) {
     console.error('Error sending swap notifications:', err);
-    return { success: false, error: err.message };
+    return { success: false, error: err.message || String(err) };
   }
 };
 
@@ -160,13 +160,55 @@ export const resendSwapNotification = async (
     
     if (error) {
       console.error('Error resending notification:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message || String(error) };
     }
     
     console.log('Resend notification response:', data);
     return { success: true };
   } catch (err: any) {
     console.error('Error in resendSwapNotification:', err);
-    return { success: false, error: err.message };
+    return { success: false, error: err.message || String(err) };
+  }
+};
+
+/**
+ * Test email sending with both implementations
+ */
+export const testEmailFunctionality = async (): Promise<{
+  sdkResult: { success: boolean; error?: string; data?: any };
+  directResult: { success: boolean; error?: string; data?: any };
+}> => {
+  try {
+    // Test the SDK implementation
+    const sdkResponse = await supabase.functions.invoke('test_mailgun_sdk', {
+      body: {}
+    });
+    
+    // Test the direct API implementation
+    const directResponse = await sendEmail({
+      to: "njalasankhulani@gmail.com",
+      subject: "Test Email via Direct API",
+      html: `
+        <h2>Testing Direct API Email Function</h2>
+        <p>This is a test email sent using the regular send_email function.</p>
+        <p>If you're receiving this email, the email functionality is working correctly.</p>
+        <p>Time sent: ${new Date().toISOString()}</p>
+      `
+    });
+    
+    return {
+      sdkResult: {
+        success: !sdkResponse.error,
+        error: sdkResponse.error?.message,
+        data: sdkResponse.data
+      },
+      directResult: directResponse
+    };
+  } catch (err: any) {
+    console.error('Error testing email functionality:', err);
+    return {
+      sdkResult: { success: false, error: 'SDK test failed' },
+      directResult: { success: false, error: 'Direct API test failed' }
+    };
   }
 };
