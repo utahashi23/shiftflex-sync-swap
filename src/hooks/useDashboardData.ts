@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ExtendedUser } from '@/hooks/useAuth';
-import { Shift } from '@/hooks/useShiftData';
+import { Shift, validateColleagueType } from '@/hooks/useShiftData';
 import { getShiftType } from '@/utils/shiftUtils';
 
 export interface Activity {
@@ -80,13 +80,17 @@ export const useDashboardData = (user: ExtendedUser | null) => {
           // Determine the shift type using our common utility
           const type = getShiftType(shift.start_time);
           
+          // Validate colleagueType to ensure it matches the union type
+          const colleagueType = validateColleagueType(shift.colleague_type);
+          
           return {
             id: shift.id,
             date: shift.date,
             title,
             startTime: shift.start_time.substring(0, 5), // Format as HH:MM
             endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
-            type
+            type,
+            colleagueType
           };
         });
         

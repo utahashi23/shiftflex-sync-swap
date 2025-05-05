@@ -51,6 +51,9 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
           // Create title from truck name or use default format
           const title = shift.truck_name || `Shift-${shift.id.substring(0, 5)}`;
           
+          // Ensure colleagueType is one of the valid union types
+          const colleagueType = validateColleagueType(shift.colleague_type);
+          
           return {
             id: shift.id,
             date: shift.date,
@@ -58,7 +61,7 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
             startTime: shift.start_time.substring(0, 5), // Format as HH:MM
             endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
             type,
-            colleagueType: shift.colleague_type || 'Unknown' // Properly fetch colleague_type
+            colleagueType
           };
         }) || [];
         
@@ -79,6 +82,21 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
   }, [currentDate, userId]);
 
   return { shifts, isLoading };
+};
+
+// Helper function to validate colleague type
+export const validateColleagueType = (type: string | null): 'Qualified' | 'Graduate' | 'ACO' | 'Unknown' => {
+  if (!type) return 'Unknown';
+  
+  // Validate that the type is one of the allowed values
+  switch (type) {
+    case 'Qualified':
+    case 'Graduate':
+    case 'ACO':
+      return type;
+    default:
+      return 'Unknown';
+  }
 };
 
 // Helper functions for working with shifts

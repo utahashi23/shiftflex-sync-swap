@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { getMonthDateRange } from '@/utils/dateUtils';
-import { Shift } from '@/hooks/useShiftData';
+import { Shift, validateColleagueType } from '@/hooks/useShiftData';
 
 export const useSwapCalendarData = (currentDate: Date, userId?: string) => {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -52,6 +52,9 @@ export const useSwapCalendarData = (currentDate: Date, userId?: string) => {
             type = 'night';
           }
           
+          // Validate colleagueType to ensure it matches the union type
+          const colleagueType = validateColleagueType(shift.colleague_type);
+          
           return {
             id: shift.id,
             date: shift.date,
@@ -59,7 +62,7 @@ export const useSwapCalendarData = (currentDate: Date, userId?: string) => {
             startTime: shift.start_time.substring(0, 5), // Format as HH:MM
             endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
             type,
-            colleagueType: shift.colleague_type || 'Unknown' // Properly fetch colleague_type
+            colleagueType
           };
         }) || [];
         
