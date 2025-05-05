@@ -12,7 +12,7 @@ interface MatchedSwapsProps {
 }
 
 const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
-  const [showTestingTools, setShowTestingTools] = useState(true); // Set to true by default for testing
+  const [showTestingTools, setShowTestingTools] = useState(false); // Set to false by default
   const [showMatchesPopup, setShowMatchesPopup] = useState(false);
   
   // Use our custom hooks
