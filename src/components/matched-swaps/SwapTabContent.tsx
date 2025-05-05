@@ -1,5 +1,5 @@
 
-import { SwapMatch } from "@/hooks/swap-matches";
+import { SwapMatch } from "../types";
 import { SwapCard } from "./SwapCard";
 import { EmptySwapState } from "./EmptySwapState";
 
@@ -12,6 +12,7 @@ interface SwapTabContentProps {
 export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabContentProps) => {
   // Log the swaps for debugging
   console.log(`SwapTabContent: Rendering ${swaps?.length || 0} ${isPast ? 'past' : 'active'} swaps`);
+  console.log('SwapTabContent: Raw swaps data:', swaps);
 
   if (!swaps || swaps.length === 0) {
     return (

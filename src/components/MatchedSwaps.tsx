@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { TestingTools } from './matched-swaps/TestingTools';
 import { MatchedSwapsTabs } from './matched-swaps/MatchedSwapsTabs';
+import { MatchResultsPopup } from './matched-swaps/MatchResultsPopup';
 import { useMatchedSwapsData } from './matched-swaps/hooks/useMatchedSwapsData';
 import { useSwapConfirmation } from './matched-swaps/hooks/useSwapConfirmation';
 
@@ -11,7 +12,8 @@ interface MatchedSwapsProps {
 }
 
 const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
-  const [showTestingTools, setShowTestingTools] = useState(false);
+  const [showTestingTools, setShowTestingTools] = useState(true); // Set to true by default for testing
+  const [showMatchesPopup, setShowMatchesPopup] = useState(false);
   
   // Use our custom hooks
   const {
@@ -38,6 +40,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     fetchMatches(); // Refresh the matches after accepting
   });
 
+  const handleShowMatchesPopup = () => {
+    console.log('Showing matches popup with', matches.length, 'matches');
+    setShowMatchesPopup(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Testing Tools Section */}
@@ -45,6 +52,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         showTestingTools={showTestingTools}
         setShowTestingTools={setShowTestingTools}
         onMatchCreated={fetchMatches}
+        matches={matches}
+        onShowMatchesPopup={handleShowMatchesPopup}
       />
       
       {/* Matched Swaps Tabs */}
@@ -57,6 +66,14 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         onRefresh={fetchMatches}
         isLoading={isLoading || isAcceptLoading}
         isProcessing={isProcessing}
+      />
+
+      {/* Match Results Popup for debugging */}
+      <MatchResultsPopup 
+        open={showMatchesPopup}
+        onOpenChange={setShowMatchesPopup}
+        matches={matches}
+        title="Raw Match Data"
       />
 
       {/* Confirmation Dialog */}

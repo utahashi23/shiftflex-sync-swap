@@ -1,7 +1,7 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/auth';
-import { SwapMatch } from '@/hooks/swap-matches';
+import { SwapMatch } from '../types';
 import { toast } from '@/hooks/use-toast';
 import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
 
@@ -17,6 +17,14 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
   const fetchInProgressRef = useRef(false);
   const { user } = useAuth();
   const { findSwapMatches, isProcessing, initialFetchCompleted } = useSwapMatcher();
+
+  // Auto-fetch matches on component mount
+  useEffect(() => {
+    if (user && !initialFetchDone) {
+      console.log('Auto-fetching matches on component mount');
+      fetchMatches();
+    }
+  }, [user]);
 
   /**
    * Process matches data from API response
@@ -121,13 +129,17 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       
       console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
       
-      // Update the state with the new matches
-      setMatches(activeMatches);
-      setPastMatches(completedMatches);
+      // IMPORTANT: Update the state with the new matches
+      setMatches([...activeMatches]);
+      setPastMatches([...completedMatches]);
       
       // Force a re-render of the component to reflect the new state immediately
       setTimeout(() => {
-        console.log('State after update (setTimeout):', { activeMatches: activeMatches.length, matches: matches.length });
+        console.log('State after update (setTimeout):', { 
+          activeMatches: activeMatches.length, 
+          matches: matches.length,
+          matchesState: matches
+        });
       }, 0);
       
       // If we've found matches, update parent tabs if needed

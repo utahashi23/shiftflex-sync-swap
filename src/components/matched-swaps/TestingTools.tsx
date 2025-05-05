@@ -1,5 +1,5 @@
 
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { 
   Collapsible, 
   CollapsibleContent, 
@@ -7,17 +7,22 @@ import {
 } from '../ui/collapsible';
 import { Button } from '../ui/button';
 import SimpleMatchTester from '../testing/SimpleMatchTester';
+import { SwapMatch } from './types';
 
 interface TestingToolsProps {
   showTestingTools: boolean;
   setShowTestingTools: (show: boolean) => void;
   onMatchCreated: () => void;
+  matches: SwapMatch[];
+  onShowMatchesPopup: () => void;
 }
 
 export const TestingTools = ({ 
   showTestingTools,
   setShowTestingTools,
-  onMatchCreated 
+  onMatchCreated,
+  matches,
+  onShowMatchesPopup
 }: TestingToolsProps) => {
   return (
     <Collapsible
@@ -40,9 +45,21 @@ export const TestingTools = ({
       
       <CollapsibleContent>
         <div className="p-4 pt-0">
-          <p className="text-sm text-amber-600 mb-4">
-            Test and create matches between swap requests. Created matches will appear in the Active Matches tab.
-          </p>
+          <div className="flex justify-between items-center mb-4">
+            <p className="text-sm text-amber-600">
+              Test and create matches between swap requests. Created matches will appear in the Active Matches tab.
+            </p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="border-amber-400 hover:bg-amber-100 flex items-center"
+              onClick={onShowMatchesPopup}
+              data-testid="show-matches-popup"
+            >
+              <Search className="mr-1 h-4 w-4" />
+              View Raw Matches ({matches.length})
+            </Button>
+          </div>
           <SimpleMatchTester onMatchCreated={onMatchCreated} />
         </div>
       </CollapsibleContent>
