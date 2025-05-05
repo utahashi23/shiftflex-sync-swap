@@ -57,10 +57,15 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
           const title = shift.truck_name || `Shift-${shift.id.substring(0, 5)}`;
           
           // Get colleague type from profiles join
-          // Fix: Check if profiles exists and properly type the response
-          const colleagueType = shift.profiles && typeof shift.profiles === 'object' && 'organization' in shift.profiles 
-            ? (shift.profiles.organization as string || 'Unknown')
-            : 'Unknown';
+          // Safely access profile organization and convert to one of the expected literal types
+          let colleagueType: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown' = 'Unknown';
+          
+          if (shift.profiles && typeof shift.profiles === 'object' && 'organization' in shift.profiles) {
+            const org = shift.profiles.organization as string;
+            if (org === 'Qualified' || org === 'Graduate' || org === 'ACO') {
+              colleagueType = org;
+            }
+          }
           
           return {
             id: shift.id,
