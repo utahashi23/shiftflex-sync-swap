@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { User } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 
 // Types
 export interface Shift {
@@ -20,7 +20,7 @@ interface UseShiftFormProps {
   selectedShift: Shift | null;
   setSelectedShift: (shift: Shift | null) => void;
   resetSelection: () => void;
-  user: User | null;
+  user: any | null;
 }
 
 export const useShiftForm = ({
@@ -185,7 +185,7 @@ export const useShiftForm = ({
         truck_name: truckName,
         start_time: shiftStartTime,
         end_time: shiftEndTime,
-        colleague_type: colleagueType, // Add colleague_type to the database record
+        colleague_type: colleagueType, // Ensure colleague_type is included
       };
       
       let result;
