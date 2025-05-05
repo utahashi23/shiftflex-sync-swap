@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { SwapMatch } from '@/hooks/useSwapMatches';
 import { getShiftType } from '@/utils/shiftUtils';
-import { SimpleMatchTester } from './testing/SimpleMatchTester'; // Changed to named import
+import { SimpleMatchTester } from './testing/SimpleMatchTester'; // Fixed import to use named import
 import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
 import { SwapMatchDebug } from './matched-swaps/SwapMatchDebug';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';

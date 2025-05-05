@@ -120,17 +120,18 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
     setIsLoading(true);
     
     try {
-      // Create the match in the database
+      // Create the match in the database - using shift_swap_potential_matches table
+      // since this is what our system actually uses for matches now
       const { data, error } = await supabase
-        .from('shift_swap_matches')
-        .insert([{
+        .from('shift_swap_potential_matches')
+        .insert({
           requester_request_id: testResult.request1Id,
           acceptor_request_id: testResult.request2Id,
           requester_shift_id: testResult.request1Shift.id,
           acceptor_shift_id: testResult.request2Shift.id,
-          status: 'pending',
-          match_type: 'manual',
-        }])
+          match_date: new Date().toISOString().split('T')[0],
+          status: 'pending'
+        })
         .select();
         
       if (error) throw error;
@@ -274,8 +275,6 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
   );
 };
 
-// This helper function is for testing only, not for use in production
-export const getTestMatchCard = (match: MatchTestResult) => {
-  const testMatch = SimpleMatchTester.prototype.createSwapMatchCard?.(match);
-  return testMatch;
-};
+// Make the createSwapMatchCard function accessible for testing
+SimpleMatchTester.prototype.createSwapMatchCard = createSwapMatchCard;
+
