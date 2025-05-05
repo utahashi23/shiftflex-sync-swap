@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Trash2, UserCheck } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ShiftTypeIcon from './ShiftTypeIcon';
 import ShiftTypeBadge from './ShiftTypeBadge';
@@ -39,29 +39,20 @@ const ShiftHeader = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
 
 const OriginalShiftInfo = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
   return (
-    <div>
-      <div className="flex justify-between">
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-muted-foreground">Original Shift</div>
-          <div className="font-medium">
-            {formatDate(shift.date)}
-          </div>
-        </div>
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-muted-foreground">Shift Type</div>
-          <ShiftTypeBadge type={shift.type} />
-        </div>
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-muted-foreground">Time</div>
-          <div className="font-medium">{shift.startTime} - {shift.endTime}</div>
+    <div className="flex justify-between">
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-muted-foreground">Original Shift</div>
+        <div className="font-medium">
+          {formatDate(shift.date)}
         </div>
       </div>
-      
-      <div className="flex items-center mt-3">
-        <UserCheck className="h-4 w-4 mr-2 text-muted-foreground" />
-        <div className="text-sm font-medium">
-          {shift.colleagueType || 'Unknown'}
-        </div>
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-muted-foreground">Shift Type</div>
+        <ShiftTypeBadge type={shift.type} />
+      </div>
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-muted-foreground">Time</div>
+        <div className="font-medium">{shift.startTime} - {shift.endTime}</div>
       </div>
     </div>
   );

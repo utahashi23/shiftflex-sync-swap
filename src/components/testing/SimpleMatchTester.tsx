@@ -1,202 +1,231 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { fetchAllSwapRequestsSafe, fetchAllPreferredDatesWithRequestsSafe, createSwapMatchSafe } from '@/utils/rls-helpers';
 import { supabase } from '@/integrations/supabase/client';
-import { getShiftType } from '@/utils/shiftUtils';
-import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
+import { SwapCard } from '../matched-swaps/SwapCard';
 
-// Define the MatchTestResult type
 interface MatchTestResult {
   request1Id: string;
   request2Id: string;
-  request1Shift: any;
-  request2Shift: any;
-  request1User: any;
-  request2User: any;
+  request1ShiftDate: string;
+  request2ShiftDate: string;
+  matchReason: string;
+  // Add additional data for displaying shift details
+  request1Shift?: any;
+  request2Shift?: any;
+  request1User?: any;
+  request2User?: any;
 }
 
 interface SimpleMatchTesterProps {
-  onMatchCreated?: () => void;
+  onMatchCreated?: () => void; // Add callback for when a match is created
 }
 
-// Create the swap match card function
-export const createSwapMatchCard = (match: MatchTestResult) => {
-  const shift1 = match.request1Shift;
-  const shift2 = match.request2Shift;
-  
-  if (!shift1 || !shift2) return null;
-  
-  const user1 = match.request1User;
-  const user2 = match.request2User;
-  
-  return {
-    id: `potential-${match.request1Id}-${match.request2Id}`,
-    status: 'potential',
-    myShift: {
-      id: shift1.id,
-      date: shift1.date,
-      startTime: shift1.start_time,
-      endTime: shift1.end_time,
-      truckName: shift1.truck_name,
-      type: getShiftType(shift1.start_time),
-      colleagueType: shift1.colleague_type || 'Unknown'
-    },
-    otherShift: {
-      id: shift2.id,
-      date: shift2.date,
-      startTime: shift2.start_time,
-      endTime: shift2.end_time,
-      truckName: shift2.truck_name,
-      type: getShiftType(shift2.start_time),
-      userId: shift2.user_id,
-      userName: user2 ? `${user2.first_name} ${user2.last_name}` : 'Unknown User',
-      colleagueType: shift2.colleague_type || 'Unknown'
-    },
-    myRequestId: match.request1Id,
-    otherRequestId: match.request2Id,
-    createdAt: new Date().toISOString()
-  };
-};
-
-// Export as a named export instead of default
-export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
-  const [request1Id, setRequest1Id] = useState('');
-  const [request2Id, setRequest2Id] = useState('');
+const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [testResult, setTestResult] = useState<MatchTestResult | null>(null);
-  const { findSwapMatches, isProcessing, isFindingMatches } = useSwapMatcher();
+  const [allRequests, setAllRequests] = useState<any[]>([]);
+  const [allPreferredDates, setAllPreferredDates] = useState<any[]>([]);
+  const [matchResults, setMatchResults] = useState<MatchTestResult[]>([]);
 
-  const handleTestMatch = async () => {
-    if (!request1Id || !request2Id) {
+  // Fetch all the data needed for testing
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch all swap requests
+      const { data: requestsData } = await fetchAllSwapRequestsSafe();
+      
+      // Fetch shift data for each request
+      const enrichedRequests = await Promise.all((requestsData || []).map(async (request) => {
+        // Get the shift data using the request's requester_shift_id
+        const { data: shiftData } = await supabase.rpc('get_shift_by_id', { shift_id: request.requester_shift_id });
+        
+        // Get the user data
+        const { data: userData } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', request.requester_id)
+          .single();
+        
+        return {
+          ...request,
+          shift_date: shiftData?.[0]?.date || 'Unknown',
+          shift: shiftData?.[0] || {},
+          user: userData || { first_name: 'Unknown', last_name: 'User' }
+        };
+      }));
+      
+      setAllRequests(enrichedRequests || []);
+      
+      // Fetch all preferred dates
+      const { data: datesData } = await fetchAllPreferredDatesWithRequestsSafe();
+      setAllPreferredDates(datesData || []);
+      
+      console.log("Fetched requests:", enrichedRequests?.length);
+      console.log("Fetched preferred dates:", datesData?.length);
+    } catch (error) {
+      console.error('Error fetching test data:', error);
       toast({
-        title: "Missing request IDs",
-        description: "Please enter both request IDs to test a match",
+        title: "Error",
+        description: "Failed to fetch test data",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Run the test match algorithm using your logic
+  const runSimpleMatch = () => {
+    if (!allRequests || !allPreferredDates) {
+      toast({
+        title: "No data",
+        description: "Please fetch data first",
         variant: "destructive"
       });
       return;
     }
 
-    setIsLoading(true);
-    setTestResult(null);
+    // Group preferred dates by request ID for faster lookups
+    const preferredDatesByRequest = allPreferredDates.reduce((acc, date) => {
+      if (!acc[date.request_id]) {
+        acc[date.request_id] = [];
+      }
+      acc[date.request_id].push(date.date);
+      return acc;
+    }, {});
 
-    try {
-      // Get request 1 details
-      const { data: request1 } = await supabase
-        .from('shift_swap_requests')
-        .select('*')
-        .eq('id', request1Id)
-        .single();
+    const matches: MatchTestResult[] = [];
+
+    // Your algorithm implemented here
+    for (const request1 of allRequests) {
+      if (request1.status !== 'pending') continue; // Only check pending requests
+      
+      for (const request2 of allRequests) {
+        // Skip self-matching or requests from the same user
+        if (request1.id === request2.id || request1.requester_id === request2.requester_id) {
+          continue;
+        }
         
-      if (!request1) throw new Error('Request 1 not found');
-      
-      // Get request 1 shift
-      const { data: shift1 } = await supabase.rpc('get_shift_by_id', { 
-        shift_id: request1.requester_shift_id 
-      });
-      
-      if (!shift1 || shift1.length === 0) throw new Error('Request 1 shift not found');
-      
-      // Get request 2 details
-      const { data: request2 } = await supabase
-        .from('shift_swap_requests')
-        .select('*')
-        .eq('id', request2Id)
-        .single();
+        if (request2.status !== 'pending') continue; // Only match with other pending requests
         
-      if (!request2) throw new Error('Request 2 not found');
-      
-      // Get request 2 shift
-      const { data: shift2 } = await supabase.rpc('get_shift_by_id', { 
-        shift_id: request2.requester_shift_id 
-      });
-      
-      if (!shift2 || shift2.length === 0) throw new Error('Request 2 shift not found');
-      
-      // Get user details
-      const { data: user1 } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', request1.requester_id)
-        .single();
+        const request1ShiftDate = request1.shift_date;
+        const request2ShiftDate = request2.shift_date;
         
-      const { data: user2 } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', request2.requester_id)
-        .single();
-      
-      // Set test result
-      setTestResult({
-        request1Id: request1.id,
-        request2Id: request2.id,
-        request1Shift: shift1[0],
-        request2Shift: shift2[0],
-        request1User: user1,
-        request2User: user2
-      });
-      
-      toast({
-        title: "Match test completed",
-        description: "Both requests and shifts were found",
-      });
-    } catch (error: any) {
-      console.error('Error testing match:', error);
-      toast({
-        title: "Error testing match",
-        description: error.message || "Could not complete the match test",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+        // Skip if either shift date is unknown
+        if (!request1ShiftDate || !request2ShiftDate || 
+            request1ShiftDate === 'Unknown' || request2ShiftDate === 'Unknown') {
+          continue;
+        }
+        
+        // Get preferred dates for both requests
+        const request1PreferredDates = preferredDatesByRequest[request1.id] || [];
+        const request2PreferredDates = preferredDatesByRequest[request2.id] || [];
+        
+        // Check if each request wants the other's shift date
+        const request1WantsRequest2Date = request1PreferredDates.includes(request2ShiftDate);
+        const request2WantsRequest1Date = request2PreferredDates.includes(request1ShiftDate);
+        
+        // If both conditions are met, it's a match!
+        if (request1WantsRequest2Date && request2WantsRequest1Date) {
+          matches.push({
+            request1Id: request1.id,
+            request2Id: request2.id,
+            request1ShiftDate,
+            request2ShiftDate,
+            matchReason: "Both users want each other's shift dates",
+            request1Shift: request1.shift,
+            request2Shift: request2.shift,
+            request1User: request1.user,
+            request2User: request2.user
+          });
+        }
+      }
     }
+
+    // Update the results
+    setMatchResults(matches);
+    
+    // Show toast with match count
+    toast({
+      title: `Found ${matches.length} potential matches`,
+      description: matches.length > 0 
+        ? "See detailed results below" 
+        : "No matches found with the simple algorithm",
+      variant: matches.length > 0 ? "default" : "destructive"
+    });
   };
 
-  const handleCreateMatch = async () => {
-    if (!testResult) return;
-    
-    setIsLoading(true);
-    
+  // Load data when component mounts
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Format a date string in a friendly way
+  const formatDate = (dateString: string) => {
+    if (!dateString || dateString === 'Unknown') return 'Unknown';
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  // Create a match in the database for a successful match
+  const createMatch = async (match: MatchTestResult) => {
     try {
-      // Create the match in the database - using shift_swap_potential_matches table
-      // since this is what our system actually uses for matches now
-      const { data, error } = await supabase
+      setIsLoading(true);
+      
+      // First, check if this match already exists
+      const { data: existingMatches, error: checkError } = await supabase
         .from('shift_swap_potential_matches')
-        .insert({
-          requester_request_id: testResult.request1Id,
-          acceptor_request_id: testResult.request2Id,
-          requester_shift_id: testResult.request1Shift.id,
-          acceptor_shift_id: testResult.request2Shift.id,
-          match_date: new Date().toISOString().split('T')[0],
-          status: 'pending'
-        })
-        .select();
-        
+        .select('id')
+        .or(`and(requester_request_id.eq.${match.request1Id},acceptor_request_id.eq.${match.request2Id}),and(requester_request_id.eq.${match.request2Id},acceptor_request_id.eq.${match.request1Id})`)
+        .limit(1);
+      
+      if (checkError) throw checkError;
+      
+      if (existingMatches && existingMatches.length > 0) {
+        toast({
+          title: "Match already exists",
+          description: `This match is already in the database with ID: ${existingMatches[0].id}`,
+          variant: "default"
+        });
+        return;
+      }
+      
+      // Use the helper function to create the match
+      const { data, error } = await createSwapMatchSafe(match.request1Id, match.request2Id);
+      
       if (error) throw error;
       
       toast({
         title: "Match created successfully",
-        description: "The swap match has been created",
+        description: `Created match with ID: ${data?.[0].id || 'unknown'}`,
+        variant: "default"
       });
+      
+      // Update request statuses to 'matched'
+      await Promise.all([
+        supabase
+          .from('shift_swap_requests')
+          .update({ status: 'matched' })
+          .eq('id', match.request1Id),
+        supabase
+          .from('shift_swap_requests')
+          .update({ status: 'matched' })
+          .eq('id', match.request2Id)
+      ]);
       
       // Call the callback if provided
       if (onMatchCreated) {
         onMatchCreated();
       }
-      
-      // Reset the form
-      setRequest1Id('');
-      setRequest2Id('');
-      setTestResult(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating match:', error);
       toast({
         title: "Error creating match",
-        description: error.message || "Could not create the match",
+        description: error.message || "An error occurred",
         variant: "destructive"
       });
     } finally {
@@ -204,116 +233,144 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
     }
   };
 
-  const handleFindMatches = async () => {
-    try {
-      // Use the findSwapMatches function from the hook
-      await findSwapMatches(undefined, true, true);
-      
-      // Call the callback if provided to refresh matches display
-      if (onMatchCreated) {
-        onMatchCreated();
-      }
-    } catch (error) {
-      console.error("Error finding matches:", error);
-      toast({
-        title: "Error finding matches",
-        description: "Could not find potential matches",
-        variant: "destructive"
-      });
-    }
+  // Create SwapMatch objects for displaying
+  const createSwapMatchCard = (match: MatchTestResult) => {
+    const shift1 = match.request1Shift;
+    const shift2 = match.request2Shift;
+    
+    if (!shift1 || !shift2) return null;
+    
+    const user1 = match.request1User;
+    const user2 = match.request2User;
+    
+    return {
+      id: `potential-${match.request1Id}-${match.request2Id}`,
+      status: 'potential',
+      myShift: {
+        id: shift1.id,
+        date: shift1.date,
+        startTime: shift1.start_time,
+        endTime: shift1.end_time,
+        truckName: shift1.truck_name,
+        type: getShiftType(shift1.start_time)
+      },
+      otherShift: {
+        id: shift2.id,
+        date: shift2.date,
+        startTime: shift2.start_time,
+        endTime: shift2.end_time,
+        truckName: shift2.truck_name,
+        type: getShiftType(shift2.start_time),
+        userId: shift2.user_id,
+        userName: user2 ? `${user2.first_name} ${user2.last_name}` : 'Unknown User'
+      },
+      myRequestId: match.request1Id,
+      otherRequestId: match.request2Id,
+      createdAt: new Date().toISOString()
+    };
+  };
+  
+  // Helper function to get shift type
+  const getShiftType = (startTime: string): string => {
+    if (!startTime) return 'unknown';
+    
+    const hour = parseInt(startTime.split(':')[0], 10);
+    
+    if (hour <= 8) return 'day';
+    if (hour > 8 && hour < 16) return 'afternoon';
+    return 'night';
   };
 
-  // Combined loading state
-  const combinedLoadingState = isLoading || isProcessing || isFindingMatches;
-
   return (
-    <Card className="border-amber-300 bg-amber-50/70">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-amber-800">Create Test Match</CardTitle>
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xl flex items-center justify-between">
+          Swap Match Testing
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={fetchData}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh Data
+            </Button>
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={runSimpleMatch}
+              disabled={isLoading || !allRequests.length}
+            >
+              Run Test Match
+            </Button>
+          </div>
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4">
-          <div className="grid grid-cols-1 gap-4">
-            <Button
-              type="button"
-              onClick={handleFindMatches}
-              disabled={combinedLoadingState}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
-            >
-              {combinedLoadingState ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Finding Matches...
-                </>
-              ) : (
-                <>Run Match Finder</>
-              )}
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            <p className="text-sm text-gray-500">Or manually test specific matches:</p>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="request1">Request ID 1</Label>
-              <Input
-                id="request1"
-                value={request1Id}
-                onChange={(e) => setRequest1Id(e.target.value)}
-                placeholder="e.g. 12345678-1234-5678-1234-567812345678"
-              />
+        <div className="text-sm space-y-3">
+          <div className="flex gap-4">
+            <div>
+              <span className="font-semibold">Requests:</span> {allRequests.length}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="request2">Request ID 2</Label>
-              <Input
-                id="request2"
-                value={request2Id}
-                onChange={(e) => setRequest2Id(e.target.value)}
-                placeholder="e.g. 12345678-1234-5678-1234-567812345678"
-              />
+            <div>
+              <span className="font-semibold">Preferred Dates:</span> {allPreferredDates.length}
+            </div>
+            <div>
+              <span className="font-semibold">Matches Found:</span> {matchResults.length}
             </div>
           </div>
           
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={combinedLoadingState || !request1Id || !request2Id}
-              onClick={handleTestMatch}
-            >
-              Test Match
-            </Button>
-            <Button
-              type="button"
-              disabled={combinedLoadingState || !testResult}
-              onClick={handleCreateMatch}
-              className="bg-amber-500 hover:bg-amber-600 text-white"
-            >
-              Create Match
-            </Button>
-          </div>
+          {isLoading && (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              Loading...
+            </div>
+          )}
           
-          {testResult && (
-            <div className="mt-4 p-3 border border-amber-300 rounded-md bg-amber-100">
-              <h4 className="font-medium mb-2 text-amber-800">Match Test Result</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="font-medium">Request 1 Shift</p>
-                  <p>Date: {testResult.request1Shift.date}</p>
-                  <p>Time: {testResult.request1Shift.start_time} - {testResult.request1Shift.end_time}</p>
-                  <p>User: {testResult.request1User?.first_name} {testResult.request1User?.last_name}</p>
-                  <p>Colleague Type: {testResult.request1Shift.colleague_type || 'Unknown'}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Request 2 Shift</p>
-                  <p>Date: {testResult.request2Shift.date}</p>
-                  <p>Time: {testResult.request2Shift.start_time} - {testResult.request2Shift.end_time}</p>
-                  <p>User: {testResult.request2User?.first_name} {testResult.request2User?.last_name}</p>
-                  <p>Colleague Type: {testResult.request2Shift.colleague_type || 'Unknown'}</p>
-                </div>
+          {matchResults.length > 0 && (
+            <div>
+              <h3 className="font-semibold text-lg mb-2">Match Results:</h3>
+              <div className="space-y-4 mt-4">
+                {matchResults.map((match, index) => {
+                  // Create swap match object for the card
+                  const swapMatch = createSwapMatchCard(match);
+                  
+                  return (
+                    <div key={index} className="border border-green-200 rounded-md p-3">
+                      <div className="flex justify-between mb-3">
+                        <div className="font-semibold">Potential Match #{index + 1}</div>
+                        <Button 
+                          size="sm" 
+                          variant="default"
+                          className="bg-green-600 hover:bg-green-700 h-7 text-xs"
+                          onClick={() => createMatch(match)}
+                          disabled={isLoading}
+                        >
+                          Create This Match
+                        </Button>
+                      </div>
+                      
+                      {swapMatch && (
+                        <SwapCard 
+                          swap={swapMatch} 
+                          isPast={false}
+                        />
+                      )}
+                      
+                      <div className="mt-2">
+                        <Badge variant="outline" className="bg-green-100">{match.matchReason}</Badge>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+            </div>
+          )}
+          
+          {!isLoading && matchResults.length === 0 && (
+            <div className="text-center py-6 text-gray-500">
+              No matches found. Try running the test after fetching data.
             </div>
           )}
         </div>
@@ -321,3 +378,5 @@ export const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) =>
     </Card>
   );
 };
+
+export default SimpleMatchTester;

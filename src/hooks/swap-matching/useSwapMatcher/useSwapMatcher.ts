@@ -35,13 +35,7 @@ export const useSwapMatcher = () => {
         description: "You must be logged in to find swap matches.",
         variant: "destructive"
       });
-      return [];
-    }
-    
-    // Guard against concurrent requests
-    if (isFindingMatches || isProcessing) {
-      console.log("Already processing a request, skipping");
-      return [];
+      return;
     }
     
     try {
@@ -57,7 +51,7 @@ export const useSwapMatcher = () => {
           forceCheck, 
           verbose, 
           userPerspectiveOnly,
-          userInitiatorOnly
+          true // Always use true for userInitiatorOnly
         );
         console.log("Edge function result:", result);
         
@@ -67,8 +61,7 @@ export const useSwapMatcher = () => {
             title: "Matches found!",
             description: `Found ${result.length} potential swap matches.`,
           });
-        } else if (result) {
-          // Only show "no matches" if we got a valid response
+        } else {
           toast({
             title: "No matches found",
             description: "No potential swap matches were found at this time.",
@@ -87,9 +80,7 @@ export const useSwapMatcher = () => {
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
-      return [];
     } finally {
-      // Always reset the loading state, regardless of outcome
       setIsFindingMatches(false);
     }
   };

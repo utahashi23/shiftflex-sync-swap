@@ -12,7 +12,7 @@ export interface Shift {
   startTime: string;
   endTime: string;
   type: 'day' | 'afternoon' | 'night';
-  colleagueType?: string; // Changed from enum to string to match implementation
+  colleagueType?: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown';
 }
 
 export const useShiftData = (currentDate: Date, userId?: string) => {
@@ -58,7 +58,7 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
             startTime: shift.start_time.substring(0, 5), // Format as HH:MM
             endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
             type,
-            colleagueType: shift.colleague_type || 'Unknown'
+            colleagueType: 'Unknown'  // Default value as we don't have colleague type in the database yet
           };
         }) || [];
         

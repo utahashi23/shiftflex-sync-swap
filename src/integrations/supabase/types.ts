@@ -241,7 +241,6 @@ export type Database = {
       }
       shifts: {
         Row: {
-          colleague_type: string | null
           created_at: string
           date: string
           end_time: string
@@ -253,7 +252,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          colleague_type?: string | null
           created_at?: string
           date: string
           end_time: string
@@ -265,7 +263,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          colleague_type?: string | null
           created_at?: string
           date?: string
           end_time?: string
@@ -365,7 +362,6 @@ export type Database = {
       get_all_shifts: {
         Args: Record<PropertyKey, never>
         Returns: {
-          colleague_type: string | null
           created_at: string
           date: string
           end_time: string
@@ -394,7 +390,6 @@ export type Database = {
       get_shift_by_id: {
         Args: { shift_id: string }
         Returns: {
-          colleague_type: string | null
           created_at: string
           date: string
           end_time: string
