@@ -57,7 +57,10 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
           const title = shift.truck_name || `Shift-${shift.id.substring(0, 5)}`;
           
           // Get colleague type from profiles join
-          const colleagueType = shift.profiles?.organization || 'Unknown';
+          // Fix: Check if profiles exists and properly type the response
+          const colleagueType = shift.profiles && typeof shift.profiles === 'object' && 'organization' in shift.profiles 
+            ? (shift.profiles.organization as string || 'Unknown')
+            : 'Unknown';
           
           return {
             id: shift.id,
