@@ -19,7 +19,10 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
       }
     });
     
-    if (matchesError) throw matchesError;
+    if (matchesError) {
+      console.error('Error from get_user_matches function:', matchesError);
+      throw matchesError;
+    }
     
     console.log('Raw match data from function:', matchesData);
     
@@ -87,8 +90,12 @@ export const acceptSwapMatch = async (matchId: string) => {
       body: { match_id: matchId }
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error from accept_swap_match function:', error);
+      throw error;
+    }
     
+    console.log('Swap match accepted response:', data);
     return data;
   } catch (error) {
     console.error('Error in acceptSwapMatch:', error);
@@ -104,8 +111,12 @@ export const finalizeSwapMatch = async (matchId: string) => {
       body: { match_id: matchId }
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error from finalize_swap_match function:', error);
+      throw error;
+    }
     
+    console.log('Swap match finalized response:', data);
     return data;
   } catch (error) {
     console.error('Error in finalizeSwapMatch:', error);
@@ -121,8 +132,12 @@ export const completeSwapMatch = async (matchId: string) => {
       body: { match_id: matchId }
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error from complete_swap_match function:', error);
+      throw error;
+    }
     
+    console.log('Swap match completed response:', data);
     return data;
   } catch (error) {
     console.error('Error in completeSwapMatch:', error);

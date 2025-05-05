@@ -171,6 +171,7 @@ serve(async (req) => {
     const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN');
     
     if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN) {
+      console.error('Missing Mailgun configuration. API Key exists:', !!MAILGUN_API_KEY, ', Domain exists:', !!MAILGUN_DOMAIN);
       throw new Error('Missing Mailgun configuration');
     }
 
@@ -190,29 +191,40 @@ serve(async (req) => {
         <p>Thank you for using the Shift Swap system!</p>
       `
       
-      // Send email to requester using Mailgun
-      const formData = new FormData();
-      formData.append('from', `Shift Swap <notifications@${MAILGUN_DOMAIN}>`);
-      formData.append('to', requesterEmail);
-      formData.append('subject', 'Your Shift Swap Has Been Accepted (Re-sent Notification)');
-      formData.append('html', requesterEmailContent);
-      
-      const requesterEmailResponse = await fetch(`https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${btoa('api:' + MAILGUN_API_KEY)}`
-        },
-        body: formData
-      });
-      
-      if (!requesterEmailResponse.ok) {
-        const errorText = await requesterEmailResponse.text();
-        console.error(`Error sending email to requester: ${errorText}`);
-        emailResults.push({ recipient: 'requester', success: false, error: errorText });
-      } else {
-        console.log(`Email sent to requester: ${requesterEmail}`);
-        emailResults.push({ recipient: 'requester', success: true });
+      try {
+        // Send email to requester using Mailgun
+        const formData = new FormData();
+        formData.append('from', `Shift Swap <no-reply@${MAILGUN_DOMAIN}>`);
+        formData.append('to', requesterEmail);
+        formData.append('subject', 'Your Shift Swap Has Been Accepted (Re-sent Notification)');
+        formData.append('html', requesterEmailContent);
+        
+        console.log(`Attempting to send email to requester (${requesterEmail}) using domain: ${MAILGUN_DOMAIN}`);
+        
+        const requesterEmailResponse = await fetch(`https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Basic ${btoa('api:' + MAILGUN_API_KEY)}`
+          },
+          body: formData
+        });
+        
+        if (!requesterEmailResponse.ok) {
+          const errorText = await requesterEmailResponse.text();
+          console.error(`Error sending email to requester: ${errorText}`);
+          console.error(`HTTP Status: ${requesterEmailResponse.status}`);
+          emailResults.push({ recipient: 'requester', success: false, error: errorText });
+        } else {
+          const responseData = await requesterEmailResponse.json();
+          console.log(`Email sent to requester: ${requesterEmail}`, responseData);
+          emailResults.push({ recipient: 'requester', success: true });
+        }
+      } catch (emailError) {
+        console.error('Exception sending requester email:', emailError);
+        emailResults.push({ recipient: 'requester', success: false, error: emailError.message });
       }
+    } else {
+      console.warn('No requester email available');
     }
 
     if (acceptorEmail) {
@@ -227,29 +239,40 @@ serve(async (req) => {
         <p>Thank you for using the Shift Swap system!</p>
       `
       
-      // Send email to acceptor using Mailgun
-      const formData = new FormData();
-      formData.append('from', `Shift Swap <notifications@${MAILGUN_DOMAIN}>`);
-      formData.append('to', acceptorEmail);
-      formData.append('subject', 'Shift Swap Confirmation (Re-sent Notification)');
-      formData.append('html', acceptorEmailContent);
-      
-      const acceptorEmailResponse = await fetch(`https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${btoa('api:' + MAILGUN_API_KEY)}`
-        },
-        body: formData
-      });
-      
-      if (!acceptorEmailResponse.ok) {
-        const errorText = await acceptorEmailResponse.text();
-        console.error(`Error sending email to acceptor: ${errorText}`);
-        emailResults.push({ recipient: 'acceptor', success: false, error: errorText });
-      } else {
-        console.log(`Email sent to acceptor: ${acceptorEmail}`);
-        emailResults.push({ recipient: 'acceptor', success: true });
+      try {
+        // Send email to acceptor using Mailgun
+        const formData = new FormData();
+        formData.append('from', `Shift Swap <no-reply@${MAILGUN_DOMAIN}>`);
+        formData.append('to', acceptorEmail);
+        formData.append('subject', 'Shift Swap Confirmation (Re-sent Notification)');
+        formData.append('html', acceptorEmailContent);
+        
+        console.log(`Attempting to send email to acceptor (${acceptorEmail}) using domain: ${MAILGUN_DOMAIN}`);
+        
+        const acceptorEmailResponse = await fetch(`https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Basic ${btoa('api:' + MAILGUN_API_KEY)}`
+          },
+          body: formData
+        });
+        
+        if (!acceptorEmailResponse.ok) {
+          const errorText = await acceptorEmailResponse.text();
+          console.error(`Error sending email to acceptor: ${errorText}`);
+          console.error(`HTTP Status: ${acceptorEmailResponse.status}`);
+          emailResults.push({ recipient: 'acceptor', success: false, error: errorText });
+        } else {
+          const responseData = await acceptorEmailResponse.json();
+          console.log(`Email sent to acceptor: ${acceptorEmail}`, responseData);
+          emailResults.push({ recipient: 'acceptor', success: true });
+        }
+      } catch (emailError) {
+        console.error('Exception sending acceptor email:', emailError);
+        emailResults.push({ recipient: 'acceptor', success: false, error: emailError.message });
       }
+    } else {
+      console.warn('No acceptor email available');
     }
 
     return new Response(

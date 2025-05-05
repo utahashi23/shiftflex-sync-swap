@@ -35,6 +35,7 @@ serve(async (req) => {
     const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN');
     
     if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN) {
+      console.error('Missing Mailgun configuration. API Key exists:', !!MAILGUN_API_KEY, ', Domain exists:', !!MAILGUN_DOMAIN);
       throw new Error('Missing Mailgun configuration (API key or domain)');
     }
 
@@ -46,6 +47,10 @@ serve(async (req) => {
       throw new Error('Missing required email parameters (to, subject, and either text, html, or template)');
     }
 
+    // Log the email sending attempt
+    console.log(`Attempting to send email to ${Array.isArray(to) ? to.join(', ') : to} with subject "${subject}"`);
+    console.log(`Using Mailgun domain: ${MAILGUN_DOMAIN}`);
+    
     // Prepare request
     const formData = new FormData();
     
@@ -55,8 +60,10 @@ serve(async (req) => {
     
     formData.append('subject', subject);
     
-    // Default from address using the domain
-    formData.append('from', from || `Shift Swap <notifications@${MAILGUN_DOMAIN}>`);
+    // Default from address using the domain or use the provided one
+    const fromAddress = from || `Shift Swap <no-reply@${MAILGUN_DOMAIN}>`;
+    formData.append('from', fromAddress);
+    console.log(`From address: ${fromAddress}`);
     
     // Add content
     if (text) formData.append('text', text);
@@ -83,30 +90,36 @@ serve(async (req) => {
       formData.append('h:X-Mailgun-Variables', JSON.stringify(templateVariables));
     }
     
-    console.log(`Sending email to ${Array.isArray(to) ? to.join(', ') : to} with subject "${subject}"`);
-    
     // Send the email using Mailgun API
-    const response = await fetch(`https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${btoa('api:' + MAILGUN_API_KEY)}`
-      },
-      body: formData
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Mailgun API error: ${response.status}`, errorText);
-      throw new Error(`Mailgun API error: ${response.status} ${errorText}`);
+    try {
+      const mailgunApiUrl = `https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`;
+      console.log(`Using Mailgun API URL: ${mailgunApiUrl}`);
+      
+      const response = await fetch(mailgunApiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${btoa('api:' + MAILGUN_API_KEY)}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Mailgun API error: HTTP status ${response.status}`, errorText);
+        throw new Error(`Mailgun API error: ${response.status} ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Email sent successfully:', result);
+      
+      return new Response(JSON.stringify({ success: true, result }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      });
+    } catch (mailgunError) {
+      console.error('Error in Mailgun API call:', mailgunError);
+      throw new Error(`Mailgun API call failed: ${mailgunError.message}`);
     }
-    
-    const result = await response.json();
-    console.log('Email sent successfully:', result);
-    
-    return new Response(JSON.stringify({ success: true, result }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200
-    });
     
   } catch (error) {
     console.error('Error sending email:', error);

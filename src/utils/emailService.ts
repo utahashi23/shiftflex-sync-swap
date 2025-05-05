@@ -19,6 +19,9 @@ interface EmailOptions {
  */
 export const sendEmail = async (options: EmailOptions): Promise<{ success: boolean; error?: string; result?: any }> => {
   try {
+    console.log(`Attempting to send email to: ${Array.isArray(options.to) ? options.to.join(', ') : options.to}`);
+    console.log(`Email subject: "${options.subject}"`);
+    
     const { data, error } = await supabase.functions.invoke('send_email', {
       body: options
     });
@@ -28,6 +31,7 @@ export const sendEmail = async (options: EmailOptions): Promise<{ success: boole
       return { success: false, error: error.message };
     }
     
+    console.log('Email function response:', data);
     return data;
   } catch (err: any) {
     console.error('Error in sendEmail:', err);
@@ -45,6 +49,8 @@ export const sendSwapEmail = async (
   buttonText?: string,
   buttonLink?: string
 ): Promise<{ success: boolean; error?: string }> => {
+  console.log(`Sending swap email to: ${to}`);
+  
   // Create a simple HTML email template with uniform styling
   let html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
@@ -75,11 +81,19 @@ export const sendSwapEmail = async (
     </div>
   `;
   
-  return sendEmail({
+  // Set a default from address if not provided
+  const result = await sendEmail({
     to,
     subject,
-    html
+    html,
+    from: `Shift Swap <no-reply@shiftswap.app>`
   });
+  
+  if (!result.success) {
+    console.error(`Failed to send swap email: ${result.error}`);
+  }
+  
+  return result;
 };
 
 // Function to send notifications to both users involved in a swap
@@ -90,6 +104,8 @@ export const sendSwapStatusNotification = async (
   swapDetails: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
+    console.log(`Sending ${status} status notification to: ${requesterEmail} and ${acceptorEmail}`);
+    
     let subject = '';
     let content = '';
     
@@ -117,7 +133,7 @@ export const sendSwapStatusNotification = async (
     if (!requesterResult.success || !acceptorResult.success) {
       return { 
         success: false, 
-        error: requesterResult.error || acceptorResult.error 
+        error: `Email sending failed: ${requesterResult.error || acceptorResult.error}` 
       };
     }
     
@@ -135,6 +151,8 @@ export const resendSwapNotification = async (
   matchId: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
+    console.log(`Resending notification for swap match: ${matchId}`);
+    
     // Call our edge function to resend the email
     const { data, error } = await supabase.functions.invoke('resend_swap_notification', {
       body: { match_id: matchId }
@@ -145,6 +163,7 @@ export const resendSwapNotification = async (
       return { success: false, error: error.message };
     }
     
+    console.log('Resend notification response:', data);
     return { success: true };
   } catch (err: any) {
     console.error('Error in resendSwapNotification:', err);
