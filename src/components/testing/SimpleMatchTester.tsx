@@ -8,6 +8,7 @@ import { fetchAllSwapRequestsSafe, fetchAllPreferredDatesWithRequestsSafe, creat
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { SwapCard } from '../matched-swaps/SwapCard';
+import { useAuth } from '@/hooks/useAuth';
 
 interface MatchTestResult {
   request1Id: string;
@@ -31,6 +32,7 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
   const [allRequests, setAllRequests] = useState<any[]>([]);
   const [allPreferredDates, setAllPreferredDates] = useState<any[]>([]);
   const [matchResults, setMatchResults] = useState<MatchTestResult[]>([]);
+  const { user, isAdmin } = useAuth();
 
   // Fetch all the data needed for testing
   const fetchData = async () => {
@@ -38,6 +40,8 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
     try {
       // Fetch all swap requests
       const { data: requestsData } = await fetchAllSwapRequestsSafe();
+      
+      console.log("Raw requests data:", requestsData?.length || 0, "requests found");
       
       // Fetch shift data for each request
       const enrichedRequests = await Promise.all((requestsData || []).map(async (request) => {
@@ -67,6 +71,21 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
       
       console.log("Fetched requests:", enrichedRequests?.length);
       console.log("Fetched preferred dates:", datesData?.length);
+      
+      // Log some debug info about the current user
+      console.log("Current user:", user?.id);
+      console.log("User requests:", enrichedRequests?.filter(r => r.requester_id === user?.id).length);
+      
+      // Log first few requests for debugging
+      if (enrichedRequests?.length > 0) {
+        console.log("Sample first request:", {
+          id: enrichedRequests[0].id,
+          requester_id: enrichedRequests[0].requester_id,
+          status: enrichedRequests[0].status,
+          shift_date: enrichedRequests[0].shift_date,
+          preferred_dates_count: enrichedRequests[0].preferred_dates_count
+        });
+      }
     } catch (error) {
       console.error('Error fetching test data:', error);
       toast({
@@ -90,28 +109,95 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
       return;
     }
 
+    console.log("Running simple match with", allRequests.length, "requests and", allPreferredDates.length, "preferred dates");
+    
     // Group preferred dates by request ID for faster lookups
-    const preferredDatesByRequest = allPreferredDates.reduce((acc, date) => {
-      if (!acc[date.request_id]) {
-        acc[date.request_id] = [];
+    const preferredDatesByRequest = {};
+    allPreferredDates.forEach(date => {
+      if (!preferredDatesByRequest[date.request_id]) {
+        preferredDatesByRequest[date.request_id] = [];
       }
-      acc[date.request_id].push(date.date);
-      return acc;
-    }, {});
+      preferredDatesByRequest[date.request_id].push(date.date);
+    });
+
+    console.log("Preferred dates grouped by request:", Object.keys(preferredDatesByRequest).length);
+    
+    // Show current user's requests
+    if (user) {
+      const userRequests = allRequests.filter(r => r.requester_id === user.id);
+      console.log(`User ${user.id} has ${userRequests.length} requests`);
+      userRequests.forEach(req => {
+        console.log(`- Request ${req.id}: shift date ${req.shift_date}, preferred dates: ${preferredDatesByRequest[req.id]?.join(', ') || 'none'}`);
+      });
+    }
 
     const matches: MatchTestResult[] = [];
+    const processedPairs = new Set();
 
-    // Your algorithm implemented here
-    for (const request1 of allRequests) {
-      if (request1.status !== 'pending') continue; // Only check pending requests
+    // First pass: prioritize matches for the current user
+    if (user) {
+      const userRequests = allRequests.filter(req => req.requester_id === user.id && req.status === 'pending');
+      const otherRequests = allRequests.filter(req => req.requester_id !== user.id && req.status === 'pending');
       
-      for (const request2 of allRequests) {
-        // Skip self-matching or requests from the same user
-        if (request1.id === request2.id || request1.requester_id === request2.requester_id) {
-          continue;
+      console.log(`Found ${userRequests.length} pending requests for current user and ${otherRequests.length} for other users`);
+      
+      // Check each of current user's requests against other users' requests
+      for (const userRequest of userRequests) {
+        for (const otherRequest of otherRequests) {
+          const matchKey = [userRequest.id, otherRequest.id].sort().join('_');
+          if (processedPairs.has(matchKey)) continue;
+          processedPairs.add(matchKey);
+          
+          const userShiftDate = userRequest.shift_date;
+          const otherShiftDate = otherRequest.shift_date;
+          
+          if (!userShiftDate || !otherShiftDate || 
+              userShiftDate === 'Unknown' || otherShiftDate === 'Unknown') {
+            continue;
+          }
+          
+          const userPreferredDates = preferredDatesByRequest[userRequest.id] || [];
+          const otherPreferredDates = preferredDatesByRequest[otherRequest.id] || [];
+          
+          const userWantsOtherDate = userPreferredDates.includes(otherShiftDate);
+          const otherWantsUserDate = otherPreferredDates.includes(userShiftDate);
+          
+          if (userWantsOtherDate && otherWantsUserDate) {
+            console.log(`MATCH FOUND: ${userRequest.id} <-> ${otherRequest.id}`);
+            console.log(`- ${userRequest.user?.first_name} wants ${otherShiftDate}, ${otherRequest.user?.first_name} wants ${userShiftDate}`);
+            
+            matches.push({
+              request1Id: userRequest.id,
+              request2Id: otherRequest.id,
+              request1ShiftDate: userShiftDate,
+              request2ShiftDate: otherShiftDate,
+              matchReason: "Both users want each other's shift dates",
+              request1Shift: userRequest.shift,
+              request2Shift: otherRequest.shift,
+              request1User: userRequest.user,
+              request2User: otherRequest.user
+            });
+          }
         }
+      }
+    }
+
+    // Second pass: match any remaining pending requests
+    for (let i = 0; i < allRequests.length; i++) {
+      const request1 = allRequests[i];
+      if (request1.status !== 'pending') continue;
+      
+      for (let j = i + 1; j < allRequests.length; j++) {
+        const request2 = allRequests[j];
+        if (request2.status !== 'pending') continue;
         
-        if (request2.status !== 'pending') continue; // Only match with other pending requests
+        // Skip if the users are the same
+        if (request1.requester_id === request2.requester_id) continue;
+        
+        // Skip if we've already processed this pair
+        const matchKey = [request1.id, request2.id].sort().join('_');
+        if (processedPairs.has(matchKey)) continue;
+        processedPairs.add(matchKey);
         
         const request1ShiftDate = request1.shift_date;
         const request2ShiftDate = request2.shift_date;
@@ -132,6 +218,9 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
         
         // If both conditions are met, it's a match!
         if (request1WantsRequest2Date && request2WantsRequest1Date) {
+          console.log(`MATCH FOUND: ${request1.id} <-> ${request2.id}`);
+          console.log(`- ${request1.user?.first_name} wants ${request2ShiftDate}, ${request2.user?.first_name} wants ${request1ShiftDate}`);
+          
           matches.push({
             request1Id: request1.id,
             request2Id: request2.id,
@@ -194,6 +283,8 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
         return;
       }
       
+      console.log("Creating match between requests:", match.request1Id, match.request2Id);
+      
       // Use the helper function to create the match
       const { data, error } = await createSwapMatchSafe(match.request1Id, match.request2Id);
       
@@ -221,6 +312,9 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
       if (onMatchCreated) {
         onMatchCreated();
       }
+      
+      // Refresh data after creating match
+      await fetchData();
     } catch (error) {
       console.error('Error creating match:', error);
       toast({
@@ -309,12 +403,15 @@ const SimpleMatchTester = ({ onMatchCreated }: SimpleMatchTesterProps) => {
       </CardHeader>
       <CardContent>
         <div className="text-sm space-y-3">
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <div>
               <span className="font-semibold">Requests:</span> {allRequests.length}
             </div>
             <div>
               <span className="font-semibold">Preferred Dates:</span> {allPreferredDates.length}
+            </div>
+            <div>
+              <span className="font-semibold">Your Requests:</span> {user ? allRequests.filter(req => req.requester_id === user.id).length : 0}
             </div>
             <div>
               <span className="font-semibold">Matches Found:</span> {matchResults.length}

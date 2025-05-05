@@ -1,124 +1,120 @@
 
+/**
+ * Helper functions for safely working with database entities 
+ * This works around possible RLS recursion issues by using explicit permissions checks
+ */
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Fetches all swap requests safely bypassing RLS restrictions
+ * Safely fetch all swap requests, working around RLS issues
+ * Tries to use edge function or RPC function first, then falls back to direct query
  */
 export const fetchAllSwapRequestsSafe = async () => {
-  const { data, error } = await supabase.rpc('get_all_swap_requests');
-  
-  if (error) {
-    console.error('Error fetching all swap requests:', error);
+  try {
+    // First try to get data from our get_all_swap_requests function
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_swap_requests');
+    
+    if (rpcData && !rpcError) {
+      console.log('Successfully fetched requests using RPC');
+      return { data: rpcData, error: null };
+    }
+
+    // If that fails, try a direct query
+    console.log('RPC failed or not available, falling back to direct query');
+    const { data, error } = await supabase
+      .from('shift_swap_requests')
+      .select('*');
+
+    if (error) {
+      console.error('Error in direct query for requests:', error);
+      return { data: [], error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error in fetchAllSwapRequestsSafe:', error);
+    return { data: [], error };
   }
-  
-  return { data, error };
 };
 
 /**
- * Fetches user swap requests safely bypassing RLS restrictions
- */
-export const fetchUserSwapRequestsSafe = async (userId: string, status: string = 'pending') => {
-  const { data, error } = await supabase.rpc('get_user_swap_requests_safe', { 
-    p_user_id: userId,
-    p_status: status
-  });
-  
-  if (error) {
-    console.error(`Error fetching user swap requests with status ${status}:`, error);
-  }
-  
-  return { data, error };
-};
-
-/**
- * Fetches all preferred dates with their associated requests
+ * Safely fetch all preferred dates with requests, working around RLS issues
  */
 export const fetchAllPreferredDatesWithRequestsSafe = async () => {
-  const { data, error } = await supabase.rpc('get_all_preferred_dates');
-  
-  if (error) {
-    console.error('Error fetching all preferred dates:', error);
+  try {
+    // First try our get_all_preferred_dates function
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_preferred_dates');
+    
+    if (rpcData && !rpcError) {
+      console.log('Successfully fetched preferred dates using RPC');
+      return { data: rpcData, error: null };
+    }
+
+    // If that fails, try a direct query
+    console.log('RPC failed or not available, falling back to direct query');
+    const { data, error } = await supabase
+      .from('shift_swap_preferred_dates')
+      .select('*');
+
+    if (error) {
+      console.error('Error in direct query for preferred dates:', error);
+      return { data: [], error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error in fetchAllPreferredDatesWithRequestsSafe:', error);
+    return { data: [], error };
   }
-  
-  return { data, error };
 };
 
 /**
- * Creates a match between two swap requests
+ * Safely create a swap match, working around possible RLS issues
  */
 export const createSwapMatchSafe = async (request1Id: string, request2Id: string) => {
-  // First get shift IDs
-  const { data: request1, error: error1 } = await supabase
-    .from('shift_swap_requests')
-    .select('requester_shift_id')
-    .eq('id', request1Id)
-    .single();
-    
-  const { data: request2, error: error2 } = await supabase
-    .from('shift_swap_requests')
-    .select('requester_shift_id')
-    .eq('id', request2Id)
-    .single();
-    
-  if (error1 || error2 || !request1 || !request2) {
-    console.error('Error getting request data:', error1 || error2);
-    return { error: error1 || error2 };
-  }
-  
-  // Create the match
-  const { data, error } = await supabase
-    .from('shift_swap_potential_matches')
-    .insert({
-      requester_request_id: request1Id,
-      acceptor_request_id: request2Id,
-      requester_shift_id: request1.requester_shift_id,
-      acceptor_shift_id: request2.requester_shift_id,
-      match_date: new Date().toISOString().split('T')[0],
-      status: 'pending'
-    })
-    .select();
-    
-  if (error) {
-    console.error('Error creating match:', error);
-  }
-  
-  return { data, error };
-};
-
-/**
- * Fetches all matches for debug purposes using the edge function to avoid recursion
- */
-export const fetchAllMatchesSafe = async () => {
   try {
-    const { data, error } = await supabase.functions.invoke('get_user_matches', {
-      body: { show_all_matches: true, verbose: true }
-    });
+    const today = new Date().toISOString().split('T')[0]; // Format as YYYY-MM-DD
     
+    // Get request details
+    const { data: request1, error: request1Error } = await supabase
+      .from('shift_swap_requests')
+      .select('requester_id, requester_shift_id')
+      .eq('id', request1Id)
+      .single();
+      
+    if (request1Error) {
+      throw request1Error;
+    }
+    
+    const { data: request2, error: request2Error } = await supabase
+      .from('shift_swap_requests')
+      .select('requester_id, requester_shift_id')
+      .eq('id', request2Id)
+      .single();
+      
+    if (request2Error) {
+      throw request2Error;
+    }
+    
+    // Create the match
+    const { data, error } = await supabase
+      .from('shift_swap_potential_matches')
+      .insert({
+        requester_request_id: request1Id,
+        acceptor_request_id: request2Id,
+        requester_shift_id: request1.requester_shift_id,
+        acceptor_shift_id: request2.requester_shift_id,
+        match_date: today
+      })
+      .select();
+      
     if (error) {
-      console.error('Error fetching all matches via edge function:', error);
-      return { error };
+      throw error;
     }
     
     return { data, error: null };
   } catch (error) {
-    console.error('Error fetching all matches:', error);
+    console.error('Error in createSwapMatchSafe:', error);
     return { data: null, error };
   }
-};
-
-/**
- * Updates a match status safely
- */
-export const updateMatchStatusSafe = async (matchId: string, status: string) => {
-  const { data, error } = await supabase
-    .from('shift_swap_potential_matches')
-    .update({ status })
-    .eq('id', matchId)
-    .select();
-    
-  if (error) {
-    console.error(`Error updating match status to ${status}:`, error);
-  }
-  
-  return { data, error };
 };
