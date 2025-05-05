@@ -42,7 +42,7 @@ serve(async (req) => {
     });
     
     console.log("Preparing email data");
-    const recipient = "njalasankhulani@gmail.com";
+    const recipient = "postmaster@shiftflex.au";
     const sender = "Shift Swap <admin@shiftflex.au>";
     
     console.log(`Sending test email from ${sender} to ${recipient}`);

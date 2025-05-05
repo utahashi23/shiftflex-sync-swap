@@ -186,7 +186,7 @@ export const testEmailFunctionality = async (): Promise<{
     
     // Test the direct API implementation
     const directResponse = await sendEmail({
-      to: "njalasankhulani@gmail.com",
+      to: "postmaster@shiftflex.au",
       subject: "Test Email via Direct API",
       html: `
         <h2>Testing Direct API Email Function</h2>

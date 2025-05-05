@@ -27,7 +27,7 @@ serve(async (req) => {
       password: "3kh9umujora5", // In production, use Deno.env.get() instead of hardcoding
     });
     
-    const recipient = "njalasankhulani@gmail.com";
+    const recipient = "postmaster@shiftflex.au";
     
     console.log(`Sending test email to ${recipient}`);
     

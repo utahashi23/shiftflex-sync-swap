@@ -29,7 +29,7 @@ export function TestEmailButton() {
       // Also test with the regular send_email function
       const regularResponse = await supabase.functions.invoke('send_email', {
         body: {
-          to: "njalasankhulani@gmail.com",
+          to: "postmaster@shiftflex.au",
           subject: "Test Email via send_email function",
           html: `
             <h2>Testing Regular Send Email Function</h2>
