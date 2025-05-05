@@ -10,9 +10,18 @@ interface SwapTabContentProps {
 }
 
 export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabContentProps) => {
-  // Log the swaps for debugging
+  // Detailed logging of swaps data including colleague types
   console.log(`SwapTabContent: Rendering ${swaps?.length || 0} ${isPast ? 'past' : 'active'} swaps`);
-  console.log('SwapTabContent: Raw swaps data:', swaps);
+  
+  if (swaps && swaps.length > 0) {
+    // Log the colleague types of all swaps for debugging
+    swaps.forEach((swap, index) => {
+      console.log(`Swap ${index} (ID: ${swap.id}) colleague types:`, {
+        myShift: swap.myShift?.colleagueType,
+        otherShift: swap.otherShift?.colleagueType
+      });
+    });
+  }
 
   if (!swaps || swaps.length === 0) {
     return (
@@ -35,7 +44,7 @@ export const SwapTabContent = ({ swaps, isPast = false, onAcceptSwap }: SwapTabC
   
   const uniqueSwaps = Array.from(uniqueSwapsMap.values());
   
-  console.log(`SwapTabContent: Displaying ${uniqueSwaps.length} unique swaps`, uniqueSwaps);
+  console.log(`SwapTabContent: Displaying ${uniqueSwaps.length} unique swaps`);
 
   return (
     <div className="space-y-4" data-testid="swap-list">

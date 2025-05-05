@@ -45,8 +45,17 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
     
     console.log(`Processing ${uniqueMatches.length} unique matches`);
     
+    // Log all matches data for debugging
+    console.log('Raw matches data:', uniqueMatches);
+    
     // Process the data
     return uniqueMatches.map((match: any) => {
+      // Extract colleague types with defensive checks
+      const myColleagueType = match.my_shift_colleague_type !== undefined ? match.my_shift_colleague_type : 'Unknown';
+      const otherColleagueType = match.other_shift_colleague_type !== undefined ? match.other_shift_colleague_type : 'Unknown';
+      
+      console.log(`Match ID ${match.match_id} colleague types:`, { my: myColleagueType, other: otherColleagueType });
+      
       return {
         id: match.match_id,
         status: match.match_status,
@@ -57,7 +66,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
           endTime: match.my_shift_end_time,
           truckName: match.my_shift_truck,
           type: getShiftType(match.my_shift_start_time),
-          colleagueType: match.my_shift_colleague_type || 'Unknown'
+          colleagueType: myColleagueType
         },
         otherShift: {
           id: match.other_shift_id,
@@ -68,26 +77,13 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
           type: getShiftType(match.other_shift_start_time),
           userId: match.other_user_id,
           userName: match.other_user_name || 'Unknown User',
-          colleagueType: match.other_shift_colleague_type || 'Unknown'
+          colleagueType: otherColleagueType
         },
         myRequestId: match.my_request_id,
         otherRequestId: match.other_request_id,
         createdAt: match.created_at
       };
     });
-  };
-
-  // Helper function to get shift type based on time
-  // Using explicit type assertion to match the expected type
-  const getShiftType = (startTime: string): "day" | "afternoon" | "night" | "unknown" => {
-    const hour = parseInt(startTime.split(':')[0], 10);
-    if (hour >= 5 && hour < 12) {
-      return "day";
-    } else if (hour >= 12 && hour < 18) {
-      return "afternoon";
-    } else {
-      return "night";
-    }
   };
 
   /**

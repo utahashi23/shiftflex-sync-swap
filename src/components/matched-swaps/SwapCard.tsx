@@ -26,6 +26,12 @@ const formatDate = (dateStr: string) => {
 };
 
 export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
+  // Log the colleague types for debugging
+  console.log('SwapCard colleague types:', {
+    myShift: swap.myShift.colleagueType,
+    otherShift: swap.otherShift.colleagueType
+  });
+  
   return (
     <Card className="overflow-hidden">
       <CardHeader className="bg-secondary/30 pb-3">
@@ -71,9 +77,7 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
                 <div className="flex items-center mt-1">
                   <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
                   <span className="text-sm">
-                    {typeof swap.myShift.colleagueType === 'string' 
-                      ? swap.myShift.colleagueType 
-                      : 'Not specified'}
+                    {swap.myShift.colleagueType}
                   </span>
                 </div>
               )}
@@ -112,9 +116,7 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
                 <div className="flex items-center mt-1">
                   <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
                   <span className="text-sm">
-                    {typeof swap.otherShift.colleagueType === 'string' 
-                      ? swap.otherShift.colleagueType 
-                      : 'Not specified'}
+                    {swap.otherShift.colleagueType}
                   </span>
                 </div>
               )}

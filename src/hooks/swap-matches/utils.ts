@@ -12,6 +12,19 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
   
   // Process and format the matches data
   return matchesData.map(match => {
+    // Check if fields exist to avoid undefined errors
+    const myShiftColleagueType = match.my_shift_colleague_type !== undefined ? 
+      match.my_shift_colleague_type : 'Unknown';
+    
+    const otherShiftColleagueType = match.other_shift_colleague_type !== undefined ? 
+      match.other_shift_colleague_type : 'Unknown';
+    
+    // Log the colleague types for debugging
+    console.log('Raw colleague types:', {
+      my: match.my_shift_colleague_type,
+      other: match.other_shift_colleague_type
+    });
+    
     return {
       id: match.match_id,
       status: match.match_status,
@@ -22,7 +35,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         endTime: match.my_shift_end_time,
         truckName: match.my_shift_truck,
         type: getShiftType(match.my_shift_start_time),
-        colleagueType: match.my_shift_colleague_type || 'Unknown'
+        colleagueType: myShiftColleagueType
       },
       otherShift: {
         id: match.other_shift_id,
@@ -33,7 +46,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         type: getShiftType(match.other_shift_start_time),
         userId: match.other_user_id,
         userName: match.other_user_name || 'Unknown User',
-        colleagueType: match.other_shift_colleague_type || 'Unknown'
+        colleagueType: otherShiftColleagueType
       },
       myRequestId: match.my_request_id,
       otherRequestId: match.other_request_id,
