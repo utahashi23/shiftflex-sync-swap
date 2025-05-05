@@ -127,41 +127,44 @@ export const fetchAllMatchesSafe = async () => {
     // Try to get all potential matches with RLS bypassed
     console.log('Fetching all potential matches safely');
     
-    // Try first with RPC if available
-    const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_potential_matches');
+    // Try first with check for existing database function
+    const { data: checkResult } = await supabase.rpc('check_existing_match', {
+      request_id1: '00000000-0000-0000-0000-000000000000', // Dummy UUID to check if function exists
+      request_id2: '00000000-0000-0000-0000-000000000000'
+    });
     
-    if (!rpcError && rpcData) {
-      console.log(`Successfully fetched ${rpcData.length} matches using RPC`);
-      return { data: rpcData, error: null };
-    }
-    
-    // If RPC fails, try direct query
-    const { data, error } = await supabase
-      .from('shift_swap_potential_matches')
-      .select('*');
-      
-    if (error) {
-      console.error('Error fetching matches with direct query:', error);
-      
-      // Last resort, try using edge function if available
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session?.access_token) {
-          const response = await supabase.functions.invoke('get_all_matches', {});
-          
-          if (!response.error && response.data) {
-            console.log(`Successfully fetched ${Array.isArray(response.data) ? response.data.length : 0} matches using edge function`);
-            return { data: response.data, error: null };
-          }
-        }
-      } catch (edgeFnError) {
-        console.error('Error in edge function for matches:', edgeFnError);
+    // If check was successful, try to fetch all matches
+    if (checkResult !== null) {
+      console.log('Using direct query for potential matches');
+      const { data, error } = await supabase
+        .from('shift_swap_potential_matches')
+        .select('*');
+        
+      if (error) {
+        console.error('Error fetching matches with direct query:', error);
+        return { data: [], error };
       }
       
-      return { data: [], error };
+      console.log(`Successfully fetched ${Array.isArray(data) ? data.length : 0} matches using direct query`);
+      return { data, error: null };
     }
     
-    return { data, error: null };
+    // Last resort, try using edge function if available
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session?.access_token) {
+        const response = await supabase.functions.invoke('get_all_matches', {});
+        
+        if (!response.error && response.data) {
+          console.log(`Successfully fetched ${Array.isArray(response.data) ? response.data.length : 0} matches using edge function`);
+          return { data: response.data, error: null };
+        }
+      }
+    } catch (edgeFnError) {
+      console.error('Error in edge function for matches:', edgeFnError);
+    }
+    
+    return { data: [], error: null };
   } catch (error) {
     console.error('Error in fetchAllMatchesSafe:', error);
     return { data: [], error };
