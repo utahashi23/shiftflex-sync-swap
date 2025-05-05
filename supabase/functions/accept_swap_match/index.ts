@@ -177,6 +177,14 @@ serve(async (req) => {
           return timeStr.substring(0, 5) // Format from "08:00:00" to "08:00"
         }
 
+        // Get mailgun config
+        const MAILGUN_API_KEY = Deno.env.get('MAILGUN_API_KEY');
+        const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN');
+        
+        if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN) {
+          throw new Error('Missing Mailgun configuration');
+        }
+
         // Only attempt to send emails if we have email addresses
         if (requesterEmail) {
           const requesterEmailContent = `
@@ -190,22 +198,27 @@ serve(async (req) => {
             <p>Thank you for using the Shift Swap system!</p>
           `
           
-          // Send email to requester
-          await fetch(`https://api.resend.com/emails`, {
+          // Send email to requester using Mailgun
+          const formData = new FormData();
+          formData.append('from', `Shift Swap <notifications@${MAILGUN_DOMAIN}>`);
+          formData.append('to', requesterEmail);
+          formData.append('subject', 'Your Shift Swap Has Been Accepted');
+          formData.append('html', requesterEmailContent);
+          
+          const requesterEmailResponse = await fetch(`https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`, {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`
+              'Authorization': `Basic ${btoa('api:' + MAILGUN_API_KEY)}`
             },
-            body: JSON.stringify({
-              from: 'Shift Swap <notifications@shiftswap.com>',
-              to: requesterEmail,
-              subject: 'Your Shift Swap Has Been Accepted',
-              html: requesterEmailContent
-            })
-          })
+            body: formData
+          });
           
-          console.log(`Email sent to requester: ${requesterEmail}`)
+          if (!requesterEmailResponse.ok) {
+            const errorText = await requesterEmailResponse.text();
+            console.error(`Error sending email to requester: ${errorText}`);
+          } else {
+            console.log(`Email sent to requester: ${requesterEmail}`);
+          }
         }
 
         if (acceptorEmail) {
@@ -220,22 +233,27 @@ serve(async (req) => {
             <p>Thank you for using the Shift Swap system!</p>
           `
           
-          // Send email to acceptor
-          await fetch(`https://api.resend.com/emails`, {
+          // Send email to acceptor using Mailgun
+          const formData = new FormData();
+          formData.append('from', `Shift Swap <notifications@${MAILGUN_DOMAIN}>`);
+          formData.append('to', acceptorEmail);
+          formData.append('subject', 'Shift Swap Confirmation');
+          formData.append('html', acceptorEmailContent);
+          
+          const acceptorEmailResponse = await fetch(`https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`, {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`
+              'Authorization': `Basic ${btoa('api:' + MAILGUN_API_KEY)}`
             },
-            body: JSON.stringify({
-              from: 'Shift Swap <notifications@shiftswap.com>',
-              to: acceptorEmail,
-              subject: 'Shift Swap Confirmation',
-              html: acceptorEmailContent
-            })
-          })
+            body: formData
+          });
           
-          console.log(`Email sent to acceptor: ${acceptorEmail}`)
+          if (!acceptorEmailResponse.ok) {
+            const errorText = await acceptorEmailResponse.text();
+            console.error(`Error sending email to acceptor: ${errorText}`);
+          } else {
+            console.log(`Email sent to acceptor: ${acceptorEmail}`);
+          }
         }
       } catch (emailError) {
         console.error('Error sending emails:', emailError)
