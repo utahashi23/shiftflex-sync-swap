@@ -8,8 +8,16 @@ export interface MatchTestResult {
   // Additional data for displaying shift details
   request1Shift?: any;
   request2Shift?: any;
-  request1User?: any;
-  request2User?: any;
+  request1User?: { 
+    id?: string;
+    first_name: string; 
+    last_name: string;
+  };
+  request2User?: { 
+    id?: string;
+    first_name: string; 
+    last_name: string;
+  };
 }
 
 export interface SwapRequestWithDetails {
@@ -20,5 +28,9 @@ export interface SwapRequestWithDetails {
   shift_date: string;
   preferred_dates_count: number;
   shift?: any;
-  user?: { first_name: string; last_name: string };
+  user?: { 
+    id?: string;
+    first_name: string; 
+    last_name: string;
+  };
 }

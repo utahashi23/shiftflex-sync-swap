@@ -19,6 +19,18 @@ export const useMatchTesterData = (user: any) => {
       
       console.log("Raw requests data:", requestsData?.length || 0, "requests found");
       
+      // Check if we got valid data - if not, show error
+      if (!requestsData || requestsData.length === 0) {
+        console.log("No swap requests found");
+        toast({
+          title: "No data available",
+          description: "No swap requests were found in the system",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+        return;
+      }
+      
       // Fetch shift data for each request
       const enrichedRequests = await Promise.all((requestsData || []).map(async (request) => {
         // Get the shift data using the request's requester_shift_id
@@ -27,7 +39,7 @@ export const useMatchTesterData = (user: any) => {
         // Get the user data
         const { data: userData } = await supabase
           .from('profiles')
-          .select('first_name, last_name')
+          .select('id, first_name, last_name')
           .eq('id', request.requester_id)
           .single();
         
@@ -35,7 +47,7 @@ export const useMatchTesterData = (user: any) => {
           ...request,
           shift_date: shiftData?.[0]?.date || 'Unknown',
           shift: shiftData?.[0] || {},
-          user: userData || { first_name: 'Unknown', last_name: 'User' }
+          user: userData || { id: request.requester_id, first_name: 'Unknown', last_name: 'User' }
         };
       }));
       
@@ -52,29 +64,42 @@ export const useMatchTesterData = (user: any) => {
       console.log("Current user:", user?.id);
       console.log("User requests:", enrichedRequests?.filter(r => r.requester_id === user?.id).length);
       
-      // Log first few requests for debugging
-      if (enrichedRequests?.length > 0) {
-        console.log("Sample first request:", {
-          id: enrichedRequests[0].id,
-          requester_id: enrichedRequests[0].requester_id,
-          status: enrichedRequests[0].status,
-          shift_date: enrichedRequests[0].shift_date,
-          preferred_dates_count: enrichedRequests[0].preferred_dates_count
-        });
-      }
+      // Log information about specific users that are having issues
+      const troubleUserIds = [
+        'dde7e6d2-5483-44eb-ae28-14e9062fea05',
+        '96fc40f8-ceec-4ab2-80a6-3bd9fbf1cdd5'
+      ];
       
-      // Extra logging for demo1@maildrop.cc user
-      if (user?.email === "demo1@maildrop.cc") {
-        const userRequests = enrichedRequests?.filter(r => r.requester_id === user.id) || [];
-        console.log(`Found ${userRequests.length} requests for demo1@maildrop.cc:`);
+      troubleUserIds.forEach(userId => {
+        const userRequests = enrichedRequests?.filter(r => r.requester_id === userId) || [];
+        console.log(`User ${userId} has ${userRequests.length} requests`);
+        
         userRequests.forEach((req, i) => {
-          console.log(`Demo user request ${i+1}:`, {
+          const preferredDates = datesData?.filter(d => d.request_id === req.id) || [];
+          console.log(`User ${userId} request ${i+1}:`, {
             id: req.id,
             status: req.status,
             shift_date: req.shift_date,
-            preferred_dates_count: req.preferred_dates_count
+            preferred_dates_count: preferredDates.length,
+            preferred_dates: preferredDates.map(d => d.date)
           });
         });
+      });
+      
+      // Extra debugging for first few requests
+      if (enrichedRequests?.length > 0) {
+        console.log("Sample requests with shift dates and preferred dates:");
+        for (let i = 0; i < Math.min(5, enrichedRequests.length); i++) {
+          const req = enrichedRequests[i];
+          const preferredDates = datesData?.filter(d => d.request_id === req.id) || [];
+          console.log(`Request ${i+1}:`, {
+            id: req.id,
+            requester_id: req.requester_id,
+            status: req.status,
+            shift_date: req.shift_date,
+            preferred_dates: preferredDates.map(d => d.date)
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching test data:', error);

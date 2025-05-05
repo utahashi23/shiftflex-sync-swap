@@ -124,13 +124,44 @@ export const createSwapMatchSafe = async (request1Id: string, request2Id: string
  */
 export const fetchAllMatchesSafe = async () => {
   try {
-    // Try to use service role client or RPC if available
+    // Try to get all potential matches with RLS bypassed
+    console.log('Fetching all potential matches safely');
+    
+    // Try first with RPC if available
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_potential_matches');
+    
+    if (!rpcError && rpcData) {
+      console.log(`Successfully fetched ${rpcData.length} matches using RPC`);
+      return { data: rpcData, error: null };
+    }
+    
+    // If RPC fails, try direct query
     const { data, error } = await supabase
       .from('shift_swap_potential_matches')
       .select('*');
       
     if (error) {
-      console.error('Error fetching matches:', error);
+      console.error('Error fetching matches with direct query:', error);
+      
+      // Last resort, try using edge function if available
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session?.access_token) {
+          const response = await supabase.functions.invoke('get_all_matches', {
+            body: {
+              auth_token: sessionData.session.access_token
+            }
+          });
+          
+          if (!response.error && response.data) {
+            console.log(`Successfully fetched ${response.data.length} matches using edge function`);
+            return { data: response.data, error: null };
+          }
+        }
+      } catch (edgeFnError) {
+        console.error('Error in edge function for matches:', edgeFnError);
+      }
+      
       return { data: [], error };
     }
     
@@ -147,11 +178,14 @@ export const fetchAllMatchesSafe = async () => {
  */
 export const fetchUserSwapRequestsSafe = async (userId: string, status: string = 'pending') => {
   try {
+    console.log(`Fetching swap requests for user ${userId} with status ${status}`);
+    
     // Try to use the edge function first
     const { data: session } = await supabase.auth.getSession();
     
     if (session?.session?.access_token) {
       try {
+        console.log('Trying to fetch user requests using edge function');
         const response = await supabase.functions.invoke('get_swap_requests', {
           body: {
             user_id: userId,
@@ -161,7 +195,7 @@ export const fetchUserSwapRequestsSafe = async (userId: string, status: string =
         });
         
         if (!response.error && response.data) {
-          console.log('Successfully fetched user requests using edge function');
+          console.log(`Successfully fetched ${response.data.length} user requests using edge function`);
           return { data: response.data, error: null };
         }
       } catch (e) {
@@ -176,7 +210,7 @@ export const fetchUserSwapRequestsSafe = async (userId: string, status: string =
     });
     
     if (!rpcError && rpcData) {
-      console.log('Successfully fetched user requests using RPC');
+      console.log(`Successfully fetched ${rpcData.length} user requests using RPC`);
       return { data: rpcData, error: null };
     }
     
@@ -204,6 +238,7 @@ export const fetchUserSwapRequestsSafe = async (userId: string, status: string =
       preferred_dates: item.preferred_dates
     }));
     
+    console.log(`Successfully fetched ${formattedData?.length || 0} user requests using direct query`);
     return { data: formattedData, error: null };
   } catch (error) {
     console.error('Error in fetchUserSwapRequestsSafe:', error);
