@@ -118,3 +118,95 @@ export const createSwapMatchSafe = async (request1Id: string, request2Id: string
     return { data: null, error };
   }
 };
+
+/**
+ * Safely fetch all potential matches
+ */
+export const fetchAllMatchesSafe = async () => {
+  try {
+    // Try to use service role client or RPC if available
+    const { data, error } = await supabase
+      .from('shift_swap_potential_matches')
+      .select('*');
+      
+    if (error) {
+      console.error('Error fetching matches:', error);
+      return { data: [], error };
+    }
+    
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error in fetchAllMatchesSafe:', error);
+    return { data: [], error };
+  }
+};
+
+/**
+ * Safely fetch swap requests for a specific user
+ * Will try to use edge function first, then fall back to direct query
+ */
+export const fetchUserSwapRequestsSafe = async (userId: string, status: string = 'pending') => {
+  try {
+    // Try to use the edge function first
+    const { data: session } = await supabase.auth.getSession();
+    
+    if (session?.session?.access_token) {
+      try {
+        const response = await supabase.functions.invoke('get_swap_requests', {
+          body: {
+            user_id: userId,
+            status: status,
+            auth_token: session.session.access_token
+          }
+        });
+        
+        if (!response.error && response.data) {
+          console.log('Successfully fetched user requests using edge function');
+          return { data: response.data, error: null };
+        }
+      } catch (e) {
+        console.log('Edge function failed, falling back to RPC');
+      }
+    }
+    
+    // Try RPC function next
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_user_swap_requests_safe', {
+      p_user_id: userId,
+      p_status: status
+    });
+    
+    if (!rpcError && rpcData) {
+      console.log('Successfully fetched user requests using RPC');
+      return { data: rpcData, error: null };
+    }
+    
+    // Fall back to direct query as last resort
+    console.log('RPC failed, falling back to direct query');
+    const { data, error } = await supabase
+      .from('shift_swap_requests')
+      .select(`
+        *,
+        shifts:requester_shift_id(*),
+        preferred_dates:shift_swap_preferred_dates(*)
+      `)
+      .eq('requester_id', userId)
+      .eq('status', status);
+      
+    if (error) {
+      console.error('Error in direct query for user requests:', error);
+      return { data: [], error };
+    }
+    
+    // Format the data to match the expected structure
+    const formattedData = data?.map(item => ({
+      ...item,
+      shift: item.shifts,
+      preferred_dates: item.preferred_dates
+    }));
+    
+    return { data: formattedData, error: null };
+  } catch (error) {
+    console.error('Error in fetchUserSwapRequestsSafe:', error);
+    return { data: [], error };
+  }
+};
