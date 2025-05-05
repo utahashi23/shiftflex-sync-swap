@@ -147,14 +147,10 @@ export const fetchAllMatchesSafe = async () => {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         if (sessionData.session?.access_token) {
-          const response = await supabase.functions.invoke('get_all_matches', {
-            body: {
-              auth_token: sessionData.session.access_token
-            }
-          });
+          const response = await supabase.functions.invoke('get_all_matches', {});
           
           if (!response.error && response.data) {
-            console.log(`Successfully fetched ${response.data.length} matches using edge function`);
+            console.log(`Successfully fetched ${Array.isArray(response.data) ? response.data.length : 0} matches using edge function`);
             return { data: response.data, error: null };
           }
         }
@@ -195,7 +191,7 @@ export const fetchUserSwapRequestsSafe = async (userId: string, status: string =
         });
         
         if (!response.error && response.data) {
-          console.log(`Successfully fetched ${response.data.length} user requests using edge function`);
+          console.log(`Successfully fetched ${Array.isArray(response.data) ? response.data.length : 0} user requests using edge function`);
           return { data: response.data, error: null };
         }
       } catch (e) {

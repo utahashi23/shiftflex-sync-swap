@@ -33,22 +33,32 @@ export const useMatchTesterData = (user: any) => {
       
       // Fetch shift data for each request
       const enrichedRequests = await Promise.all((requestsData || []).map(async (request) => {
-        // Get the shift data using the request's requester_shift_id
-        const { data: shiftData } = await supabase.rpc('get_shift_by_id', { shift_id: request.requester_shift_id });
-        
-        // Get the user data
-        const { data: userData } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name')
-          .eq('id', request.requester_id)
-          .single();
-        
-        return {
-          ...request,
-          shift_date: shiftData?.[0]?.date || 'Unknown',
-          shift: shiftData?.[0] || {},
-          user: userData || { id: request.requester_id, first_name: 'Unknown', last_name: 'User' }
-        };
+        try {
+          // Get the shift data using the request's requester_shift_id
+          const { data: shiftData } = await supabase.rpc('get_shift_by_id', { shift_id: request.requester_shift_id });
+          
+          // Get the user data
+          const { data: userData } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name')
+            .eq('id', request.requester_id)
+            .single();
+          
+          return {
+            ...request,
+            shift_date: shiftData?.[0]?.date || 'Unknown',
+            shift: shiftData?.[0] || {},
+            user: userData || { id: request.requester_id, first_name: 'Unknown', last_name: 'User' }
+          };
+        } catch (error) {
+          console.error(`Error enriching request ${request.id}:`, error);
+          return {
+            ...request,
+            shift_date: 'Unknown',
+            shift: {},
+            user: { id: request.requester_id, first_name: 'Unknown', last_name: 'User' }
+          };
+        }
       }));
       
       setAllRequests(enrichedRequests || []);
@@ -61,8 +71,10 @@ export const useMatchTesterData = (user: any) => {
       console.log("Fetched preferred dates:", datesData?.length);
       
       // Log some debug info about the current user
-      console.log("Current user:", user?.id);
-      console.log("User requests:", enrichedRequests?.filter(r => r.requester_id === user?.id).length);
+      if (user) {
+        console.log("Current user:", user?.id);
+        console.log("User requests:", enrichedRequests?.filter(r => r.requester_id === user?.id).length);
+      }
       
       // Log information about specific users that are having issues
       const troubleUserIds = [

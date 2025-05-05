@@ -45,257 +45,246 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
     
-    // Special debug for specific users mentioned in the issue
-    if (verbose || specific_check) {
-      const knownUserIds = ['0dba6413-6ab5-46c9-9db1-ecca3b444e34', 'b6da71dc-3749-4b92-849a-1977ff196e67'];
-      const knownRequestIds = ['b70b145b-965f-462c-b8c0-366865dc7f02', '3ecb141f-5b7e-4cb2-bd83-532345876ed6'];
+    // Use the service role to fetch requests directly without RLS issues
+    try {
+      const serviceClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
       
-      if (knownUserIds.includes(user_id) || specific_check) {
-        console.log(`Processing special debug for user ${user_id} or with specific_check enabled`);
-
-        try {
-          // Use the postgres role with service_role key to bypass RLS
-          const serviceClient = createClient(
-            Deno.env.get('SUPABASE_URL') ?? '',
-            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-            { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-          );
-          
-          // Get the specific requests mentioned
-          const { data: specificRequests, error: specificError } = await serviceClient
+      console.log("Using service role to fetch user's requests...");
+      
+      // Get user's pending requests
+      const { data: userRequests, error: userRequestsError } = await serviceClient
+        .from('shift_swap_requests')
+        .select('*')
+        .eq('requester_id', user_id)
+        .eq('status', 'pending');
+      
+      if (userRequestsError) {
+        console.error('Error fetching user requests:', userRequestsError);
+      } else {
+        console.log(`Found ${userRequests?.length || 0} pending requests for user ${user_id}`);
+        
+        if (userRequests && userRequests.length > 0) {
+          // Get all other users' pending requests
+          const { data: otherRequests, error: otherRequestsError } = await serviceClient
             .from('shift_swap_requests')
             .select('*')
-            .in('id', knownRequestIds);
-
-          if (specificError) {
-            console.error('Error fetching specific requests:', specificError);
+            .neq('requester_id', user_id)
+            .eq('status', 'pending');
+          
+          if (otherRequestsError) {
+            console.error('Error fetching other users\' requests:', otherRequestsError);
           } else {
-            console.log('Specific requests found:', specificRequests);
+            console.log(`Found ${otherRequests?.length || 0} pending requests from other users`);
             
-            // Get shifts for these specific requests
-            if (specificRequests && specificRequests.length > 0) {
-              const shiftIds = specificRequests.map(req => req.requester_shift_id).filter(Boolean);
+            if (otherRequests && otherRequests.length > 0) {
+              // Get all relevant shift IDs
+              const shiftIds = [
+                ...userRequests.map(r => r.requester_shift_id),
+                ...otherRequests.map(r => r.requester_shift_id)
+              ].filter(Boolean);
               
-              const { data: specificShifts, error: shiftsError } = await serviceClient
+              // Get shift data
+              const { data: shifts, error: shiftsError } = await serviceClient
                 .from('shifts')
                 .select('*')
                 .in('id', shiftIds);
-                
-              if (shiftsError) {
-                console.error('Error fetching specific shifts:', shiftsError);
-              } else {
-                console.log('Specific shifts found:', specificShifts);
-              }
               
-              // Get preferred dates
-              const requestIds = specificRequests.map(req => req.id);
-              const { data: preferredDates, error: datesError } = await serviceClient
-                .from('shift_swap_preferred_dates')
-                .select('*')
-                .in('request_id', requestIds);
-                
-              if (datesError) {
-                console.error('Error fetching preferred dates:', datesError);
+              if (shiftsError) {
+                console.error('Error fetching shifts:', shiftsError);
               } else {
-                console.log('Preferred dates for specific requests:', preferredDates);
+                console.log(`Fetched ${shifts?.length || 0} shifts data`);
                 
-                // Check compatibility between these two specific requests
-                if (specificRequests.length === 2 && specificShifts && specificShifts.length === 2 && preferredDates) {
-                  const req1 = specificRequests[0];
-                  const req2 = specificRequests[1];
+                // Create a map for quick shift lookups
+                const shiftsMap = {};
+                shifts?.forEach(shift => {
+                  shiftsMap[shift.id] = shift;
+                });
+                
+                // Get all request IDs
+                const allRequestIds = [
+                  ...userRequests.map(r => r.id),
+                  ...otherRequests.map(r => r.id)
+                ];
+                
+                // Get preferred dates for all requests
+                const { data: prefDates, error: prefDatesError } = await serviceClient
+                  .from('shift_swap_preferred_dates')
+                  .select('*')
+                  .in('request_id', allRequestIds);
+                
+                if (prefDatesError) {
+                  console.error('Error fetching preferred dates:', prefDatesError);
+                } else {
+                  console.log(`Fetched ${prefDates?.length || 0} preferred dates`);
                   
-                  const shift1 = specificShifts.find(s => s.id === req1.requester_shift_id);
-                  const shift2 = specificShifts.find(s => s.id === req2.requester_shift_id);
+                  // Group preferred dates by request
+                  const prefDatesByRequest = {};
+                  prefDates?.forEach(date => {
+                    if (!prefDatesByRequest[date.request_id]) {
+                      prefDatesByRequest[date.request_id] = [];
+                    }
+                    prefDatesByRequest[date.request_id].push(date.date);
+                  });
                   
-                  if (shift1 && shift2) {
-                    const prefDates1 = preferredDates.filter(d => d.request_id === req1.id);
-                    const prefDates2 = preferredDates.filter(d => d.request_id === req2.id);
+                  // Find potential matches
+                  const matches = [];
+                  
+                  // For each user request, check against other requests
+                  for (const userRequest of userRequests) {
+                    const userShift = shiftsMap[userRequest.requester_shift_id];
                     
-                    // Check if req1 wants req2's shift date
-                    const req1WantsReq2Date = prefDates1.some(d => d.date === shift2.date);
+                    if (!userShift) {
+                      console.log(`Missing shift data for user request ${userRequest.id}`);
+                      continue;
+                    }
                     
-                    // Check if req2 wants req1's shift date
-                    const req2WantsReq1Date = prefDates2.some(d => d.date === shift1.date);
+                    const userPreferredDates = prefDatesByRequest[userRequest.id] || [];
+                    console.log(`User request ${userRequest.id} has ${userPreferredDates.length} preferred dates`);
                     
-                    console.log(`Compatibility check: req1 wants req2's date: ${req1WantsReq2Date}, req2 wants req1's date: ${req2WantsReq1Date}`);
-                    
-                    if (req1WantsReq2Date && req2WantsReq1Date) {
-                      console.log("COMPATIBLE MATCH FOUND between the specific requests!");
+                    for (const otherRequest of otherRequests) {
+                      const otherShift = shiftsMap[otherRequest.requester_shift_id];
                       
-                      // Check if this match already exists
-                      const { data: existingMatch, error: matchError } = await serviceClient
-                        .from('shift_swap_potential_matches')
-                        .select('*')
-                        .or(`and(requester_request_id.eq.${req1.id},acceptor_request_id.eq.${req2.id}),and(requester_request_id.eq.${req2.id},acceptor_request_id.eq.${req1.id})`)
-                        .limit(1);
+                      if (!otherShift) {
+                        console.log(`Missing shift data for other request ${otherRequest.id}`);
+                        continue;
+                      }
+                      
+                      const otherPreferredDates = prefDatesByRequest[otherRequest.id] || [];
+                      
+                      // Check if user wants other shift date
+                      const userWantsOtherDate = userPreferredDates.includes(otherShift.date);
+                      
+                      // Check if other user wants user's shift date
+                      const otherWantsUserDate = otherPreferredDates.includes(userShift.date);
+                      
+                      if (userWantsOtherDate && otherWantsUserDate) {
+                        console.log(`MATCH FOUND between ${userRequest.id} and ${otherRequest.id}`);
                         
-                      if (matchError) {
-                        console.error('Error checking for existing match:', matchError);
-                      } else if (existingMatch && existingMatch.length > 0) {
-                        console.log("Match already exists:", existingMatch[0]);
-                        
-                        // Return the match details
-                        const matchDetails = await getMatchDetails(serviceClient, [existingMatch[0]], user_id);
-                        if (matchDetails && matchDetails.length > 0) {
-                          return new Response(
-                            JSON.stringify(matchDetails),
-                            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-                          );
-                        }
-                      } else {
-                        console.log("Creating new match between specific requests");
-                        
-                        // Create match using service role client to bypass RLS
-                        const { data: newMatch, error: createError } = await serviceClient
+                        // Check if match already exists
+                        const { data: existingMatch, error: matchError } = await serviceClient
                           .from('shift_swap_potential_matches')
-                          .insert({
-                            requester_request_id: req1.id,
-                            acceptor_request_id: req2.id,
-                            requester_shift_id: req1.requester_shift_id,
-                            acceptor_shift_id: req2.requester_shift_id,
-                            match_date: new Date().toISOString().split('T')[0]
-                          })
-                          .select()
-                          .single();
+                          .select('*')
+                          .or(`and(requester_request_id.eq.${userRequest.id},acceptor_request_id.eq.${otherRequest.id}),and(requester_request_id.eq.${otherRequest.id},acceptor_request_id.eq.${userRequest.id})`)
+                          .limit(1);
+                        
+                        if (matchError) {
+                          console.error('Error checking for existing match:', matchError);
+                        } else if (!existingMatch || existingMatch.length === 0) {
+                          // Create new match
+                          const { data: newMatch, error: createError } = await serviceClient
+                            .from('shift_swap_potential_matches')
+                            .insert({
+                              requester_request_id: userRequest.id,
+                              acceptor_request_id: otherRequest.id,
+                              requester_shift_id: userRequest.requester_shift_id,
+                              acceptor_shift_id: otherRequest.requester_shift_id,
+                              match_date: new Date().toISOString().split('T')[0]
+                            })
+                            .select('*')
+                            .single();
                           
-                        if (createError) {
-                          console.error('Error creating new match:', createError);
-                        } else {
-                          console.log("Successfully created match:", newMatch);
-                          const matchDetails = await getMatchDetails(serviceClient, [newMatch], user_id);
-                          if (matchDetails && matchDetails.length > 0) {
-                            return new Response(
-                              JSON.stringify(matchDetails),
-                              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-                            );
+                          if (createError) {
+                            console.error('Error creating match:', createError);
+                          } else {
+                            console.log('Match created:', newMatch);
+                            matches.push(newMatch);
                           }
+                        } else {
+                          console.log('Match already exists:', existingMatch[0]);
+                          matches.push(existingMatch[0]);
                         }
                       }
                     }
+                  }
+                  
+                  // Get user info for all matches
+                  if (matches.length > 0) {
+                    // Process matches to return formatted data
+                    const formattedMatches = [];
+                    
+                    for (const match of matches) {
+                      // Get user and shift info for both sides of the match
+                      const req1 = userRequests.find(r => r.id === match.requester_request_id) || 
+                                  otherRequests.find(r => r.id === match.requester_request_id);
+                      
+                      const req2 = userRequests.find(r => r.id === match.acceptor_request_id) || 
+                                  otherRequests.find(r => r.id === match.acceptor_request_id);
+                      
+                      if (!req1 || !req2) continue;
+                      
+                      const shift1 = shiftsMap[req1.requester_shift_id];
+                      const shift2 = shiftsMap[req2.requester_shift_id];
+                      
+                      if (!shift1 || !shift2) continue;
+                      
+                      // Get user info
+                      const { data: user1 } = await serviceClient
+                        .from('profiles')
+                        .select('first_name, last_name')
+                        .eq('id', req1.requester_id)
+                        .single();
+                        
+                      const { data: user2 } = await serviceClient
+                        .from('profiles')
+                        .select('first_name, last_name')
+                        .eq('id', req2.requester_id)
+                        .single();
+                      
+                      // Always ensure the user's request is the "my" side
+                      const isUserReq1 = req1.requester_id === user_id;
+                      
+                      formattedMatches.push({
+                        match_id: match.id,
+                        match_status: match.status || 'pending',
+                        created_at: match.created_at,
+                        match_date: match.match_date,
+                        my_request_id: isUserReq1 ? req1.id : req2.id,
+                        other_request_id: isUserReq1 ? req2.id : req1.id,
+                        my_shift_id: isUserReq1 ? shift1.id : shift2.id,
+                        my_shift_date: isUserReq1 ? shift1.date : shift2.date,
+                        my_shift_start_time: isUserReq1 ? shift1.start_time : shift2.start_time,
+                        my_shift_end_time: isUserReq1 ? shift1.end_time : shift2.end_time,
+                        my_shift_truck: isUserReq1 ? shift1.truck_name : shift2.truck_name,
+                        other_shift_id: isUserReq1 ? shift2.id : shift1.id,
+                        other_shift_date: isUserReq1 ? shift2.date : shift1.date,
+                        other_shift_start_time: isUserReq1 ? shift2.start_time : shift1.start_time,
+                        other_shift_end_time: isUserReq1 ? shift2.end_time : shift1.end_time, 
+                        other_shift_truck: isUserReq1 ? shift2.truck_name : shift1.truck_name,
+                        other_user_id: isUserReq1 ? req2.requester_id : req1.requester_id,
+                        other_user_name: isUserReq1 
+                          ? `${user2?.first_name || ''} ${user2?.last_name || ''}`.trim() 
+                          : `${user1?.first_name || ''} ${user1?.last_name || ''}`.trim()
+                      });
+                    }
+                    
+                    console.log(`Returning ${formattedMatches.length} formatted matches`);
+                    
+                    return new Response(
+                      JSON.stringify(formattedMatches),
+                      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+                    );
                   }
                 }
               }
             }
           }
-        } catch (error) {
-          console.error('Error in specific check handling:', error);
-        }
-      }
-    }
-    
-    // Try to use the service role to fetch matches directly without RLS issues
-    try {
-      const serviceClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-        { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-      );
-      
-      console.log("Using service role to fetch matches...");
-      
-      // Check for any potential matches directly using service role
-      const { data: directMatches, error: directError } = await serviceClient
-        .from('shift_swap_potential_matches')
-        .select('*');
-        
-      if (directError) {
-        console.error('Error checking potential matches directly:', directError);
-      } else {
-        console.log(`Direct check: Found ${directMatches?.length || 0} entries in potential_matches table`);
-        
-        if (directMatches && directMatches.length > 0) {
-          // Get all request IDs associated with the current user
-          const userMatchRequests = await getUserRequestIds(serviceClient, user_id);
-          console.log(`User has ${userMatchRequests.length} request IDs:`, userMatchRequests);
-          
-          // CRITICAL CHANGE: Always filter to only show matches where the user is the requester (initiator)
-          // This ensures "Your Shift" is always the current user's shift being swapped
-          const userInvolvedMatches = directMatches.filter(match => 
-            userMatchRequests.includes(match.requester_request_id)
-          );
-
-          console.log(`Found ${userInvolvedMatches.length} matches where user ${user_id} is ONLY the initiator`);
-          
-          if (userInvolvedMatches.length > 0) {
-            // Try to get detailed info for these matches
-            const matchData = await getMatchDetails(serviceClient, userInvolvedMatches, user_id);
-            
-            // Log the final results
-            console.log(`Returning ${matchData.length} formatted matches to client`);
-            if (verbose && matchData.length > 0) {
-              console.log("Sample match data:", matchData[0]);
-            }
-            
-            return new Response(
-              JSON.stringify(matchData),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-            );
-          }
         }
       }
       
-      // If no matches found and verbose mode is enabled, try manual matching
-      if (verbose || force_check) {
-        console.log("No matches found - attempting to run manual matching process");
-        // Always force userInitiatorOnly to true in manual matching
-        const manualMatches = await attemptManualMatching(serviceClient, user_id, true);
-        
-        if (manualMatches && manualMatches.length > 0) {
-          console.log(`Manual matching found ${manualMatches.length} potential matches`);
-          return new Response(
-            JSON.stringify(manualMatches),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        }
-      }
-      
-      // Return empty array if nothing was found
+      // If we get here, we didn't find any matches
       return new Response(
         JSON.stringify([]),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     } catch (error) {
-      console.error('Error using service role:', error);
-      
-      // Fallback to regular client as last resort
-      console.log("Fallback: trying regular client with RPC function");
-      try {
-        const { data: matchesData, error: matchesError } = await supabaseClient
-          .rpc('get_user_matches_with_rls', { user_id });
-        
-        if (matchesError) {
-          console.error('Error fetching matches via RPC:', matchesError);
-          throw matchesError;
-        }
-        
-        // Ensure we have an array to work with
-        const matches = matchesData || [];
-        
-        console.log(`Found ${matches.length} potential matches via RPC`);
-        
-        // Get only distinct matches by match_id
-        const seen = new Set<string>();
-        const distinctMatches = matches.filter(match => {
-          if (!match || !match.match_id || seen.has(match.match_id)) {
-            return false;
-          }
-          seen.add(match.match_id);
-          return true;
-        });
-        
-        console.log(`Returning ${distinctMatches.length} distinct matches after deduplication`);
-        
-        return new Response(
-          JSON.stringify(distinctMatches),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      } catch (fallbackError) {
-        console.error('Error in fallback method:', fallbackError);
-        return new Response(
-          JSON.stringify({ error: fallbackError.message }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
-      }
+      console.error('Error processing user matches:', error);
+      return new Response(
+        JSON.stringify({ error: error.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
     }
   } catch (error) {
     console.error('Error processing request:', error);

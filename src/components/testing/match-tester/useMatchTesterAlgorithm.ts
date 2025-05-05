@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { MatchTestResult, SwapRequestWithDetails } from './types';
 import { toast } from '@/hooks/use-toast';
@@ -28,7 +29,7 @@ export const useMatchTesterAlgorithm = (user: any) => {
 
     console.log("Preferred dates grouped by request:", Object.keys(preferredDatesByRequest).length);
     
-    // Show current user's requests
+    // Log information about the current user's requests
     if (user) {
       const userRequests = allRequests.filter(r => r.requester_id === user.id);
       console.log(`User ${user.id} has ${userRequests.length} requests`);
@@ -37,19 +38,40 @@ export const useMatchTesterAlgorithm = (user: any) => {
       });
     }
 
+    // Copy the array to avoid modifying the original
+    const pendingRequests = allRequests.filter(req => req.status === 'pending');
+    
+    // Calculate the potential matches
     const matches: MatchTestResult[] = [];
-    const processedPairs = new Set();
+    const processedPairs = new Set<string>();
 
     // First pass: prioritize matches for the current user
+    let userRequests = [];
+    let otherRequests = [];
+
     if (user) {
-      const userRequests = allRequests.filter(req => req.requester_id === user.id && req.status === 'pending');
-      const otherRequests = allRequests.filter(req => req.requester_id !== user.id && req.status === 'pending');
+      // If we have a logged in user, prioritize their matches
+      userRequests = pendingRequests.filter(req => req.requester_id === user.id);
+      otherRequests = pendingRequests.filter(req => req.requester_id !== user.id);
       
       console.log(`Found ${userRequests.length} pending requests for current user and ${otherRequests.length} for other users`);
-      
-      // Check each of current user's requests against other users' requests
+    } else {
+      // If no user is logged in, process all requests equally
+      userRequests = pendingRequests;
+      otherRequests = pendingRequests;
+      console.log("No current user, processing all requests equally");
+    }
+    
+    // Check matches for current user first if applicable
+    if (userRequests.length > 0) {
+      // For each of current user's requests, check against all other users' requests
       for (const userRequest of userRequests) {
-        for (const otherRequest of otherRequests) {
+        // The other requests to compare against can include all requests except the current one
+        const requestsToCompare = pendingRequests.filter(r => 
+          r.id !== userRequest.id && r.requester_id !== userRequest.requester_id
+        );
+        
+        for (const otherRequest of requestsToCompare) {
           const matchKey = [userRequest.id, otherRequest.id].sort().join('_');
           if (processedPairs.has(matchKey)) continue;
           processedPairs.add(matchKey);
@@ -88,14 +110,11 @@ export const useMatchTesterAlgorithm = (user: any) => {
       }
     }
 
-    // Second pass: match any remaining pending requests
-    for (let i = 0; i < allRequests.length; i++) {
-      const request1 = allRequests[i];
-      if (request1.status !== 'pending') continue;
-      
-      for (let j = i + 1; j < allRequests.length; j++) {
-        const request2 = allRequests[j];
-        if (request2.status !== 'pending') continue;
+    // Second pass: match any remaining requests in a general approach
+    for (let i = 0; i < pendingRequests.length; i++) {
+      for (let j = i + 1; j < pendingRequests.length; j++) {
+        const request1 = pendingRequests[i];
+        const request2 = pendingRequests[j];
         
         // Skip if the users are the same
         if (request1.requester_id === request2.requester_id) continue;
@@ -127,17 +146,25 @@ export const useMatchTesterAlgorithm = (user: any) => {
           console.log(`MATCH FOUND: ${request1.id} <-> ${request2.id}`);
           console.log(`- ${request1.user?.first_name} wants ${request2ShiftDate}, ${request2.user?.first_name} wants ${request1ShiftDate}`);
           
-          matches.push({
-            request1Id: request1.id,
-            request2Id: request2.id,
-            request1ShiftDate,
-            request2ShiftDate,
-            matchReason: "Both users want each other's shift dates",
-            request1Shift: request1.shift,
-            request2Shift: request2.shift,
-            request1User: request1.user,
-            request2User: request2.user
-          });
+          // Add to matches array if not already there (avoids duplicates)
+          const isDuplicate = matches.some(m => 
+            (m.request1Id === request1.id && m.request2Id === request2.id) || 
+            (m.request1Id === request2.id && m.request2Id === request1.id)
+          );
+          
+          if (!isDuplicate) {
+            matches.push({
+              request1Id: request1.id,
+              request2Id: request2.id,
+              request1ShiftDate,
+              request2ShiftDate,
+              matchReason: "Both users want each other's shift dates",
+              request1Shift: request1.shift,
+              request2Shift: request2.shift,
+              request1User: request1.user,
+              request2User: request2.user
+            });
+          }
         }
       }
     }
