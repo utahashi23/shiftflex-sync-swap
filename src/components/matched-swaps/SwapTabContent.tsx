@@ -1,5 +1,5 @@
 
-import { SwapMatch } from "../types";
+import { SwapMatch } from "./types";
 import { SwapCard } from "./SwapCard";
 import { EmptySwapState } from "./EmptySwapState";
 
