@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/auth'; // Import from the correct barrel file
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Truck, Shuffle, Settings } from "lucide-react";
@@ -11,10 +11,8 @@ const Index = () => {
   const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    if (!isLoading) {
-      if (user) {
-        navigate('/dashboard');
-      }
+    if (!isLoading && user) {
+      navigate('/dashboard');
     }
   }, [user, isLoading, navigate]);
 
