@@ -10,7 +10,7 @@ export interface SwapMatch {
     startTime: string;
     endTime: string;
     truckName: string | null;
-    type: string;
+    type: "day" | "afternoon" | "night" | "unknown";
   };
   otherShift: {
     id: string;
@@ -18,7 +18,7 @@ export interface SwapMatch {
     startTime: string;
     endTime: string;
     truckName: string | null;
-    type: string;
+    type: "day" | "afternoon" | "night" | "unknown";
     userId: string;
     userName: string;
   };

@@ -21,7 +21,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
   /**
    * Process matches data from API response
    */
-  const processMatchesData = (matchesData: any[]) => {
+  const processMatchesData = (matchesData: any[]): SwapMatch[] => {
     if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
       console.log('No matches data to process');
       return [];
@@ -65,14 +65,15 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
   };
 
   // Helper function to get shift type based on time
-  const getShiftType = (startTime: string) => {
+  // Using explicit type assertion to match the expected type
+  const getShiftType = (startTime: string): "day" | "afternoon" | "night" | "unknown" => {
     const hour = parseInt(startTime.split(':')[0], 10);
     if (hour >= 5 && hour < 12) {
-      return 'day';
+      return "day";
     } else if (hour >= 12 && hour < 18) {
-      return 'afternoon';
+      return "afternoon";
     } else {
-      return 'night';
+      return "night";
     }
   };
 
