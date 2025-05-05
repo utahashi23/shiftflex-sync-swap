@@ -70,6 +70,12 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
               <div className="mt-2 text-xs font-medium text-muted-foreground">
                 {swap.myShift.truckName || 'Shift'}
               </div>
+              
+              {swap.myShift.colleagueType && (
+                <div className="mt-1 text-xs italic text-muted-foreground">
+                  {swap.myShift.colleagueType}
+                </div>
+              )}
             </div>
           </div>
           
@@ -100,6 +106,12 @@ export const SwapCard = ({ swap, isPast = false, onAccept }: SwapCardProps) => {
               <div className="mt-2 text-xs font-medium text-muted-foreground">
                 {swap.otherShift.truckName || 'Shift'}
               </div>
+              
+              {swap.otherShift.colleagueType && (
+                <div className="mt-1 text-xs italic text-muted-foreground">
+                  {swap.otherShift.colleagueType}
+                </div>
+              )}
             </div>
           </div>
         </div>
