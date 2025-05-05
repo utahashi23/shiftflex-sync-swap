@@ -45,21 +45,24 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
     
     console.log(`Processing ${uniqueMatches.length} unique matches`);
     
-    // Log all raw matches data for debugging
-    console.log('All raw matches data:', uniqueMatches);
+    // Log the raw data to see what we're working with
+    console.log('Raw matches data to process:', uniqueMatches);
     
     // Process the data
     return uniqueMatches.map((match: any) => {
-      // Extract colleague types directly from the match data
-      console.log(`Raw match data for ${match.match_id}:`, match);
+      // Explicitly log the colleague_type fields for debugging
+      console.log(`Match ${match.match_id} colleague types from API:`, {
+        my_shift_colleague_type: match.my_shift_colleague_type,
+        other_shift_colleague_type: match.other_shift_colleague_type
+      });
       
-      // Make sure we're extracting the colleague_type fields correctly
-      const myShiftColleagueType = match.my_shift_colleague_type;
-      const otherShiftColleagueType = match.other_shift_colleague_type;
+      // Extract colleague types from raw data
+      const myShiftColleagueType = match.my_shift_colleague_type || 'Unknown';
+      const otherShiftColleagueType = match.other_shift_colleague_type || 'Unknown';
       
-      console.log(`Match ${match.match_id} extracted colleague types:`, {
-        my: myShiftColleagueType,
-        other: otherShiftColleagueType
+      console.log(`Match ${match.match_id} processed colleague types:`, {
+        myShift: myShiftColleagueType,
+        otherShift: otherShiftColleagueType
       });
       
       return {
@@ -72,7 +75,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
           endTime: match.my_shift_end_time,
           truckName: match.my_shift_truck,
           type: getShiftType(match.my_shift_start_time),
-          colleagueType: myShiftColleagueType || 'Unknown'
+          colleagueType: myShiftColleagueType
         },
         otherShift: {
           id: match.other_shift_id,
@@ -83,7 +86,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
           type: getShiftType(match.other_shift_start_time),
           userId: match.other_user_id,
           userName: match.other_user_name || 'Unknown User',
-          colleagueType: otherShiftColleagueType || 'Unknown'
+          colleagueType: otherShiftColleagueType
         },
         myRequestId: match.my_request_id,
         otherRequestId: match.other_request_id,
@@ -108,7 +111,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       
       // Explicitly request colleague types inclusion
       const matchesData = await findSwapMatches(user.id, true, true, true, true);
-      console.log('Raw match data from function:', matchesData);
+      console.log('Raw match data received from function:', matchesData);
       
       if (!matchesData || matchesData.length === 0) {
         console.log('No matches found');
@@ -123,7 +126,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       
       // Process the matches data
       const formattedMatches = processMatchesData(matchesData || []);
-      console.log('Formatted matches:', formattedMatches);
+      console.log('Formatted matches after processing:', formattedMatches);
       
       // Separate active and past matches
       const activeMatches = formattedMatches.filter((match: SwapMatch) => 

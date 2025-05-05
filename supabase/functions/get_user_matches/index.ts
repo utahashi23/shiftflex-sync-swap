@@ -1,3 +1,4 @@
+
 // Follow this setup guide to integrate the Supabase Edge Functions with your app:
 // https://supabase.com/docs/guides/functions/getting-started
 
@@ -23,7 +24,9 @@ serve(async (req) => {
       specific_check = false, 
       force_check = false,
       user_perspective_only = true,
-      user_initiator_only = true
+      user_initiator_only = true,
+      include_colleague_types = true, 
+      include_shift_data = true
     } = await req.json()
 
     if (!user_id) {
@@ -33,7 +36,7 @@ serve(async (req) => {
       )
     }
     
-    console.log(`Processing request for user_id: ${user_id}, verbose: ${verbose}, force_check: ${force_check}, user_perspective_only: ${user_perspective_only}, user_initiator_only: ${user_initiator_only}`);
+    console.log(`Processing request for user_id: ${user_id}, verbose: ${verbose}, force_check: ${force_check}, user_perspective_only: ${user_perspective_only}, user_initiator_only: ${user_initiator_only}, include_colleague_types: ${include_colleague_types}`);
 
     // Create a Supabase client with the Auth context of the logged in user
     const supabaseClient = createClient(
@@ -86,16 +89,21 @@ serve(async (req) => {
                 ...otherRequests.map(r => r.requester_shift_id)
               ].filter(Boolean);
               
-              // Get shift data
+              // Get shift data - EXPLICITLY SELECT colleague_type
               const { data: shifts, error: shiftsError } = await serviceClient
                 .from('shifts')
-                .select('*')
+                .select('id, date, start_time, end_time, truck_name, colleague_type, user_id')
                 .in('id', shiftIds);
               
               if (shiftsError) {
                 console.error('Error fetching shifts:', shiftsError);
               } else {
                 console.log(`Fetched ${shifts?.length || 0} shifts data`);
+                
+                // Log first shift to verify colleague_type is included
+                if (shifts && shifts.length > 0) {
+                  console.log('First shift from database:', shifts[0]);
+                }
                 
                 // Create a map for quick shift lookups
                 const shiftsMap = {};
@@ -220,6 +228,18 @@ serve(async (req) => {
                       
                       if (!shift1 || !shift2) continue;
                       
+                      // Log shift data to confirm colleague_type
+                      console.log('Processing match with shifts:', {
+                        shift1: {
+                          id: shift1.id,
+                          colleague_type: shift1.colleague_type
+                        },
+                        shift2: {
+                          id: shift2.id,
+                          colleague_type: shift2.colleague_type
+                        }
+                      });
+                      
                       // Get user info
                       const { data: user1 } = await serviceClient
                         .from('profiles')
@@ -236,6 +256,10 @@ serve(async (req) => {
                       // Always ensure the user's request is the "my" side
                       const isUserReq1 = req1.requester_id === user_id;
                       
+                      // User's shift is first, other user's shift is second
+                      const myShift = isUserReq1 ? shift1 : shift2;
+                      const otherShift = isUserReq1 ? shift2 : shift1;
+                      
                       formattedMatches.push({
                         match_id: match.id,
                         match_status: match.status || 'pending',
@@ -243,16 +267,18 @@ serve(async (req) => {
                         match_date: match.match_date,
                         my_request_id: isUserReq1 ? req1.id : req2.id,
                         other_request_id: isUserReq1 ? req2.id : req1.id,
-                        my_shift_id: isUserReq1 ? shift1.id : shift2.id,
-                        my_shift_date: isUserReq1 ? shift1.date : shift2.date,
-                        my_shift_start_time: isUserReq1 ? shift1.start_time : shift2.start_time,
-                        my_shift_end_time: isUserReq1 ? shift1.end_time : shift2.end_time,
-                        my_shift_truck: isUserReq1 ? shift1.truck_name : shift2.truck_name,
-                        other_shift_id: isUserReq1 ? shift2.id : shift1.id,
-                        other_shift_date: isUserReq1 ? shift2.date : shift1.date,
-                        other_shift_start_time: isUserReq1 ? shift2.start_time : shift1.start_time,
-                        other_shift_end_time: isUserReq1 ? shift2.end_time : shift1.end_time, 
-                        other_shift_truck: isUserReq1 ? shift2.truck_name : shift1.truck_name,
+                        my_shift_id: myShift.id,
+                        my_shift_date: myShift.date,
+                        my_shift_start_time: myShift.start_time,
+                        my_shift_end_time: myShift.end_time,
+                        my_shift_truck: myShift.truck_name,
+                        my_shift_colleague_type: myShift.colleague_type || 'Unknown',
+                        other_shift_id: otherShift.id,
+                        other_shift_date: otherShift.date,
+                        other_shift_start_time: otherShift.start_time,
+                        other_shift_end_time: otherShift.end_time, 
+                        other_shift_truck: otherShift.truck_name,
+                        other_shift_colleague_type: otherShift.colleague_type || 'Unknown',
                         other_user_id: isUserReq1 ? req2.requester_id : req1.requester_id,
                         other_user_name: isUserReq1 
                           ? `${user2?.first_name || ''} ${user2?.last_name || ''}`.trim() 
@@ -261,6 +287,15 @@ serve(async (req) => {
                     }
                     
                     console.log(`Returning ${formattedMatches.length} formatted matches`);
+                    
+                    // Log first match to verify colleague_type fields are included
+                    if (formattedMatches.length > 0) {
+                      console.log('First formatted match:', {
+                        match_id: formattedMatches[0].match_id,
+                        my_shift_colleague_type: formattedMatches[0].my_shift_colleague_type,
+                        other_shift_colleague_type: formattedMatches[0].other_shift_colleague_type
+                      });
+                    }
                     
                     return new Response(
                       JSON.stringify(formattedMatches),

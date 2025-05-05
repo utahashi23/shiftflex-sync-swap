@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '../use-toast';
 import { formatSwapMatches } from './utils';
@@ -8,14 +7,14 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
   console.log('Fetching matches for user:', userId);
   
   try {
-    // Explicitly request to include colleague types and full shift data in the function call
+    // Call the edge function with explicit parameters to fetch colleague types
     const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
       body: { 
         user_id: userId,
         user_perspective_only: userPerspectiveOnly,
         user_initiator_only: userInitiatorOnly,
-        include_colleague_types: true, // Request colleague types explicitly
-        include_full_shift_data: true  // Ask for complete shift data including colleague_type
+        include_colleague_types: true, // Explicitly request colleague types
+        include_shift_data: true // Request full shift data
       }
     });
     
@@ -23,14 +22,12 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
     
     console.log('Raw match data from function:', matchesData);
     
-    // Log the first match to see if colleague_type is present
+    // Debug: Log the first match to check if colleague_type is present
     if (matchesData && Array.isArray(matchesData) && matchesData.length > 0) {
-      console.log('First match data sample with colleague_type:', {
+      console.log('First match from API with colleague types:', {
+        match_id: matchesData[0].match_id,
         my_shift_colleague_type: matchesData[0].my_shift_colleague_type,
-        other_shift_colleague_type: matchesData[0].other_shift_colleague_type,
-        // Also check if data is nested in shift data objects
-        my_shift_data: matchesData[0].my_shift_data,
-        other_shift_data: matchesData[0].other_shift_data
+        other_shift_colleague_type: matchesData[0].other_shift_colleague_type
       });
     }
     
