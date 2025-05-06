@@ -172,6 +172,10 @@ export const SwapCard = ({
                     onClick={() => onResendEmail(swap.id)}
                     variant="outline"
                     className="flex items-center"
+                    // Disable the button if the swap is already accepted by others
+                    disabled={isAcceptedByOthers}
+                    // Add opacity to visually indicate the button is disabled
+                    style={{ opacity: isAcceptedByOthers ? 0.5 : 1 }}
                   >
                     <Mail className="h-4 w-4 mr-2" />
                     Resend Email
@@ -182,6 +186,10 @@ export const SwapCard = ({
                   <Button 
                     onClick={() => onFinalize(swap.id)}
                     className="bg-blue-600 hover:bg-blue-700"
+                    // Disable the button if the swap is already accepted by others
+                    disabled={isAcceptedByOthers}
+                    // Add opacity to visually indicate the button is disabled
+                    style={{ opacity: isAcceptedByOthers ? 0.5 : 1 }}
                   >
                     Finalize Swap
                   </Button>
