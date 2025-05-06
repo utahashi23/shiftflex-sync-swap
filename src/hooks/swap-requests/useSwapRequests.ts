@@ -17,8 +17,11 @@ export const useSwapRequests = (): UseSwapRequestsReturn => {
     setSwapRequests 
   } = useGetUserSwapRequests();
   
+  // Pass both required arguments to useDeleteSwapRequest
   const { handleDeleteSwapRequest, isDeleting: isDeleteLoading } = useDeleteSwapRequest(
-    setSwapRequests
+    setSwapRequests,
+    // Fix: Pass a reference to the isLoading setter function
+    () => {}  // We're not controlling isLoading from this component, so pass a no-op function
   );
   
   const { deletePreferredDay, isDeleting: isDayDeleteLoading } = useDeletePreferredDay({

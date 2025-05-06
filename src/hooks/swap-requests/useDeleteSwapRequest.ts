@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export const useDeleteSwapRequest = (
   setSwapRequests: React.Dispatch<React.SetStateAction<SwapRequest[]>>,
-  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>
+  setIsLoading: React.Dispatch<React.SetStateAction<boolean>> = () => {}
 ) => {
   const { user } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -24,7 +24,7 @@ export const useDeleteSwapRequest = (
     }
     
     setIsDeleting(true);
-    setIsLoading(true);
+    if (setIsLoading) setIsLoading(true);
     
     try {
       console.log('Deleting swap request:', requestId);
@@ -49,7 +49,7 @@ export const useDeleteSwapRequest = (
       return false;
     } finally {
       setIsDeleting(false);
-      setIsLoading(false);
+      if (setIsLoading) setIsLoading(false);
     }
   };
 
