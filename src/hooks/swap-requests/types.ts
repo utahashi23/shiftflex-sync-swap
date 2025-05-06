@@ -23,7 +23,8 @@ export interface SwapRequest {
 export interface UseSwapRequestsReturn {
   swapRequests: SwapRequest[];
   isLoading: boolean;
+  error?: Error | null;
   fetchSwapRequests: (status?: string) => Promise<void>;
   deleteSwapRequest: (requestId: string) => Promise<boolean>;
-  deletePreferredDay: (dayId: string, requestId: string) => Promise<boolean>;
+  deletePreferredDay: (dayId: string, requestId: string) => Promise<any>;
 }

@@ -1,13 +1,13 @@
+
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SwapRequestCard from './swaps/SwapRequestCard';
 import SwapRequestSkeleton from './swaps/SwapRequestSkeleton';
 import EmptySwapRequests from './swaps/EmptySwapRequests';
-import EmptySwapState from './swaps/EmptySwapState';
 import SwapDeleteDialog from './swaps/SwapDeleteDialog';
 import { useSwapRequests } from '@/hooks/swap-requests/useSwapRequests';
 import { toast } from '@/hooks/use-toast';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { RefreshCw, Loader2, AlertOctagon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const RequestedSwaps = () => {
@@ -15,6 +15,7 @@ const RequestedSwaps = () => {
   const { 
     swapRequests, 
     isLoading,
+    error,
     fetchSwapRequests, 
     deleteSwapRequest, 
     deletePreferredDay 
@@ -95,8 +96,60 @@ const RequestedSwaps = () => {
     fetchSwapRequests(status);
   };
   
-  console.log("Current swap requests:", swapRequests);
-  console.log("Current tab:", activeTab);
+  // Helper to render content based on loading/error state
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, index) => (
+            <SwapRequestSkeleton key={index} />
+          ))}
+        </div>
+      );
+    }
+    
+    if (error) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <AlertOctagon className="h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-xl font-medium">Failed to load swap requests</h3>
+          <p className="text-muted-foreground mt-2 mb-6">
+            There was a problem loading your swap requests.
+          </p>
+          <Button 
+            onClick={handleRefresh}
+            variant="outline"
+          >
+            Try again
+          </Button>
+        </div>
+      );
+    }
+    
+    if (swapRequests.length === 0) {
+      return (
+        <EmptySwapRequests 
+          message={activeTab === 'pending' ? "No pending swap requests" : "No completed swap requests"} 
+          subtitle={activeTab === 'pending' 
+            ? "You don't have any pending swap requests at the moment." 
+            : "You don't have any completed swap requests yet."
+          } 
+        />
+      );
+    }
+    
+    return (
+      swapRequests.map(request => (
+        <SwapRequestCard 
+          key={request.id}
+          request={request}
+          onDeleteRequest={onDeleteRequest}
+          onDeletePreferredDate={onDeletePreferredDate}
+          isCompleted={activeTab === 'completed'}
+        />
+      ))
+    );
+  };
   
   return (
     <div>
@@ -125,52 +178,11 @@ const RequestedSwaps = () => {
         </div>
         
         <TabsContent value="pending" className="space-y-6 mt-0">
-          {isLoading ? (
-            <div className="space-y-4">
-              {[...Array(3)].map((_, index) => (
-                <SwapRequestSkeleton key={index} />
-              ))}
-            </div>
-          ) : swapRequests.length === 0 ? (
-            <EmptySwapRequests 
-              message="No pending swap requests" 
-              subtitle="You don't have any pending swap requests at the moment." 
-            />
-          ) : (
-            swapRequests.map(request => (
-              <SwapRequestCard 
-                key={request.id}
-                request={request}
-                onDeleteRequest={onDeleteRequest}
-                onDeletePreferredDate={onDeletePreferredDate}
-              />
-            ))
-          )}
+          {renderContent()}
         </TabsContent>
         
         <TabsContent value="completed" className="space-y-6 mt-0">
-          {isLoading ? (
-            <div className="space-y-4">
-              {[...Array(3)].map((_, index) => (
-                <SwapRequestSkeleton key={index} />
-              ))}
-            </div>
-          ) : swapRequests.length === 0 ? (
-            <EmptySwapRequests 
-              message="No completed swap requests" 
-              subtitle="You don't have any completed swap requests yet." 
-            />
-          ) : (
-            swapRequests.map(request => (
-              <SwapRequestCard 
-                key={request.id}
-                request={request}
-                onDeleteRequest={onDeleteRequest}
-                onDeletePreferredDate={onDeletePreferredDate}
-                isCompleted={true}
-              />
-            ))
-          )}
+          {renderContent()}
         </TabsContent>
       </Tabs>
 

@@ -12,13 +12,13 @@ export const useSwapRequests = (): UseSwapRequestsReturn => {
   const { 
     swapRequests, 
     isLoading, 
+    error,
     refetch: refetchSwapRequests, 
     setSwapRequests 
   } = useGetUserSwapRequests();
   
   const { handleDeleteSwapRequest, isDeleting: isDeleteLoading } = useDeleteSwapRequest(
-    setSwapRequests,
-    () => {} // Pass empty function instead of setIsLoading
+    setSwapRequests
   );
   
   const { deletePreferredDay, isDeleting: isDayDeleteLoading } = useDeletePreferredDay({
@@ -52,11 +52,12 @@ export const useSwapRequests = (): UseSwapRequestsReturn => {
   return {
     swapRequests,
     isLoading: isLoading || isDeleteLoading || isDayDeleteLoading,
+    error,
     fetchSwapRequests,
     deleteSwapRequest: handleDeleteSwapRequest,
     deletePreferredDay: async (dayId: string, requestId: string) => {
       const result = await deletePreferredDay(dayId, requestId);
-      return result.success;
+      return result;
     }
   };
 };

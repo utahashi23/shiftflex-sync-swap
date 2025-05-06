@@ -34,7 +34,7 @@ export const deletePreferredDateApi = async (dayId: string, requestId: string) =
       
     if (error) throw error;
     
-    return { success: true, requestDeleted: false };
+    return { success: true, requestDeleted: false, preferredDayId: dayId };
   } catch (error) {
     console.error('Error deleting preferred date:', error);
     toast({

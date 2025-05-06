@@ -39,11 +39,7 @@ export const useGetUserSwapRequests = (initialStatus: string = 'pending') => {
     } catch (err) {
       console.error('Error fetching swap requests:', err);
       setError(err as Error);
-      toast({
-        title: "Error",
-        description: "Failed to load swap requests. Please try again.",
-        variant: "destructive"
-      });
+      // We don't show a toast here as getUserSwapRequestsApi already handles that
     } finally {
       setIsLoading(false);
     }
