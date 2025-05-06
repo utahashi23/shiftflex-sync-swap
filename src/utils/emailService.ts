@@ -13,7 +13,7 @@ interface EmailOptions {
 }
 
 /**
- * Send an email using the Loop.so API through a Supabase Edge Function
+ * Send an email using the Mailgun API through a Supabase Edge Function
  */
 export const sendEmail = async (options: EmailOptions): Promise<{ success: boolean; error?: string; result?: any }> => {
   try {
@@ -21,18 +21,18 @@ export const sendEmail = async (options: EmailOptions): Promise<{ success: boole
     console.log(`Email subject: "${options.subject}"`);
     console.log(`From address: ${options.from || "admin@shiftflex.au"}`);
     
-    // Ensure the from address is always set to admin@shiftflex.au if not provided
+    // Ensure the from address is always set if not provided
     const emailOptions = {
       ...options,
       from: options.from || "admin@shiftflex.au"
     };
     
-    const { data, error } = await supabase.functions.invoke('loop_send_email', {
+    const { data, error } = await supabase.functions.invoke('send_mailgun_email', {
       body: emailOptions
     });
     
     if (error) {
-      console.error('Error calling loop_send_email function:', error);
+      console.error('Error calling send_mailgun_email function:', error);
       return { success: false, error: error.message || String(error) };
     }
     
@@ -177,50 +177,34 @@ export const resendSwapNotification = async (
 };
 
 /**
- * Test email sending with Loop.so implementation
+ * Test Mailgun email sending
  */
-export const testEmailFunctionality = async (): Promise<{
-  loopResult: { success: boolean; error?: string; data?: any };
-  directResult: { success: boolean; error?: string; data?: any };
+export const testMailgunEmailFunctionality = async (email?: string): Promise<{
+  success: boolean; 
+  error?: string; 
+  result?: any
 }> => {
   try {
-    console.log("Testing Loop.so implementation...");
+    console.log("Testing Mailgun implementation...");
     
-    // Test the Loop.so implementation
-    const loopResponse = await supabase.functions.invoke('test_loop_email', {
-      body: {}
+    // Test the Mailgun implementation
+    const { data, error } = await supabase.functions.invoke('test_mailgun', {
+      body: { email }
     });
     
-    console.log("Loop.so test response:", loopResponse);
+    if (error) {
+      console.error('Error calling test_mailgun function:', error);
+      return { success: false, error: error.message || String(error) };
+    }
     
-    // Test the direct API implementation
-    const directResponse = await sendEmail({
-      to: "njalasankhulani@gmail.com",
-      subject: "Test Email via Loop.so",
-      from: "admin@shiftflex.au",
-      html: `
-        <h2>Testing Loop.so Email Function</h2>
-        <p>This is a test email sent using the Loop.so email service.</p>
-        <p>If you're receiving this email, the email functionality is working correctly.</p>
-        <p>Time sent: ${new Date().toISOString()}</p>
-      `
-    });
-    
-    console.log("Direct Loop.so test response:", directResponse);
+    console.log("Mailgun test response:", data);
     
     return {
-      loopResult: {
-        success: !loopResponse.error,
-        error: loopResponse.error?.message,
-        data: loopResponse.data
-      },
-      directResult: directResponse
+      success: true,
+      result: data
     };
   } catch (err: any) {
     console.error('Error testing email functionality:', err);
-    return {
-      loopResult: { success: false, error: 'Loop.so test failed' },
-      directResult: { success: false, error: 'Direct API test failed' }
-    };
+    return { success: false, error: err.message || String(err) };
   }
 };

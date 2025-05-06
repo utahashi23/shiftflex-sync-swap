@@ -1,26 +1,49 @@
 
-import { useAuthRedirect } from '@/hooks/useAuthRedirect';
+import { useState } from 'react';
 import AppLayout from '@/layouts/AppLayout';
-import { ProfileSettings } from '@/components/settings/ProfileSettings';
-import { PasswordSettings } from '@/components/settings/PasswordSettings';
+import { useAuthRedirect } from '@/hooks/useAuthRedirect';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIntegration } from '@/components/settings/CalendarIntegration';
+import { UserProfile } from '@/components/settings/UserProfile';
+import { EmailIntegration } from '@/components/settings/EmailIntegration'; 
+import { EmailPreferences } from '@/components/settings/EmailPreferences';
 
 const Settings = () => {
   useAuthRedirect({ protectedRoute: true });
-  
+  const [activeTab, setActiveTab] = useState("profile");
+
   return (
     <AppLayout>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-gray-500 mt-1">
-          Manage your account preferences
-        </p>
-      </div>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage your account preferences and integrations.
+          </p>
+        </div>
 
-      <div className="space-y-8">
-        <ProfileSettings />
-        <PasswordSettings />
-        <CalendarIntegration />
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid grid-cols-4 w-full">
+            <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="email">Email</TabsTrigger>
+            <TabsTrigger value="email-prefs">Notifications</TabsTrigger>
+            <TabsTrigger value="calendar">Calendar</TabsTrigger>
+          </TabsList>
+          <div className="mt-6">
+            <TabsContent value="profile">
+              <UserProfile />
+            </TabsContent>
+            <TabsContent value="email">
+              <EmailIntegration />
+            </TabsContent>
+            <TabsContent value="email-prefs">
+              <EmailPreferences />
+            </TabsContent>
+            <TabsContent value="calendar">
+              <CalendarIntegration />
+            </TabsContent>
+          </div>
+        </Tabs>
       </div>
     </AppLayout>
   );

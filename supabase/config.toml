@@ -1,6 +1,6 @@
 
-# A string used to distinguish different Supabase projects on the same host. Defaults to the
-# working directory name when running `supabase init`.
+# A string used to distinguish different Supabase projects on the same host. Defaults to the working
+# directory name when running `supabase init`.
 project_id = "ponhfgbpxehsdlxjpszg"
 
 [api]
@@ -8,7 +8,7 @@ project_id = "ponhfgbpxehsdlxjpszg"
 port = 54321
 # Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
 # endpoints. public and storage are always included.
-schemas = ["public", "storage", "graphql_public"]
+schemas = ["public", "storage"]
 # Extra schemas to add to the search_path of every request. public is always included.
 extra_search_path = ["public", "extensions"]
 # The maximum number of rows returns from a view, table, or stored procedure. Limits payload size
@@ -18,10 +18,8 @@ max_rows = 1000
 [db]
 # Port to use for the local database URL.
 port = 54322
-# Port used by db diff command to initialize the shadow database.
-shadow_port = 54320
 # The database major version to use. This has to be the same as your remote database's. Run `SHOW
-# server_version` on the remote database to check.
+# server_version;` on the remote database to check.
 major_version = 15
 
 [studio]
@@ -46,13 +44,9 @@ file_size_limit = "50MiB"
 site_url = "http://localhost:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = ["https://localhost:3000"]
-# How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
+# How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 seconds (one
+# week).
 jwt_expiry = 3600
-# If disabled, the refresh token will never expire.
-enable_refresh_token_rotation = true
-# Allows refresh tokens to be reused after expiry, up to the specified interval in seconds.
-# Requires enable_refresh_token_rotation = true.
-refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
 enable_signup = true
 
@@ -83,15 +77,7 @@ enabled = false
 port = 54327
 vector_port = 54328
 # Setup BigQuery project to enable log viewer on local development stack.
+# See: https://supabase.com/docs/guides/getting-started/local-development#enabling-local-logging
 gcp_project_id = ""
 gcp_project_number = ""
 gcp_jwt_path = "supabase/gcloud.json"
-
-[experimental]
-# Enable experimental features. These features may be removed at any time.
-
-# Configures Postgres storage to stream changes.
-stream_changes = false
-
-# Configures S3 storage to stream changes.
-storage_stream_changes = false
