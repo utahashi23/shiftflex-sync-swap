@@ -26,14 +26,23 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
       (match.other_shift_data && match.other_shift_data.colleague_type) ||
       'Unknown';
     
-    console.log(`Match ${match.match_id} status: ${match.match_status}, colleague types:`, {
+    // Check if this match has the other_accepted status or flag
+    const isOtherAccepted = 
+      match.match_status === 'other_accepted' || 
+      match.is_other_accepted === true;
+    
+    // Set the correct status, prioritizing 'other_accepted' if flag is present
+    const matchStatus = isOtherAccepted ? 'other_accepted' : match.match_status;
+    
+    console.log(`Match ${match.match_id} status: ${matchStatus}, colleague types:`, {
       myShift: myShiftColleagueType,
-      otherShift: otherShiftColleagueType
+      otherShift: otherShiftColleagueType,
+      isOtherAccepted
     });
     
     return {
       id: match.match_id,
-      status: match.match_status,
+      status: matchStatus,
       myShift: {
         id: match.my_shift_id,
         date: match.my_shift_date,

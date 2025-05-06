@@ -6,7 +6,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { ArrowRightLeft, Calendar, Clock, Mail, UserCircle2 } from "lucide-react";
+import { ArrowRightLeft, Calendar, Clock, Mail, UserCircle2, AlertTriangle } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "./types";
 
@@ -40,6 +40,39 @@ export const SwapCard = ({
     otherShift: swap.otherShift.colleagueType
   });
   
+  // Determine status display text and color
+  const getStatusDisplay = () => {
+    switch (swap.status) {
+      case 'pending':
+        return {
+          text: 'Pending',
+          colorClass: 'bg-amber-100 text-amber-800'
+        };
+      case 'accepted':
+        return {
+          text: 'Accepted',
+          colorClass: 'bg-blue-100 text-blue-800'
+        };
+      case 'other_accepted':
+        return {
+          text: 'Already Accepted',
+          colorClass: 'bg-gray-100 text-gray-800'
+        };
+      case 'completed':
+        return {
+          text: 'Completed',
+          colorClass: 'bg-green-100 text-green-800'
+        };
+      default:
+        return {
+          text: swap.status.charAt(0).toUpperCase() + swap.status.slice(1),
+          colorClass: 'bg-gray-100 text-gray-800'
+        };
+    }
+  };
+  
+  const statusDisplay = getStatusDisplay();
+  
   return (
     <Card className="overflow-hidden">
       <CardHeader className="bg-secondary/30 pb-3">
@@ -49,12 +82,8 @@ export const SwapCard = ({
             <h3 className="text-lg font-medium">Shift Swap</h3>
           </div>
           <div>
-            <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-              swap.status === 'pending' ? 'bg-amber-100 text-amber-800' :
-              swap.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
-              'bg-green-100 text-green-800'
-            }`}>
-              {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
+            <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${statusDisplay.colorClass}`}>
+              {statusDisplay.text}
             </span>
           </div>
         </div>
@@ -131,6 +160,23 @@ export const SwapCard = ({
             </div>
           </div>
         </div>
+        
+        {/* Display warning for other_accepted status */}
+        {swap.status === 'other_accepted' && (
+          <div className="mt-4 p-3 border border-yellow-300 rounded-md bg-yellow-50">
+            <div className="flex items-start">
+              <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />
+              <div>
+                <p className="text-sm font-medium text-yellow-800">
+                  This shift has already been accepted by another user
+                </p>
+                <p className="text-xs text-yellow-700 mt-1">
+                  The shift you were interested in is no longer available as it has been accepted in another swap.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
       
       {!isPast && (
@@ -142,6 +188,16 @@ export const SwapCard = ({
                 className="bg-green-600 hover:bg-green-700"
               >
                 Accept Swap
+              </Button>
+            )}
+            
+            {swap.status === 'other_accepted' && (
+              <Button 
+                disabled
+                variant="outline"
+                className="opacity-50 cursor-not-allowed"
+              >
+                Already Accepted
               </Button>
             )}
             
