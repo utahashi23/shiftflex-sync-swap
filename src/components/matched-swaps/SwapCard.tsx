@@ -42,12 +42,8 @@ export const SwapCard = ({
     otherShift: swap.otherShift.colleagueType
   });
   
-  // Check if there's any accepted swap among all matches
-  const hasAcceptedSwap = allMatches.some(match => match.status === 'accepted');
-  
-  // Determine if this swap is already accepted or conflicts with an accepted swap
-  const isAccepted = swap.status === 'accepted';
-  const isConflicting = Boolean(swap.isConflictingWithAccepted) || 
+  // Determine if this swap conflicts with an accepted swap
+  const isConflicting = swap.isConflictingWithAccepted || 
     (allMatches.length > 0 && allMatches.some(otherMatch => 
       otherMatch.id !== swap.id && 
       otherMatch.status === 'accepted' && 
@@ -60,16 +56,6 @@ export const SwapCard = ({
        otherMatch.myRequestId === swap.otherRequestId ||
        otherMatch.otherRequestId === swap.otherRequestId)
     ));
-    
-  // Should we show the Accept button? Only if:
-  // - Swap is pending (not accepted)
-  // - Not conflicting with an accepted swap
-  // - No other swaps are accepted
-  // - The onAccept handler exists
-  const showAcceptButton = 
-    swap.status === 'pending' && 
-    !isConflicting &&
-    onAccept !== undefined;
   
   return (
     <Card className="overflow-hidden">
@@ -168,15 +154,13 @@ export const SwapCard = ({
       {!isPast && (
         <CardFooter className="bg-secondary/20 border-t px-4 py-3">
           <div className="w-full flex justify-end gap-2">
-            {/* Show message if the swap is conflicting */}
-            {(isConflicting || hasAcceptedSwap) && swap.status === 'pending' && (
+            {isConflicting && swap.status === 'pending' && (
               <div className="text-sm text-orange-600 pr-4 self-center">
                 This swap conflicts with another swap that has already been accepted.
               </div>
             )}
 
-            {/* Only show Accept Swap button if conditions are met */}
-            {showAcceptButton && (
+            {swap.status === 'pending' && !isConflicting && onAccept && (
               <Button 
                 onClick={() => onAccept(swap.id)}
                 className="bg-green-600 hover:bg-green-700"
@@ -186,7 +170,7 @@ export const SwapCard = ({
             )}
             
             {/* Explicitly check for 'accepted' status */}
-            {isAccepted && (
+            {swap.status === 'accepted' && (
               <>
                 {onResendEmail && (
                   <Button 
