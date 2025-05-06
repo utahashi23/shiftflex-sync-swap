@@ -30,7 +30,7 @@ export const useSwapMatcher = () => {
     forceCheck: boolean = false, 
     verbose: boolean = false,
     userPerspectiveOnly: boolean = true,
-    userInitiatorOnly: boolean = false // Changed default to false to get all matches
+    userInitiatorOnly: boolean = false // Default changed to false to get ALL matches including otherAccepted
   ) => {
     if (!user && !userId) {
       toast({
@@ -65,7 +65,7 @@ export const useSwapMatcher = () => {
       // Use service-role based approach to bypass RLS issues
       console.log("Using modified approach to avoid RLS recursion...");
       try {
-        // Use the userInitiatorOnly parameter as passed
+        // Use the userInitiatorOnly parameter as passed (default to false)
         const result = await executeFindMatches(
           targetUserId, 
           forceCheck, 

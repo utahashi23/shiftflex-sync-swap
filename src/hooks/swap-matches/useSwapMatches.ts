@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../useAuth';
 import { toast } from '../use-toast';
@@ -15,7 +16,7 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
   
   const { user } = useAuth();
   
-  const fetchMatches = async (userPerspectiveOnly: boolean = true, userInitiatorOnly: boolean = true) => {
+  const fetchMatches = async (userPerspectiveOnly: boolean = true, userInitiatorOnly: boolean = false) => {
     if (!user) return;
     
     try {
@@ -26,7 +27,7 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
       const { matches, pastMatches, rawApiData } = await fetchUserMatches(
         user.id,
         userPerspectiveOnly, 
-        userInitiatorOnly // Make sure we pass the parameter as is
+        userInitiatorOnly // Changed default to false to get all matches
       );
       
       console.log('Received matches from API:', matches);
@@ -145,8 +146,8 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
   // Fetch matches when the component mounts or user changes
   useEffect(() => {
     if (user) {
-      // Don't force userInitiatorOnly to true to ensure we get all matches
-      fetchMatches(true, false); // Changed to false to show all matches
+      // Important: set userInitiatorOnly to false to ensure we get all matches including otherAccepted
+      fetchMatches(true, false);
     }
   }, [user]);
   

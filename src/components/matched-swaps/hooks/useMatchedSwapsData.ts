@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/auth';
 import { SwapMatch } from '../types';
@@ -114,8 +113,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
     try {
       console.log('Finding matches for user:', user.id);
       
-      // Explicitly request colleague types inclusion
-      // Change userInitiatorOnly to false to get all matches
+      // ⚠️ CRITICAL: Set userInitiatorOnly to false to get all matches
       const matchesData = await findSwapMatches(user.id, true, true, true, false);
       console.log('Raw match data received from function:', matchesData);
       
