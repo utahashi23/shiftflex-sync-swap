@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { SwapMatch } from '@/hooks/swap-matches/types';
 import { useSwapMatches } from '@/hooks/swap-matches';
-import { useFetchMatchedData } from './useFetchMatchedData';
-import { useSwapActions } from './useSwapActions';
-import { useSwapDialogs } from './useSwapDialogs';
+import { useFetchMatchedData } from '@/components/matched-swaps/hooks/useFetchMatchedData';
+import { useSwapActions } from '@/components/matched-swaps/hooks/useSwapActions';
+import { useSwapDialogs } from '@/components/matched-swaps/hooks/useSwapDialogs';
 
 export const useMatchedSwaps = () => {
   const [swapRequests, setSwapRequests] = useState<SwapMatch[]>([]);
