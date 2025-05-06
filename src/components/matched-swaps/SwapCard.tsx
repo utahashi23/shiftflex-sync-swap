@@ -16,7 +16,7 @@ interface SwapCardProps {
   onAccept?: (matchId: string) => void;
   onFinalize?: (matchId: string) => void;
   onResendEmail?: (matchId: string) => void;
-  isAcceptedByOthers?: boolean;
+  isAcceptedByOthers?: boolean; // Explicitly pass this prop from parent
 }
 
 // Format date to a readable string
@@ -34,9 +34,9 @@ export const SwapCard = ({
   onAccept, 
   onFinalize, 
   onResendEmail,
-  isAcceptedByOthers = false
+  isAcceptedByOthers = false // Default to false if not provided
 }: SwapCardProps) => {
-  // Debug logging
+  // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
     otherShift: swap.otherShift.colleagueType
