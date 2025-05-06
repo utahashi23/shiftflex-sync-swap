@@ -21,6 +21,9 @@ export const SwapTabContent = ({
   // Detailed logging of swaps data including colleague types and statuses
   console.log(`SwapTabContent: Rendering ${swaps?.length || 0} ${isPast ? 'past' : 'active'} swaps`);
   
+  // Check if there's any accepted swap in the list
+  const hasAcceptedSwap = swaps && swaps.some(swap => swap.status === 'accepted');
+  
   if (swaps && swaps.length > 0) {
     // Log the colleague types and status of all swaps for debugging
     swaps.forEach((swap, index) => {
