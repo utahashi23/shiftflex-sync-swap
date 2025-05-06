@@ -42,45 +42,29 @@ export const SwapCard = ({
     otherShift: swap.otherShift.colleagueType
   });
   
-  // Check if this swap is already accepted
-  const isAccepted = swap.status === 'accepted';
+  // Get the display status for UI
+  const getDisplayStatus = () => {
+    switch (swap.status) {
+      case 'pending': 
+        return { label: 'Pending', colorClass: 'bg-amber-100 text-amber-800' };
+      case 'accepted': 
+        return { label: 'Accepted', colorClass: 'bg-blue-100 text-blue-800' };
+      case 'otherAccepted': 
+        return { label: 'Other User Accepted', colorClass: 'bg-orange-100 text-orange-800' };
+      case 'completed': 
+        return { label: 'Completed', colorClass: 'bg-green-100 text-green-800' };
+      default: 
+        return { label: swap.status.charAt(0).toUpperCase() + swap.status.slice(1), colorClass: 'bg-gray-100 text-gray-800' };
+    }
+  };
   
-  // Check if any other swaps involving the same shift IDs are already accepted
-  const isShiftInvolvedInAcceptedSwap = allMatches.some(match => 
-    match.status === 'accepted' && 
-    (match.myShift.id === swap.myShift.id || 
-     match.otherShift.id === swap.myShift.id ||
-     match.myShift.id === swap.otherShift.id || 
-     match.otherShift.id === swap.otherShift.id)
-  );
-
-  // Check if any swap with the same request IDs is already accepted
-  const isRequestInvolvedInAcceptedSwap = allMatches.some(match => 
-    match.status === 'accepted' && 
-    (match.myRequestId === swap.myRequestId ||
-     match.otherRequestId === swap.myRequestId ||
-     match.myRequestId === swap.otherRequestId ||
-     match.otherRequestId === swap.otherRequestId)
-  );
+  const displayStatus = getDisplayStatus();
   
-  // Combined flag for any conflict
-  const isConflicting = Boolean(swap.isConflictingWithAccepted) || 
-    isShiftInvolvedInAcceptedSwap || 
-    isRequestInvolvedInAcceptedSwap;
-  
-  // If the swap itself is not accepted but conflicts with an accepted swap,
-  // we'll display it as effectively conflicting
-  const effectiveStatus = isAccepted ? 'accepted' : 
-                          isConflicting ? 'conflicting' : 
-                          swap.status;
-  
-  // Should we show the Accept button? Only if:
-  // - Swap is pending (not accepted)
-  // - Not conflicting with an accepted swap
-  // - The onAccept handler exists
+  // Determine whether to show the Accept button
+  // Only show it for pending swaps that aren't marked as otherAccepted
   const showAcceptButton = 
+    !isPast && 
     swap.status === 'pending' && 
-    !isConflicting &&
     onAccept !== undefined;
   
   return (
@@ -92,14 +76,8 @@ export const SwapCard = ({
             <h3 className="text-lg font-medium">Shift Swap</h3>
           </div>
           <div>
-            <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-              effectiveStatus === 'pending' ? 'bg-amber-100 text-amber-800' :
-              effectiveStatus === 'accepted' ? 'bg-blue-100 text-blue-800' :
-              effectiveStatus === 'conflicting' ? 'bg-orange-100 text-orange-800' :
-              'bg-green-100 text-green-800'
-            }`}>
-              {effectiveStatus === 'conflicting' ? 'Already Accepted by Others' : 
-               effectiveStatus.charAt(0).toUpperCase() + effectiveStatus.slice(1)}
+            <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${displayStatus.colorClass}`}>
+              {displayStatus.label}
             </span>
           </div>
         </div>
@@ -181,10 +159,10 @@ export const SwapCard = ({
       {!isPast && (
         <CardFooter className="bg-secondary/20 border-t px-4 py-3">
           <div className="w-full flex justify-end gap-2">
-            {/* Show message if the swap is conflicting */}
-            {isConflicting && swap.status === 'pending' && (
+            {/* Show message if the swap has been accepted by another user */}
+            {swap.status === 'otherAccepted' && (
               <div className="text-sm text-orange-600 pr-4 self-center">
-                This swap conflicts with another swap that has already been accepted.
+                This swap is no longer available as it has been accepted by another user.
               </div>
             )}
 
@@ -199,7 +177,7 @@ export const SwapCard = ({
             )}
             
             {/* Explicitly check for 'accepted' status */}
-            {isAccepted && (
+            {swap.status === 'accepted' && (
               <>
                 {onResendEmail && (
                   <Button 
