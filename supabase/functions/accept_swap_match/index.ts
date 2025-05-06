@@ -68,30 +68,6 @@ serve(async (req) => {
     }
 
     console.log(`Found match data:`, matchData)
-    
-    // Check if these shifts are already in an accepted match
-    const { data: acceptedMatches, error: acceptedMatchesError } = await supabaseAdmin
-      .from('shift_swap_potential_matches')
-      .select('*')
-      .eq('status', 'accepted')
-      .or(`requester_shift_id.eq.${matchData.requester_shift_id},requester_shift_id.eq.${matchData.acceptor_shift_id},acceptor_shift_id.eq.${matchData.requester_shift_id},acceptor_shift_id.eq.${matchData.acceptor_shift_id}`)
-    
-    if (acceptedMatchesError) {
-      console.error('Error checking for accepted matches:', acceptedMatchesError);
-    } else if (acceptedMatches && acceptedMatches.length > 0) {
-      // Check if any of the accepted matches are not this one
-      const otherAcceptedMatches = acceptedMatches.filter(m => m.id !== match_id);
-      if (otherAcceptedMatches.length > 0) {
-        console.log('These shifts are already involved in other accepted matches');
-        return new Response(
-          JSON.stringify({ 
-            error: 'This shift is already part of another accepted swap',
-            status: 'other_accepted'
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-        )
-      }
-    }
 
     // Fetch the request data to get user IDs
     const requestsPromises = [
@@ -183,18 +159,6 @@ serve(async (req) => {
     }
 
     console.log(`Successfully updated match status to accepted`)
-    
-    // Also mark any other pending matches that involve these shifts as "other_accepted"
-    await supabaseAdmin
-      .rpc('mark_related_matches_as_other_accepted', { 
-        match_id: match_id,
-        shift1_id: matchData.requester_shift_id,
-        shift2_id: matchData.acceptor_shift_id
-      })
-      .then(({ data, error }) => {
-        if (error) console.error('Error marking related matches:', error);
-        else console.log('Updated related matches');
-      });
 
     // Send emails in the background - we don't need to await this
     const sendEmails = async () => {

@@ -6,7 +6,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { ArrowRightLeft, Calendar, Clock, Mail, UserCircle2, AlertTriangle } from "lucide-react";
+import { ArrowRightLeft, Calendar, Clock, Mail, UserCircle2 } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "./types";
 
@@ -52,11 +52,9 @@ export const SwapCard = ({
             <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
               swap.status === 'pending' ? 'bg-amber-100 text-amber-800' :
               swap.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
-              swap.status === 'other_accepted' ? 'bg-red-100 text-red-800' :
               'bg-green-100 text-green-800'
             }`}>
-              {swap.status === 'other_accepted' ? 'Already Accepted' :
-               swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
+              {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
             </span>
           </div>
         </div>
@@ -133,22 +131,11 @@ export const SwapCard = ({
             </div>
           </div>
         </div>
-
-        {/* Show warning message for other_accepted status */}
-        {swap.status === 'other_accepted' && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start">
-            <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
-            <p className="text-sm text-red-700">
-              This shift has already been accepted by another user. Please look for other available matches.
-            </p>
-          </div>
-        )}
       </CardContent>
       
       {!isPast && (
         <CardFooter className="bg-secondary/20 border-t px-4 py-3">
           <div className="w-full flex justify-end gap-2">
-            {/* Only show Accept button for pending matches that are not other_accepted */}
             {swap.status === 'pending' && onAccept && (
               <Button 
                 onClick={() => onAccept(swap.id)}

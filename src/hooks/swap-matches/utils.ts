@@ -15,9 +15,6 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
     // Log raw match data for debugging
     console.log(`Processing match ID ${match.match_id} with status ${match.match_status}:`, match);
     
-    // Check if this match has been marked as other_accepted
-    const status = match.is_other_accepted ? 'other_accepted' : match.match_status;
-    
     // Look for colleague_type in various possible locations
     const myShiftColleagueType = 
       match.my_shift_colleague_type || 
@@ -29,14 +26,14 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
       (match.other_shift_data && match.other_shift_data.colleague_type) ||
       'Unknown';
     
-    console.log(`Match ${match.match_id} status: ${status}, colleague types:`, {
+    console.log(`Match ${match.match_id} status: ${match.match_status}, colleague types:`, {
       myShift: myShiftColleagueType,
       otherShift: otherShiftColleagueType
     });
     
     return {
       id: match.match_id,
-      status: status,
+      status: match.match_status,
       myShift: {
         id: match.my_shift_id,
         date: match.my_shift_date,
