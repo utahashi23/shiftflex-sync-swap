@@ -16,22 +16,22 @@ export function SmtpTestButton() {
       setIsLoading(true);
       setTestStatus(null);
       setConnectionDetails(null);
-      toast.info("Testing SMTP connection...");
-      console.log("Testing SMTP connectivity with Mailgun");
+      toast.info("Testing Loop.so SMTP connection...");
+      console.log("Testing Loop.so SMTP connectivity");
 
       // Add a retry count for diagnostic purposes
       const currentRetry = retryCount + 1;
       setRetryCount(currentRetry);
 
-      // Call the edge function to test SMTP
-      const response = await supabase.functions.invoke('test_mailgun_smtp', {
+      // Call the edge function to test Loop.so SMTP
+      const response = await supabase.functions.invoke('test_loopso_smtp', {
         body: {
           test_attempt: currentRetry,
           timestamp: new Date().toISOString()
         }
       });
 
-      console.log(`SMTP test response (Attempt ${currentRetry}):`, response);
+      console.log(`Loop.so SMTP test response (Attempt ${currentRetry}):`, response);
 
       if (response.error) {
         setTestStatus("Connection failed");
@@ -59,7 +59,7 @@ export function SmtpTestButton() {
       } else {
         setTestStatus("Connected");
         setConnectionDetails(response.data?.message || "SMTP working");
-        toast.success("SMTP connection successful! Email sent via SMTP.");
+        toast.success("SMTP connection successful! Email sent via Loop.so SMTP.");
       }
     } catch (error) {
       console.error("Error testing SMTP:", error);
@@ -83,10 +83,10 @@ export function SmtpTestButton() {
       {isLoading ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Testing SMTP Connection...
+          Testing Loop.so SMTP Connection...
         </>
       ) : (
-        "Test Mailgun SMTP Connection"
+        "Test Loop.so SMTP Connection"
       )}
       {testStatus && (
         <span className={`ml-2 text-xs ${testStatus === "Connected" ? "text-green-500" : "text-red-500"}`}>
