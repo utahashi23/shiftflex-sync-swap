@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/auth'; // Import from the correct barrel file
@@ -17,10 +18,10 @@ const Index = () => {
 
   const features = [
     {
-      title: "Shift Calendar",
-      description: "View and manage your upcoming shifts in a convenient calendar view",
+      title: "Roster",
+      description: "View and manage your upcoming shifts in a convenient roster view",
       icon: <Calendar className="h-8 w-8 text-primary" />,
-      path: "/calendar"
+      path: "/roster"
     },
     {
       title: "Shift Swaps",
@@ -32,7 +33,7 @@ const Index = () => {
       title: "Truck Assignment",
       description: "See which truck you're assigned to for each shift",
       icon: <Truck className="h-8 w-8 text-primary" />,
-      path: "/calendar"
+      path: "/roster"
     },
     {
       title: "FAQ",

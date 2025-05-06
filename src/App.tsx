@@ -41,7 +41,7 @@ const App = () => (
             {/* App Routes */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/shifts" element={<ShiftSwaps />} />
-            <Route path="/calendar" element={<CalendarManagement />} />
+            <Route path="/roster" element={<CalendarManagement />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/faq" element={<FAQ />} />
