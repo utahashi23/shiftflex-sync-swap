@@ -6,7 +6,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { ArrowRightLeft, Calendar, Clock, Mail, UserCircle2, AlertCircle } from "lucide-react";
+import { ArrowRightLeft, Calendar, Clock, Mail, UserCircle2 } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "./types";
 
@@ -52,11 +52,9 @@ export const SwapCard = ({
             <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
               swap.status === 'pending' ? 'bg-amber-100 text-amber-800' :
               swap.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
-              swap.status === 'other_accepted' ? 'bg-orange-100 text-orange-800' :
               'bg-green-100 text-green-800'
             }`}>
-              {swap.status === 'other_accepted' ? 'Already Accepted' : 
-                swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
+              {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
             </span>
           </div>
         </div>
@@ -133,19 +131,6 @@ export const SwapCard = ({
             </div>
           </div>
         </div>
-        
-        {/* Show message when status is other_accepted */}
-        {swap.status === 'other_accepted' && (
-          <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md flex items-start">
-            <AlertCircle className="h-5 w-5 mr-2 text-orange-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 className="font-medium text-orange-800">Already Accepted</h4>
-              <p className="text-sm text-orange-700">
-                This swap is no longer available as someone else has already accepted it.
-              </p>
-            </div>
-          </div>
-        )}
       </CardContent>
       
       {!isPast && (

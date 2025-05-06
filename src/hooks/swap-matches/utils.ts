@@ -1,38 +1,46 @@
 
 import { SwapMatch } from './types';
+import { getShiftType } from '@/utils/shiftUtils';
 
 /**
- * Format raw API data into structured SwapMatch objects
+ * Format raw API matches data into SwapMatch objects
  */
 export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
-  if (!matchesData || !Array.isArray(matchesData)) return [];
+  if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
+    return [];
+  }
   
-  // Process the matches data into SwapMatch objects
-  return matchesData.map((match: any) => {
-    // Set default values for colleague types if missing
-    const myShiftColleagueType = match.my_shift_colleague_type || 'Unknown';
-    const otherShiftColleagueType = match.other_shift_colleague_type || 'Unknown';
+  // Process and format the matches data
+  return matchesData.map(match => {
+    // Log raw match data for debugging
+    console.log(`Processing match ID ${match.match_id} with status ${match.match_status}:`, match);
     
-    // Determine if this is a case where the request is already accepted by another user
-    // This happens when the same shift is involved in multiple match requests
-    // and one of those matches is already accepted
-    let status = match.match_status;
+    // Look for colleague_type in various possible locations
+    const myShiftColleagueType = 
+      match.my_shift_colleague_type || 
+      (match.my_shift_data && match.my_shift_data.colleague_type) ||
+      'Unknown';
     
-    // Check if this match should be marked as "other_accepted"
-    if (match.is_other_accepted === true) {
-      status = 'other_accepted';
-    }
+    const otherShiftColleagueType = 
+      match.other_shift_colleague_type || 
+      (match.other_shift_data && match.other_shift_data.colleague_type) ||
+      'Unknown';
+    
+    console.log(`Match ${match.match_id} status: ${match.match_status}, colleague types:`, {
+      myShift: myShiftColleagueType,
+      otherShift: otherShiftColleagueType
+    });
     
     return {
       id: match.match_id,
-      status: status,
+      status: match.match_status,
       myShift: {
         id: match.my_shift_id,
         date: match.my_shift_date,
         startTime: match.my_shift_start_time,
         endTime: match.my_shift_end_time,
         truckName: match.my_shift_truck,
-        type: match.my_shift_type || getShiftType(match.my_shift_start_time),
+        type: getShiftType(match.my_shift_start_time),
         colleagueType: myShiftColleagueType
       },
       otherShift: {
@@ -41,7 +49,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         startTime: match.other_shift_start_time,
         endTime: match.other_shift_end_time,
         truckName: match.other_shift_truck,
-        type: match.other_shift_type || getShiftType(match.other_shift_start_time),
+        type: getShiftType(match.other_shift_start_time),
         userId: match.other_user_id,
         userName: match.other_user_name || 'Unknown User',
         colleagueType: otherShiftColleagueType
@@ -51,17 +59,4 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
       createdAt: match.created_at
     };
   });
-};
-
-/**
- * Determine shift type based on start time
- */
-export const getShiftType = (startTime: string): 'day' | 'afternoon' | 'night' => {
-  if (!startTime) return 'unknown' as any;
-  
-  const hour = parseInt(startTime.split(':')[0]);
-  
-  if (hour >= 5 && hour < 12) return 'day';
-  if (hour >= 12 && hour < 17) return 'afternoon';
-  return 'night';
 };
