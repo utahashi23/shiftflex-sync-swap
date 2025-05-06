@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/auth';
 import { SwapMatch } from '../types';
@@ -75,7 +74,8 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
           endTime: match.my_shift_end_time,
           truckName: match.my_shift_truck,
           type: getShiftType(match.my_shift_start_time),
-          colleagueType: myShiftColleagueType
+          colleagueType: myShiftColleagueType,
+          employeeId: match.my_user_employee_id || null // Include employee ID for myShift
         },
         otherShift: {
           id: match.other_shift_id,
@@ -178,7 +178,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       fetchInProgressRef.current = false; // Reset the operation flag
     }
   };
-
+  
   return {
     matches,
     pastMatches,

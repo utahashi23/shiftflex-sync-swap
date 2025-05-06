@@ -61,7 +61,8 @@ export const useFetchMatchedData = () => {
             endTime: match.my_shift_end_time,
             truckName: match.my_shift_truck,
             type: getShiftType(match.my_shift_start_time),
-            colleagueType: match.my_shift_colleague_type || null
+            colleagueType: match.my_shift_colleague_type || null,
+            employeeId: null // We'll update this with profile data
           },
           otherShift: {
             id: match.other_shift_id,
@@ -84,6 +85,7 @@ export const useFetchMatchedData = () => {
       // Get user IDs involved in swaps for profile info
       const userIds = new Set<string>();
       formattedMatches.forEach(match => {
+        userIds.add(userId); // Add current user to get their employeeId
         if (match.otherShift.userId) userIds.add(match.otherShift.userId);
       });
       
@@ -110,14 +112,20 @@ export const useFetchMatchedData = () => {
       
       // Update matches with user names and employee IDs
       formattedMatches.forEach(match => {
-        const userId = match.otherShift.userId;
-        if (userId && profilesMap[userId]) {
-          const profile = profilesMap[userId];
+        // Update otherShift with user profile data
+        const otherUserId = match.otherShift.userId;
+        if (otherUserId && profilesMap[otherUserId]) {
+          const profile = profilesMap[otherUserId];
           match.otherShift.userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User';
           match.otherShift.employeeId = profile.employee_id || null;
         } else {
           match.otherShift.userName = 'Unknown User';
           match.otherShift.employeeId = null;
+        }
+        
+        // Update myShift with current user's profile data
+        if (profilesMap[userId]) {
+          match.myShift.employeeId = profilesMap[userId].employee_id || null;
         }
       });
       

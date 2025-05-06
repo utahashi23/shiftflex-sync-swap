@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ArrowRightLeft, Calendar, Clock, Copy, Eye, Mail, UserCircle2, AlertTriangle } from "lucide-react";
+import { ArrowRightLeft, Calendar, Clock, Copy, Eye, Mail, UserCircle2, AlertTriangle, Briefcase } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "./types";
 import { useState } from "react";
@@ -93,6 +94,7 @@ Time: ${swap.myShift.startTime} - ${swap.myShift.endTime}
 Type: ${swap.myShift.type.charAt(0).toUpperCase() + swap.myShift.type.slice(1)}
 Location: ${swap.myShift.truckName || 'Not specified'}
 Colleague Type: ${swap.myShift.colleagueType || 'Not specified'}
+Employee ID: ${swap.myShift.employeeId || 'Not provided'}
 
 Matched Shift:
 Date: ${formatDate(swap.otherShift.date)}
@@ -151,6 +153,12 @@ Swap ID: ${swap.id}`;
             <div className="p-3 border rounded-md bg-background">
               <div className="flex items-center justify-between">
                 <ShiftTypeBadge type={swap.myShift.type} />
+                {swap.myShift.employeeId && (
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Briefcase className="h-3 w-3 mr-1" />
+                    <span>{swap.myShift.employeeId}</span>
+                  </div>
+                )}
               </div>
               
               <div className="flex items-center mt-2">
@@ -185,8 +193,16 @@ Swap ID: ${swap.id}`;
             <div className="p-3 border rounded-md bg-background">
               <div className="flex items-center justify-between">
                 <ShiftTypeBadge type={swap.otherShift.type} />
-                <div className="text-xs font-medium text-muted-foreground">
-                  {swap.otherShift.userName}
+                <div className="flex flex-col items-end gap-1">
+                  <div className="text-xs font-medium text-muted-foreground">
+                    {swap.otherShift.userName}
+                  </div>
+                  {swap.otherShift.employeeId && (
+                    <div className="flex items-center text-xs text-muted-foreground">
+                      <Briefcase className="h-3 w-3 mr-1" />
+                      <span>{swap.otherShift.employeeId}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -257,8 +273,7 @@ Swap ID: ${swap.id}`;
             {/* Explicitly check for 'accepted' status */}
             {swap.status === 'accepted' && (
               <>
-                {/* Removed the Resend Email button as requested */}
-                {/* Instead adding a See Swap Details button */}
+                {/* See Swap Details button */}
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button 
