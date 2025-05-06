@@ -59,21 +59,21 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
       console.log(`Formatted match ${match.id} has status: ${match.status}`);
     });
     
-    // Separate active and past matches - include both pending, accepted and otherAccepted in active
+    // Separate active and past matches
     const activeMatches = formattedMatches.filter((match: SwapMatch) => 
-      match.status === 'pending' || match.status === 'accepted' || match.status === 'otherAccepted'
+      match.status === 'pending' || match.status === 'accepted'
     );
     
-    const completedMatches = formattedMatches.filter((match: SwapMatch) => 
+    const pastMatches = formattedMatches.filter((match: SwapMatch) => 
       match.status === 'completed'
     );
     
-    console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
+    console.log(`Processed ${activeMatches.length} active matches and ${pastMatches.length} past matches`);
     console.log(`Active matches with 'accepted' status: ${activeMatches.filter((m: SwapMatch) => m.status === 'accepted').length}`);
     
     return {
       matches: activeMatches,
-      pastMatches: completedMatches,
+      pastMatches: pastMatches,
       rawApiData: matchesData
     };
   } catch (error) {

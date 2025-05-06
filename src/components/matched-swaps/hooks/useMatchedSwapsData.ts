@@ -53,8 +53,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       // Explicitly log the colleague_type fields for debugging
       console.log(`Match ${match.match_id} colleague types from API:`, {
         my_shift_colleague_type: match.my_shift_colleague_type,
-        other_shift_colleague_type: match.other_shift_colleague_type,
-        status: match.match_status
+        other_shift_colleague_type: match.other_shift_colleague_type
       });
       
       // Extract colleague types from raw data
@@ -63,8 +62,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       
       console.log(`Match ${match.match_id} processed colleague types:`, {
         myShift: myShiftColleagueType,
-        otherShift: otherShiftColleagueType,
-        status: match.match_status
+        otherShift: otherShiftColleagueType
       });
       
       return {
@@ -130,9 +128,9 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       const formattedMatches = processMatchesData(matchesData || []);
       console.log('Formatted matches after processing:', formattedMatches);
       
-      // Separate active and past matches - IMPORTANT: include both pending and accepted in active
+      // Separate active and past matches
       const activeMatches = formattedMatches.filter((match: SwapMatch) => 
-        match.status === 'pending' || match.status === 'accepted' || match.status === 'otherAccepted'
+        match.status === 'pending' || match.status === 'accepted'
       );
       
       const completedMatches = formattedMatches.filter((match: SwapMatch) => 
@@ -140,11 +138,6 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       );
       
       console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
-      console.log(`Active matches by status:`, {
-        pending: activeMatches.filter(m => m.status === 'pending').length,
-        accepted: activeMatches.filter(m => m.status === 'accepted').length,
-        otherAccepted: activeMatches.filter(m => m.status === 'otherAccepted').length
-      });
       
       // Update the state with the new matches
       setMatches(activeMatches);

@@ -42,29 +42,33 @@ export const SwapCard = ({
     otherShift: swap.otherShift.colleagueType
   });
   
-  // Get the display status for UI
-  const getDisplayStatus = () => {
-    switch (swap.status) {
-      case 'pending': 
-        return { label: 'Pending', colorClass: 'bg-amber-100 text-amber-800' };
-      case 'accepted': 
-        return { label: 'Accepted', colorClass: 'bg-blue-100 text-blue-800' };
-      case 'otherAccepted': 
-        return { label: 'Other User Accepted', colorClass: 'bg-orange-100 text-orange-800' };
-      case 'completed': 
-        return { label: 'Completed', colorClass: 'bg-green-100 text-green-800' };
-      default: 
-        return { label: swap.status.charAt(0).toUpperCase() + swap.status.slice(1), colorClass: 'bg-gray-100 text-gray-800' };
-    }
-  };
+  // Check if there's any accepted swap among all matches
+  const hasAcceptedSwap = allMatches.some(match => match.status === 'accepted');
   
-  const displayStatus = getDisplayStatus();
-  
-  // Determine whether to show the Accept button
-  // Only show it for pending swaps that aren't marked as otherAccepted
+  // Determine if this swap is already accepted or conflicts with an accepted swap
+  const isAccepted = swap.status === 'accepted';
+  const isConflicting = Boolean(swap.isConflictingWithAccepted) || 
+    (allMatches.length > 0 && allMatches.some(otherMatch => 
+      otherMatch.id !== swap.id && 
+      otherMatch.status === 'accepted' && 
+      (otherMatch.myShift.id === swap.myShift.id || 
+       otherMatch.otherShift.id === swap.myShift.id ||
+       otherMatch.myShift.id === swap.otherShift.id || 
+       otherMatch.otherShift.id === swap.otherShift.id ||
+       otherMatch.myRequestId === swap.myRequestId ||
+       otherMatch.otherRequestId === swap.myRequestId ||
+       otherMatch.myRequestId === swap.otherRequestId ||
+       otherMatch.otherRequestId === swap.otherRequestId)
+    ));
+    
+  // Should we show the Accept button? Only if:
+  // - Swap is pending (not accepted)
+  // - Not conflicting with an accepted swap
+  // - No other swaps are accepted
+  // - The onAccept handler exists
   const showAcceptButton = 
-    !isPast && 
     swap.status === 'pending' && 
+    !isConflicting &&
     onAccept !== undefined;
   
   return (
@@ -76,8 +80,13 @@ export const SwapCard = ({
             <h3 className="text-lg font-medium">Shift Swap</h3>
           </div>
           <div>
-            <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${displayStatus.colorClass}`}>
-              {displayStatus.label}
+            <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+              swap.status === 'pending' ? (isConflicting ? 'bg-orange-100 text-orange-800' : 'bg-amber-100 text-amber-800') :
+              swap.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
+              'bg-green-100 text-green-800'
+            }`}>
+              {isConflicting ? 'Already Accepted by Others' : 
+               swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
             </span>
           </div>
         </div>
@@ -159,10 +168,10 @@ export const SwapCard = ({
       {!isPast && (
         <CardFooter className="bg-secondary/20 border-t px-4 py-3">
           <div className="w-full flex justify-end gap-2">
-            {/* Show message if the swap has been accepted by another user */}
-            {swap.status === 'otherAccepted' && (
+            {/* Show message if the swap is conflicting */}
+            {(isConflicting || hasAcceptedSwap) && swap.status === 'pending' && (
               <div className="text-sm text-orange-600 pr-4 self-center">
-                This swap is no longer available as it has been accepted by another user.
+                This swap conflicts with another swap that has already been accepted.
               </div>
             )}
 
@@ -177,7 +186,7 @@ export const SwapCard = ({
             )}
             
             {/* Explicitly check for 'accepted' status */}
-            {swap.status === 'accepted' && (
+            {isAccepted && (
               <>
                 {onResendEmail && (
                   <Button 

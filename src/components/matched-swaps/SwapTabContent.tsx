@@ -18,9 +18,32 @@ export const SwapTabContent = ({
   onFinalizeSwap,
   onResendEmail
 }: SwapTabContentProps) => {
-  // Detailed logging of swaps data including statuses and counts
+  // Detailed logging of swaps data including colleague types and statuses
   console.log(`SwapTabContent: Rendering ${swaps?.length || 0} ${isPast ? 'past' : 'active'} swaps`);
   
+  // Check if there's any accepted swap in the list
+  const hasAcceptedSwap = swaps && swaps.some(swap => swap.status === 'accepted');
+  
+  if (swaps && swaps.length > 0) {
+    // Log the colleague types and status of all swaps for debugging
+    swaps.forEach((swap, index) => {
+      console.log(`Swap ${index} (ID: ${swap.id}, Status: ${swap.status}) colleague types:`, {
+        myShift: swap.myShift?.colleagueType,
+        otherShift: swap.otherShift?.colleagueType
+      });
+      
+      // Debug output for accepted swaps
+      if (swap.status === 'accepted') {
+        console.log(`Found ACCEPTED swap with ID: ${swap.id}`);
+      }
+      
+      // Log conflicts
+      if (swap.isConflictingWithAccepted) {
+        console.log(`Swap ${swap.id} is marked as conflicting with an accepted swap`);
+      }
+    });
+  }
+
   if (!swaps || swaps.length === 0) {
     return (
       <EmptySwapState 
@@ -30,24 +53,19 @@ export const SwapTabContent = ({
     );
   }
 
-  // Log count by status for debugging
-  const pendingCount = swaps.filter(swap => swap.status === 'pending').length;
-  const acceptedCount = swaps.filter(swap => swap.status === 'accepted').length;
-  const otherAcceptedCount = swaps.filter(swap => swap.status === 'otherAccepted').length;
-  
-  console.log(`SwapTabContent status counts - Pending: ${pendingCount}, Accepted: ${acceptedCount}, OtherAccepted: ${otherAcceptedCount}`);
-  
   // We ensure uniqueness by ID when displaying swaps
   const uniqueSwapsMap = new Map<string, SwapMatch>();
   
-  // Add all swaps to the map, using the ID as key to ensure uniqueness
+  // Only add items to the map if they're actually SwapMatch objects with colleague type
   swaps.forEach(swap => {
-    // Log each swap's colleague types and status for debugging
-    console.log(`Adding swap ${swap.id} to map with status ${swap.status} and colleague types:`, {
-      myShift: swap.myShift?.colleagueType,
-      otherShift: swap.otherShift?.colleagueType
-    });
-    uniqueSwapsMap.set(swap.id, swap);
+    if (swap && typeof swap === 'object' && 'id' in swap) {
+      // Log each swap's colleague types for debugging
+      console.log(`Adding swap ${swap.id} to map with status ${swap.status} and colleague types:`, {
+        myShift: swap.myShift?.colleagueType,
+        otherShift: swap.otherShift?.colleagueType
+      });
+      uniqueSwapsMap.set(swap.id, swap);
+    }
   });
   
   const uniqueSwaps = Array.from(uniqueSwapsMap.values());
@@ -64,7 +82,7 @@ export const SwapTabContent = ({
           onAccept={!isPast && swap.status === 'pending' ? onAcceptSwap : undefined}
           onFinalize={!isPast && swap.status === 'accepted' ? onFinalizeSwap : undefined}
           onResendEmail={!isPast && swap.status === 'accepted' ? onResendEmail : undefined}
-          allMatches={swaps} // Pass all swaps for reference if needed
+          allMatches={swaps} // Pass all swaps for conflict checking
         />
       ))}
     </div>
