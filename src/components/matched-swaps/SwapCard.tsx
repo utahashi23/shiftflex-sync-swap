@@ -16,7 +16,6 @@ interface SwapCardProps {
   onAccept?: (matchId: string) => void;
   onFinalize?: (matchId: string) => void;
   onResendEmail?: (matchId: string) => void;
-  isAcceptedByOthers?: boolean; // Explicitly pass this prop from parent
 }
 
 // Format date to a readable string
@@ -33,14 +32,16 @@ export const SwapCard = ({
   isPast = false, 
   onAccept, 
   onFinalize, 
-  onResendEmail,
-  isAcceptedByOthers = false // Default to false if not provided
+  onResendEmail 
 }: SwapCardProps) => {
   // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
     otherShift: swap.otherShift.colleagueType
   });
+
+  // Check if this match is already accepted by others and needs finalization
+  const isAcceptedByOthers = swap.status === 'accepted' && !onFinalize;
   
   return (
     <Card className="overflow-hidden">
@@ -156,6 +157,7 @@ export const SwapCard = ({
               <Button 
                 onClick={() => onAccept(swap.id)}
                 className="bg-green-600 hover:bg-green-700"
+                // Disable the button if the swap is already accepted by others
                 disabled={isAcceptedByOthers}
               >
                 {isAcceptedByOthers ? "Already Accepted" : "Accept Swap"}
@@ -170,7 +172,10 @@ export const SwapCard = ({
                     onClick={() => onResendEmail(swap.id)}
                     variant="outline"
                     className="flex items-center"
+                    // Disable the button if the swap is already accepted by others
                     disabled={isAcceptedByOthers}
+                    // Add opacity to visually indicate the button is disabled
+                    style={{ opacity: isAcceptedByOthers ? 0.5 : 1 }}
                   >
                     <Mail className="h-4 w-4 mr-2" />
                     Resend Email
@@ -181,7 +186,10 @@ export const SwapCard = ({
                   <Button 
                     onClick={() => onFinalize(swap.id)}
                     className="bg-blue-600 hover:bg-blue-700"
+                    // Disable the button if the swap is already accepted by others
                     disabled={isAcceptedByOthers}
+                    // Add opacity to visually indicate the button is disabled
+                    style={{ opacity: isAcceptedByOthers ? 0.5 : 1 }}
                   >
                     Finalize Swap
                   </Button>
