@@ -18,7 +18,7 @@ export const SwapTabContent = ({
   onFinalizeSwap,
   onResendEmail
 }: SwapTabContentProps) => {
-  // Detailed logging of swaps data including colleague types and statuses
+  // Detailed logging of swaps data including statuses and counts
   console.log(`SwapTabContent: Rendering ${swaps?.length || 0} ${isPast ? 'past' : 'active'} swaps`);
   
   if (!swaps || swaps.length === 0) {
@@ -30,6 +30,13 @@ export const SwapTabContent = ({
     );
   }
 
+  // Log count by status for debugging
+  const pendingCount = swaps.filter(swap => swap.status === 'pending').length;
+  const acceptedCount = swaps.filter(swap => swap.status === 'accepted').length;
+  const otherAcceptedCount = swaps.filter(swap => swap.status === 'otherAccepted').length;
+  
+  console.log(`SwapTabContent status counts - Pending: ${pendingCount}, Accepted: ${acceptedCount}, OtherAccepted: ${otherAcceptedCount}`);
+  
   // We ensure uniqueness by ID when displaying swaps
   const uniqueSwapsMap = new Map<string, SwapMatch>();
   
