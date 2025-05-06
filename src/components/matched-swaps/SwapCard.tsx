@@ -40,30 +40,6 @@ export const SwapCard = ({
     otherShift: swap.otherShift.colleagueType
   });
   
-  // Determine the display status text
-  const getStatusDisplayText = (status: string) => {
-    if (status === 'otherAccepted') {
-      return 'Accepted by Other User';
-    }
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  };
-  
-  // Get the appropriate status color
-  const getStatusColorClasses = (status: string) => {
-    switch(status) {
-      case 'pending':
-        return 'bg-amber-100 text-amber-800';
-      case 'accepted':
-        return 'bg-blue-100 text-blue-800';
-      case 'otherAccepted':
-        return 'bg-purple-100 text-purple-800';
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-  
   return (
     <Card className="overflow-hidden">
       <CardHeader className="bg-secondary/30 pb-3">
@@ -73,8 +49,12 @@ export const SwapCard = ({
             <h3 className="text-lg font-medium">Shift Swap</h3>
           </div>
           <div>
-            <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${getStatusColorClasses(swap.status)}`}>
-              {getStatusDisplayText(swap.status)}
+            <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+              swap.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+              swap.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
+              'bg-green-100 text-green-800'
+            }`}>
+              {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
             </span>
           </div>
         </div>
@@ -156,7 +136,6 @@ export const SwapCard = ({
       {!isPast && (
         <CardFooter className="bg-secondary/20 border-t px-4 py-3">
           <div className="w-full flex justify-end gap-2">
-            {/* Only show Accept button for 'pending' status */}
             {swap.status === 'pending' && onAccept && (
               <Button 
                 onClick={() => onAccept(swap.id)}
@@ -166,7 +145,7 @@ export const SwapCard = ({
               </Button>
             )}
             
-            {/* Only show buttons for 'accepted' status (not for 'otherAccepted') */}
+            {/* Explicitly check for 'accepted' status */}
             {swap.status === 'accepted' && (
               <>
                 {onResendEmail && (
@@ -189,13 +168,6 @@ export const SwapCard = ({
                   </Button>
                 )}
               </>
-            )}
-            
-            {/* No buttons for otherAccepted status */}
-            {swap.status === 'otherAccepted' && (
-              <div className="text-sm italic text-muted-foreground">
-                Awaiting roster approval by the other user
-              </div>
             )}
           </div>
         </CardFooter>

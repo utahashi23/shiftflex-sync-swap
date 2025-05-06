@@ -16,22 +16,18 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
   
   const { user } = useAuth();
   
-  const fetchMatches = async (userPerspectiveOnly: boolean = true, userInitiatorOnly: boolean = false) => {
+  const fetchMatches = async (userPerspectiveOnly: boolean = true, userInitiatorOnly: boolean = true) => {
     if (!user) return;
     
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
-      console.log('Fetching matches with userInitiatorOnly:', userInitiatorOnly);
-      
+      // Always force userInitiatorOnly to true to ensure consistent behavior
       const { matches, pastMatches, rawApiData } = await fetchUserMatches(
         user.id,
         userPerspectiveOnly, 
-        userInitiatorOnly // Changed default to false to get all matches
+        true // Always use true for userInitiatorOnly
       );
-      
-      console.log('Received matches from API:', matches);
-      console.log('Raw data from API:', rawApiData);
       
       setState({
         matches,
@@ -146,8 +142,8 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
   // Fetch matches when the component mounts or user changes
   useEffect(() => {
     if (user) {
-      // Important: set userInitiatorOnly to false to ensure we get all matches including otherAccepted
-      fetchMatches(true, false);
+      // Always force userInitiatorOnly to true to ensure consistent behavior
+      fetchMatches(true, true);
     }
   }, [user]);
   

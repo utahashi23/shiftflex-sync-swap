@@ -13,12 +13,11 @@ const corsHeaders = {
 serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
-    console.log('Handling OPTIONS preflight request');
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    // Get the request body
+    // Get the request body and parse any options
     const { 
       user_id, 
       verbose = false, 
@@ -29,7 +28,7 @@ serve(async (req) => {
       include_colleague_types = true, 
       include_shift_data = true
     } = await req.json()
-    
+
     if (!user_id) {
       return new Response(
         JSON.stringify({ error: 'Missing user_id parameter' }),
@@ -209,152 +208,99 @@ serve(async (req) => {
                     }
                   }
                   
-                  // Get all potential matches for this user
-                  const { data: userMatches, error: userMatchesError } = await serviceClient
-                    .from('shift_swap_potential_matches')
-                    .select('*')
-                    .or(`requester_request_id.in.(${userRequests.map(r => r.id).join(',')}),acceptor_request_id.in.(${userRequests.map(r => r.id).join(',')})`)
-                    .order('created_at', { ascending: false });
-
-                  if (userMatchesError) {
-                    console.error('Error fetching user matches:', userMatchesError);
-                  } else {
-                    console.log(`Found ${userMatches?.length || 0} potential matches for user ${user_id}`);
+                  // Get user info for all matches
+                  if (matches.length > 0) {
+                    // Process matches to return formatted data
+                    const formattedMatches = [];
                     
-                    // Get data about accepted matches to know which shifts are already committed
-                    const { data: acceptedMatches, error: acceptedError } = await serviceClient
-                      .from('shift_swap_potential_matches')
-                      .select('*')
-                      .eq('status', 'accepted');
-                    
-                    // Create sets of shifts and requests that are in accepted matches
-                    const acceptedShiftIds = new Set();
-                    const acceptedRequestIds = new Set();
-                    
-                    if (acceptedMatches) {
-                      acceptedMatches.forEach(match => {
-                        acceptedShiftIds.add(match.requester_shift_id);
-                        acceptedShiftIds.add(match.acceptor_shift_id);
-                        acceptedRequestIds.add(match.requester_request_id);
-                        acceptedRequestIds.add(match.acceptor_request_id);
+                    for (const match of matches) {
+                      // Get user and shift info for both sides of the match
+                      const req1 = userRequests.find(r => r.id === match.requester_request_id) || 
+                                  otherRequests.find(r => r.id === match.requester_request_id);
+                      
+                      const req2 = userRequests.find(r => r.id === match.acceptor_request_id) || 
+                                  otherRequests.find(r => r.id === match.acceptor_request_id);
+                      
+                      if (!req1 || !req2) continue;
+                      
+                      const shift1 = shiftsMap[req1.requester_shift_id];
+                      const shift2 = shiftsMap[req2.requester_shift_id];
+                      
+                      if (!shift1 || !shift2) continue;
+                      
+                      // Log shift data to confirm colleague_type
+                      console.log('Processing match with shifts:', {
+                        shift1: {
+                          id: shift1.id,
+                          colleague_type: shift1.colleague_type
+                        },
+                        shift2: {
+                          id: shift2.id,
+                          colleague_type: shift2.colleague_type
+                        }
+                      });
+                      
+                      // Get user info
+                      const { data: user1 } = await serviceClient
+                        .from('profiles')
+                        .select('first_name, last_name')
+                        .eq('id', req1.requester_id)
+                        .single();
+                        
+                      const { data: user2 } = await serviceClient
+                        .from('profiles')
+                        .select('first_name, last_name')
+                        .eq('id', req2.requester_id)
+                        .single();
+                      
+                      // Always ensure the user's request is the "my" side
+                      const isUserReq1 = req1.requester_id === user_id;
+                      
+                      // User's shift is first, other user's shift is second
+                      const myShift = isUserReq1 ? shift1 : shift2;
+                      const otherShift = isUserReq1 ? shift2 : shift1;
+                      
+                      formattedMatches.push({
+                        match_id: match.id,
+                        match_status: match.status || 'pending',
+                        created_at: match.created_at,
+                        match_date: match.match_date,
+                        my_request_id: isUserReq1 ? req1.id : req2.id,
+                        other_request_id: isUserReq1 ? req2.id : req1.id,
+                        my_shift_id: myShift.id,
+                        my_shift_date: myShift.date,
+                        my_shift_start_time: myShift.start_time,
+                        my_shift_end_time: myShift.end_time,
+                        my_shift_truck: myShift.truck_name,
+                        my_shift_colleague_type: myShift.colleague_type || 'Unknown',
+                        other_shift_id: otherShift.id,
+                        other_shift_date: otherShift.date,
+                        other_shift_start_time: otherShift.start_time,
+                        other_shift_end_time: otherShift.end_time, 
+                        other_shift_truck: otherShift.truck_name,
+                        other_shift_colleague_type: otherShift.colleague_type || 'Unknown',
+                        other_user_id: isUserReq1 ? req2.requester_id : req1.requester_id,
+                        other_user_name: isUserReq1 
+                          ? `${user2?.first_name || ''} ${user2?.last_name || ''}`.trim() 
+                          : `${user1?.first_name || ''} ${user1?.last_name || ''}`.trim()
                       });
                     }
                     
-                    // Process user matches
-                    if (userMatches) {
-                      // Get user info for all matches
-                      const formattedMatches = [];
-                      
-                      for (const match of userMatches) {
-                        // Get request data for both sides of the match
-                        const { data: req1Data, error: req1Error } = await serviceClient
-                          .from('shift_swap_requests')
-                          .select('*')
-                          .eq('id', match.requester_request_id)
-                          .single();
-                          
-                        const { data: req2Data, error: req2Error } = await serviceClient
-                          .from('shift_swap_requests')
-                          .select('*')
-                          .eq('id', match.acceptor_request_id)
-                          .single();
-                        
-                        if (req1Error || req2Error || !req1Data || !req2Data) {
-                          console.log('Error fetching request data, skipping match');
-                          continue;
-                        }
-                        
-                        // Get shift data for both sides
-                        const shift1 = shiftsMap[match.requester_shift_id];
-                        const shift2 = shiftsMap[match.acceptor_shift_id];
-                        
-                        if (!shift1 || !shift2) {
-                          console.log('Missing shift data, skipping match');
-                          continue;
-                        }
-                        
-                        // Get user profiles
-                        const { data: user1Profile } = await serviceClient
-                          .from('profiles')
-                          .select('first_name, last_name')
-                          .eq('id', req1Data.requester_id)
-                          .single();
-                          
-                        const { data: user2Profile } = await serviceClient
-                          .from('profiles')
-                          .select('first_name, last_name')
-                          .eq('id', req2Data.requester_id)
-                          .single();
-                        
-                        // Determine if this match involves a shift or request that's part of another accepted match
-                        // We'll mark these as "otherAccepted" if the current user isn't the one who accepted it
-                        let matchStatus = match.status;
-                        
-                        // If the match is pending, check if its shifts/requests are part of other accepted matches
-                        if (matchStatus === 'pending') {
-                          const isShift1InAcceptedMatch = acceptedShiftIds.has(shift1.id);
-                          const isShift2InAcceptedMatch = acceptedShiftIds.has(shift2.id);
-                          const isReq1InAcceptedMatch = acceptedRequestIds.has(req1Data.id);
-                          const isReq2InAcceptedMatch = acceptedRequestIds.has(req2Data.id);
-                          
-                          if (
-                            isShift1InAcceptedMatch || isShift2InAcceptedMatch || 
-                            isReq1InAcceptedMatch || isReq2InAcceptedMatch
-                          ) {
-                            // At least one part of this match is already accepted elsewhere
-                            // This should be marked as otherAccepted for the current user
-                            matchStatus = 'otherAccepted';
-                            console.log(`Marking match ${match.id} as otherAccepted because a related shift or request is part of an accepted match`);
-                          }
-                        }
-                        
-                        // Determine if this is from the user's perspective
-                        const isUserReq1 = req1Data.requester_id === user_id;
-                        
-                        // Format the match data for the frontend
-                        formattedMatches.push({
-                          match_id: match.id,
-                          match_status: matchStatus,
-                          created_at: match.created_at,
-                          match_date: match.match_date,
-                          my_request_id: isUserReq1 ? req1Data.id : req2Data.id,
-                          other_request_id: isUserReq1 ? req2Data.id : req1Data.id,
-                          my_shift_id: isUserReq1 ? shift1.id : shift2.id,
-                          my_shift_date: isUserReq1 ? shift1.date : shift2.date,
-                          my_shift_start_time: isUserReq1 ? shift1.start_time : shift2.start_time,
-                          my_shift_end_time: isUserReq1 ? shift1.end_time : shift2.end_time,
-                          my_shift_truck: isUserReq1 ? shift1.truck_name : shift2.truck_name,
-                          my_shift_colleague_type: isUserReq1 ? shift1.colleague_type : shift2.colleague_type,
-                          other_shift_id: isUserReq1 ? shift2.id : shift1.id,
-                          other_shift_date: isUserReq1 ? shift2.date : shift1.date,
-                          other_shift_start_time: isUserReq1 ? shift2.start_time : shift1.start_time,
-                          other_shift_end_time: isUserReq1 ? shift2.end_time : shift1.end_time, 
-                          other_shift_truck: isUserReq1 ? shift2.truck_name : shift1.truck_name,
-                          other_shift_colleague_type: isUserReq1 ? shift2.colleague_type : shift1.colleague_type,
-                          other_user_id: isUserReq1 ? req2Data.requester_id : req1Data.requester_id,
-                          other_user_name: isUserReq1 
-                            ? `${user2Profile?.first_name || ''} ${user2Profile?.last_name || ''}`.trim() 
-                            : `${user1Profile?.first_name || ''} ${user1Profile?.last_name || ''}`.trim()
-                        });
-                      }
-                      
-                      console.log(`Returning ${formattedMatches.length} formatted matches`);
-                      
-                      // Log first match to verify colleague_type fields are included
-                      if (formattedMatches.length > 0) {
-                        console.log('First formatted match:', {
-                          match_id: formattedMatches[0].match_id,
-                          match_status: formattedMatches[0].match_status,
-                          my_shift_colleague_type: formattedMatches[0].my_shift_colleague_type,
-                          other_shift_colleague_type: formattedMatches[0].other_shift_colleague_type
-                        });
-                      }
-                      
-                      return new Response(
-                        JSON.stringify(formattedMatches),
-                        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-                      );
+                    console.log(`Returning ${formattedMatches.length} formatted matches`);
+                    
+                    // Log first match to verify colleague_type fields are included
+                    if (formattedMatches.length > 0) {
+                      console.log('First formatted match:', {
+                        match_id: formattedMatches[0].match_id,
+                        my_shift_colleague_type: formattedMatches[0].my_shift_colleague_type,
+                        other_shift_colleague_type: formattedMatches[0].other_shift_colleague_type
+                      });
                     }
+                    
+                    return new Response(
+                      JSON.stringify(formattedMatches),
+                      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+                    );
                   }
                 }
               }
@@ -475,13 +421,11 @@ async function getMatchDetails(serviceClient, matches, userId) {
         my_shift_start_time: userShift.start_time,
         my_shift_end_time: userShift.end_time,
         my_shift_truck: userShift.truck_name || null,
-        my_shift_colleague_type: userShift.colleague_type || 'Unknown',
         other_shift_id: otherShift.id,
         other_shift_date: otherShift.date,
         other_shift_start_time: otherShift.start_time,
         other_shift_end_time: otherShift.end_time,
         other_shift_truck: otherShift.truck_name || null,
-        other_shift_colleague_type: otherShift.colleague_type || 'Unknown',
         other_user_id: acceptorData.requester_id,
         other_user_name: otherProfile ? 
           `${otherProfile.first_name || ''} ${otherProfile.last_name || ''}`.trim() : 
@@ -556,27 +500,6 @@ async function attemptManualMatching(serviceClient, userId, userInitiatorOnly = 
     
     console.log(`Fetched ${allPreferredDates?.length || 0} preferred dates`);
     
-    // Get data about accepted matches to know which shifts are already committed
-    const { data: acceptedMatches, error: acceptedError } = await serviceClient
-      .from('shift_swap_potential_matches')
-      .select('*')
-      .eq('status', 'accepted');
-                    
-    // Create sets of shifts and requests that are in accepted matches
-    const acceptedShiftIds = new Set();
-    const acceptedRequestIds = new Set();
-    
-    if (acceptedMatches) {
-      acceptedMatches.forEach(match => {
-        acceptedShiftIds.add(match.requester_shift_id);
-        acceptedShiftIds.add(match.acceptor_shift_id);
-        acceptedRequestIds.add(match.requester_request_id);
-        acceptedRequestIds.add(match.acceptor_request_id);
-      });
-      
-      console.log(`Found ${acceptedMatches.length} accepted matches that may affect availability`);
-    }
-    
     // Now check for potential matches
     const matches = [];
     
@@ -630,25 +553,11 @@ async function attemptManualMatching(serviceClient, userId, userInitiatorOnly = 
           // Check if this match already exists
           const { data: existingMatch, error: matchCheckError } = await serviceClient
             .from('shift_swap_potential_matches')
-            .select('id, status')
+            .select('id')
             .or(`and(requester_request_id.eq.${userRequest.id},acceptor_request_id.eq.${otherRequest.id}),and(requester_request_id.eq.${otherRequest.id},acceptor_request_id.eq.${userRequest.id})`)
             .limit(1);
-          
+            
           if (!matchCheckError && (!existingMatch || existingMatch.length === 0)) {
-            // Check if any part of this match is affected by accepted matches
-            const isUserShiftInAcceptedMatch = acceptedShiftIds.has(userShift.id);
-            const isOtherShiftInAcceptedMatch = acceptedShiftIds.has(otherShift.id);
-            const isUserRequestInAcceptedMatch = acceptedRequestIds.has(userRequest.id);
-            const isOtherRequestInAcceptedMatch = acceptedRequestIds.has(otherRequest.id);
-            
-            // Set status according to any conflicts
-            let initialStatus = 'pending';
-            if (isUserShiftInAcceptedMatch || isOtherShiftInAcceptedMatch || 
-                isUserRequestInAcceptedMatch || isOtherRequestInAcceptedMatch) {
-              initialStatus = 'otherAccepted';
-              console.log(`Setting initial status to otherAccepted due to conflict`);
-            }
-            
             // ALWAYS create match with user request as the requester
             // This ensures "Your Shift" is always the user's shift they want to swap
             const { data: newMatch, error: createError } = await serviceClient
@@ -658,8 +567,7 @@ async function attemptManualMatching(serviceClient, userId, userInitiatorOnly = 
                 acceptor_request_id: otherRequest.id,
                 requester_shift_id: userRequest.requester_shift_id,
                 acceptor_shift_id: otherRequest.requester_shift_id,
-                match_date: new Date().toISOString().split('T')[0],
-                status: initialStatus
+                match_date: new Date().toISOString().split('T')[0]
               })
               .select()
               .single();
@@ -667,7 +575,7 @@ async function attemptManualMatching(serviceClient, userId, userInitiatorOnly = 
             if (createError) {
               console.error('Error creating match:', createError);
             } else {
-              console.log('New match created with status:', newMatch.status);
+              console.log('New match created:', newMatch);
               
               // Add formatted match data
               const { data: otherProfile } = await serviceClient
@@ -675,7 +583,7 @@ async function attemptManualMatching(serviceClient, userId, userInitiatorOnly = 
                 .select('first_name, last_name')
                 .eq('id', otherRequest.requester_id)
                 .single();
-              
+                
               matches.push({
                 match_id: newMatch.id,
                 match_status: newMatch.status,
@@ -688,44 +596,19 @@ async function attemptManualMatching(serviceClient, userId, userInitiatorOnly = 
                 my_shift_start_time: userShift.start_time,
                 my_shift_end_time: userShift.end_time,
                 my_shift_truck: userShift.truck_name || null,
-                my_shift_colleague_type: userShift.colleague_type || 'Unknown',
                 other_shift_id: otherShift.id,
                 other_shift_date: otherShift.date,
                 other_shift_start_time: otherShift.start_time,
                 other_shift_end_time: otherShift.end_time,
                 other_shift_truck: otherShift.truck_name || null,
-                other_shift_colleague_type: otherShift.colleague_type || 'Unknown',
                 other_user_id: otherRequest.requester_id,
                 other_user_name: otherProfile ? 
                   `${otherProfile.first_name || ''} ${otherProfile.last_name || ''}`.trim() : 
                   'Other User'
               });
             }
-          } else if (!matchCheckError && existingMatch && existingMatch.length > 0) {
-            // Match exists, check if we need to update its status
-            const existingStatus = existingMatch[0].status;
-            
-            // Check if any part of this match is affected by accepted matches
-            const isUserShiftInAcceptedMatch = acceptedShiftIds.has(userShift.id);
-            const isOtherShiftInAcceptedMatch = acceptedShiftIds.has(otherShift.id);
-            const isUserRequestInAcceptedMatch = acceptedRequestIds.has(userRequest.id);
-            const isOtherRequestInAcceptedMatch = acceptedRequestIds.has(otherRequest.id);
-            
-            // If the match is pending but should be otherAccepted due to a conflict
-            if (existingStatus === 'pending' && 
-                (isUserShiftInAcceptedMatch || isOtherShiftInAcceptedMatch || 
-                isUserRequestInAcceptedMatch || isOtherRequestInAcceptedMatch)) {
-              
-              // Update the match status to otherAccepted
-              console.log(`Updating match ${existingMatch[0].id} from pending to otherAccepted due to conflict`);
-              
-              await serviceClient
-                .from('shift_swap_potential_matches')
-                .update({ status: 'otherAccepted' })
-                .eq('id', existingMatch[0].id);
-            }
-            
-            console.log('Match already exists:', existingStatus);
+          } else {
+            console.log('Match already exists or check error');
           }
         }
       }

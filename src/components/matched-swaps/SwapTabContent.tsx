@@ -29,13 +29,9 @@ export const SwapTabContent = ({
         otherShift: swap.otherShift?.colleagueType
       });
       
-      // Debug output for different swap statuses
+      // Debug output for accepted swaps
       if (swap.status === 'accepted') {
         console.log(`Found ACCEPTED swap with ID: ${swap.id}`);
-      } else if (swap.status === 'otherAccepted') {
-        console.log(`Found OTHER ACCEPTED swap with ID: ${swap.id}`);
-      } else if (swap.status === 'pending') {
-        console.log(`Found PENDING swap with ID: ${swap.id}`);
       }
     });
   }
@@ -66,8 +62,7 @@ export const SwapTabContent = ({
   
   const uniqueSwaps = Array.from(uniqueSwapsMap.values());
   
-  console.log(`SwapTabContent: Displaying ${uniqueSwaps.length} unique swaps with statuses:`, 
-    uniqueSwaps.map(s => s.status));
+  console.log(`SwapTabContent: Displaying ${uniqueSwaps.length} unique swaps`);
 
   return (
     <div className="space-y-4" data-testid="swap-list">
