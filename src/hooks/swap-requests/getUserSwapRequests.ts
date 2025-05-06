@@ -93,7 +93,7 @@ export const getUserSwapRequestsApi = async (status: string = 'pending'): Promis
     }
     
     if (!directData || directData.length === 0) {
-      console.log('No swap requests found using direct query');
+      console.log(`No swap requests found with status '${status}' using direct query`);
       return [];
     }
     

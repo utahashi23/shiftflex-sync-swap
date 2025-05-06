@@ -178,6 +178,34 @@ serve(async (req) => {
       throw new Error(`Error updating acceptor shift: ${updateAcceptorShift.error.message}`)
     }
 
+    // NEW CODE: Update both swap requests to completed status
+    console.log(`Updating swap requests to completed status: ${matchData.requester_request_id}, ${matchData.acceptor_request_id}`)
+    const updateRequestsPromises = [
+      // Update requester's request to completed
+      supabaseAdmin
+        .from('shift_swap_requests')
+        .update({ status: 'completed' })
+        .eq('id', matchData.requester_request_id),
+      
+      // Update acceptor's request to completed
+      supabaseAdmin
+        .from('shift_swap_requests')
+        .update({ status: 'completed' })
+        .eq('id', matchData.acceptor_request_id)
+    ]
+    
+    const [updateRequesterRequest, updateAcceptorRequest] = await Promise.all(updateRequestsPromises)
+    
+    if (updateRequesterRequest.error) {
+      console.error(`Error updating requester request status: ${updateRequesterRequest.error.message}`)
+      // Continue even if there's an error, as the main operation (shift swap) succeeded
+    }
+    
+    if (updateAcceptorRequest.error) {
+      console.error(`Error updating acceptor request status: ${updateAcceptorRequest.error.message}`)
+      // Continue even if there's an error, as the main operation (shift swap) succeeded
+    }
+
     // Update match status to "completed"
     const { data: updateData, error: updateError } = await supabaseAdmin
       .from('shift_swap_potential_matches')
