@@ -55,7 +55,7 @@ export const SwapCard = ({
         };
       case 'other_accepted':
         return {
-          text: 'Already Accepted',
+          text: 'Accepted by Other User',
           colorClass: 'bg-gray-100 text-gray-800'
         };
       case 'completed':
