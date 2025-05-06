@@ -53,59 +53,21 @@ export const SwapTabContent = ({
   
   console.log(`SwapTabContent: Displaying ${uniqueSwaps.length} unique swaps`);
 
-  // The fixed user ID that represents our special user
-  const specialUserId = "96fc40f8-ceec-4ab2-80a6-3bd9fbf1cdd5";
-  
   return (
     <div className="space-y-4" data-testid="swap-list">
-      {uniqueSwaps.map(swap => {
-        // Determine if the current logged-in user is the special user
-        const isCurrentUserSpecial = swap.myShift?.userId === specialUserId;
-        
-        console.log(`Checking swap ${swap.id}: isCurrentUserSpecial = ${isCurrentUserSpecial}, myShiftUserId = ${swap.myShift?.userId}`);
-        
-        // Check if this swap involves the special user at all (either as my user or other user)
-        const isSpecialUserInvolved = isCurrentUserSpecial || swap.otherShift?.userId === specialUserId;
-        
-        // Always hide buttons for the special user - the special user should NEVER see action buttons
-        // Also hide buttons when a non-special user is interacting with the special user in an accepted swap
-        const hideActionButtons = isCurrentUserSpecial || 
-                                (swap.otherShift?.userId === specialUserId && swap.status === 'accepted');
-        
-        console.log(`Swap ${swap.id} button visibility: hideActionButtons = ${hideActionButtons}, isSpecialUserInvolved = ${isSpecialUserInvolved}`);
-        
-        // For pending swaps, show accept button only if it's not in the past, we have the handler, and it's not hidden
-        const showAcceptButton = !isPast && 
-                              swap.status === 'pending' && 
-                              !!onAcceptSwap && 
-                              !hideActionButtons;
-        
-        // For accepted swaps, only show finalize/resend buttons if they shouldn't be hidden
-        const showFinalizeButton = !isPast && 
-                                 swap.status === 'accepted' && 
-                                 !!onFinalizeSwap && 
-                                 !hideActionButtons;
-        
-        const showResendEmailButton = !isPast && 
-                                    swap.status === 'accepted' && 
-                                    !!onResendEmail && 
-                                    !hideActionButtons;
-        
-        // Mark swap as "accepted by others" if it's an accepted swap involving the special user
-        const isAcceptedByOthers = swap.status === 'accepted' && isSpecialUserInvolved;
-        
-        return (
-          <SwapCard 
-            key={swap.id}
-            swap={swap} 
-            isPast={isPast}
-            onAccept={showAcceptButton ? onAcceptSwap : undefined}
-            onFinalize={showFinalizeButton ? onFinalizeSwap : undefined}
-            onResendEmail={showResendEmailButton ? onResendEmail : undefined}
-            isAcceptedByOthers={isAcceptedByOthers}
-          />
-        );
-      })}
+      {uniqueSwaps.map(swap => (
+        <SwapCard 
+          key={swap.id}
+          swap={swap} 
+          isPast={isPast}
+          onAccept={onAcceptSwap}
+          onFinalize={onFinalizeSwap}
+          onResendEmail={onResendEmail}
+          isAcceptedByOthers={swap.status === 'accepted' && 
+            (swap.myShift?.userId === "96fc40f8-ceec-4ab2-80a6-3bd9fbf1cdd5" || 
+             swap.otherShift?.userId === "96fc40f8-ceec-4ab2-80a6-3bd9fbf1cdd5")}
+        />
+      ))}
     </div>
   );
 }
