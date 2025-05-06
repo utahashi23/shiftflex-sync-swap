@@ -6,38 +6,39 @@ import { toast } from "sonner";
 
 export function SmtpTestButton() {
   const [isLoading, setIsLoading] = useState(false);
+  const [apiKeyStatus, setApiKeyStatus] = useState<string | null>(null);
 
   const handleTestLoop = async () => {
     try {
       setIsLoading(true);
-      toast.info("Testing Loop.so direct API...");
-      console.log("Calling loop_send_email with direct parameters");
+      setApiKeyStatus(null);
+      toast.info("Testing Loop.so API Key and connection...");
+      console.log("Testing Loop.so API Key validity");
 
       const response = await supabase.functions.invoke('loop_send_email', {
         body: {
+          test_api_key: true, // Special flag to test API key only
           to: "njalasankhulani@gmail.com",
-          subject: "Loop.so Direct API Test",
-          html: `
-            <h2>Loop.so Direct API Test</h2>
-            <p>This is a test email sent directly using the Loop.so API from a Supabase Edge Function.</p>
-            <p>If you're receiving this email, the Loop.so integration is working correctly.</p>
-            <p>Time sent: ${new Date().toISOString()}</p>
-          `,
+          subject: "Loop.so API Key Test",
+          html: `<p>Testing API key at ${new Date().toISOString()}</p>`,
           from: "admin@shiftflex.au"
         }
       });
 
-      console.log("Loop.so direct test response:", response);
+      console.log("Loop.so API key test response:", response);
 
       if (response.error) {
-        toast.error(`Loop.so Direct Test failed: ${response.error.message || response.error}`);
-        console.error("Loop.so direct test error details:", JSON.stringify(response.error));
+        setApiKeyStatus("Invalid or unreachable");
+        toast.error(`Loop.so API Key test failed: ${response.error.message || response.error}`);
+        console.error("Loop.so API key test error details:", JSON.stringify(response.error));
       } else {
-        toast.success("Loop.so Direct Test email sent! Check your inbox.");
+        setApiKeyStatus("Valid");
+        toast.success("Loop.so API Key is valid and connection successful!");
       }
     } catch (error) {
-      console.error("Error testing Loop.so:", error);
-      toast.error(`Error testing Loop.so: ${error.message || "Unknown error"}`);
+      console.error("Error testing Loop.so API key:", error);
+      setApiKeyStatus("Error checking");
+      toast.error(`Error testing Loop.so API key: ${error.message || "Unknown error"}`);
     } finally {
       setIsLoading(false);
     }
@@ -50,7 +51,12 @@ export function SmtpTestButton() {
       variant="outline"
       className="w-full mt-2"
     >
-      {isLoading ? "Testing..." : "Test Loop.so Direct API"}
+      {isLoading ? "Testing API Key..." : "Test Loop.so API Key"}
+      {apiKeyStatus && (
+        <span className={`ml-2 text-xs ${apiKeyStatus === "Valid" ? "text-green-500" : "text-red-500"}`}>
+          ({apiKeyStatus})
+        </span>
+      )}
     </Button>
   );
 }

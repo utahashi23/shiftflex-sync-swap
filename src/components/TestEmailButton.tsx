@@ -6,13 +6,39 @@ import { toast } from "sonner";
 
 export function TestEmailButton() {
   const [isLoading, setIsLoading] = useState(false);
+  const [apiStatus, setApiStatus] = useState<string | null>(null);
 
   const handleTestEmail = async () => {
     try {
       setIsLoading(true);
-      toast.info("Sending test email...");
+      setApiStatus(null);
+      toast.info("Testing Loop.so email service...");
 
-      // Test using our Loop.so implementation with verbose logging
+      // Test API key first
+      console.log("Testing Loop.so API key validity first...");
+      const apiKeyResponse = await supabase.functions.invoke('loop_send_email', {
+        body: {
+          test_api_key: true,
+          to: "test@example.com",
+          subject: "API Key Test",
+          html: "<p>API key test</p>"
+        }
+      });
+
+      console.log("API key test response:", apiKeyResponse);
+
+      if (apiKeyResponse.error) {
+        setApiStatus("API key invalid");
+        toast.error(`API key test failed: ${apiKeyResponse.error.message || apiKeyResponse.error}`);
+        console.error("API key test error details:", JSON.stringify(apiKeyResponse.error));
+        setIsLoading(false);
+        return;
+      }
+
+      setApiStatus("API key valid");
+      toast.success("Loop.so API key is valid! Proceeding with test email...");
+
+      // Now test email sending with the verified key
       console.log("Calling test_loop_email function...");
       const loopResponse = await supabase.functions.invoke('test_loop_email', {
         body: {}
@@ -26,32 +52,6 @@ export function TestEmailButton() {
       } else {
         toast.success("Loop.so Test email sent! Check your inbox.");
       }
-
-      // Also test with the regular loop_send_email function with verbose logging
-      console.log("Calling loop_send_email function directly...");
-      const regularResponse = await supabase.functions.invoke('loop_send_email', {
-        body: {
-          to: "njalasankhulani@gmail.com",
-          subject: "Test Email via Loop.so API",
-          from: "admin@shiftflex.au",
-          html: `
-            <h2>Testing Loop.so Email API</h2>
-            <p>This is a test email sent using the Loop.so email service.</p>
-            <p>If you're receiving this email, the email functionality is working correctly.</p>
-            <p>Time sent: ${new Date().toISOString()}</p>
-          `
-        }
-      });
-
-      console.log("Regular Loop.so email response:", regularResponse);
-
-      if (regularResponse.error) {
-        toast.error(`Regular Loop.so email failed: ${regularResponse.error.message || regularResponse.error}`);
-        console.error("Regular Loop.so email error details:", JSON.stringify(regularResponse.error));
-      } else {
-        toast.success("Regular test email sent! Check your inbox.");
-      }
-
     } catch (error) {
       console.error("Error testing email:", error);
       toast.error(`Error testing email: ${error.message || "Unknown error"}`);
@@ -67,7 +67,12 @@ export function TestEmailButton() {
       variant="outline"
       className="w-full"
     >
-      {isLoading ? "Sending..." : "Test Email Functionality"}
+      {isLoading ? "Testing..." : "Test Email Functionality"}
+      {apiStatus && (
+        <span className={`ml-2 text-xs ${apiStatus.includes("valid") ? "text-green-500" : "text-red-500"}`}>
+          ({apiStatus})
+        </span>
+      )}
     </Button>
   );
 }

@@ -17,6 +17,7 @@ interface EmailPayload {
   replyTo?: string;
   cc?: string | string[];
   bcc?: string | string[];
+  test_api_key?: boolean; // New flag to test API key
 }
 
 serve(async (req) => {
@@ -36,10 +37,50 @@ serve(async (req) => {
 
     console.log('LOOP_API_KEY available:', !!LOOP_API_KEY);
     console.log('LOOP_API_KEY length:', LOOP_API_KEY.length);
+    console.log('LOOP_API_KEY first/last 4 chars:', 
+      `${LOOP_API_KEY.substring(0, 4)}...${LOOP_API_KEY.substring(LOOP_API_KEY.length - 4)}`);
     
     // Get email data from request
-    const { to, subject, text, html, from, cc, bcc, replyTo } = await req.json() as EmailPayload;
+    const payload = await req.json() as EmailPayload;
+    const { test_api_key, to, subject, text, html, from, cc, bcc, replyTo } = payload;
     
+    // API Key Test Mode - Just verify the key is valid without sending an actual email
+    if (test_api_key === true) {
+      console.log('Testing Loop.so API key validity');
+      
+      try {
+        // Just test authentication with a simple request to the API
+        const response = await fetch('https://api.loop.so/v1/me', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${LOOP_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log(`Loop.so API key test response status: ${response.status}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Loop.so API key test error: HTTP status ${response.status}`, errorText);
+          throw new Error(`Invalid API key or API unavailable: ${response.status} ${errorText}`);
+        }
+        
+        // Successfully validated API key
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: "API key is valid and Loop.so service is accessible"
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        });
+      } catch (apiError) {
+        console.error('Error testing Loop.so API key:', apiError);
+        throw new Error(`API key test failed: ${apiError.message}`);
+      }
+    }
+    
+    // Regular email sending mode
     // Validation
     if (!to || !subject || (!text && !html)) {
       throw new Error('Missing required email parameters (to, subject, and either text or html)');
@@ -50,7 +91,7 @@ serve(async (req) => {
     console.log(`From address: ${from || "admin@shiftflex.au"}`);
     
     // Prepare request payload for Loop.so
-    const payload = {
+    const emailPayload = {
       to: Array.isArray(to) ? to : [to],
       from: from || "admin@shiftflex.au",
       subject,
@@ -63,7 +104,7 @@ serve(async (req) => {
     
     // Send the email using Loop.so API
     try {
-      console.log('Sending email via Loop.so API with payload:', JSON.stringify(payload));
+      console.log('Sending email via Loop.so API with payload:', JSON.stringify(emailPayload));
       
       // Verify URL format
       const apiUrl = 'https://api.loop.so/v1/email/send';
@@ -77,7 +118,7 @@ serve(async (req) => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${LOOP_API_KEY}`
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(emailPayload)
         });
         
         console.log(`Loop.so API response status: ${response.status}`);

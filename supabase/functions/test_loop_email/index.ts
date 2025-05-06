@@ -26,6 +26,34 @@ serve(async (req) => {
     
     console.log('LOOP_API_KEY available:', !!LOOP_API_KEY);
     console.log('LOOP_API_KEY length:', LOOP_API_KEY.length);
+    console.log('LOOP_API_KEY first/last 4 chars:', 
+      `${LOOP_API_KEY.substring(0, 4)}...${LOOP_API_KEY.substring(LOOP_API_KEY.length - 4)}`);
+    
+    // First test API key validity
+    console.log('Testing Loop.so API key validity before sending test email');
+    
+    try {
+      const authResponse = await fetch('https://api.loop.so/v1/me', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${LOOP_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log(`Loop.so API key test response status: ${authResponse.status}`);
+      
+      if (!authResponse.ok) {
+        const errorText = await authResponse.text();
+        console.error(`Loop.so API key validation failed: ${authResponse.status}`, errorText);
+        throw new Error(`API key invalid: ${authResponse.status} ${errorText}`);
+      }
+      
+      console.log('Loop.so API key is valid, proceeding with test email');
+    } catch (keyError) {
+      console.error('API key validation error:', keyError);
+      throw new Error(`API key validation failed: ${keyError.message}`);
+    }
     
     const recipient = "njalasankhulani@gmail.com";
     const sender = "admin@shiftflex.au";
