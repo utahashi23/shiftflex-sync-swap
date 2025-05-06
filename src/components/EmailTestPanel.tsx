@@ -3,6 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TestEmailButton } from "@/components/TestEmailButton";
 import { SmtpTestButton } from "@/components/SmtpTestButton";
+import { MailgunSmtpTestButton } from "@/components/MailgunSmtpTestButton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 
@@ -37,6 +38,7 @@ export function EmailTestPanel() {
         
         <TestEmailButton />
         <SmtpTestButton />
+        <MailgunSmtpTestButton />
       </CardContent>
     </Card>
   );
