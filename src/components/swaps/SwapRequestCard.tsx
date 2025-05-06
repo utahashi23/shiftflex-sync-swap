@@ -162,9 +162,15 @@ const SwapRequestCard = ({ request, onDeleteRequest, onDeletePreferredDate }: Sw
       <CardFooter className="bg-secondary/20 border-t px-6">
         <div className="flex justify-between items-center w-full py-2">
           <div className="text-sm">Status:</div>
-          <div className="px-3 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
-            Pending
-          </div>
+          {request.acceptedByOthers ? (
+            <div className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+              Accepted by other users
+            </div>
+          ) : (
+            <div className="px-3 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
+              Pending
+            </div>
+          )}
         </div>
       </CardFooter>
     </Card>

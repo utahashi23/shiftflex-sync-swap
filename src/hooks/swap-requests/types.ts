@@ -18,6 +18,8 @@ export interface SwapRequest {
   };
   preferredDates: PreferredDate[];
   requesterId: string;
+  acceptedByOthers?: boolean; // Flag to indicate if this request has been accepted by others
+  acceptedMatchId?: string | null; // Reference to the accepted match if available
 }
 
 export interface UseSwapRequestsReturn {
