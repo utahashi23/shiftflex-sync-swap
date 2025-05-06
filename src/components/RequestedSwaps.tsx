@@ -154,7 +154,10 @@ const RequestedSwaps = () => {
               ))}
             </div>
           ) : swapRequests.length === 0 ? (
-            <EmptySwapState message="No completed swap requests" subtitle="You don't have any completed swap requests yet." />
+            <EmptySwapState 
+              message="No completed swap requests" 
+              subtitle="You don't have any completed swap requests yet." 
+            />
           ) : (
             swapRequests.map(request => (
               <SwapRequestCard 

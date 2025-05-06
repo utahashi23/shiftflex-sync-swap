@@ -18,7 +18,7 @@ export const useSwapRequests = (): UseSwapRequestsReturn => {
   
   const { handleDeleteSwapRequest, isDeleting: isDeleteLoading } = useDeleteSwapRequest(
     setSwapRequests,
-    (value) => setIsLoading(value)
+    () => {} // Pass empty function instead of setIsLoading
   );
   
   const { deletePreferredDay, isDeleting: isDayDeleteLoading } = useDeletePreferredDay({
@@ -44,12 +44,6 @@ export const useSwapRequests = (): UseSwapRequestsReturn => {
     }
   });
   
-  // Track loading state
-  const setIsLoading = useCallback((value: boolean) => {
-    // This function is passed to the delete hooks to update loading state
-    // No implementation needed here as we're combining loading states in the return value
-  }, []);
-  
   // Wrapping refetch with a status parameter
   const fetchSwapRequests = useCallback((status?: string) => {
     return refetchSwapRequests(status);
@@ -60,6 +54,9 @@ export const useSwapRequests = (): UseSwapRequestsReturn => {
     isLoading: isLoading || isDeleteLoading || isDayDeleteLoading,
     fetchSwapRequests,
     deleteSwapRequest: handleDeleteSwapRequest,
-    deletePreferredDay
+    deletePreferredDay: async (dayId: string, requestId: string) => {
+      const result = await deletePreferredDay(dayId, requestId);
+      return result.success;
+    }
   };
 };
