@@ -25,7 +25,7 @@ serve(async (req) => {
     }
     
     const recipient = "njalasankhulani@gmail.com";
-    const sender = "postmaster@shiftflex.au";
+    const sender = "admin@shiftflex.au";
     
     console.log(`Sending test email from ${sender} to ${recipient}`);
     

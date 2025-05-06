@@ -1,3 +1,4 @@
+
 // Follow this setup guide to integrate the Supabase Edge Functions with your app:
 // https://supabase.com/docs/guides/functions/getting-started
 
@@ -165,13 +166,12 @@ serve(async (req) => {
       return timeStr.substring(0, 5) // Format from "08:00:00" to "08:00"
     }
 
-    // Get mailgun config
-    const MAILGUN_API_KEY = Deno.env.get('MAILGUN_API_KEY');
-    const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN');
+    // Get Loop.so config
+    const LOOP_API_KEY = Deno.env.get('LOOP_API_KEY');
     
-    if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN) {
-      console.error('Missing Mailgun configuration. API Key exists:', !!MAILGUN_API_KEY, ', Domain exists:', !!MAILGUN_DOMAIN);
-      throw new Error('Missing Mailgun configuration');
+    if (!LOOP_API_KEY) {
+      console.error('Missing Loop.so API key');
+      throw new Error('Missing Loop.so configuration');
     }
 
     // Send emails
@@ -191,30 +191,28 @@ serve(async (req) => {
       `
       
       try {
-        // Send email to requester using Mailgun
-        const formData = new FormData();
-        formData.append('from', `Shift Swap <admin@shiftflex.au>`);
-        formData.append('to', requesterEmail);
-        formData.append('subject', 'Your Shift Swap Has Been Accepted (Re-sent Notification)');
-        formData.append('html', requesterEmailContent);
-        
-        console.log(`Attempting to send email to requester (${requesterEmail}) using domain: ${MAILGUN_DOMAIN}`);
-        
-        const requesterEmailResponse = await fetch(`https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`, {
+        // Send email to requester using Loop.so API
+        const response = await fetch('https://api.loop.so/v1/email/send', {
           method: 'POST',
           headers: {
-            'Authorization': `Basic ${btoa('api:' + MAILGUN_API_KEY)}`
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${LOOP_API_KEY}`
           },
-          body: formData
+          body: JSON.stringify({
+            to: [requesterEmail],
+            from: `admin@shiftflex.au`,
+            subject: 'Your Shift Swap Has Been Accepted (Re-sent Notification)',
+            html: requesterEmailContent
+          })
         });
         
-        if (!requesterEmailResponse.ok) {
-          const errorText = await requesterEmailResponse.text();
+        if (!response.ok) {
+          const errorText = await response.text();
           console.error(`Error sending email to requester: ${errorText}`);
-          console.error(`HTTP Status: ${requesterEmailResponse.status}`);
+          console.error(`HTTP Status: ${response.status}`);
           emailResults.push({ recipient: 'requester', success: false, error: errorText });
         } else {
-          const responseData = await requesterEmailResponse.json();
+          const responseData = await response.json();
           console.log(`Email sent to requester: ${requesterEmail}`, responseData);
           emailResults.push({ recipient: 'requester', success: true });
         }
@@ -239,30 +237,28 @@ serve(async (req) => {
       `
       
       try {
-        // Send email to acceptor using Mailgun
-        const formData = new FormData();
-        formData.append('from', `Shift Swap <admin@shiftflex.au>`);
-        formData.append('to', acceptorEmail);
-        formData.append('subject', 'Shift Swap Confirmation (Re-sent Notification)');
-        formData.append('html', acceptorEmailContent);
-        
-        console.log(`Attempting to send email to acceptor (${acceptorEmail}) using domain: ${MAILGUN_DOMAIN}`);
-        
-        const acceptorEmailResponse = await fetch(`https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`, {
+        // Send email to acceptor using Loop.so API
+        const response = await fetch('https://api.loop.so/v1/email/send', {
           method: 'POST',
           headers: {
-            'Authorization': `Basic ${btoa('api:' + MAILGUN_API_KEY)}`
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${LOOP_API_KEY}`
           },
-          body: formData
+          body: JSON.stringify({
+            to: [acceptorEmail],
+            from: `admin@shiftflex.au`,
+            subject: 'Shift Swap Confirmation (Re-sent Notification)',
+            html: acceptorEmailContent
+          })
         });
         
-        if (!acceptorEmailResponse.ok) {
-          const errorText = await acceptorEmailResponse.text();
+        if (!response.ok) {
+          const errorText = await response.text();
           console.error(`Error sending email to acceptor: ${errorText}`);
-          console.error(`HTTP Status: ${acceptorEmailResponse.status}`);
+          console.error(`HTTP Status: ${response.status}`);
           emailResults.push({ recipient: 'acceptor', success: false, error: errorText });
         } else {
-          const responseData = await acceptorEmailResponse.json();
+          const responseData = await response.json();
           console.log(`Email sent to acceptor: ${acceptorEmail}`, responseData);
           emailResults.push({ recipient: 'acceptor', success: true });
         }
