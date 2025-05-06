@@ -67,10 +67,11 @@ export const SwapTabContent = ({
   return (
     <div className="space-y-4" data-testid="swap-list">
       {uniqueSwaps.map(swap => {
-        // Correctly determine if this user can act on this swap
         // For 'accepted' status, this user needs the onFinalize prop to be able to finalize it
-        // If onFinalize is not provided, it means someone else accepted it and this user cannot finalize
         const canAccept = !isPast && swap.status === 'pending' && !!onAcceptSwap;
+        
+        // The key difference - this determines if the current user can finalize the swap
+        // If onFinalizeSwap is provided, they can finalize their own accepted swaps
         const canFinalize = !isPast && swap.status === 'accepted' && !!onFinalizeSwap;
         const canResendEmail = !isPast && swap.status === 'accepted' && !!onResendEmail;
         
