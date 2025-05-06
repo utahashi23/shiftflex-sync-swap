@@ -27,8 +27,15 @@ serve(async (req) => {
     console.log("Creating SMTP connection to Loop.so...");
     
     try {
-      // First, test basic connectivity to the SMTP server
-      console.log("Testing basic connectivity to smtp.loop.so...");
+      // First, test DNS resolution
+      console.log("Testing DNS resolution for smtp.loop.so...");
+      try {
+        const dnsTest = await Deno.resolveDns("smtp.loop.so", "A");
+        console.log("DNS resolution successful:", dnsTest);
+      } catch (dnsError) {
+        console.error("DNS resolution failed:", dnsError);
+        throw new Error(`DNS resolution failed for smtp.loop.so: ${dnsError.message}`);
+      }
       
       // Get the API key for Loop.so from environment variables
       const LOOP_API_KEY = Deno.env.get('LOOP_API_KEY');
@@ -92,21 +99,19 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in test_loopso_smtp function:', error);
     
-    // Check if the error is related to network restrictions
+    // Check if the error is related to DNS resolution
     const errorMessage = error.message || String(error);
-    const isNetworkRestriction = 
-      errorMessage.includes('connection refused') || 
-      errorMessage.includes('network') ||
-      errorMessage.includes('unreachable') ||
-      errorMessage.includes('timeout') ||
-      errorMessage.includes('dns');
+    const isDnsIssue = 
+      errorMessage.includes('dns') || 
+      errorMessage.includes('lookup') ||
+      errorMessage.includes('resolution');
     
     return new Response(JSON.stringify({
       success: false,
       error: error.message,
-      isNetworkRestriction: isNetworkRestriction,
+      isDnsIssue: isDnsIssue,
       details: {
-        errorType: isNetworkRestriction ? 'network_restriction' : 'smtp_error',
+        errorType: isDnsIssue ? 'dns_resolution_issue' : 'smtp_error',
         timestamp: new Date().toISOString()
       }
     }), {

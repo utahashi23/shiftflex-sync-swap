@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { TestEmailButton } from "@/components/TestEmailButton";
 import { SmtpTestButton } from "@/components/SmtpTestButton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Info } from "lucide-react";
+import { Info } from "lucide-react";
 
 export function EmailTestPanel() {
   return (
@@ -16,27 +16,17 @@ export function EmailTestPanel() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Alert className="mb-4 border-amber-500">
-          <AlertCircle className="h-4 w-4 text-amber-500" />
-          <AlertTitle>Network Restriction Detected</AlertTitle>
-          <AlertDescription>
-            <p className="mb-2">Your Supabase project has network restrictions configured that are limiting outbound connections from Edge Functions:</p>
-            <ul className="list-disc pl-5 mb-2 text-sm">
-              <li>Only IPv4 addresses in range 183.12.1.1/24 are allowed</li>
-              <li>Only IPv6 addresses in range 2001:db8:3333:4444:5555:6666:7777:8888/64 are allowed</li>
-            </ul>
-            <p className="text-sm">These restrictions may prevent Edge Functions from connecting to external services.</p>
-          </AlertDescription>
-        </Alert>
-        
         <Alert className="mb-4">
           <Info className="h-4 w-4" />
-          <AlertTitle>How to Fix Network Restrictions</AlertTitle>
+          <AlertTitle>Supabase Edge Functions and External Services</AlertTitle>
           <AlertDescription>
-            <p className="mb-2">To allow Edge Functions to connect to external services, you need to remove or modify the network restrictions in your Supabase project settings using the Supabase CLI command:</p>
-            <pre className="bg-gray-100 p-2 rounded text-sm overflow-auto">
-            supabase network-restrictions --project-ref {'{ref}'} delete --experimental
-            </pre>
+            <p className="mb-2">Edge Functions may have limitations when connecting to external services:</p>
+            <ul className="list-disc pl-5 mb-2 text-sm">
+              <li>DNS resolution issues can prevent connections to domain names</li>
+              <li>Some services may require explicit IP allowlisting</li>
+              <li>Connection timeouts may occur due to environment constraints</li>
+            </ul>
+            <p className="text-sm">If you encounter issues, try using direct API approaches or consider using a service with dedicated Supabase integration.</p>
           </AlertDescription>
         </Alert>
         
