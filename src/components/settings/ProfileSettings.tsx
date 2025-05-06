@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const profileSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -43,6 +44,7 @@ export const ProfileSettings = () => {
     setProfileLoading(true);
     
     try {
+      // Update the user metadata in auth
       const { success, error } = await updateUser({
         firstName: data.firstName,
         lastName: data.lastName,
@@ -50,6 +52,21 @@ export const ProfileSettings = () => {
       });
 
       if (!success) throw new Error(error?.message);
+
+      // Update the profiles table as well
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          first_name: data.firstName,
+          last_name: data.lastName,
+          employee_id: data.employeeId
+        })
+        .eq('id', user?.id);
+
+      if (profileError) {
+        console.error("Error updating profile:", profileError);
+        throw new Error(profileError.message);
+      }
 
       toast({
         title: "Profile Updated",
