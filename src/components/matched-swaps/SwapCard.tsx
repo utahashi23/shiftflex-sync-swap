@@ -39,9 +39,6 @@ export const SwapCard = ({
     myShift: swap.myShift.colleagueType,
     otherShift: swap.otherShift.colleagueType
   });
-
-  // Check if this match is already accepted by others and needs finalization
-  const isAcceptedByOthers = swap.status === 'accepted' && !onFinalize;
   
   return (
     <Card className="overflow-hidden">
@@ -51,7 +48,7 @@ export const SwapCard = ({
             <ArrowRightLeft className="h-5 w-5 mr-2 text-primary" />
             <h3 className="text-lg font-medium">Shift Swap</h3>
           </div>
-          <div className="flex items-center gap-2">
+          <div>
             <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
               swap.status === 'pending' ? 'bg-amber-100 text-amber-800' :
               swap.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
@@ -59,13 +56,6 @@ export const SwapCard = ({
             }`}>
               {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
             </span>
-
-            {/* Show a badge when the swap is accepted but current user can't finalize it */}
-            {isAcceptedByOthers && (
-              <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                Awaiting finalization
-              </span>
-            )}
           </div>
         </div>
       </CardHeader>
@@ -141,13 +131,6 @@ export const SwapCard = ({
             </div>
           </div>
         </div>
-
-        {/* Display a notice when the swap has been accepted by others */}
-        {isAcceptedByOthers && (
-          <div className="mt-4 p-3 border rounded-md bg-blue-50 text-blue-700 text-sm">
-            This swap has already been accepted by other users and is awaiting finalization.
-          </div>
-        )}
       </CardContent>
       
       {!isPast && (
@@ -157,10 +140,8 @@ export const SwapCard = ({
               <Button 
                 onClick={() => onAccept(swap.id)}
                 className="bg-green-600 hover:bg-green-700"
-                // Disable the button if the swap is already accepted by others
-                disabled={isAcceptedByOthers}
               >
-                {isAcceptedByOthers ? "Already Accepted" : "Accept Swap"}
+                Accept Swap
               </Button>
             )}
             
@@ -172,10 +153,6 @@ export const SwapCard = ({
                     onClick={() => onResendEmail(swap.id)}
                     variant="outline"
                     className="flex items-center"
-                    // Disable the button if the swap is already accepted by others
-                    disabled={isAcceptedByOthers}
-                    // Add opacity to visually indicate the button is disabled
-                    style={{ opacity: isAcceptedByOthers ? 0.5 : 1 }}
                   >
                     <Mail className="h-4 w-4 mr-2" />
                     Resend Email
@@ -186,10 +163,6 @@ export const SwapCard = ({
                   <Button 
                     onClick={() => onFinalize(swap.id)}
                     className="bg-blue-600 hover:bg-blue-700"
-                    // Disable the button if the swap is already accepted by others
-                    disabled={isAcceptedByOthers}
-                    // Add opacity to visually indicate the button is disabled
-                    style={{ opacity: isAcceptedByOthers ? 0.5 : 1 }}
                   >
                     Finalize Swap
                   </Button>

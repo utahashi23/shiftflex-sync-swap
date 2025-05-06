@@ -48,8 +48,7 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
           verbose: verbose,
           user_perspective_only: userPerspectiveOnly,
           user_initiator_only: userInitiatorOnly,
-          bypass_rls: true, // Explicitly request RLS bypass
-          include_accepted_status: true // Make sure to get full acceptance status
+          bypass_rls: true // Explicitly request RLS bypass
         }
       });
       

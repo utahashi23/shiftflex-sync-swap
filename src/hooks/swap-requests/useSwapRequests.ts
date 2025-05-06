@@ -36,36 +36,10 @@ export const useSwapRequests = () => {
     try {
       console.log('Fetching swap requests for user:', user.id);
       
-      // Get the current session to pass the auth token
-      const { data: { session } } = await supabase.auth.getSession();
+      // Use our safe function that won't cause RLS recursion
+      const { data, error } = await fetchUserSwapRequestsSafe(user.id, 'pending');
       
-      if (!session) {
-        toast({
-          title: "Authentication Error",
-          description: "You must be logged in to view swap requests.",
-          variant: "destructive"
-        });
-        throw new Error('Authentication required');
-      }
-      
-      const authToken = session.access_token;
-      
-      // Use the edge function with include_accepted_by_others flag
-      const response = await supabase.functions.invoke('get_swap_requests', {
-        body: { 
-          user_id: user.id,
-          status: 'pending',
-          auth_token: authToken,
-          include_accepted_by_others: true
-        }
-      });
-      
-      if (response.error) {
-        console.error('Error fetching swap requests:', response.error);
-        throw response.error;
-      }
-      
-      const data = response.data;
+      if (error) throw error;
       
       if (!data || data.length === 0) {
         console.log('No pending swap requests found');
@@ -93,8 +67,6 @@ export const useSwapRequests = () => {
           id: item.id,
           requesterId: item.requester_id,
           status: item.status,
-          acceptedByOthers: item.accepted_by_others || false,
-          acceptedMatchId: item.accepted_match_id || null,
           originalShift: {
             id: shift.id,
             date: shift.date,

@@ -48,7 +48,7 @@ serve(async (req) => {
     // Prepare request payload for Loop.so
     const payload = {
       to: Array.isArray(to) ? to : [to],
-      from: from || "admin@shiftflex.au",
+      from: from || "postmaster@shiftflex.au",
       subject,
       ...(html ? { html } : {}),
       ...(text ? { text } : {}),

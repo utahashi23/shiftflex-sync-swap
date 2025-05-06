@@ -19,7 +19,7 @@ serve(async (req) => {
 
   try {
     // Get the request body
-    const { user_id, status = 'pending', auth_token, include_accepted_by_others = false } = await req.json()
+    const { user_id, status = 'pending', auth_token } = await req.json()
     
     // Validate required parameters
     if (!user_id) {
@@ -77,7 +77,7 @@ serve(async (req) => {
     }
     
     // Use the RPC function to safely get user swap requests
-    const { data: requestsData, error: fetchError } = await supabaseClient.rpc(
+    const { data, error: fetchError } = await supabaseClient.rpc(
       'get_user_swap_requests_safe',
       { 
         p_user_id: user_id,
@@ -93,44 +93,8 @@ serve(async (req) => {
       )
     }
     
-    // If we need to include info about requests accepted by others
-    if (include_accepted_by_others && requestsData) {
-      // Get all potential matches that are in 'accepted' state
-      const { data: acceptedMatches, error: matchesError } = await supabaseClient
-        .from('shift_swap_potential_matches')
-        .select('*')
-        .eq('status', 'accepted');
-      
-      if (matchesError) {
-        console.error('Error fetching accepted matches:', matchesError);
-      } else if (acceptedMatches) {
-        console.log(`Found ${acceptedMatches.length} accepted matches`);
-        
-        // Map of request IDs that are part of accepted matches
-        const acceptedRequestIds = new Map();
-        
-        // Create a map of accepted request IDs to match IDs
-        acceptedMatches.forEach(match => {
-          acceptedRequestIds.set(match.requester_request_id, match.id);
-          acceptedRequestIds.set(match.acceptor_request_id, match.id);
-        });
-        
-        // Update each request with acceptance information
-        requestsData.forEach((request: any) => {
-          const matchId = acceptedRequestIds.get(request.id);
-          if (matchId) {
-            request.accepted_by_others = true;
-            request.accepted_match_id = matchId;
-          } else {
-            request.accepted_by_others = false;
-            request.accepted_match_id = null;
-          }
-        });
-      }
-    }
-    
     return new Response(
-      JSON.stringify(requestsData || []),
+      JSON.stringify(data || []),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
     
