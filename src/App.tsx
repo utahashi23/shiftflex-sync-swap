@@ -17,6 +17,7 @@ import CalendarManagement from "./pages/CalendarManagement";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import FAQ from "./pages/FAQ";
+import FutureUpdates from "./pages/FutureUpdates";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/roster" element={<CalendarManagement />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/future-updates" element={<FutureUpdates />} />
             <Route path="/faq" element={<FAQ />} />
             
             {/* Catch-all for non-existent routes */}

@@ -2,15 +2,22 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { AppleIcon, MailIcon } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 export const CalendarIntegration = () => {
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium">Calendar Integration</h3>
-        <p className="text-sm text-muted-foreground">
-          Connect your shifts with external calendar services
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h3 className="text-lg font-medium">Calendar Integration</h3>
+          <p className="text-sm text-muted-foreground">
+            Connect your shifts with external calendar services
+          </p>
+        </div>
+        <Button variant="outline" asChild size="sm">
+          <Link to="/future-updates">View Roadmap</Link>
+        </Button>
       </div>
       <Separator />
       
