@@ -39,7 +39,8 @@ export const SwapCard = ({
   // Debug logging
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
-    otherShift: swap.otherShift.colleagueType
+    otherShift: swap.otherShift.colleagueType,
+    isAcceptedByOthers
   });
   
   return (
@@ -149,10 +150,15 @@ export const SwapCard = ({
         )}
       </CardContent>
       
+      {/* Only show action buttons if:
+          1. Not a past swap
+          2. Not accepted by others (special user involved)
+      */}
       {!isPast && !isAcceptedByOthers && (
         <CardFooter className="bg-secondary/20 border-t px-4 py-3">
           <div className="w-full flex justify-end gap-2">
-            {onAccept && (
+            {/* Only show accept button for pending swaps */}
+            {onAccept && swap.status === 'pending' && (
               <Button 
                 onClick={() => onAccept(swap.id)}
                 className="bg-green-600 hover:bg-green-700"
