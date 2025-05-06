@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,6 +16,7 @@ interface SwapCardProps {
   onAccept?: (matchId: string) => void;
   onFinalize?: (matchId: string) => void;
   onResendEmail?: (matchId: string) => void;
+  isAcceptedByOthers?: boolean; // Explicitly pass this prop from parent
 }
 
 // Format date to a readable string
@@ -31,16 +33,14 @@ export const SwapCard = ({
   isPast = false, 
   onAccept, 
   onFinalize, 
-  onResendEmail 
+  onResendEmail,
+  isAcceptedByOthers = false // Default to false if not provided
 }: SwapCardProps) => {
   // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
     otherShift: swap.otherShift.colleagueType
   });
-
-  // Check if this match is already accepted by others and needs finalization
-  const isAcceptedByOthers = swap.status === 'accepted' && !onFinalize;
   
   return (
     <Card className="overflow-hidden">
