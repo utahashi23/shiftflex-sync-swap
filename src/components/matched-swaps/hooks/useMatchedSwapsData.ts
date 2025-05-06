@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/auth';
 import { SwapMatch } from '../types';
@@ -114,7 +115,8 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       console.log('Finding matches for user:', user.id);
       
       // Explicitly request colleague types inclusion
-      const matchesData = await findSwapMatches(user.id, true, true, true, true);
+      // Change userInitiatorOnly to false to get all matches
+      const matchesData = await findSwapMatches(user.id, true, true, true, false);
       console.log('Raw match data received from function:', matchesData);
       
       if (!matchesData || matchesData.length === 0) {
@@ -132,7 +134,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       const formattedMatches = processMatchesData(matchesData || []);
       console.log('Formatted matches after processing:', formattedMatches);
       
-      // Separate active and past matches
+      // Separate active and past matches - INCLUDE otherAccepted in active matches
       const activeMatches = formattedMatches.filter(match => 
         match.status === 'pending' || match.status === 'accepted' || match.status === 'otherAccepted'
       );

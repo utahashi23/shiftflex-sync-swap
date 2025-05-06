@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '../useAuth';
 import { toast } from '../use-toast';
@@ -22,12 +21,16 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
-      // Always force userInitiatorOnly to true to ensure consistent behavior
+      console.log('Fetching matches with userInitiatorOnly:', userInitiatorOnly);
+      
       const { matches, pastMatches, rawApiData } = await fetchUserMatches(
         user.id,
         userPerspectiveOnly, 
-        true // Always use true for userInitiatorOnly
+        userInitiatorOnly // Make sure we pass the parameter as is
       );
+      
+      console.log('Received matches from API:', matches);
+      console.log('Raw data from API:', rawApiData);
       
       setState({
         matches,
@@ -142,8 +145,8 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
   // Fetch matches when the component mounts or user changes
   useEffect(() => {
     if (user) {
-      // Always force userInitiatorOnly to true to ensure consistent behavior
-      fetchMatches(true, true);
+      // Don't force userInitiatorOnly to true to ensure we get all matches
+      fetchMatches(true, false); // Changed to false to show all matches
     }
   }, [user]);
   

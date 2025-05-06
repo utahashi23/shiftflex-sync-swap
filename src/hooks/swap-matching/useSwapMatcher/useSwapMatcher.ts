@@ -30,7 +30,7 @@ export const useSwapMatcher = () => {
     forceCheck: boolean = false, 
     verbose: boolean = false,
     userPerspectiveOnly: boolean = true,
-    userInitiatorOnly: boolean = true
+    userInitiatorOnly: boolean = false // Changed default to false to get all matches
   ) => {
     if (!user && !userId) {
       toast({
@@ -65,13 +65,13 @@ export const useSwapMatcher = () => {
       // Use service-role based approach to bypass RLS issues
       console.log("Using modified approach to avoid RLS recursion...");
       try {
-        // Always force userInitiatorOnly to true to ensure consistent behavior
+        // Use the userInitiatorOnly parameter as passed
         const result = await executeFindMatches(
           targetUserId, 
           forceCheck, 
           verbose, 
           userPerspectiveOnly,
-          true // Always use true for userInitiatorOnly
+          userInitiatorOnly
         );
         console.log("Edge function result:", result);
         

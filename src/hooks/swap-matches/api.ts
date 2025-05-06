@@ -4,8 +4,8 @@ import { toast } from '../use-toast';
 import { formatSwapMatches } from './utils';
 import { SwapMatch } from './types';
 
-export const fetchUserMatches = async (userId: string, userPerspectiveOnly: boolean = true, userInitiatorOnly: boolean = true) => {
-  console.log('Fetching matches for user:', userId);
+export const fetchUserMatches = async (userId: string, userPerspectiveOnly: boolean = true, userInitiatorOnly: boolean = false) => {
+  console.log('Fetching matches for user:', userId, 'userInitiatorOnly:', userInitiatorOnly);
   
   try {
     // Call the edge function with explicit parameters to fetch colleague types
@@ -13,7 +13,7 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
       body: { 
         user_id: userId,
         user_perspective_only: userPerspectiveOnly,
-        user_initiator_only: userInitiatorOnly,
+        user_initiator_only: userInitiatorOnly, // Pass the parameter as is
         include_colleague_types: true, // Explicitly request colleague types
         include_shift_data: true // Request full shift data
       }
@@ -59,7 +59,7 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
       console.log(`Formatted match ${match.id} has status: ${match.status}`);
     });
     
-    // Separate active and past matches
+    // Separate active and past matches - INCLUDE otherAccepted in active matches
     const activeMatches = formattedMatches.filter((match: SwapMatch) => 
       match.status === 'pending' || match.status === 'accepted' || match.status === 'otherAccepted'
     );
