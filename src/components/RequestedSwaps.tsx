@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SwapRequestCard from './swaps/SwapRequestCard';
@@ -133,7 +132,10 @@ const RequestedSwaps = () => {
               ))}
             </div>
           ) : swapRequests.length === 0 ? (
-            <EmptySwapRequests message="No pending swap requests" subtitle="You don't have any pending swap requests at the moment." />
+            <EmptySwapRequests 
+              message="No pending swap requests" 
+              subtitle="You don't have any pending swap requests at the moment." 
+            />
           ) : (
             swapRequests.map(request => (
               <SwapRequestCard 
@@ -154,7 +156,7 @@ const RequestedSwaps = () => {
               ))}
             </div>
           ) : swapRequests.length === 0 ? (
-            <EmptySwapState 
+            <EmptySwapRequests 
               message="No completed swap requests" 
               subtitle="You don't have any completed swap requests yet." 
             />
