@@ -17,627 +17,534 @@ serve(async (req) => {
   }
 
   try {
-    // Get the request body and parse any options
+    // Parse request body
     const { 
       user_id, 
+      force_check = false, 
       verbose = false, 
-      specific_check = false, 
-      force_check = false,
-      user_perspective_only = true,
+      user_perspective_only = true, 
       user_initiator_only = true,
-      include_colleague_types = true, 
-      include_shift_data = true
+      include_colleague_types = true,
+      include_shift_data = true,
+      bypass_rls = false,
+      include_accepted_status = true
     } = await req.json()
 
+    // Validate user ID
     if (!user_id) {
       return new Response(
         JSON.stringify({ error: 'Missing user_id parameter' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
-    
-    console.log(`Processing request for user_id: ${user_id}, verbose: ${verbose}, force_check: ${force_check}, user_perspective_only: ${user_perspective_only}, user_initiator_only: ${user_initiator_only}, include_colleague_types: ${include_colleague_types}`);
 
-    // Create a Supabase client with the Auth context of the logged in user
+    if (verbose) {
+      console.log(`Processing request for user_id: ${user_id}, verbose: ${verbose}, force_check: ${force_check}, user_perspective_only: ${user_perspective_only}, user_initiator_only: ${user_initiator_only}, include_colleague_types: ${include_colleague_types}`)
+    }
+
+    // Create supabase client
     const supabaseClient = createClient(
-      // Supabase API URL - env var exposed by default when deployed
+      // Supabase API URL
       Deno.env.get('SUPABASE_URL') ?? '',
-      // Supabase API ANON KEY - env var exposed by default when deployed
+      // Supabase API ANON KEY
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      // Create client with Auth context of the user that called the function.
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      }
     )
-    
-    // Use the service role to fetch requests directly without RLS issues
-    try {
-      const serviceClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      );
-      
-      console.log("Using service role to fetch user's requests...");
-      
-      // Get user's pending requests
-      const { data: userRequests, error: userRequestsError } = await serviceClient
+
+    // For requests that bypass RLS, use service role
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    )
+
+    // Use the appropriate client based on the bypass_rls flag
+    const client = bypass_rls ? supabaseAdmin : supabaseClient
+
+    if (verbose) {
+      console.log("Using service role to fetch user's requests...")
+    }
+
+    // First fetch all swap requests for the specified user
+    const { data: userRequests, error: userRequestsError } = await client
+      .from('shift_swap_requests')
+      .select('id, requester_id, requester_shift_id, status')
+      .eq('requester_id', user_id)
+      .eq('status', 'pending')
+
+    if (userRequestsError) {
+      console.error('Error fetching user requests:', userRequestsError)
+      throw userRequestsError
+    }
+
+    if (verbose) {
+      console.log(`Found ${userRequests?.length || 0} pending requests for user ${user_id}`)
+    }
+
+    // If user_initiator_only is false, fetch all other pending requests (not from the current user)
+    let otherRequests = []
+    if (!user_initiator_only) {
+      const { data: allOtherRequests, error: otherRequestsError } = await client
         .from('shift_swap_requests')
-        .select('*')
-        .eq('requester_id', user_id)
-        .eq('status', 'pending');
-      
-      if (userRequestsError) {
-        console.error('Error fetching user requests:', userRequestsError);
-      } else {
-        console.log(`Found ${userRequests?.length || 0} pending requests for user ${user_id}`);
-        
-        if (userRequests && userRequests.length > 0) {
-          // Get all other users' pending requests
-          const { data: otherRequests, error: otherRequestsError } = await serviceClient
-            .from('shift_swap_requests')
-            .select('*')
-            .neq('requester_id', user_id)
-            .eq('status', 'pending');
-          
-          if (otherRequestsError) {
-            console.error('Error fetching other users\' requests:', otherRequestsError);
-          } else {
-            console.log(`Found ${otherRequests?.length || 0} pending requests from other users`);
+        .select('id, requester_id, requester_shift_id, status')
+        .eq('status', 'pending')
+        .neq('requester_id', user_id)
+
+      if (otherRequestsError) {
+        console.error('Error fetching other requests:', otherRequestsError)
+        throw otherRequestsError
+      }
+
+      otherRequests = allOtherRequests || []
+    } else {
+      // Just fetch all other pending requests as before
+      const { data: allOtherRequests, error: otherRequestsError } = await client
+        .from('shift_swap_requests')
+        .select('id, requester_id, requester_shift_id, status')
+        .eq('status', 'pending')
+        .neq('requester_id', user_id)
+
+      if (otherRequestsError) {
+        console.error('Error fetching other requests:', otherRequestsError)
+        throw otherRequestsError
+      }
+
+      otherRequests = allOtherRequests || []
+    }
+
+    if (verbose) {
+      console.log(`Found ${otherRequests.length} pending requests from other users`)
+    }
+
+    // If there are no user requests, return an empty array
+    if (!userRequests || userRequests.length === 0) {
+      return new Response(
+        JSON.stringify([]),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      )
+    }
+
+    // Fetch all shift data needed for matching
+    const shiftIds = [
+      ...userRequests.map(req => req.requester_shift_id),
+      ...otherRequests.map(req => req.requester_shift_id)
+    ]
+
+    const { data: shiftsData, error: shiftsError } = await client
+      .from('shifts')
+      .select('id, date, start_time, end_time, truck_name, colleague_type, user_id')
+      .in('id', shiftIds)
+
+    if (shiftsError) {
+      console.error('Error fetching shifts:', shiftsError)
+      throw shiftsError
+    }
+
+    if (verbose) {
+      console.log(`Fetched ${shiftsData?.length || 0} shifts data`)
+      console.log(`First shift from database:`, shiftsData?.[0])
+    }
+
+    // Create a map of shift IDs to shift data
+    const shiftsMap = new Map()
+    if (shiftsData) {
+      shiftsData.forEach(shift => {
+        shiftsMap.set(shift.id, shift)
+      })
+    }
+
+    // Fetch preferred dates for matching
+    const requestIds = [...userRequests.map(req => req.id), ...otherRequests.map(req => req.id)]
+    
+    const { data: preferredDates, error: preferredDatesError } = await client
+      .from('shift_swap_preferred_dates')
+      .select('request_id, date, accepted_types')
+      .in('request_id', requestIds)
+
+    if (preferredDatesError) {
+      console.error('Error fetching preferred dates:', preferredDatesError)
+      throw preferredDatesError
+    }
+
+    if (verbose) {
+      console.log(`Fetched ${preferredDates?.length || 0} preferred dates`)
+    }
+
+    // Create a map of request IDs to preferred dates
+    const requestPreferredDatesMap = new Map()
+    if (preferredDates) {
+      preferredDates.forEach(prefDate => {
+        if (!requestPreferredDatesMap.has(prefDate.request_id)) {
+          requestPreferredDatesMap.set(prefDate.request_id, [])
+        }
+        requestPreferredDatesMap.get(prefDate.request_id).push(prefDate)
+      })
+    }
+
+    // Fetch all existing matches to avoid duplicates
+    const { data: existingMatches, error: existingMatchesError } = await client
+      .from('shift_swap_potential_matches')
+      .select('*')
+
+    if (existingMatchesError) {
+      console.error('Error fetching existing matches:', existingMatchesError)
+      throw existingMatchesError
+    }
+
+    const existingMatchMap = new Map()
+    if (existingMatches) {
+      existingMatches.forEach(match => {
+        // Create key combinations of request IDs to identify existing matches
+        const key1 = `${match.requester_request_id}_${match.acceptor_request_id}`
+        const key2 = `${match.acceptor_request_id}_${match.requester_request_id}`
+        existingMatchMap.set(key1, match)
+        existingMatchMap.set(key2, match)
+      })
+    }
+
+    // Find matches between user requests and other requests
+    const matches = []
+    
+    // Process each user request
+    for (const userRequest of userRequests) {
+      const userShift = shiftsMap.get(userRequest.requester_shift_id)
+      const userPreferredDates = requestPreferredDatesMap.get(userRequest.id) || []
+
+      if (verbose) {
+        console.log(`User request ${userRequest.id} has ${userPreferredDates.length} preferred dates`)
+      }
+
+      // Check each other request for compatibility
+      for (const otherRequest of otherRequests) {
+        const otherShift = shiftsMap.get(otherRequest.requester_shift_id)
+        const otherPreferredDates = requestPreferredDatesMap.get(otherRequest.id) || []
+
+        // Skip if the shifts don't exist
+        if (!userShift || !otherShift) continue
+
+        // Check if this is a potential match - user's shift matches other's preferred date?
+        const userShiftMatchesOtherPreference = otherPreferredDates.some(prefDate => {
+          return prefDate.date === userShift.date &&
+                 prefDate.accepted_types.includes(
+                   getShiftType(userShift.start_time)
+                 )
+        })
+
+        // Check if other's shift matches user's preferred date
+        const otherShiftMatchesUserPreference = userPreferredDates.some(prefDate => {
+          return prefDate.date === otherShift.date &&
+                 prefDate.accepted_types.includes(
+                   getShiftType(otherShift.start_time)
+                 )
+        })
+
+        // If there's a match in either direction
+        if (userShiftMatchesOtherPreference || otherShiftMatchesUserPreference) {
+          const matchKey = `${userRequest.id}_${otherRequest.id}`
+          const existingMatch = existingMatchMap.get(matchKey)
+
+          if (verbose) {
+            console.log(`MATCH FOUND between ${userRequest.id} and ${otherRequest.id}`)
+          }
+
+          // Create a match record if it doesn't exist
+          if (existingMatch) {
+            if (verbose) {
+              console.log(`Match already exists:`, existingMatch)
+            }
+
+            // Get user information for the match participants
+            let otherUserId = null
+            let otherUserName = null
+
+            // Get the other user's information (if the match involves us)
+            if (existingMatch.requester_request_id === userRequest.id) {
+              // The user is the requester, get the acceptor's info
+              const acceptorRequest = otherRequests.find(
+                req => req.id === existingMatch.acceptor_request_id
+              )
+              otherUserId = acceptorRequest?.requester_id
+            } else if (existingMatch.acceptor_request_id === userRequest.id) {
+              // The user is the acceptor, get the requester's info
+              const requesterRequest = otherRequests.find(
+                req => req.id === existingMatch.requester_request_id
+              )
+              otherUserId = requesterRequest?.requester_id
+            }
+
+            // Fetch user names
+            if (otherUserId) {
+              const { data: userData } = await client
+                .from('profiles')
+                .select('first_name, last_name')
+                .eq('id', otherUserId)
+                .single()
+
+              if (userData) {
+                otherUserName = `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Unknown User'
+              }
+            }
+
+            // Determine which shift is the user's and which is the other user's
+            const isUserRequester = existingMatch.requester_request_id === userRequest.id
+            const myShiftId = isUserRequester ? existingMatch.requester_shift_id : existingMatch.acceptor_shift_id
+            const otherShiftId = isUserRequester ? existingMatch.acceptor_shift_id : existingMatch.requester_shift_id
             
-            if (otherRequests && otherRequests.length > 0) {
-              // Get all relevant shift IDs
-              const shiftIds = [
-                ...userRequests.map(r => r.requester_shift_id),
-                ...otherRequests.map(r => r.requester_shift_id)
-              ].filter(Boolean);
-              
-              // Get shift data - EXPLICITLY SELECT colleague_type
-              const { data: shifts, error: shiftsError } = await serviceClient
-                .from('shifts')
-                .select('id, date, start_time, end_time, truck_name, colleague_type, user_id')
-                .in('id', shiftIds);
-              
-              if (shiftsError) {
-                console.error('Error fetching shifts:', shiftsError);
-              } else {
-                console.log(`Fetched ${shifts?.length || 0} shifts data`);
-                
-                // Log first shift to verify colleague_type is included
-                if (shifts && shifts.length > 0) {
-                  console.log('First shift from database:', shifts[0]);
-                }
-                
-                // Create a map for quick shift lookups
-                const shiftsMap = {};
-                shifts?.forEach(shift => {
-                  shiftsMap[shift.id] = shift;
-                });
-                
-                // Get all request IDs
-                const allRequestIds = [
-                  ...userRequests.map(r => r.id),
-                  ...otherRequests.map(r => r.id)
-                ];
-                
-                // Get preferred dates for all requests
-                const { data: prefDates, error: prefDatesError } = await serviceClient
-                  .from('shift_swap_preferred_dates')
-                  .select('*')
-                  .in('request_id', allRequestIds);
-                
-                if (prefDatesError) {
-                  console.error('Error fetching preferred dates:', prefDatesError);
-                } else {
-                  console.log(`Fetched ${prefDates?.length || 0} preferred dates`);
-                  
-                  // Group preferred dates by request
-                  const prefDatesByRequest = {};
-                  prefDates?.forEach(date => {
-                    if (!prefDatesByRequest[date.request_id]) {
-                      prefDatesByRequest[date.request_id] = [];
-                    }
-                    prefDatesByRequest[date.request_id].push(date.date);
-                  });
-                  
-                  // Find potential matches
-                  const matches = [];
-                  
-                  // For each user request, check against other requests
-                  for (const userRequest of userRequests) {
-                    const userShift = shiftsMap[userRequest.requester_shift_id];
+            const myShift = shiftsMap.get(myShiftId)
+            const otherShift = shiftsMap.get(otherShiftId)
+            
+            if (!myShift || !otherShift) continue
+
+            // Create the match object for the API response
+            const matchObj = {
+              match_id: existingMatch.id,
+              match_status: existingMatch.status,
+              my_request_id: isUserRequester ? existingMatch.requester_request_id : existingMatch.acceptor_request_id,
+              other_request_id: isUserRequester ? existingMatch.acceptor_request_id : existingMatch.requester_request_id,
+              my_shift_id: myShiftId,
+              my_shift_date: myShift.date,
+              my_shift_start_time: myShift.start_time,
+              my_shift_end_time: myShift.end_time,
+              my_shift_truck: myShift.truck_name,
+              my_shift_type: getShiftType(myShift.start_time),
+              my_shift_colleague_type: myShift.colleague_type,
+              other_shift_id: otherShiftId,
+              other_shift_date: otherShift.date,
+              other_shift_start_time: otherShift.start_time,
+              other_shift_end_time: otherShift.end_time,
+              other_shift_truck: otherShift.truck_name,
+              other_user_id: otherUserId,
+              other_user_name: otherUserName,
+              other_shift_colleague_type: otherShift.colleague_type,
+              created_at: existingMatch.created_at
+            }
+
+            matches.push(matchObj)
+          } else {
+            // This section handles creating new matches - we check if we're doing a full match check
+            if (force_check) {
+              try {
+                // Record the match in the database
+                const result = await recordMatch(client, {
+                  request1: userRequest,
+                  request2: otherRequest,
+                  shift1: shiftsMap.get(userRequest.requester_shift_id),
+                  shift2: shiftsMap.get(otherRequest.requester_shift_id)
+                }, verbose)
+
+                if (result && result.success) {
+                  // If a match was created, add it to matches
+                  if (!result.alreadyExists && result.matchData) {
+                    const newMatch = result.matchData
                     
-                    if (!userShift) {
-                      console.log(`Missing shift data for user request ${userRequest.id}`);
-                      continue;
-                    }
+                    // Determine which shift is the user's and which is the other user's
+                    const isUserRequester = newMatch.requester_request_id === userRequest.id
+                    const myShiftId = isUserRequester ? newMatch.requester_shift_id : newMatch.acceptor_shift_id
+                    const otherShiftId = isUserRequester ? newMatch.acceptor_shift_id : newMatch.requester_shift_id
                     
-                    const userPreferredDates = prefDatesByRequest[userRequest.id] || [];
-                    console.log(`User request ${userRequest.id} has ${userPreferredDates.length} preferred dates`);
+                    const myShift = shiftsMap.get(myShiftId)
+                    const otherShift = shiftsMap.get(otherShiftId)
+
+                    // Get other user ID and name
+                    const otherUserId = isUserRequester ? 
+                      otherRequest.requester_id : userRequest.requester_id
                     
-                    for (const otherRequest of otherRequests) {
-                      const otherShift = shiftsMap[otherRequest.requester_shift_id];
-                      
-                      if (!otherShift) {
-                        console.log(`Missing shift data for other request ${otherRequest.id}`);
-                        continue;
-                      }
-                      
-                      const otherPreferredDates = prefDatesByRequest[otherRequest.id] || [];
-                      
-                      // Check if user wants other shift date
-                      const userWantsOtherDate = userPreferredDates.includes(otherShift.date);
-                      
-                      // Check if other user wants user's shift date
-                      const otherWantsUserDate = otherPreferredDates.includes(userShift.date);
-                      
-                      if (userWantsOtherDate && otherWantsUserDate) {
-                        console.log(`MATCH FOUND between ${userRequest.id} and ${otherRequest.id}`);
-                        
-                        // Check if match already exists
-                        const { data: existingMatch, error: matchError } = await serviceClient
-                          .from('shift_swap_potential_matches')
-                          .select('*')
-                          .or(`and(requester_request_id.eq.${userRequest.id},acceptor_request_id.eq.${otherRequest.id}),and(requester_request_id.eq.${otherRequest.id},acceptor_request_id.eq.${userRequest.id})`)
-                          .limit(1);
-                        
-                        if (matchError) {
-                          console.error('Error checking for existing match:', matchError);
-                        } else if (!existingMatch || existingMatch.length === 0) {
-                          // Create new match
-                          const { data: newMatch, error: createError } = await serviceClient
-                            .from('shift_swap_potential_matches')
-                            .insert({
-                              requester_request_id: userRequest.id,
-                              acceptor_request_id: otherRequest.id,
-                              requester_shift_id: userRequest.requester_shift_id,
-                              acceptor_shift_id: otherRequest.requester_shift_id,
-                              match_date: new Date().toISOString().split('T')[0]
-                            })
-                            .select('*')
-                            .single();
-                          
-                          if (createError) {
-                            console.error('Error creating match:', createError);
-                          } else {
-                            console.log('Match created:', newMatch);
-                            matches.push(newMatch);
-                          }
-                        } else {
-                          console.log('Match already exists:', existingMatch[0]);
-                          matches.push(existingMatch[0]);
-                        }
-                      }
-                    }
-                  }
-                  
-                  // Get user info for all matches
-                  if (matches.length > 0) {
-                    // Process matches to return formatted data
-                    const formattedMatches = [];
-                    
-                    for (const match of matches) {
-                      // Get user and shift info for both sides of the match
-                      const req1 = userRequests.find(r => r.id === match.requester_request_id) || 
-                                  otherRequests.find(r => r.id === match.requester_request_id);
-                      
-                      const req2 = userRequests.find(r => r.id === match.acceptor_request_id) || 
-                                  otherRequests.find(r => r.id === match.acceptor_request_id);
-                      
-                      if (!req1 || !req2) continue;
-                      
-                      const shift1 = shiftsMap[req1.requester_shift_id];
-                      const shift2 = shiftsMap[req2.requester_shift_id];
-                      
-                      if (!shift1 || !shift2) continue;
-                      
-                      // Log shift data to confirm colleague_type
-                      console.log('Processing match with shifts:', {
-                        shift1: {
-                          id: shift1.id,
-                          colleague_type: shift1.colleague_type
-                        },
-                        shift2: {
-                          id: shift2.id,
-                          colleague_type: shift2.colleague_type
-                        }
-                      });
-                      
-                      // Get user info
-                      const { data: user1 } = await serviceClient
+                    let otherUserName = 'Unknown User'
+                    try {
+                      const { data: userData } = await client
                         .from('profiles')
                         .select('first_name, last_name')
-                        .eq('id', req1.requester_id)
-                        .single();
-                        
-                      const { data: user2 } = await serviceClient
-                        .from('profiles')
-                        .select('first_name, last_name')
-                        .eq('id', req2.requester_id)
-                        .single();
-                      
-                      // Always ensure the user's request is the "my" side
-                      const isUserReq1 = req1.requester_id === user_id;
-                      
-                      // User's shift is first, other user's shift is second
-                      const myShift = isUserReq1 ? shift1 : shift2;
-                      const otherShift = isUserReq1 ? shift2 : shift1;
-                      
-                      formattedMatches.push({
-                        match_id: match.id,
-                        match_status: match.status || 'pending',
-                        created_at: match.created_at,
-                        match_date: match.match_date,
-                        my_request_id: isUserReq1 ? req1.id : req2.id,
-                        other_request_id: isUserReq1 ? req2.id : req1.id,
-                        my_shift_id: myShift.id,
-                        my_shift_date: myShift.date,
-                        my_shift_start_time: myShift.start_time,
-                        my_shift_end_time: myShift.end_time,
-                        my_shift_truck: myShift.truck_name,
-                        my_shift_colleague_type: myShift.colleague_type || 'Unknown',
-                        other_shift_id: otherShift.id,
-                        other_shift_date: otherShift.date,
-                        other_shift_start_time: otherShift.start_time,
-                        other_shift_end_time: otherShift.end_time, 
-                        other_shift_truck: otherShift.truck_name,
-                        other_shift_colleague_type: otherShift.colleague_type || 'Unknown',
-                        other_user_id: isUserReq1 ? req2.requester_id : req1.requester_id,
-                        other_user_name: isUserReq1 
-                          ? `${user2?.first_name || ''} ${user2?.last_name || ''}`.trim() 
-                          : `${user1?.first_name || ''} ${user1?.last_name || ''}`.trim()
-                      });
+                        .eq('id', otherUserId)
+                        .single()
+
+                      if (userData) {
+                        otherUserName = `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Unknown User'
+                      }
+                    } catch (err) {
+                      console.error('Error fetching user name:', err)
                     }
-                    
-                    console.log(`Returning ${formattedMatches.length} formatted matches`);
-                    
-                    // Log first match to verify colleague_type fields are included
-                    if (formattedMatches.length > 0) {
-                      console.log('First formatted match:', {
-                        match_id: formattedMatches[0].match_id,
-                        my_shift_colleague_type: formattedMatches[0].my_shift_colleague_type,
-                        other_shift_colleague_type: formattedMatches[0].other_shift_colleague_type
-                      });
+
+                    // Create the match object for the API response
+                    const matchObj = {
+                      match_id: newMatch.id,
+                      match_status: newMatch.status,
+                      my_request_id: isUserRequester ? newMatch.requester_request_id : newMatch.acceptor_request_id,
+                      other_request_id: isUserRequester ? newMatch.acceptor_request_id : newMatch.requester_request_id,
+                      my_shift_id: myShiftId,
+                      my_shift_date: myShift.date,
+                      my_shift_start_time: myShift.start_time,
+                      my_shift_end_time: myShift.end_time,
+                      my_shift_truck: myShift.truck_name,
+                      my_shift_type: getShiftType(myShift.start_time),
+                      my_shift_colleague_type: myShift.colleague_type,
+                      other_shift_id: otherShiftId,
+                      other_shift_date: otherShift.date,
+                      other_shift_start_time: otherShift.start_time,
+                      other_shift_end_time: otherShift.end_time,
+                      other_shift_truck: otherShift.truck_name,
+                      other_user_id: otherUserId,
+                      other_user_name: otherUserName,
+                      other_shift_colleague_type: otherShift.colleague_type,
+                      created_at: newMatch.created_at
                     }
-                    
-                    return new Response(
-                      JSON.stringify(formattedMatches),
-                      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-                    );
+
+                    matches.push(matchObj)
                   }
                 }
+              } catch (error) {
+                console.error('Error recording match:', error)
               }
             }
           }
         }
       }
-      
-      // If we get here, we didn't find any matches
-      return new Response(
-        JSON.stringify([]),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
-    } catch (error) {
-      console.error('Error processing user matches:', error);
-      return new Response(
-        JSON.stringify({ error: error.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
     }
-  } catch (error) {
-    console.error('Error processing request:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-    )
-  }
-})
 
-// Helper function to get request IDs for a user using service role client
-async function getUserRequestIds(serviceClient, userId) {
-  const { data, error } = await serviceClient
-    .from('shift_swap_requests')
-    .select('id')
-    .eq('requester_id', userId);
-    
-  if (error) {
-    console.error('Error getting user request IDs:', error);
-    return [];
-  }
-  
-  return data ? data.map(r => r.id) : [];
-}
-
-// Helper function to get detailed match info using service role client
-async function getMatchDetails(serviceClient, matches, userId) {
-  const results = [];
-  
-  for (const match of matches) {
-    try {
-      // Get the requester request (which should always be the user's request when user_initiator_only=true)
-      const { data: reqData, error: reqError } = await serviceClient
-        .from('shift_swap_requests')
+    // When include_accepted_status is true, check all potential matches and update statuses
+    // This ensures all users see the correct status regardless of their role in the match
+    if (include_accepted_status) {
+      // Get all accepted matches in the system
+      const { data: acceptedMatches, error: acceptedMatchesError } = await client
+        .from('shift_swap_potential_matches')
         .select('*')
-        .eq('id', match.requester_request_id)
-        .single();
-        
-      if (reqError || !reqData) {
-        console.error('Error fetching requester request:', reqError);
-        continue;
+        .eq('status', 'accepted');
+      
+      if (acceptedMatchesError) {
+        console.error('Error fetching accepted matches:', acceptedMatchesError);
       }
-      
-      // CRITICAL CHECK: Ensure this is the current user's request
-      if (reqData.requester_id !== userId) {
-        console.log(`Skipping match ${match.id} - requester is not the current user (${reqData.requester_id} vs ${userId})`);
-        continue;
-      }
-      
-      // Get the acceptor request (which should always be the other user's request)
-      const { data: acceptorData, error: acceptorError } = await serviceClient
-        .from('shift_swap_requests')
-        .select('*')
-        .eq('id', match.acceptor_request_id)
-        .single();
+      else if (acceptedMatches && acceptedMatches.length > 0) {
+        // Create a lookup for accepted matches by request ID
+        const acceptedMatchesByRequestId = new Map();
         
-      if (acceptorError || !acceptorData) {
-        console.error('Error fetching acceptor request:', acceptorError);
-        continue;
-      }
-      
-      // Get shift details for both requests
-      const { data: shifts, error: shiftsError } = await serviceClient
-        .from('shifts')
-        .select('*')
-        .in('id', [reqData.requester_shift_id, acceptorData.requester_shift_id]);
+        // For each accepted match, record both request IDs as being in an accepted match
+        acceptedMatches.forEach(match => {
+          acceptedMatchesByRequestId.set(match.requester_request_id, match);
+          acceptedMatchesByRequestId.set(match.acceptor_request_id, match);
+        });
         
-      if (shiftsError || !shifts || shifts.length < 2) {
-        console.log('Could not fetch shift details, skipping');
-        continue;
-      }
-      
-      // Match shifts to requests - user's shift is always the requester shift
-      const userShift = shifts.find(s => s.id === reqData.requester_shift_id);
-      const otherShift = shifts.find(s => s.id === acceptorData.requester_shift_id);
-      
-      if (!userShift || !otherShift) {
-        console.log('Could not match shifts to requests, skipping');
-        continue;
-      }
-      
-      // Get other user's profile
-      const { data: otherProfile, error: profileError } = await serviceClient
-        .from('profiles')
-        .select('first_name, last_name')
-        .eq('id', acceptorData.requester_id)
-        .single();
-      
-      // Format the match data - here "my" always refers to the current user
-      results.push({
-        match_id: match.id,
-        match_status: match.status,
-        created_at: match.created_at,
-        match_date: match.match_date,
-        my_request_id: reqData.id,
-        other_request_id: acceptorData.id,
-        my_shift_id: userShift.id,
-        my_shift_date: userShift.date,
-        my_shift_start_time: userShift.start_time,
-        my_shift_end_time: userShift.end_time,
-        my_shift_truck: userShift.truck_name || null,
-        other_shift_id: otherShift.id,
-        other_shift_date: otherShift.date,
-        other_shift_start_time: otherShift.start_time,
-        other_shift_end_time: otherShift.end_time,
-        other_shift_truck: otherShift.truck_name || null,
-        other_user_id: acceptorData.requester_id,
-        other_user_name: otherProfile ? 
-          `${otherProfile.first_name || ''} ${otherProfile.last_name || ''}`.trim() : 
-          'Unknown User'
-      });
-    } catch (error) {
-      console.error(`Error processing match ${match.id}:`, error);
-    }
-  }
-  
-  return results;
-}
-
-// Helper function to attempt manual matching using service role client
-async function attemptManualMatching(serviceClient, userId, userInitiatorOnly = true) {
-  try {
-    console.log("Starting manual matching process");
-    
-    // Get user's requests and shifts
-    const { data: userRequests, error: reqError } = await serviceClient
-      .from('shift_swap_requests')
-      .select('*')
-      .eq('requester_id', userId)
-      .eq('status', 'pending');
-      
-    if (reqError || !userRequests || userRequests.length === 0) {
-      console.log("No pending requests found for this user");
-      return [];
-    }
-    
-    console.log(`User has ${userRequests.length} pending requests`);
-    
-    // Get other users' requests
-    const { data: otherRequests, error: otherReqError } = await serviceClient
-      .from('shift_swap_requests')
-      .select('*')
-      .neq('requester_id', userId)
-      .eq('status', 'pending');
-      
-    if (otherReqError || !otherRequests || otherRequests.length === 0) {
-      console.log("No pending requests found from other users");
-      return [];
-    }
-    
-    console.log(`Found ${otherRequests.length} pending requests from other users`);
-    
-    // Get shifts for all requests
-    const allShiftIds = [...userRequests, ...otherRequests].map(r => r.requester_shift_id).filter(Boolean);
-    const { data: allShifts, error: shiftsError } = await serviceClient
-      .from('shifts')
-      .select('*')
-      .in('id', allShiftIds);
-      
-    if (shiftsError || !allShifts) {
-      console.log("Error fetching shifts");
-      return [];
-    }
-    
-    console.log(`Fetched ${allShifts.length} shifts for matching`);
-    
-    // Get preferred dates for all requests
-    const allRequestIds = [...userRequests, ...otherRequests].map(r => r.id).filter(Boolean);
-    const { data: allPreferredDates, error: datesError } = await serviceClient
-      .from('shift_swap_preferred_dates')
-      .select('*')
-      .in('request_id', allRequestIds);
-      
-    if (datesError) {
-      console.log("Error fetching preferred dates");
-      return [];
-    }
-    
-    console.log(`Fetched ${allPreferredDates?.length || 0} preferred dates`);
-    
-    // Now check for potential matches
-    const matches = [];
-    
-    // Create maps for quick lookups
-    const shiftsById = {};
-    allShifts.forEach(s => {
-      shiftsById[s.id] = {
-        ...s,
-        normalizedDate: s.date,
-        type: getShiftType(s.start_time)
-      };
-    });
-    
-    const preferredDatesByRequest = {};
-    (allPreferredDates || []).forEach(d => {
-      if (!preferredDatesByRequest[d.request_id]) {
-        preferredDatesByRequest[d.request_id] = [];
-      }
-      preferredDatesByRequest[d.request_id].push(d);
-    });
-    
-    // Check each user request against each other request
-    for (const userRequest of userRequests) {
-      const userShift = shiftsById[userRequest.requester_shift_id];
-      if (!userShift) continue;
-      
-      for (const otherRequest of otherRequests) {
-        // Skip if users are the same
-        if (userRequest.requester_id === otherRequest.requester_id) continue;
-        
-        console.log(`Processing match between user request ${userRequest.id} and other request ${otherRequest.id}`);
-        
-        const otherShift = shiftsById[otherRequest.requester_shift_id];
-        if (!otherShift) continue;
-        
-        // Check compatibility
-        const userPrefDates = preferredDatesByRequest[userRequest.id] || [];
-        const otherPrefDates = preferredDatesByRequest[otherRequest.id] || [];
-        
-        console.log(`Checking compatibility between requests ${userRequest.id} and ${otherRequest.id}`);
-        
-        // Check if user wants other's shift date
-        const userWantsOtherDate = userPrefDates.some(d => d.date === otherShift.normalizedDate);
-        
-        // Check if other wants user's shift date
-        const otherWantsUserDate = otherPrefDates.some(d => d.date === userShift.normalizedDate);
-        
-        if (userWantsOtherDate && otherWantsUserDate) {
-          console.log(`MATCH FOUND between ${userRequest.id} and ${otherRequest.id}`);
+        // Now process all matches to check if any of them should be marked as accepted
+        // for user requests that are part of an accepted match elsewhere
+        for (let i = 0; i < matches.length; i++) {
+          const match = matches[i];
           
-          // Check if this match already exists
-          const { data: existingMatch, error: matchCheckError } = await serviceClient
-            .from('shift_swap_potential_matches')
-            .select('id')
-            .or(`and(requester_request_id.eq.${userRequest.id},acceptor_request_id.eq.${otherRequest.id}),and(requester_request_id.eq.${otherRequest.id},acceptor_request_id.eq.${userRequest.id})`)
-            .limit(1);
-            
-          if (!matchCheckError && (!existingMatch || existingMatch.length === 0)) {
-            // ALWAYS create match with user request as the requester
-            // This ensures "Your Shift" is always the user's shift they want to swap
-            const { data: newMatch, error: createError } = await serviceClient
-              .from('shift_swap_potential_matches')
-              .insert({
-                requester_request_id: userRequest.id,
-                acceptor_request_id: otherRequest.id,
-                requester_shift_id: userRequest.requester_shift_id,
-                acceptor_shift_id: otherRequest.requester_shift_id,
-                match_date: new Date().toISOString().split('T')[0]
-              })
-              .select()
-              .single();
+          // Check if this match's requests are part of an accepted match
+          const acceptedMatch = acceptedMatchesByRequestId.get(match.my_request_id) || 
+                               acceptedMatchesByRequestId.get(match.other_request_id);
+          
+          if (acceptedMatch) {
+            // If this is not the accepted match itself (different ID), mark it as accepted
+            // so the user knows they can't take it anymore
+            if (acceptedMatch.id !== match.match_id && match.match_status === 'pending') {
+              if (verbose) {
+                console.log(`Marking match ${match.match_id} as accepted because requests are part of accepted match ${acceptedMatch.id}`);
+              }
               
-            if (createError) {
-              console.error('Error creating match:', createError);
-            } else {
-              console.log('New match created:', newMatch);
-              
-              // Add formatted match data
-              const { data: otherProfile } = await serviceClient
-                .from('profiles')
-                .select('first_name, last_name')
-                .eq('id', otherRequest.requester_id)
-                .single();
-                
-              matches.push({
-                match_id: newMatch.id,
-                match_status: newMatch.status,
-                created_at: newMatch.created_at,
-                match_date: newMatch.match_date,
-                my_request_id: userRequest.id,
-                other_request_id: otherRequest.id,
-                my_shift_id: userShift.id,
-                my_shift_date: userShift.date,
-                my_shift_start_time: userShift.start_time,
-                my_shift_end_time: userShift.end_time,
-                my_shift_truck: userShift.truck_name || null,
-                other_shift_id: otherShift.id,
-                other_shift_date: otherShift.date,
-                other_shift_start_time: otherShift.start_time,
-                other_shift_end_time: otherShift.end_time,
-                other_shift_truck: otherShift.truck_name || null,
-                other_user_id: otherRequest.requester_id,
-                other_user_name: otherProfile ? 
-                  `${otherProfile.first_name || ''} ${otherProfile.last_name || ''}`.trim() : 
-                  'Other User'
-              });
+              // Update the status for display purposes only (this doesn't change the database)
+              match.match_status = 'accepted';
             }
-          } else {
-            console.log('Match already exists or check error');
           }
         }
       }
     }
-    
-    return matches;
+
+    // Format the matches for the API response
+    if (verbose) {
+      if (matches.length > 0) {
+        console.log(`Processing match with shifts:`, {
+          shift1: {
+            id: matches[0].other_shift_id,
+            colleague_type: matches[0].other_shift_colleague_type
+          },
+          shift2: {
+            id: matches[0].my_shift_id,
+            colleague_type: matches[0].my_shift_colleague_type
+          }
+        });
+      }
+      console.log(`Returning ${matches.length} formatted matches`);
+      if (matches.length > 0) {
+        console.log(`First formatted match:`, {
+          match_id: matches[0].match_id,
+          my_shift_colleague_type: matches[0].my_shift_colleague_type,
+          other_shift_colleague_type: matches[0].other_shift_colleague_type
+        });
+      }
+    }
+
+    return new Response(
+      JSON.stringify(matches),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    )
   } catch (error) {
-    console.error("Error in manual matching:", error);
-    return [];
+    console.error('Error:', error.message)
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    )
   }
+})
+
+// Helper function to get shift type from start time
+function getShiftType(startTime: string): 'day' | 'afternoon' | 'night' | 'unknown' {
+  const hour = parseInt(startTime.split(':')[0], 10);
+  
+  if (hour >= 5 && hour < 12) return 'day';
+  if (hour >= 12 && hour < 17) return 'afternoon';
+  if (hour >= 17 || hour < 5) return 'night';
+  
+  return 'unknown';
 }
 
-// Helper to determine shift type based on start time
-function getShiftType(startTime) {
-  if (!startTime) return 'unknown';
-  
-  let startHour;
-  if (typeof startTime === 'string') {
-    startHour = parseInt(startTime.split(':')[0], 10);
-  } else {
-    // Assume it's a Date object
-    startHour = startTime.getHours();
-  }
-  
-  if (startHour <= 8) {
-    return 'day';
-  } else if (startHour > 8 && startHour < 16) {
-    return 'afternoon';
-  } else {
-    return 'night';
+// Helper function to record a match in the database
+async function recordMatch(client: any, data: any, verbose = false) {
+  try {
+    const { request1, request2, shift1, shift2 } = data;
+    
+    // Check if a match already exists
+    const { data: existingMatch, error: existingMatchError } = await client
+      .from('shift_swap_potential_matches')
+      .select('*')
+      .or(`and(requester_request_id.eq.${request1.id},acceptor_request_id.eq.${request2.id}),and(requester_request_id.eq.${request2.id},acceptor_request_id.eq.${request1.id})`)
+      .limit(1)
+      .single();
+      
+    if (existingMatchError && existingMatchError.code !== 'PGRST116') {
+      console.error('Error checking for existing match:', existingMatchError);
+      return { success: false, error: existingMatchError };
+    }
+    
+    if (existingMatch) {
+      if (verbose) {
+        console.log('Match already exists:', existingMatch);
+      }
+      return { success: true, alreadyExists: true, matchData: existingMatch };
+    }
+    
+    // Create the match
+    const { data: matchData, error: matchError } = await client
+      .from('shift_swap_potential_matches')
+      .insert({
+        requester_request_id: request1.id,
+        acceptor_request_id: request2.id,
+        requester_shift_id: request1.requester_shift_id,
+        acceptor_shift_id: request2.requester_shift_id,
+        match_date: new Date().toISOString().split('T')[0],
+        status: 'pending'
+      })
+      .select()
+      .single();
+      
+    if (matchError) {
+      console.error('Error creating match:', matchError);
+      return { success: false, error: matchError };
+    }
+    
+    return { success: true, alreadyExists: false, matchData };
+  } catch (error) {
+    console.error('Error in recordMatch:', error);
+    return { success: false, error };
   }
 }
