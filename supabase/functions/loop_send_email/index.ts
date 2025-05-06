@@ -17,7 +17,7 @@ interface EmailPayload {
   replyTo?: string;
   cc?: string | string[];
   bcc?: string | string[];
-  test_api_key?: boolean; // New flag to test API key
+  test_api_key?: boolean; // Flag to test API key
 }
 
 serve(async (req) => {
@@ -49,31 +49,94 @@ serve(async (req) => {
       console.log('Testing Loop.so API key validity');
       
       try {
-        // Just test authentication with a simple request to the API
-        const response = await fetch('https://api.loop.so/v1/me', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${LOOP_API_KEY}`,
-            'Content-Type': 'application/json'
+        // Try with a direct ping to healthcheck endpoint first (simpler request)
+        console.log('Checking Loop.so API availability with ping request...');
+        
+        // Create AbortController for timeout handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        try {
+          // First try a simple ping to see if we can reach Loop.so at all
+          const pingResponse = await fetch('https://api.loop.so/ping', {
+            method: 'GET',
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          console.log('Loop.so ping response:', pingResponse.status, pingResponse.statusText);
+          
+          if (!pingResponse.ok) {
+            console.error('Loop.so ping failed');
+            throw new Error(`Loop.so API unreachable: ${pingResponse.status} ${pingResponse.statusText}`);
           }
-        });
-        
-        console.log(`Loop.so API key test response status: ${response.status}`);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Loop.so API key test error: HTTP status ${response.status}`, errorText);
-          throw new Error(`Invalid API key or API unavailable: ${response.status} ${errorText}`);
+        } catch (pingError) {
+          clearTimeout(timeoutId);
+          console.error('Error pinging Loop.so API:', pingError);
+          
+          if (pingError.name === 'AbortError') {
+            throw new Error('Loop.so API timeout - connection timed out');
+          }
+          
+          throw new Error(`Loop.so API unreachable: ${pingError.message}`);
         }
         
-        // Successfully validated API key
-        return new Response(JSON.stringify({ 
-          success: true, 
-          message: "API key is valid and Loop.so service is accessible"
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200
-        });
+        // Now try validating the API key via the /me endpoint
+        console.log('Testing Loop.so API key with /me endpoint...');
+        const authController = new AbortController();
+        const authTimeoutId = setTimeout(() => authController.abort(), 10000);
+        
+        try {
+          const authResponse = await fetch('https://api.loop.so/v1/me', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${LOOP_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            signal: authController.signal
+          });
+          
+          clearTimeout(authTimeoutId);
+          console.log(`Loop.so API key test response status: ${authResponse.status}`);
+          
+          if (!authResponse.ok) {
+            let errorText = '';
+            try {
+              errorText = await authResponse.text();
+            } catch (e) {
+              errorText = 'Unable to read response body';
+            }
+            
+            console.error(`Loop.so API key test error: HTTP status ${authResponse.status}`, errorText);
+            throw new Error(`Invalid API key or API unavailable: ${authResponse.status} ${errorText}`);
+          }
+          
+          let responseData;
+          try {
+            responseData = await authResponse.json();
+            console.log('Loop.so API key validation success. Response data:', JSON.stringify(responseData));
+          } catch (e) {
+            console.log('Loop.so API key is valid but response is not JSON');
+          }
+          
+          // Successfully validated API key
+          return new Response(JSON.stringify({ 
+            success: true, 
+            message: "API key is valid and Loop.so service is accessible"
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+          });
+        } catch (authError) {
+          clearTimeout(authTimeoutId);
+          console.error('Error testing Loop.so API key with /me endpoint:', authError);
+          
+          if (authError.name === 'AbortError') {
+            throw new Error('Loop.so API timeout when validating API key');
+          }
+          
+          throw new Error(`API key test failed: ${authError.message}`);
+        }
       } catch (apiError) {
         console.error('Error testing Loop.so API key:', apiError);
         throw new Error(`API key test failed: ${apiError.message}`);
@@ -110,6 +173,10 @@ serve(async (req) => {
       const apiUrl = 'https://api.loop.so/v1/email/send';
       console.log('Using API URL:', apiUrl);
       
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      
       // Make the request with detailed error handling
       try {
         const response = await fetch(apiUrl, {
@@ -118,14 +185,22 @@ serve(async (req) => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${LOOP_API_KEY}`
           },
-          body: JSON.stringify(emailPayload)
+          body: JSON.stringify(emailPayload),
+          signal: controller.signal
         });
         
+        clearTimeout(timeoutId);
         console.log(`Loop.so API response status: ${response.status}`);
         
         // Check for non-success status codes
         if (!response.ok) {
-          const errorText = await response.text();
+          let errorText = '';
+          try {
+            errorText = await response.text();
+          } catch (e) {
+            errorText = 'Unable to read response body';
+          }
+          
           console.error(`Loop.so API error: HTTP status ${response.status}`, errorText);
           throw new Error(`Loop.so API error: ${response.status} ${errorText}`);
         }
@@ -147,7 +222,13 @@ serve(async (req) => {
           status: 200
         });
       } catch (fetchError) {
+        clearTimeout(timeoutId);
         console.error('Fetch operation failed:', fetchError);
+        
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timed out when sending email');
+        }
+        
         throw new Error(`Fetch operation failed: ${fetchError.message}`);
       }
     } catch (loopError) {

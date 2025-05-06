@@ -29,30 +29,85 @@ serve(async (req) => {
     console.log('LOOP_API_KEY first/last 4 chars:', 
       `${LOOP_API_KEY.substring(0, 4)}...${LOOP_API_KEY.substring(LOOP_API_KEY.length - 4)}`);
     
-    // First test API key validity
-    console.log('Testing Loop.so API key validity before sending test email');
+    // First test API key validity and connectivity
+    console.log('Testing Loop.so API key validity and connectivity before sending test email');
     
     try {
-      const authResponse = await fetch('https://api.loop.so/v1/me', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${LOOP_API_KEY}`,
-          'Content-Type': 'application/json'
+      // Test basic connectivity with ping
+      console.log('Testing basic connectivity to Loop.so API...');
+      const pingController = new AbortController();
+      const pingTimeoutId = setTimeout(() => pingController.abort(), 10000);
+      
+      try {
+        const pingResponse = await fetch('https://api.loop.so/ping', {
+          method: 'GET',
+          signal: pingController.signal
+        });
+        
+        clearTimeout(pingTimeoutId);
+        console.log(`Loop.so ping response status: ${pingResponse.status}`);
+        
+        if (!pingResponse.ok) {
+          console.error(`Loop.so ping failed: ${pingResponse.status}`);
+          throw new Error(`Loop.so API unreachable: ${pingResponse.status} ${pingResponse.statusText}`);
         }
-      });
-      
-      console.log(`Loop.so API key test response status: ${authResponse.status}`);
-      
-      if (!authResponse.ok) {
-        const errorText = await authResponse.text();
-        console.error(`Loop.so API key validation failed: ${authResponse.status}`, errorText);
-        throw new Error(`API key invalid: ${authResponse.status} ${errorText}`);
+        
+        console.log('Loop.so API is reachable');
+      } catch (pingError) {
+        clearTimeout(pingTimeoutId);
+        console.error('Ping to Loop.so failed:', pingError);
+        
+        if (pingError.name === 'AbortError') {
+          throw new Error('Loop.so API timeout - connection timed out');
+        }
+        
+        throw new Error(`Loop.so API unreachable: ${pingError.message}`);
       }
       
-      console.log('Loop.so API key is valid, proceeding with test email');
-    } catch (keyError) {
-      console.error('API key validation error:', keyError);
-      throw new Error(`API key validation failed: ${keyError.message}`);
+      // Now test API key validity
+      console.log('Testing Loop.so API key validity...');
+      const authController = new AbortController();
+      const authTimeoutId = setTimeout(() => authController.abort(), 10000);
+      
+      try {
+        const authResponse = await fetch('https://api.loop.so/v1/me', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${LOOP_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          signal: authController.signal
+        });
+        
+        clearTimeout(authTimeoutId);
+        console.log(`Loop.so API key test response status: ${authResponse.status}`);
+        
+        if (!authResponse.ok) {
+          let errorText = '';
+          try {
+            errorText = await authResponse.text();
+          } catch (e) {
+            errorText = 'Unable to read response body';
+          }
+          
+          console.error(`Loop.so API key validation failed: ${authResponse.status}`, errorText);
+          throw new Error(`API key invalid: ${authResponse.status} ${errorText}`);
+        }
+        
+        console.log('Loop.so API key is valid, proceeding with test email');
+      } catch (keyError) {
+        clearTimeout(authTimeoutId);
+        console.error('API key validation error:', keyError);
+        
+        if (keyError.name === 'AbortError') {
+          throw new Error('API key validation timed out');
+        }
+        
+        throw new Error(`API key validation failed: ${keyError.message}`);
+      }
+    } catch (connectivityError) {
+      console.error('Loop.so connectivity test failed:', connectivityError);
+      throw new Error(`Loop.so connectivity test failed: ${connectivityError.message}`);
     }
     
     const recipient = "njalasankhulani@gmail.com";
@@ -78,19 +133,31 @@ serve(async (req) => {
       
       console.log('Test payload:', JSON.stringify(payload));
       
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${LOOP_API_KEY}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
       
+      clearTimeout(timeoutId);
       console.log(`Loop.so test response status: ${response.status}`);
       
       if (!response.ok) {
-        const errorText = await response.text();
+        let errorText = '';
+        try {
+          errorText = await response.text();
+        } catch (e) {
+          errorText = 'Unable to read response body';
+        }
+        
         console.error(`Loop.so API error: ${response.status}`, errorText);
         throw new Error(`Loop.so API error: ${response.status} ${errorText}`);
       }
@@ -116,6 +183,11 @@ serve(async (req) => {
       });
     } catch (loopError) {
       console.error("Loop.so error:", loopError);
+      
+      if (loopError.name === 'AbortError') {
+        throw new Error('Request timed out when sending email');
+      }
+      
       throw new Error(`Loop.so error: ${loopError.message}`);
     }
   } catch (error) {

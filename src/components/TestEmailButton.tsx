@@ -28,15 +28,31 @@ export function TestEmailButton() {
       console.log("API key test response:", apiKeyResponse);
 
       if (apiKeyResponse.error) {
-        setApiStatus("API key invalid");
-        toast.error(`API key test failed: ${apiKeyResponse.error.message || apiKeyResponse.error}`);
-        console.error("API key test error details:", JSON.stringify(apiKeyResponse.error));
-        setIsLoading(false);
-        return;
+        setApiStatus("Connection failed");
+        
+        // More specific error handling
+        let errorMessage = apiKeyResponse.error.message || String(apiKeyResponse.error);
+        
+        if (errorMessage.includes("timeout")) {
+          toast.error("Loop.so API connection timed out. Please check your network connection.");
+          console.error("API key test error details:", JSON.stringify(apiKeyResponse.error));
+          setIsLoading(false);
+          return;
+        } else if (errorMessage.includes("unreachable")) {
+          toast.error("Loop.so API is unreachable. Please check your network connection.");
+          console.error("API key test error details:", JSON.stringify(apiKeyResponse.error));
+          setIsLoading(false);
+          return;
+        } else {
+          toast.error(`API key test failed: ${errorMessage}`);
+          console.error("API key test error details:", JSON.stringify(apiKeyResponse.error));
+          setIsLoading(false);
+          return;
+        }
       }
 
-      setApiStatus("API key valid");
-      toast.success("Loop.so API key is valid! Proceeding with test email...");
+      setApiStatus("API connected");
+      toast.success("Loop.so API connection successful! Proceeding with test email...");
 
       // Now test email sending with the verified key
       console.log("Calling test_loop_email function...");
@@ -47,13 +63,27 @@ export function TestEmailButton() {
       console.log("Loop.so test response:", loopResponse);
 
       if (loopResponse.error) {
-        toast.error(`Loop.so Test failed: ${loopResponse.error.message || loopResponse.error}`);
+        setApiStatus("Email failed");
+        
+        // More specific error handling
+        let errorMessage = loopResponse.error.message || String(loopResponse.error);
+        
+        if (errorMessage.includes("timeout")) {
+          toast.error("Email sending timed out. This could be due to network issues.");
+        } else if (errorMessage.includes("validation")) {
+          toast.error("Email validation failed. Please check your sending domain configuration in Loop.so.");
+        } else {
+          toast.error(`Loop.so Test failed: ${errorMessage}`);
+        }
+        
         console.error("Loop.so test error details:", JSON.stringify(loopResponse.error));
       } else {
-        toast.success("Loop.so Test email sent! Check your inbox.");
+        setApiStatus("Email sent");
+        toast.success("Loop.so Test email sent! Check your inbox for njalasankhulani@gmail.com.");
       }
     } catch (error) {
       console.error("Error testing email:", error);
+      setApiStatus("Error");
       toast.error(`Error testing email: ${error.message || "Unknown error"}`);
     } finally {
       setIsLoading(false);
@@ -69,7 +99,7 @@ export function TestEmailButton() {
     >
       {isLoading ? "Testing..." : "Test Email Functionality"}
       {apiStatus && (
-        <span className={`ml-2 text-xs ${apiStatus.includes("valid") ? "text-green-500" : "text-red-500"}`}>
+        <span className={`ml-2 text-xs ${apiStatus.includes("connected") || apiStatus.includes("sent") ? "text-green-500" : "text-red-500"}`}>
           ({apiStatus})
         </span>
       )}

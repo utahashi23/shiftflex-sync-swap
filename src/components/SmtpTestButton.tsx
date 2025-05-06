@@ -12,8 +12,8 @@ export function SmtpTestButton() {
     try {
       setIsLoading(true);
       setApiKeyStatus(null);
-      toast.info("Testing Loop.so API Key and connection...");
-      console.log("Testing Loop.so API Key validity");
+      toast.info("Testing Loop.so API connection...");
+      console.log("Testing Loop.so API key validity");
 
       const response = await supabase.functions.invoke('loop_send_email', {
         body: {
@@ -28,12 +28,26 @@ export function SmtpTestButton() {
       console.log("Loop.so API key test response:", response);
 
       if (response.error) {
-        setApiKeyStatus("Invalid or unreachable");
-        toast.error(`Loop.so API Key test failed: ${response.error.message || response.error}`);
+        setApiKeyStatus("Connection failed");
+        
+        // More specific error handling
+        let errorMessage = response.error.message || String(response.error);
+        
+        // Check for common error patterns
+        if (errorMessage.includes("timeout")) {
+          toast.error("Loop.so API connection timed out. Please check your network connection and firewall settings.");
+        } else if (errorMessage.includes("unreachable")) {
+          toast.error("Loop.so API is unreachable. Please check your network connection or if Loop.so is having an outage.");
+        } else if (errorMessage.includes("invalid")) {
+          toast.error("Loop.so API key appears to be invalid. Please verify your API key.");
+        } else {
+          toast.error(`Loop.so API test failed: ${errorMessage}`);
+        }
+        
         console.error("Loop.so API key test error details:", JSON.stringify(response.error));
       } else {
-        setApiKeyStatus("Valid");
-        toast.success("Loop.so API Key is valid and connection successful!");
+        setApiKeyStatus("Connected");
+        toast.success("Loop.so API connection successful!");
       }
     } catch (error) {
       console.error("Error testing Loop.so API key:", error);
@@ -51,9 +65,9 @@ export function SmtpTestButton() {
       variant="outline"
       className="w-full mt-2"
     >
-      {isLoading ? "Testing API Key..." : "Test Loop.so API Key"}
+      {isLoading ? "Testing API Connection..." : "Test Loop.so API Connection"}
       {apiKeyStatus && (
-        <span className={`ml-2 text-xs ${apiKeyStatus === "Valid" ? "text-green-500" : "text-red-500"}`}>
+        <span className={`ml-2 text-xs ${apiKeyStatus === "Connected" ? "text-green-500" : "text-red-500"}`}>
           ({apiKeyStatus})
         </span>
       )}
