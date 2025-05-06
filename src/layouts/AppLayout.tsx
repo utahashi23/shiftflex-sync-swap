@@ -9,7 +9,8 @@ import {
   LogOut,
   Menu,
   X,
-  ShieldCheck
+  ShieldCheck,
+  HelpCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -56,6 +57,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     { path: '/shifts', label: 'Shift Swaps', icon: <Calendar className="h-5 w-5" /> },
     { path: '/calendar', label: 'Calendar', icon: <Calendar className="h-5 w-5" /> },
     { path: '/settings', label: 'Settings', icon: <Settings className="h-5 w-5" /> },
+    { path: '/faq', label: 'FAQ', icon: <HelpCircle className="h-5 w-5" /> },
     ...(isAdmin ? [{ path: '/admin', label: 'Admin', icon: <ShieldCheck className="h-5 w-5" /> }] : []),
   ];
 

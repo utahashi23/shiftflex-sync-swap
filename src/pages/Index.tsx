@@ -1,10 +1,9 @@
-
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/auth'; // Import from the correct barrel file
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Truck, Shuffle, Settings } from "lucide-react";
+import { Calendar, Truck, Shuffle, Settings, HelpCircle } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -36,10 +35,10 @@ const Index = () => {
       path: "/calendar"
     },
     {
-      title: "Account Settings",
-      description: "Update your personal information and preferences",
-      icon: <Settings className="h-8 w-8 text-primary" />,
-      path: "/settings"
+      title: "FAQ",
+      description: "Find answers to common questions about using ShiftFlex",
+      icon: <HelpCircle className="h-8 w-8 text-primary" />,
+      path: "/faq"
     }
   ];
 

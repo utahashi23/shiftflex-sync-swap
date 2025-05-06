@@ -16,6 +16,7 @@ import ShiftSwaps from "./pages/ShiftSwaps";
 import CalendarManagement from "./pages/CalendarManagement";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
+import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/calendar" element={<CalendarManagement />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/faq" element={<FAQ />} />
             
             {/* Catch-all for non-existent routes */}
             <Route path="*" element={<NotFound />} />
