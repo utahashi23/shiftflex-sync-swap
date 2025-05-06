@@ -32,6 +32,8 @@ export const SwapTabContent = ({
       // Debug output for accepted swaps
       if (swap.status === 'accepted') {
         console.log(`Found ACCEPTED swap with ID: ${swap.id}`);
+      } else if (swap.status === 'other_accepted') {
+        console.log(`Found OTHER_ACCEPTED swap with ID: ${swap.id}`);
       }
     });
   }

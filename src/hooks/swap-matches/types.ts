@@ -16,7 +16,7 @@ export interface OtherSwapShift extends SwapShift {
 
 export interface SwapMatch {
   id: string;
-  status: string;
+  status: string; // 'pending' | 'accepted' | 'completed' | 'other_accepted'
   myShift: SwapShift;
   otherShift: OtherSwapShift;
   myRequestId: string;
