@@ -64,13 +64,13 @@ const AppLayout = ({ children }: AppLayoutProps) => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Mobile sidebar toggle */}
+      {/* Mobile sidebar toggle - repositioned to avoid overlap */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <Button 
           size="icon" 
-          variant="ghost" 
+          variant="outline" 
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="bg-white shadow-md"
+          className="bg-white shadow-md border"
         >
           {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
@@ -125,9 +125,9 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main content - added padding to prevent overlap with burger menu */}
       <div className="flex-1 lg:ml-64">
-        <main className="p-4 md:p-6 max-w-7xl mx-auto">
+        <main className="p-4 md:p-6 max-w-7xl mx-auto pt-16 lg:pt-6">
           {children}
         </main>
       </div>
