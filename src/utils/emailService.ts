@@ -84,7 +84,7 @@ export const sendSwapEmail = async (
     to,
     subject,
     html,
-    from: `postmaster@shiftflex.au`
+    from: `admin@shiftflex.au`
   });
   
   if (!result.success) {
@@ -186,7 +186,7 @@ export const testEmailFunctionality = async (): Promise<{
     const directResponse = await sendEmail({
       to: "njalasankhulani@gmail.com",
       subject: "Test Email via Loop.so",
-      from: "postmaster@shiftflex.au",
+      from: "admin@shiftflex.au",
       html: `
         <h2>Testing Loop.so Email Function</h2>
         <p>This is a test email sent using the Loop.so email service.</p>

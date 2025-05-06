@@ -22,7 +22,7 @@ export function SmtpTestButton() {
             <p>If you're receiving this email, the Loop.so integration is working correctly.</p>
             <p>Time sent: ${new Date().toISOString()}</p>
           `,
-          from: "postmaster@shiftflex.au"
+          from: "admin@shiftflex.au"
         }
       });
 

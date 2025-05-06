@@ -31,7 +31,7 @@ export function TestEmailButton() {
         body: {
           to: "njalasankhulani@gmail.com",
           subject: "Test Email via Loop.so API",
-          from: "postmaster@shiftflex.au",
+          from: "admin@shiftflex.au",
           html: `
             <h2>Testing Loop.so Email API</h2>
             <p>This is a test email sent using the Loop.so email service.</p>
