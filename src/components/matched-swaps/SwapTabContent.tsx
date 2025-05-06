@@ -33,6 +33,11 @@ export const SwapTabContent = ({
       if (swap.status === 'accepted') {
         console.log(`Found ACCEPTED swap with ID: ${swap.id}`);
       }
+      
+      // Log conflicts
+      if (swap.isConflictingWithAccepted) {
+        console.log(`Swap ${swap.id} is marked as conflicting with an accepted swap`);
+      }
     });
   }
 

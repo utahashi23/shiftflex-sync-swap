@@ -88,6 +88,10 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         acceptedRequestIds.has(match.myRequestId) ||
         acceptedRequestIds.has(match.otherRequestId);
       
+      if (isConflicting) {
+        console.log(`Marking match ${match.id} as conflicting because it involves shifts or requests from an accepted match`);
+      }
+      
       return { ...match, isConflictingWithAccepted: isConflicting };
     }
     return match;
@@ -102,7 +106,7 @@ export const isPartOfAcceptedSwap = (match: SwapMatch, allMatches: SwapMatch[]):
   if (match.status === 'accepted') return false;
   
   // Look for accepted swaps that involve the same shift or request
-  return allMatches.some(otherMatch => 
+  const isConflicting = allMatches.some(otherMatch => 
     otherMatch.id !== match.id && 
     otherMatch.status === 'accepted' && 
     (otherMatch.myShift.id === match.myShift.id || 
@@ -114,4 +118,10 @@ export const isPartOfAcceptedSwap = (match: SwapMatch, allMatches: SwapMatch[]):
      otherMatch.myRequestId === match.otherRequestId ||
      otherMatch.otherRequestId === match.otherRequestId)
   );
+  
+  if (isConflicting) {
+    console.log(`Match ${match.id} is conflicting with an accepted swap`);
+  }
+  
+  return isConflicting;
 };

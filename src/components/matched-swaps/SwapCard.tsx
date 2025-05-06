@@ -43,7 +43,7 @@ export const SwapCard = ({
   });
   
   // Determine if this swap conflicts with an accepted swap
-  const isConflicting = swap.isConflictingWithAccepted || 
+  const isConflicting = Boolean(swap.isConflictingWithAccepted) || 
     (allMatches.length > 0 && allMatches.some(otherMatch => 
       otherMatch.id !== swap.id && 
       otherMatch.status === 'accepted' && 
