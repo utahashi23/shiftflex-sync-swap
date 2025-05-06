@@ -66,16 +66,22 @@ export const SwapTabContent = ({
 
   return (
     <div className="space-y-4" data-testid="swap-list">
-      {uniqueSwaps.map(swap => (
-        <SwapCard 
-          key={swap.id}
-          swap={swap} 
-          isPast={isPast}
-          onAccept={!isPast && swap.status === 'pending' ? onAcceptSwap : undefined}
-          onFinalize={!isPast && swap.status === 'accepted' ? onFinalizeSwap : undefined}
-          onResendEmail={!isPast && swap.status === 'accepted' ? onResendEmail : undefined}
-        />
-      ))}
+      {uniqueSwaps.map(swap => {
+        // Determine if this user can accept/finalize this swap
+        const canAcceptOrFinalize = swap.status === 'pending' || 
+          (swap.status === 'accepted' && onFinalizeSwap);
+        
+        return (
+          <SwapCard 
+            key={swap.id}
+            swap={swap} 
+            isPast={isPast}
+            onAccept={!isPast && swap.status === 'pending' && canAcceptOrFinalize ? onAcceptSwap : undefined}
+            onFinalize={!isPast && swap.status === 'accepted' && canAcceptOrFinalize ? onFinalizeSwap : undefined}
+            onResendEmail={!isPast && swap.status === 'accepted' ? onResendEmail : undefined}
+          />
+        );
+      })}
     </div>
   );
-};
+}
