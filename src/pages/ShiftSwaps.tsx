@@ -8,7 +8,6 @@ import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
-import { EmailTestPanel } from '@/components/EmailTestPanel';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
@@ -74,11 +73,6 @@ const ShiftSwaps = () => {
           )}
         </Tabs>
       </TooltipProvider>
-      
-      {/* Make EmailTestPanel visible to all users */}
-      <div className="mt-8">
-        <EmailTestPanel />
-      </div>
     </AppLayout>
   );
 };
