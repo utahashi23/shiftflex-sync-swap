@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { SwapMatch } from "@/hooks/useSwapMatches";
+import { SwapMatch } from "@/hooks/swap-matches/types";
 
 interface DebugPanelProps {
   matches: SwapMatch[];
