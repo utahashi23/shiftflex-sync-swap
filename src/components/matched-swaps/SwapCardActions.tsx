@@ -21,6 +21,7 @@ const SwapCardActions = ({
   isPast = false,
   hideActionButtons
 }: SwapCardActionsProps) => {
+  // If it's a past swap or buttons should be hidden, return null
   if (isPast || hideActionButtons) {
     return null;
   }

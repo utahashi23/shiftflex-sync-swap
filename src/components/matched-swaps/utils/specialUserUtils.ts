@@ -11,15 +11,20 @@ export const isSpecialUser = (userId?: string): boolean => {
 export const shouldHideActionButtons = (
   myUserId?: string,
   otherUserId?: string,
-  swapStatus?: string
+  swapStatus?: string,
+  isAcceptedByOthers?: boolean
 ): boolean => {
   // Special user should never see action buttons
   const isCurrentUserSpecial = isSpecialUser(myUserId);
   
   // If current user is not special but other user is special, also hide the buttons for accepted swaps
-  const hideForAcceptedSpecialUserSwap = !isCurrentUserSpecial && 
-                                       isSpecialUser(otherUserId) && 
-                                       swapStatus === 'accepted';
+  const hideForSpecialUserSwap = !isCurrentUserSpecial && 
+                               isSpecialUser(otherUserId) && 
+                               swapStatus === 'accepted';
   
-  return isCurrentUserSpecial || hideForAcceptedSpecialUserSwap;
+  // Hide buttons if this swap has already been accepted by others
+  // This ensures users don't try to accept swaps that are already in process elsewhere
+  const hideForAlreadyAcceptedSwap = isAcceptedByOthers === true;
+  
+  return isCurrentUserSpecial || hideForSpecialUserSwap || hideForAlreadyAcceptedSwap;
 };

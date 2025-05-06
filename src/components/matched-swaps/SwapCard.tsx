@@ -40,7 +40,8 @@ export const SwapCard = ({
   const hideActionButtons = shouldHideActionButtons(
     swap.myShift.userId,
     swap.otherShift.userId,
-    swap.status
+    swap.status,
+    isAcceptedByOthers
   );
   
   console.log(`Button visibility for ${swap.id}: hideActionButtons=${hideActionButtons}`);
