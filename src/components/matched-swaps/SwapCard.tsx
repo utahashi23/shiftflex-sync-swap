@@ -6,9 +6,16 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { ArrowRightLeft, Calendar, Clock, Mail, UserCircle2, AlertTriangle } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ArrowRightLeft, Calendar, Clock, Copy, Eye, Mail, UserCircle2, AlertTriangle } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "./types";
+import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
 
 interface SwapCardProps {
   swap: SwapMatch;
@@ -34,6 +41,8 @@ export const SwapCard = ({
   onFinalize, 
   onResendEmail 
 }: SwapCardProps) => {
+  const [isCopied, setIsCopied] = useState(false);
+  
   // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
@@ -72,6 +81,50 @@ export const SwapCard = ({
   };
   
   const statusDisplay = getStatusDisplay();
+
+  // Function to generate swap details for copying
+  const getSwapDetailsText = () => {
+    return `Shift Swap Details:
+-------------------
+Status: ${statusDisplay.text}
+
+Your Shift:
+Date: ${formatDate(swap.myShift.date)}
+Time: ${swap.myShift.startTime} - ${swap.myShift.endTime}
+Type: ${swap.myShift.type.charAt(0).toUpperCase() + swap.myShift.type.slice(1)}
+Location: ${swap.myShift.truckName || 'Not specified'}
+Colleague Type: ${swap.myShift.colleagueType || 'Not specified'}
+
+Matched Shift:
+Date: ${formatDate(swap.otherShift.date)}
+Time: ${swap.otherShift.startTime} - ${swap.otherShift.endTime}
+Type: ${swap.otherShift.type.charAt(0).toUpperCase() + swap.otherShift.type.slice(1)}
+Location: ${swap.otherShift.truckName || 'Not specified'}
+Colleague Type: ${swap.otherShift.colleagueType || 'Not specified'}
+Staff Member: ${swap.otherShift.userName || 'Not specified'}
+
+Swap ID: ${swap.id}`;
+  };
+
+  const handleCopyDetails = () => {
+    navigator.clipboard.writeText(getSwapDetailsText())
+      .then(() => {
+        setIsCopied(true);
+        toast({
+          title: "Copied to clipboard",
+          description: "Swap details copied to clipboard successfully"
+        });
+        setTimeout(() => setIsCopied(false), 2000);
+      })
+      .catch(err => {
+        console.error('Failed to copy: ', err);
+        toast({
+          title: "Copy failed",
+          description: "Could not copy to clipboard. Please try again.",
+          variant: "destructive"
+        });
+      });
+  };
   
   return (
     <Card className="overflow-hidden">
@@ -204,16 +257,39 @@ export const SwapCard = ({
             {/* Explicitly check for 'accepted' status */}
             {swap.status === 'accepted' && (
               <>
-                {onResendEmail && (
-                  <Button 
-                    onClick={() => onResendEmail(swap.id)}
-                    variant="outline"
-                    className="flex items-center"
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    Resend Email
-                  </Button>
-                )}
+                {/* Removed the Resend Email button as requested */}
+                {/* Instead adding a See Swap Details button */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="outline"
+                      className="flex items-center"
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      See Swap Details
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-4">
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-sm">Swap Details</h4>
+                      <div className="text-xs whitespace-pre-wrap border p-3 rounded-md bg-slate-50">
+                        {getSwapDetailsText()}
+                      </div>
+                      <Button 
+                        onClick={handleCopyDetails}
+                        className="w-full flex items-center justify-center"
+                        variant="secondary"
+                        size="sm"
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        {isCopied ? "Copied!" : "Copy Details"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Copy these details to manually send via email or your preferred method.
+                      </p>
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 
                 {onFinalize && (
                   <Button 
