@@ -141,31 +141,6 @@ export const useAuthActions = () => {
         return { success: false, error };
       }
       
-      // Get the current user ID
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
-      
-      if (!userId) {
-        return { success: false, error: new Error("User ID not found") };
-      }
-      
-      // Also update the profiles table directly to ensure synchronization
-      // This is a backup in case the trigger doesn't work
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          first_name: data.firstName,
-          last_name: data.lastName,
-          employee_id: data.employeeId,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId); // Use the userId directly instead of a Promise
-        
-      if (profileError) {
-        console.error("Error updating profile:", profileError);
-        // We don't return an error here since the auth update succeeded
-      }
-      
       return { success: true };
     } catch (error: any) {
       return { success: false, error };
