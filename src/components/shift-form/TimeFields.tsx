@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -28,16 +29,18 @@ export const TimeFields = ({
       <div>
         <div className="flex justify-between items-center mb-1.5">
           <Label htmlFor="start-time">Start Time</Label>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span>
-                <AlertCircle className="h-4 w-4 text-gray-400" />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>When your shift begins</p>
-            </TooltipContent>
-          </Tooltip>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <AlertCircle className="h-4 w-4 text-gray-400" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>When your shift begins</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <Input
           id="start-time"
@@ -51,16 +54,18 @@ export const TimeFields = ({
       <div>
         <div className="flex justify-between items-center mb-1.5">
           <Label htmlFor="end-time">End Time</Label>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span>
-                <AlertCircle className="h-4 w-4 text-gray-400" />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>When your shift ends</p>
-            </TooltipContent>
-          </Tooltip>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <AlertCircle className="h-4 w-4 text-gray-400" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>When your shift ends</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <Input
           id="end-time"
