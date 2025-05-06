@@ -29,42 +29,52 @@ serve(async (req) => {
     console.log('LOOP_API_KEY first/last 4 chars:', 
       `${LOOP_API_KEY.substring(0, 4)}...${LOOP_API_KEY.substring(LOOP_API_KEY.length - 4)}`);
     
-    // First test API key validity and connectivity
-    console.log('Testing Loop.so API key validity and connectivity before sending test email');
+    // First test network connectivity
+    console.log('Testing network connectivity before sending test email');
     
     try {
-      // Test basic connectivity with ping
-      console.log('Testing basic connectivity to Loop.so API...');
-      const pingController = new AbortController();
-      const pingTimeoutId = setTimeout(() => pingController.abort(), 10000);
+      // Test connectivity to multiple domains
+      const testDomains = [
+        { url: 'https://api.loop.so/ping', name: 'Loop.so API' },
+        { url: 'https://www.google.com', name: 'Google' }
+      ];
       
-      try {
-        const pingResponse = await fetch('https://api.loop.so/ping', {
-          method: 'GET',
-          signal: pingController.signal
-        });
+      for (const domain of testDomains) {
+        console.log(`Testing connectivity to ${domain.name}...`);
+        const pingController = new AbortController();
+        const pingTimeoutId = setTimeout(() => pingController.abort(), 10000);
         
-        clearTimeout(pingTimeoutId);
-        console.log(`Loop.so ping response status: ${pingResponse.status}`);
-        
-        if (!pingResponse.ok) {
-          console.error(`Loop.so ping failed: ${pingResponse.status}`);
-          throw new Error(`Loop.so API unreachable: ${pingResponse.status} ${pingResponse.statusText}`);
+        try {
+          const pingResponse = await fetch(domain.url, {
+            method: 'GET',
+            signal: pingController.signal
+          });
+          
+          clearTimeout(pingTimeoutId);
+          console.log(`${domain.name} connectivity test status: ${pingResponse.status}`);
+          
+          if (!pingResponse.ok && domain.url.includes('loop.so')) {
+            console.error(`${domain.name} is not reachable: ${pingResponse.status}`);
+            throw new Error(`${domain.name} API unreachable: ${pingResponse.status} ${pingResponse.statusText}`);
+          }
+        } catch (pingError) {
+          clearTimeout(pingTimeoutId);
+          console.error(`Error connecting to ${domain.name}:`, pingError);
+          
+          if (pingError.name === 'AbortError') {
+            throw new Error(`${domain.name} API timeout - connection timed out`);
+          }
+          
+          // Only throw for Loop.so API, just log for others
+          if (domain.url.includes('loop.so')) {
+            throw new Error(`${domain.name} API unreachable: ${pingError.message}`);
+          }
         }
-        
-        console.log('Loop.so API is reachable');
-      } catch (pingError) {
-        clearTimeout(pingTimeoutId);
-        console.error('Ping to Loop.so failed:', pingError);
-        
-        if (pingError.name === 'AbortError') {
-          throw new Error('Loop.so API timeout - connection timed out');
-        }
-        
-        throw new Error(`Loop.so API unreachable: ${pingError.message}`);
       }
       
-      // Now test API key validity
+      console.log('Network connectivity test passed');
+      
+      // Test API key validity
       console.log('Testing Loop.so API key validity...');
       const authController = new AbortController();
       const authTimeoutId = setTimeout(() => authController.abort(), 10000);
