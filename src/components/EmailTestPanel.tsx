@@ -16,11 +16,24 @@ export function EmailTestPanel() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <Alert className="mb-4 border-amber-500">
+          <AlertCircle className="h-4 w-4 text-amber-500" />
+          <AlertTitle>Network Restriction Detected</AlertTitle>
+          <AlertDescription>
+            <p className="mb-2">Your Supabase project has network restrictions configured that are limiting outbound connections from Edge Functions:</p>
+            <ul className="list-disc pl-5 mb-2 text-sm">
+              <li>Only IPv4 addresses in range 183.12.1.1/24 are allowed</li>
+              <li>Only IPv6 addresses in range 2001:db8:3333:4444:5555:6666:7777:8888/64 are allowed</li>
+            </ul>
+            <p className="text-sm">These restrictions prevent Edge Functions from connecting to external services like Loop.so.</p>
+          </AlertDescription>
+        </Alert>
+        
         <Alert className="mb-4">
           <Info className="h-4 w-4" />
-          <AlertTitle>Connection Troubleshooting</AlertTitle>
+          <AlertTitle>How to Fix Network Restrictions</AlertTitle>
           <AlertDescription>
-            If connection fails, the system will attempt to use a fallback email service. Common issues include network restrictions on Supabase Edge Functions or API key format problems.
+            To allow Edge Functions to connect to external services, you need to remove or modify the network restrictions in your Supabase project settings using the Supabase CLI command: <code className="bg-gray-100 px-1 py-0.5 rounded">supabase network-restrictions --project-ref {'{ref}'} delete --experimental</code>
           </AlertDescription>
         </Alert>
         

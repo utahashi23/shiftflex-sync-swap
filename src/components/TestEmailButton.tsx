@@ -34,7 +34,9 @@ export function TestEmailButton() {
         setApiStatus("Connection failed");
         
         // More specific error handling
-        let errorMessage = connectivityResponse.error.message || String(connectivityResponse.error);
+        const errorMessage = connectivityResponse.error instanceof Error 
+          ? connectivityResponse.error.message 
+          : String(connectivityResponse.error);
         
         if (errorMessage.includes("timeout")) {
           setConnectionDetails("Timeout");
@@ -47,8 +49,8 @@ export function TestEmailButton() {
           await tryAlternativeEmailService();
           return;
         } else {
-          setConnectionDetails("Unknown error");
-          toast.error(`API connectivity test failed: ${errorMessage}`);
+          setConnectionDetails("Network restriction");
+          toast.error(`API connectivity test failed: Network restrictions are preventing connections`);
           console.error("API connectivity test error details:", JSON.stringify(connectivityResponse.error));
           setIsLoading(false);
           return;
@@ -71,7 +73,9 @@ export function TestEmailButton() {
         setApiStatus("Email failed");
         
         // More specific error handling
-        let errorMessage = loopResponse.error.message || String(loopResponse.error);
+        const errorMessage = loopResponse.error instanceof Error 
+          ? loopResponse.error.message 
+          : String(loopResponse.error);
         
         if (errorMessage.includes("timeout")) {
           setConnectionDetails("Sending timeout");
@@ -93,8 +97,10 @@ export function TestEmailButton() {
     } catch (error) {
       console.error("Error testing email:", error);
       setApiStatus("Error");
-      setConnectionDetails("Exception");
-      toast.error(`Error testing email: ${error.message || "Unknown error"}`);
+      setConnectionDetails("Network restriction");
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Error testing email: ${errorMessage || "Network restrictions preventing connections"}`);
     } finally {
       setIsLoading(false);
     }
@@ -120,8 +126,8 @@ export function TestEmailButton() {
       
       if (fallbackResponse.error) {
         setApiStatus("All services failed");
-        setConnectionDetails("Network issue");
-        toast.error("All email services failed. Please check your network configuration.");
+        setConnectionDetails("Network restriction");
+        toast.error("All email services failed due to network restrictions. Please modify your Supabase network settings.");
         console.error("Fallback email service error:", fallbackResponse.error);
       } else {
         setApiStatus("Fallback worked");
@@ -131,8 +137,10 @@ export function TestEmailButton() {
     } catch (error) {
       console.error("Error using fallback email service:", error);
       setApiStatus("All attempts failed");
-      setConnectionDetails("Critical error");
-      toast.error("All email sending attempts failed. Please contact support.");
+      setConnectionDetails("Network restrictions");
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`All email sending attempts failed due to network restrictions: ${errorMessage}`);
     }
   };
 

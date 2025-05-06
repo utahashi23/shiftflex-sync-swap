@@ -39,21 +39,23 @@ export function SmtpTestButton() {
         setApiKeyStatus("Connection failed");
         
         // More specific error handling
-        let errorMessage = response.error.message || String(response.error);
+        const errorMessage = response.error instanceof Error 
+          ? response.error.message 
+          : String(response.error);
         
         // Check for common error patterns and provide more detailed feedback
         if (errorMessage.includes("timeout")) {
           setConnectionDetails("Timeout");
-          toast.error("Loop.so API connection timed out. Please check your network connection and firewall settings.");
+          toast.error("Loop.so API connection timed out. This may be due to network restrictions.");
         } else if (errorMessage.includes("unreachable") || errorMessage.includes("sending request")) {
-          setConnectionDetails("Network issue");
-          toast.error("Loop.so API is unreachable. This appears to be a network connectivity issue. Check if your Supabase Edge Functions have outbound internet access.");
+          setConnectionDetails("Network restriction");
+          toast.error("Loop.so API is unreachable due to network restrictions. Please check your Supabase project's network configuration.");
         } else if (errorMessage.includes("invalid")) {
           setConnectionDetails("Invalid key");
           toast.error("Loop.so API key appears to be invalid. Please verify your API key format: it should be 32 characters with no spaces.");
         } else {
-          setConnectionDetails("Unknown error");
-          toast.error(`Loop.so API test failed: ${errorMessage}`);
+          setConnectionDetails("Network restriction");
+          toast.error(`Loop.so API test failed due to network restrictions`);
         }
         
         console.error("Loop.so API connectivity test error details:", JSON.stringify(response.error));
@@ -65,8 +67,10 @@ export function SmtpTestButton() {
     } catch (error) {
       console.error("Error testing Loop.so API connectivity:", error);
       setApiKeyStatus("Error checking");
-      setConnectionDetails("Exception");
-      toast.error(`Error testing Loop.so API: ${error.message || "Unknown error"}`);
+      setConnectionDetails("Network restriction");
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Error testing Loop.so API: Network restrictions preventing connections`);
     } finally {
       setIsLoading(false);
     }
