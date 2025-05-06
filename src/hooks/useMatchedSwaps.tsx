@@ -26,6 +26,29 @@ export function useMatchedSwaps() {
     completeMatch
   } = useSwapMatches();
   
+  // Filter out other_accepted swaps if the user has an accepted swap
+  const filteredMatches = React.useMemo(() => {
+    const hasAcceptedSwap = matches?.some(swap => swap.status === 'accepted');
+    
+    if (hasAcceptedSwap && matches) {
+      // Get the accepted swap(s)
+      const acceptedSwaps = matches.filter(swap => swap.status === 'accepted');
+      
+      // Get the IDs of the shifts involved in accepted swaps
+      const acceptedShiftIds = new Set(
+        acceptedSwaps.flatMap(swap => [swap.myShift.id, swap.otherShift.id])
+      );
+      
+      // Keep only accepted swaps and swaps not involving the same shifts
+      return matches.filter(swap => 
+        swap.status === 'accepted' || 
+        (!acceptedShiftIds.has(swap.myShift.id) && !acceptedShiftIds.has(swap.otherShift.id))
+      );
+    }
+    
+    return matches;
+  }, [matches]);
+  
   const refreshMatches = async () => {
     if (!user) return;
     await fetchMatches();
@@ -53,7 +76,7 @@ export function useMatchedSwaps() {
   };
   
   return {
-    matches,
+    matches: filteredMatches || [],
     pastMatches,
     activeTab,
     setActiveTab,
