@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "./supabase-client";
@@ -140,6 +141,14 @@ export const useAuthActions = () => {
         return { success: false, error };
       }
       
+      // Get the current user ID
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+      
+      if (!userId) {
+        return { success: false, error: new Error("User ID not found") };
+      }
+      
       // Also update the profiles table directly to ensure synchronization
       // This is a backup in case the trigger doesn't work
       const { error: profileError } = await supabase
@@ -150,7 +159,7 @@ export const useAuthActions = () => {
           employee_id: data.employeeId,
           updated_at: new Date().toISOString()
         })
-        .eq('id', supabase.auth.getUser().then(({ data }) => data.user?.id));
+        .eq('id', userId); // Use the userId directly instead of a Promise
         
       if (profileError) {
         console.error("Error updating profile:", profileError);
