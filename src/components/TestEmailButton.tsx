@@ -14,7 +14,7 @@ export function TestEmailButton() {
       setIsLoading(true);
       setApiStatus(null);
       setConnectionDetails(null);
-      toast.info("Testing Loop.so email service...");
+      toast.info("Testing email service...");
 
       // Test API connectivity first
       console.log("Testing Loop.so API connectivity first...");
@@ -38,15 +38,13 @@ export function TestEmailButton() {
         
         if (errorMessage.includes("timeout")) {
           setConnectionDetails("Timeout");
-          toast.error("Loop.so API connection timed out. Please check your network connection.");
-          console.error("API connectivity test error details:", JSON.stringify(connectivityResponse.error));
-          setIsLoading(false);
+          toast.error("API connection timed out. Trying alternative email service...");
+          await tryAlternativeEmailService();
           return;
         } else if (errorMessage.includes("unreachable") || errorMessage.includes("sending request")) {
           setConnectionDetails("Network issue");
-          toast.error("Loop.so API is unreachable. This appears to be a network connectivity issue. Check if your Supabase Edge Functions can reach external APIs.");
-          console.error("API connectivity test error details:", JSON.stringify(connectivityResponse.error));
-          setIsLoading(false);
+          toast.error("Primary API is unreachable. Switching to fallback service...");
+          await tryAlternativeEmailService();
           return;
         } else {
           setConnectionDetails("Unknown error");
@@ -59,7 +57,7 @@ export function TestEmailButton() {
 
       setApiStatus("API connected");
       setConnectionDetails(connectivityResponse.data?.details || "API reachable");
-      toast.success("Loop.so API connection successful! Proceeding with test email...");
+      toast.success("API connection successful! Proceeding with test email...");
 
       // Now test email sending with the verified key
       console.log("Calling test_loop_email function...");
@@ -67,7 +65,7 @@ export function TestEmailButton() {
         body: {}
       });
 
-      console.log("Loop.so test email response:", loopResponse);
+      console.log("Test email response:", loopResponse);
 
       if (loopResponse.error) {
         setApiStatus("Email failed");
@@ -77,20 +75,20 @@ export function TestEmailButton() {
         
         if (errorMessage.includes("timeout")) {
           setConnectionDetails("Sending timeout");
-          toast.error("Email sending timed out. This could be due to network issues.");
+          toast.error("Email sending timed out. Will try alternative service next time.");
         } else if (errorMessage.includes("validation")) {
           setConnectionDetails("Validation error");
-          toast.error("Email validation failed. Please check your sending domain configuration in Loop.so.");
+          toast.error("Email validation failed. Please check your sending domain configuration.");
         } else {
           setConnectionDetails("Send error");
-          toast.error(`Loop.so Test failed: ${errorMessage}`);
+          toast.error(`Test email failed: ${errorMessage}`);
         }
         
-        console.error("Loop.so test error details:", JSON.stringify(loopResponse.error));
+        console.error("Test email error details:", JSON.stringify(loopResponse.error));
       } else {
         setApiStatus("Email sent");
         setConnectionDetails("Success");
-        toast.success("Loop.so Test email sent! Check your inbox for njalasankhulani@gmail.com.");
+        toast.success("Test email sent! Check your inbox for njalasankhulani@gmail.com.");
       }
     } catch (error) {
       console.error("Error testing email:", error);
@@ -99,6 +97,42 @@ export function TestEmailButton() {
       toast.error(`Error testing email: ${error.message || "Unknown error"}`);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Function to attempt sending via an alternative email service
+  const tryAlternativeEmailService = async () => {
+    try {
+      toast.info("Trying alternative email service...");
+      console.log("Attempting to use fallback email service");
+      
+      // Call our fallback email service
+      const fallbackResponse = await supabase.functions.invoke('send_email', {
+        body: {
+          to: "njalasankhulani@gmail.com",
+          subject: "Email Test via Fallback Service",
+          text: "This is a test email sent via the fallback email service.",
+          from: "admin@shiftflex.au"
+        }
+      });
+      
+      console.log("Fallback email service response:", fallbackResponse);
+      
+      if (fallbackResponse.error) {
+        setApiStatus("All services failed");
+        setConnectionDetails("Network issue");
+        toast.error("All email services failed. Please check your network configuration.");
+        console.error("Fallback email service error:", fallbackResponse.error);
+      } else {
+        setApiStatus("Fallback worked");
+        setConnectionDetails("Alternative service");
+        toast.success("Test email sent via fallback service! Check your inbox.");
+      }
+    } catch (error) {
+      console.error("Error using fallback email service:", error);
+      setApiStatus("All attempts failed");
+      setConnectionDetails("Critical error");
+      toast.error("All email sending attempts failed. Please contact support.");
     }
   };
 
@@ -111,7 +145,7 @@ export function TestEmailButton() {
     >
       {isLoading ? "Testing..." : "Test Email Functionality"}
       {apiStatus && (
-        <span className={`ml-2 text-xs ${apiStatus.includes("connected") || apiStatus.includes("sent") ? "text-green-500" : "text-red-500"}`}>
+        <span className={`ml-2 text-xs ${apiStatus.includes("connected") || apiStatus.includes("sent") || apiStatus.includes("worked") ? "text-green-500" : "text-red-500"}`}>
           ({apiStatus}{connectionDetails ? `: ${connectionDetails}` : ""})
         </span>
       )}

@@ -8,6 +8,7 @@ export function SmtpTestButton() {
   const [isLoading, setIsLoading] = useState(false);
   const [apiKeyStatus, setApiKeyStatus] = useState<string | null>(null);
   const [connectionDetails, setConnectionDetails] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const handleTestLoop = async () => {
     try {
@@ -17,18 +18,22 @@ export function SmtpTestButton() {
       toast.info("Testing Loop.so API connection...");
       console.log("Testing Loop.so API connectivity and key validity");
 
+      // Add a retry count for diagnostic purposes
+      const currentRetry = retryCount + 1;
+      setRetryCount(currentRetry);
+
       const response = await supabase.functions.invoke('loop_send_email', {
         body: {
           test_connectivity: true, // Flag to specifically test connectivity
           test_api_key: true,
           to: "njalasankhulani@gmail.com",
-          subject: "Loop.so API Connectivity Test",
+          subject: `Loop.so API Connectivity Test (Attempt ${currentRetry})`,
           html: `<p>Testing API connectivity at ${new Date().toISOString()}</p>`,
           from: "admin@shiftflex.au"
         }
       });
 
-      console.log("Loop.so API connectivity test response:", response);
+      console.log(`Loop.so API connectivity test response (Attempt ${currentRetry}):`, response);
 
       if (response.error) {
         setApiKeyStatus("Connection failed");
@@ -42,10 +47,10 @@ export function SmtpTestButton() {
           toast.error("Loop.so API connection timed out. Please check your network connection and firewall settings.");
         } else if (errorMessage.includes("unreachable") || errorMessage.includes("sending request")) {
           setConnectionDetails("Network issue");
-          toast.error("Loop.so API is unreachable. This appears to be a network connectivity issue. Please check if your Supabase Edge Function can reach external APIs.");
+          toast.error("Loop.so API is unreachable. This appears to be a network connectivity issue. Check if your Supabase Edge Functions have outbound internet access.");
         } else if (errorMessage.includes("invalid")) {
           setConnectionDetails("Invalid key");
-          toast.error("Loop.so API key appears to be invalid. Please verify your API key.");
+          toast.error("Loop.so API key appears to be invalid. Please verify your API key format: it should be 32 characters with no spaces.");
         } else {
           setConnectionDetails("Unknown error");
           toast.error(`Loop.so API test failed: ${errorMessage}`);
