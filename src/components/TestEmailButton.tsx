@@ -12,40 +12,40 @@ export function TestEmailButton() {
       setIsLoading(true);
       toast.info("Sending test email...");
 
-      // Test using our SDK implementation
-      const sdkResponse = await supabase.functions.invoke('test_mailgun_sdk', {
+      // Test using our Loop.so implementation
+      const loopResponse = await supabase.functions.invoke('test_loop_email', {
         body: {}
       });
 
-      console.log("SDK test response:", sdkResponse);
+      console.log("Loop.so test response:", loopResponse);
 
-      if (sdkResponse.error) {
-        toast.error(`SDK Test failed: ${sdkResponse.error.message || sdkResponse.error}`);
-        console.error("SDK test error:", sdkResponse.error);
+      if (loopResponse.error) {
+        toast.error(`Loop.so Test failed: ${loopResponse.error.message || loopResponse.error}`);
+        console.error("Loop.so test error:", loopResponse.error);
       } else {
-        toast.success("SDK Test email sent! Check your inbox.");
+        toast.success("Loop.so Test email sent! Check your inbox.");
       }
 
-      // Also test with the regular send_email function
-      const regularResponse = await supabase.functions.invoke('send_email', {
+      // Also test with the regular loop_send_email function
+      const regularResponse = await supabase.functions.invoke('loop_send_email', {
         body: {
           to: "njalasankhulani@gmail.com",
-          subject: "Test Email via send_email function",
+          subject: "Test Email via Loop.so API",
           from: "postmaster@shiftflex.au",
           html: `
-            <h2>Testing Regular Send Email Function</h2>
-            <p>This is a test email sent using the send_email Supabase Edge Function.</p>
+            <h2>Testing Loop.so Email API</h2>
+            <p>This is a test email sent using the Loop.so email service.</p>
             <p>If you're receiving this email, the email functionality is working correctly.</p>
             <p>Time sent: ${new Date().toISOString()}</p>
           `
         }
       });
 
-      console.log("Regular send_email response:", regularResponse);
+      console.log("Regular Loop.so email response:", regularResponse);
 
       if (regularResponse.error) {
-        toast.error(`Regular send_email failed: ${regularResponse.error.message || regularResponse.error}`);
-        console.error("Regular send_email error:", regularResponse.error);
+        toast.error(`Regular Loop.so email failed: ${regularResponse.error.message || regularResponse.error}`);
+        console.error("Regular Loop.so email error:", regularResponse.error);
       } else {
         toast.success("Regular test email sent! Check your inbox.");
       }

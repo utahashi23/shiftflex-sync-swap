@@ -10,24 +10,22 @@ interface EmailOptions {
   replyTo?: string;
   cc?: string | string[];
   bcc?: string | string[];
-  template?: string;
-  templateVariables?: Record<string, any>;
 }
 
 /**
- * Send an email using the Mailgun API through a Supabase Edge Function
+ * Send an email using the Loop.so API through a Supabase Edge Function
  */
 export const sendEmail = async (options: EmailOptions): Promise<{ success: boolean; error?: string; result?: any }> => {
   try {
     console.log(`Attempting to send email to: ${Array.isArray(options.to) ? options.to.join(', ') : options.to}`);
     console.log(`Email subject: "${options.subject}"`);
     
-    const { data, error } = await supabase.functions.invoke('send_email', {
+    const { data, error } = await supabase.functions.invoke('loop_send_email', {
       body: options
     });
     
     if (error) {
-      console.error('Error calling send_email function:', error);
+      console.error('Error calling loop_send_email function:', error);
       return { success: false, error: error.message || String(error) };
     }
     
@@ -172,43 +170,43 @@ export const resendSwapNotification = async (
 };
 
 /**
- * Test email sending with both implementations
+ * Test email sending with Loop.so implementation
  */
 export const testEmailFunctionality = async (): Promise<{
-  sdkResult: { success: boolean; error?: string; data?: any };
+  loopResult: { success: boolean; error?: string; data?: any };
   directResult: { success: boolean; error?: string; data?: any };
 }> => {
   try {
-    // Test the SDK implementation
-    const sdkResponse = await supabase.functions.invoke('test_mailgun_sdk', {
+    // Test the Loop.so implementation
+    const loopResponse = await supabase.functions.invoke('test_loop_email', {
       body: {}
     });
     
     // Test the direct API implementation
     const directResponse = await sendEmail({
       to: "njalasankhulani@gmail.com",
-      subject: "Test Email via Direct API",
+      subject: "Test Email via Loop.so",
       from: "postmaster@shiftflex.au",
       html: `
-        <h2>Testing Direct API Email Function</h2>
-        <p>This is a test email sent using the regular send_email function.</p>
+        <h2>Testing Loop.so Email Function</h2>
+        <p>This is a test email sent using the Loop.so email service.</p>
         <p>If you're receiving this email, the email functionality is working correctly.</p>
         <p>Time sent: ${new Date().toISOString()}</p>
       `
     });
     
     return {
-      sdkResult: {
-        success: !sdkResponse.error,
-        error: sdkResponse.error?.message,
-        data: sdkResponse.data
+      loopResult: {
+        success: !loopResponse.error,
+        error: loopResponse.error?.message,
+        data: loopResponse.data
       },
       directResult: directResponse
     };
   } catch (err: any) {
     console.error('Error testing email functionality:', err);
     return {
-      sdkResult: { success: false, error: 'SDK test failed' },
+      loopResult: { success: false, error: 'Loop.so test failed' },
       directResult: { success: false, error: 'Direct API test failed' }
     };
   }

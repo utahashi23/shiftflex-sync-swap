@@ -10,12 +10,12 @@ export function EmailTestPanel() {
       <CardHeader>
         <CardTitle>Email Testing</CardTitle>
         <CardDescription>
-          Test the email functionality using API and SMTP approaches
+          Test the Loop.so email functionality using different approaches
         </CardDescription>
       </CardHeader>
       <CardContent>
         <p className="text-sm mb-4">
-          Test the Mailgun API using the SDK and direct API approaches, or test the SMTP connection.
+          Test the Loop.so email service using standard and direct API approaches.
           Check your inbox for the test emails.
         </p>
         <TestEmailButton />
