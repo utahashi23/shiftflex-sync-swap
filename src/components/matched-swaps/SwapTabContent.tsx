@@ -34,10 +34,12 @@ export const SwapTabContent = ({
   swaps.forEach((swap, index) => {
     console.log(`Swap ${index} (ID: ${swap.id}, Status: ${swap.status}) colleague types:`, {
       myShift: swap.myShift?.colleagueType,
-      otherShift: swap.otherShift?.colleagueType,
-      myRequestId: swap.myRequestId,
-      otherRequestId: swap.otherRequestId
+      otherShift: swap.otherShift?.colleagueType
     });
+    
+    if (swap.status === 'accepted') {
+      console.log(`Found ACCEPTED swap with ID: ${swap.id}`);
+    }
   });
 
   // Ensure uniqueness by ID
@@ -45,6 +47,10 @@ export const SwapTabContent = ({
   
   swaps.forEach(swap => {
     if (swap && typeof swap === 'object' && 'id' in swap) {
+      console.log(`Adding swap ${swap.id} to map with status ${swap.status} and colleague types:`, {
+        myShift: swap.myShift?.colleagueType,
+        otherShift: swap.otherShift?.colleagueType
+      });
       uniqueSwapsMap.set(swap.id, swap);
     }
   });
@@ -55,19 +61,35 @@ export const SwapTabContent = ({
 
   return (
     <div className="space-y-4" data-testid="swap-list">
-      {uniqueSwaps.map(swap => (
-        <SwapCard 
-          key={swap.id}
-          swap={swap} 
-          isPast={isPast}
-          onAccept={onAcceptSwap}
-          onFinalize={onFinalizeSwap}
-          onResendEmail={onResendEmail}
-          isAcceptedByOthers={swap.status === 'accepted' && 
-            (swap.myShift?.userId === "96fc40f8-ceec-4ab2-80a6-3bd9fbf1cdd5" || 
-             swap.otherShift?.userId === "96fc40f8-ceec-4ab2-80a6-3bd9fbf1cdd5")}
-        />
-      ))}
+      {uniqueSwaps.map(swap => {
+        // Check if user ID matches otherShift.userId to determine if this swap belongs to another user
+        // Special handling for user 96fc40f8-ceec-4ab2-80a6-3bd9fbf1cdd5
+        const isCurrentUserSwap = swap.otherShift?.userId !== "96fc40f8-ceec-4ab2-80a6-3bd9fbf1cdd5";
+        
+        // For pending swaps, enable accept button only if it's not the past and we have the handler
+        const showAcceptButton = !isPast && swap.status === 'pending' && !!onAcceptSwap;
+        
+        // For accepted swaps, only show finalize button if it belongs to the current user
+        const showFinalizeButton = !isPast && swap.status === 'accepted' && !!onFinalizeSwap && isCurrentUserSwap;
+        
+        // Same for resend email button
+        const showResendEmailButton = !isPast && swap.status === 'accepted' && !!onResendEmail && isCurrentUserSwap;
+        
+        // Mark swaps as accepted by others if they're accepted but not this user's
+        const isAcceptedByOthers = swap.status === 'accepted' && !isCurrentUserSwap;
+        
+        return (
+          <SwapCard 
+            key={swap.id}
+            swap={swap} 
+            isPast={isPast}
+            onAccept={showAcceptButton ? onAcceptSwap : undefined}
+            onFinalize={showFinalizeButton ? onFinalizeSwap : undefined}
+            onResendEmail={showResendEmailButton ? onResendEmail : undefined}
+            isAcceptedByOthers={isAcceptedByOthers}
+          />
+        );
+      })}
     </div>
   );
 }
