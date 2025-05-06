@@ -22,7 +22,7 @@ export function TestEmailButton() {
 
       if (loopResponse.error) {
         toast.error(`Loop.so Test failed: ${loopResponse.error.message || loopResponse.error}`);
-        console.error("Loop.so test error:", loopResponse.error);
+        console.error("Loop.so test error details:", JSON.stringify(loopResponse.error));
       } else {
         toast.success("Loop.so Test email sent! Check your inbox.");
       }
@@ -47,7 +47,7 @@ export function TestEmailButton() {
 
       if (regularResponse.error) {
         toast.error(`Regular Loop.so email failed: ${regularResponse.error.message || regularResponse.error}`);
-        console.error("Regular Loop.so email error:", regularResponse.error);
+        console.error("Regular Loop.so email error details:", JSON.stringify(regularResponse.error));
       } else {
         toast.success("Regular test email sent! Check your inbox.");
       }

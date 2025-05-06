@@ -31,7 +31,7 @@ export function SmtpTestButton() {
 
       if (response.error) {
         toast.error(`Loop.so Direct Test failed: ${response.error.message || response.error}`);
-        console.error("Loop.so direct test error:", response.error);
+        console.error("Loop.so direct test error details:", JSON.stringify(response.error));
       } else {
         toast.success("Loop.so Direct Test email sent! Check your inbox.");
       }

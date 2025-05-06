@@ -24,29 +24,39 @@ serve(async (req) => {
       throw new Error('Missing Loop.so API key');
     }
     
+    console.log('LOOP_API_KEY available:', !!LOOP_API_KEY);
+    console.log('LOOP_API_KEY length:', LOOP_API_KEY.length);
+    
     const recipient = "njalasankhulani@gmail.com";
     const sender = "admin@shiftflex.au";
     
     console.log(`Sending test email from ${sender} to ${recipient}`);
     
     try {
-      const response = await fetch('https://api.loop.so/v1/email/send', {
+      const apiUrl = 'https://api.loop.so/v1/email/send';
+      console.log('Using API URL:', apiUrl);
+      
+      const payload = {
+        to: [recipient],
+        from: sender,
+        subject: "Testing Loop.so Integration",
+        html: `
+          <h2>Loop.so Test</h2>
+          <p>This is a test email sent using the Loop.so API from a Supabase Edge Function.</p>
+          <p>If you're receiving this email, the Loop.so integration is working correctly.</p>
+          <p>Time sent: ${new Date().toISOString()}</p>
+        `
+      };
+      
+      console.log('Test payload:', JSON.stringify(payload));
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${LOOP_API_KEY}`
         },
-        body: JSON.stringify({
-          to: [recipient],
-          from: sender,
-          subject: "Testing Loop.so Integration",
-          html: `
-            <h2>Loop.so Test</h2>
-            <p>This is a test email sent using the Loop.so API from a Supabase Edge Function.</p>
-            <p>If you're receiving this email, the Loop.so integration is working correctly.</p>
-            <p>Time sent: ${new Date().toISOString()}</p>
-          `
-        })
+        body: JSON.stringify(payload)
       });
       
       console.log(`Loop.so test response status: ${response.status}`);
@@ -57,8 +67,16 @@ serve(async (req) => {
         throw new Error(`Loop.so API error: ${response.status} ${errorText}`);
       }
       
-      const result = await response.json();
-      console.log("Email sent successfully via Loop.so:", result);
+      let result;
+      try {
+        result = await response.json();
+        console.log("Email sent successfully via Loop.so:", result);
+      } catch (jsonError) {
+        console.error('Error parsing response JSON:', jsonError);
+        const text = await response.text();
+        console.log('Raw response:', text);
+        result = { raw: text };
+      }
       
       return new Response(JSON.stringify({
         success: true,
@@ -77,7 +95,8 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: error.message,
+      timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500
