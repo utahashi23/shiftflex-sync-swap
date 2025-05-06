@@ -210,6 +210,25 @@ serve(async (req) => {
                   
                   // Get user info for all matches
                   if (matches.length > 0) {
+                    // Get all accepted matches to check for overlap
+                    const { data: acceptedMatches, error: acceptedMatchesError } = await serviceClient
+                      .from('shift_swap_potential_matches')
+                      .select('*')
+                      .eq('status', 'accepted');
+                      
+                    if (acceptedMatchesError) {
+                      console.error('Error fetching accepted matches:', acceptedMatchesError);
+                    }
+                    
+                    // Create a set of shift IDs that are already involved in accepted matches
+                    const acceptedShiftIds = new Set();
+                    if (acceptedMatches) {
+                      acceptedMatches.forEach(match => {
+                        acceptedShiftIds.add(match.requester_shift_id);
+                        acceptedShiftIds.add(match.acceptor_shift_id);
+                      });
+                    }
+                    
                     // Process matches to return formatted data
                     const formattedMatches = [];
                     
@@ -228,6 +247,14 @@ serve(async (req) => {
                       
                       if (!shift1 || !shift2) continue;
                       
+                      // Check if either shift is involved in an accepted match (but not this one)
+                      const isOtherAccepted = match.status !== 'accepted' && 
+                                             (acceptedShiftIds.has(shift1.id) || acceptedShiftIds.has(shift2.id));
+                                             
+                      if (isOtherAccepted) {
+                        console.log(`Match ${match.id} involves shifts that are already in accepted matches`);
+                      }
+                      
                       // Log shift data to confirm colleague_type
                       console.log('Processing match with shifts:', {
                         shift1: {
@@ -237,7 +264,8 @@ serve(async (req) => {
                         shift2: {
                           id: shift2.id,
                           colleague_type: shift2.colleague_type
-                        }
+                        },
+                        isOtherAccepted: isOtherAccepted
                       });
                       
                       // Get user info
@@ -282,7 +310,8 @@ serve(async (req) => {
                         other_user_id: isUserReq1 ? req2.requester_id : req1.requester_id,
                         other_user_name: isUserReq1 
                           ? `${user2?.first_name || ''} ${user2?.last_name || ''}`.trim() 
-                          : `${user1?.first_name || ''} ${user1?.last_name || ''}`.trim()
+                          : `${user1?.first_name || ''} ${user1?.last_name || ''}`.trim(),
+                        is_other_accepted: isOtherAccepted
                       });
                     }
                     
@@ -293,7 +322,8 @@ serve(async (req) => {
                       console.log('First formatted match:', {
                         match_id: formattedMatches[0].match_id,
                         my_shift_colleague_type: formattedMatches[0].my_shift_colleague_type,
-                        other_shift_colleague_type: formattedMatches[0].other_shift_colleague_type
+                        other_shift_colleague_type: formattedMatches[0].other_shift_colleague_type,
+                        is_other_accepted: formattedMatches[0].is_other_accepted
                       });
                     }
                     
