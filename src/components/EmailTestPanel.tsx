@@ -25,7 +25,7 @@ export function EmailTestPanel() {
               <li>Only IPv4 addresses in range 183.12.1.1/24 are allowed</li>
               <li>Only IPv6 addresses in range 2001:db8:3333:4444:5555:6666:7777:8888/64 are allowed</li>
             </ul>
-            <p className="text-sm">These restrictions prevent Edge Functions from connecting to external services like Loop.so.</p>
+            <p className="text-sm">These restrictions may prevent Edge Functions from connecting to external services.</p>
           </AlertDescription>
         </Alert>
         
@@ -33,12 +33,15 @@ export function EmailTestPanel() {
           <Info className="h-4 w-4" />
           <AlertTitle>How to Fix Network Restrictions</AlertTitle>
           <AlertDescription>
-            To allow Edge Functions to connect to external services, you need to remove or modify the network restrictions in your Supabase project settings using the Supabase CLI command: <code className="bg-gray-100 px-1 py-0.5 rounded">supabase network-restrictions --project-ref {'{ref}'} delete --experimental</code>
+            <p className="mb-2">To allow Edge Functions to connect to external services, you need to remove or modify the network restrictions in your Supabase project settings using the Supabase CLI command:</p>
+            <pre className="bg-gray-100 p-2 rounded text-sm overflow-auto">
+            supabase network-restrictions --project-ref {'{ref}'} delete --experimental
+            </pre>
           </AlertDescription>
         </Alert>
         
         <p className="text-sm mb-4">
-          Test the email service using both direct and fallback approaches.
+          Test the email service using both direct API and SMTP approaches.
           Check your inbox for the test emails.
         </p>
         

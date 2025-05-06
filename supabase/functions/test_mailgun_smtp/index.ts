@@ -15,57 +15,90 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Starting test_mailgun_smtp function...")
+    const requestData = await req.json();
+    const testAttempt = requestData.test_attempt || 1;
+    
+    console.log(`Starting test_mailgun_smtp function (attempt ${testAttempt})...`);
+    console.log(`Test timestamp: ${requestData.timestamp || new Date().toISOString()}`);
     
     // SMTP configuration for Mailgun
     const client = new SmtpClient();
     
-    await client.connectTLS({
-      hostname: "smtp.mailgun.org",
-      port: 587,
-      username: "admin@shiftflex.au",
-      password: "3kh9umujora5", // In production, use Deno.env.get() instead of hardcoding
-    });
-    
-    const recipient = "njalasankhulani@gmail.com";
-    
-    console.log(`Sending test email to ${recipient}`);
+    console.log("Creating SMTP connection to Mailgun...");
     
     try {
-      await client.send({
-        from: "postmaster@shiftflex.au",
-        to: recipient,
-        subject: "Testing Mailgun SMTP Integration",
-        content: "This is a test email sent using the SMTP protocol from a Supabase Edge Function.",
-        html: `
-          <h2>Mailgun SMTP Test</h2>
-          <p>This is a test email sent using SMTP from a Supabase Edge Function.</p>
-          <p>If you're receiving this email, the SMTP integration is working correctly.</p>
-          <p>Time sent: ${new Date().toISOString()}</p>
-        `,
+      console.log("Connecting to SMTP server...");
+      await client.connectTLS({
+        hostname: "smtp.mailgun.org",
+        port: 587,
+        username: "admin@shiftflex.au",
+        password: "3kh9umujora5", // In production, use Deno.env.get() instead of hardcoding
       });
       
-      console.log("Email sent successfully via SMTP");
-      await client.close();
+      console.log("SMTP connection established successfully");
       
-      return new Response(JSON.stringify({
-        success: true,
-        message: "Email sent successfully via SMTP"
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
-      });
-    } catch (smtpError) {
-      console.error("SMTP error:", smtpError);
-      await client.close();
-      throw new Error(`SMTP error: ${smtpError.message}`);
+      const recipient = "njalasankhulani@gmail.com";
+      
+      console.log(`Sending test email to ${recipient}`);
+      
+      try {
+        await client.send({
+          from: "postmaster@shiftflex.au",
+          to: recipient,
+          subject: `Testing Mailgun SMTP Integration (Attempt ${testAttempt})`,
+          content: "This is a test email sent using the SMTP protocol from a Supabase Edge Function.",
+          html: `
+            <h2>Mailgun SMTP Test</h2>
+            <p>This is a test email sent using SMTP from a Supabase Edge Function.</p>
+            <p>If you're receiving this email, the SMTP integration is working correctly.</p>
+            <p>Test attempt: ${testAttempt}</p>
+            <p>Time sent: ${new Date().toISOString()}</p>
+          `,
+        });
+        
+        console.log("Email sent successfully via SMTP");
+        await client.close();
+        
+        return new Response(JSON.stringify({
+          success: true,
+          message: "Email sent successfully via SMTP",
+          details: {
+            attempt: testAttempt,
+            timestamp: new Date().toISOString()
+          }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        });
+      } catch (smtpError) {
+        console.error("SMTP sending error:", smtpError);
+        await client.close();
+        throw new Error(`SMTP sending error: ${smtpError.message}`);
+      }
+    } catch (connectionError) {
+      console.error("SMTP connection error:", connectionError);
+      throw new Error(`SMTP connection error: ${connectionError.message}`);
     }
   } catch (error) {
     console.error('Error in test_mailgun_smtp function:', error);
     
+    // Check if the error is related to network restrictions
+    const errorMessage = error.message || String(error);
+    const isNetworkRestriction = 
+      errorMessage.includes('connection refused') || 
+      errorMessage.includes('network') ||
+      errorMessage.includes('unreachable') ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('dns');
+    
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: error.message,
+      isNetworkRestriction: isNetworkRestriction,
+      details: {
+        errorType: isNetworkRestriction ? 'network_restriction' : 'smtp_error',
+        timestamp: new Date().toISOString()
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500
