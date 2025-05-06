@@ -129,8 +129,9 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       console.log('Formatted matches after processing:', formattedMatches);
       
       // Separate active and past matches
+      // IMPORTANT: Include 'other_accepted' status in active matches
       const activeMatches = formattedMatches.filter((match: SwapMatch) => 
-        match.status === 'pending' || match.status === 'accepted'
+        match.status === 'pending' || match.status === 'accepted' || match.status === 'other_accepted'
       );
       
       const completedMatches = formattedMatches.filter((match: SwapMatch) => 
@@ -138,6 +139,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       );
       
       console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
+      console.log(`Active matches - pending: ${activeMatches.filter(m => m.status === 'pending').length}, accepted: ${activeMatches.filter(m => m.status === 'accepted').length}, other_accepted: ${activeMatches.filter(m => m.status === 'other_accepted').length}`);
       
       // Update the state with the new matches
       setMatches(activeMatches);

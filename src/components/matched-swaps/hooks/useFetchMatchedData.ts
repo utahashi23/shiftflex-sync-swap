@@ -119,15 +119,17 @@ export const useFetchMatchedData = () => {
       });
       
       // Separate active and past matches
-      const activeMatches = formattedMatches.filter(match => 
-        match.status === 'pending' || match.status === 'accepted'
+      // IMPORTANT: Include 'other_accepted' status in active matches
+      const activeMatches = formattedMatches.filter((match: SwapMatch) => 
+        match.status === 'pending' || match.status === 'accepted' || match.status === 'other_accepted'
       );
       
-      const pastMatches = formattedMatches.filter(match => 
+      const pastMatches = formattedMatches.filter((match: SwapMatch) => 
         match.status === 'completed'
       );
       
       console.log(`Processed ${activeMatches.length} active matches and ${pastMatches.length} past matches`);
+      console.log(`Active matches - pending: ${activeMatches.filter(m => m.status === 'pending').length}, accepted: ${activeMatches.filter(m => m.status === 'accepted').length}, other_accepted: ${activeMatches.filter(m => m.status === 'other_accepted').length}`);
       
       return {
         matchedSwaps: activeMatches,
