@@ -22,6 +22,7 @@ export interface SwapMatch {
     type: "day" | "afternoon" | "night" | "unknown";
     userId: string;
     userName: string;
+    employeeId?: string | null; // Added employeeId property
     colleagueType: string | null;
   };
   myRequestId: string;
