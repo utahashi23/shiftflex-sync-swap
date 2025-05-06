@@ -12,7 +12,8 @@ export function TestEmailButton() {
       setIsLoading(true);
       toast.info("Sending test email...");
 
-      // Test using our Loop.so implementation
+      // Test using our Loop.so implementation with verbose logging
+      console.log("Calling test_loop_email function...");
       const loopResponse = await supabase.functions.invoke('test_loop_email', {
         body: {}
       });
@@ -26,7 +27,8 @@ export function TestEmailButton() {
         toast.success("Loop.so Test email sent! Check your inbox.");
       }
 
-      // Also test with the regular loop_send_email function
+      // Also test with the regular loop_send_email function with verbose logging
+      console.log("Calling loop_send_email function directly...");
       const regularResponse = await supabase.functions.invoke('loop_send_email', {
         body: {
           to: "njalasankhulani@gmail.com",

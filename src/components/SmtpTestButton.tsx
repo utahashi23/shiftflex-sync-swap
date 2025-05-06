@@ -11,6 +11,7 @@ export function SmtpTestButton() {
     try {
       setIsLoading(true);
       toast.info("Testing Loop.so direct API...");
+      console.log("Calling loop_send_email with direct parameters");
 
       const response = await supabase.functions.invoke('loop_send_email', {
         body: {

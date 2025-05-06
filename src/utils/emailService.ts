@@ -19,9 +19,16 @@ export const sendEmail = async (options: EmailOptions): Promise<{ success: boole
   try {
     console.log(`Attempting to send email to: ${Array.isArray(options.to) ? options.to.join(', ') : options.to}`);
     console.log(`Email subject: "${options.subject}"`);
+    console.log(`From address: ${options.from || "admin@shiftflex.au"}`);
+    
+    // Ensure the from address is always set to admin@shiftflex.au if not provided
+    const emailOptions = {
+      ...options,
+      from: options.from || "admin@shiftflex.au"
+    };
     
     const { data, error } = await supabase.functions.invoke('loop_send_email', {
-      body: options
+      body: emailOptions
     });
     
     if (error) {
@@ -177,10 +184,14 @@ export const testEmailFunctionality = async (): Promise<{
   directResult: { success: boolean; error?: string; data?: any };
 }> => {
   try {
+    console.log("Testing Loop.so implementation...");
+    
     // Test the Loop.so implementation
     const loopResponse = await supabase.functions.invoke('test_loop_email', {
       body: {}
     });
+    
+    console.log("Loop.so test response:", loopResponse);
     
     // Test the direct API implementation
     const directResponse = await sendEmail({
@@ -194,6 +205,8 @@ export const testEmailFunctionality = async (): Promise<{
         <p>Time sent: ${new Date().toISOString()}</p>
       `
     });
+    
+    console.log("Direct Loop.so test response:", directResponse);
     
     return {
       loopResult: {

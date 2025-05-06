@@ -44,6 +44,7 @@ serve(async (req) => {
 
     // Log the email sending attempt
     console.log(`Attempting to send email to ${Array.isArray(to) ? to.join(', ') : to} with subject "${subject}"`);
+    console.log(`From address: ${from || "admin@shiftflex.au"}`);
     
     // Prepare request payload for Loop.so
     const payload = {
@@ -59,7 +60,7 @@ serve(async (req) => {
     
     // Send the email using Loop.so API
     try {
-      console.log('Sending email via Loop.so API');
+      console.log('Sending email via Loop.so API with payload:', JSON.stringify(payload));
       
       const response = await fetch('https://api.loop.so/v1/email/send', {
         method: 'POST',
@@ -69,6 +70,8 @@ serve(async (req) => {
         },
         body: JSON.stringify(payload)
       });
+      
+      console.log(`Loop.so API response status: ${response.status}`);
       
       if (!response.ok) {
         const errorText = await response.text();

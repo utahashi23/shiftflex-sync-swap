@@ -49,6 +49,8 @@ serve(async (req) => {
         })
       });
       
+      console.log(`Loop.so test response status: ${response.status}`);
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Loop.so API error: ${response.status}`, errorText);
