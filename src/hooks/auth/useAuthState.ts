@@ -14,6 +14,40 @@ export const useAuthState = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
 
+  // Function to ensure profile exists for the current user
+  const ensureUserProfile = async (currentUser: ExtendedUser) => {
+    try {
+      // First check if profile exists
+      const { data: existingProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (profileError || !existingProfile) {
+        console.log("Creating missing profile for user:", currentUser.id);
+        
+        // Create profile if missing
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: currentUser.id,
+            first_name: currentUser.user_metadata?.first_name || currentUser.user_metadata?.firstName,
+            last_name: currentUser.user_metadata?.last_name || currentUser.user_metadata?.lastName,
+            email: currentUser.email,
+            employee_id: currentUser.user_metadata?.employee_id || currentUser.user_metadata?.employeeId,
+            organization: currentUser.user_metadata?.organization
+          });
+        
+        if (insertError) {
+          console.error("Error creating profile:", insertError);
+        }
+      }
+    } catch (error) {
+      console.error("Error ensuring user profile:", error);
+    }
+  };
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -32,7 +66,10 @@ export const useAuthState = () => {
           setIsAdmin(extendedUser.app_metadata?.role === 'admin');
 
           // Handle authentication events
-          if (event === 'SIGNED_IN') {
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            // Ensure profile exists and is up-to-date
+            await ensureUserProfile(extendedUser);
+            
             // For admin user (sfadmin), check if they're in the user_roles table
             if (extendedUser.email === 'sfadmin') {
               try {
@@ -59,6 +96,10 @@ export const useAuthState = () => {
             setUser(null);
             setIsEmailVerified(false);
             setIsAdmin(false);
+          } else if (event === 'USER_UPDATED') {
+            // When user metadata is updated, ensure profile is in sync
+            console.log('User updated, syncing profile');
+            await ensureUserProfile(extendedUser);
           }
         } else {
           setUser(null);
@@ -69,7 +110,7 @@ export const useAuthState = () => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       setSession(currentSession);
       
       if (currentSession?.user) {
@@ -78,6 +119,9 @@ export const useAuthState = () => {
         setUser(extendedUser);
         setIsEmailVerified(extendedUser.email_confirmed_at !== null);
         setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+        
+        // Ensure profile exists for existing session
+        await ensureUserProfile(extendedUser);
       }
       
       setIsLoading(false);

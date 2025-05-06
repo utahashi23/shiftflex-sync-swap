@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "./supabase-client";
@@ -139,6 +138,23 @@ export const useAuthActions = () => {
       
       if (error) {
         return { success: false, error };
+      }
+      
+      // Also update the profiles table directly to ensure synchronization
+      // This is a backup in case the trigger doesn't work
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          first_name: data.firstName,
+          last_name: data.lastName,
+          employee_id: data.employeeId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', supabase.auth.getUser().then(({ data }) => data.user?.id));
+        
+      if (profileError) {
+        console.error("Error updating profile:", profileError);
+        // We don't return an error here since the auth update succeeded
       }
       
       return { success: true };
