@@ -74,6 +74,7 @@ export const SwapTabContent = ({
           onAccept={!isPast && swap.status === 'pending' ? onAcceptSwap : undefined}
           onFinalize={!isPast && swap.status === 'accepted' ? onFinalizeSwap : undefined}
           onResendEmail={!isPast && swap.status === 'accepted' ? onResendEmail : undefined}
+          allMatches={swaps} // Pass all swaps for conflict checking
         />
       ))}
     </div>

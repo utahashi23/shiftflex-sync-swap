@@ -16,6 +16,7 @@ interface SwapCardProps {
   onAccept?: (matchId: string) => void;
   onFinalize?: (matchId: string) => void;
   onResendEmail?: (matchId: string) => void;
+  allMatches?: SwapMatch[]; // Add allMatches prop to check for conflicts
 }
 
 // Format date to a readable string
@@ -32,13 +33,29 @@ export const SwapCard = ({
   isPast = false, 
   onAccept, 
   onFinalize, 
-  onResendEmail 
+  onResendEmail,
+  allMatches = []
 }: SwapCardProps) => {
   // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
     otherShift: swap.otherShift.colleagueType
   });
+  
+  // Determine if this swap conflicts with an accepted swap
+  const isConflicting = swap.isConflictingWithAccepted || 
+    (allMatches.length > 0 && allMatches.some(otherMatch => 
+      otherMatch.id !== swap.id && 
+      otherMatch.status === 'accepted' && 
+      (otherMatch.myShift.id === swap.myShift.id || 
+       otherMatch.otherShift.id === swap.myShift.id ||
+       otherMatch.myShift.id === swap.otherShift.id || 
+       otherMatch.otherShift.id === swap.otherShift.id ||
+       otherMatch.myRequestId === swap.myRequestId ||
+       otherMatch.otherRequestId === swap.myRequestId ||
+       otherMatch.myRequestId === swap.otherRequestId ||
+       otherMatch.otherRequestId === swap.otherRequestId)
+    ));
   
   return (
     <Card className="overflow-hidden">
@@ -50,11 +67,12 @@ export const SwapCard = ({
           </div>
           <div>
             <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-              swap.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+              swap.status === 'pending' ? (isConflicting ? 'bg-orange-100 text-orange-800' : 'bg-amber-100 text-amber-800') :
               swap.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
               'bg-green-100 text-green-800'
             }`}>
-              {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
+              {isConflicting ? 'Already Accepted by Others' : 
+               swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
             </span>
           </div>
         </div>
@@ -136,7 +154,13 @@ export const SwapCard = ({
       {!isPast && (
         <CardFooter className="bg-secondary/20 border-t px-4 py-3">
           <div className="w-full flex justify-end gap-2">
-            {swap.status === 'pending' && onAccept && (
+            {isConflicting && swap.status === 'pending' && (
+              <div className="text-sm text-orange-600 pr-4 self-center">
+                This swap conflicts with another swap that has already been accepted.
+              </div>
+            )}
+
+            {swap.status === 'pending' && !isConflicting && onAccept && (
               <Button 
                 onClick={() => onAccept(swap.id)}
                 className="bg-green-600 hover:bg-green-700"

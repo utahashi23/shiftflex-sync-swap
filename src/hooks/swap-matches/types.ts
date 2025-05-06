@@ -22,6 +22,7 @@ export interface SwapMatch {
   myRequestId: string;
   otherRequestId: string;
   createdAt: string;
+  isConflictingWithAccepted?: boolean; // New field to indicate if this swap conflicts with an accepted swap
 }
 
 export interface SwapMatchesState {
