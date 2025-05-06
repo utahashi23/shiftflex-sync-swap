@@ -73,9 +73,9 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
   
   console.log(`Found ${acceptedMatches.length} accepted matches. Will mark conflicting ones.`);
   
-  // Create sets of shifts that are already part of accepted matches
-  const acceptedShiftIds = new Set();
-  const acceptedRequestIds = new Set();
+  // Create sets of shifts and requests that are already part of accepted matches
+  const acceptedShiftIds = new Set<string>();
+  const acceptedRequestIds = new Set<string>();
   
   acceptedMatches.forEach(match => {
     acceptedShiftIds.add(match.myShift.id);

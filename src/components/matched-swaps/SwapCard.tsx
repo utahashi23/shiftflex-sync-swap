@@ -42,29 +42,41 @@ export const SwapCard = ({
     otherShift: swap.otherShift.colleagueType
   });
   
-  // Check if there's any accepted swap among all matches
-  const hasAcceptedSwap = allMatches.some(match => match.status === 'accepted');
-  
-  // Determine if this swap is already accepted or conflicts with an accepted swap
+  // Check if this swap is already accepted
   const isAccepted = swap.status === 'accepted';
+  
+  // Check if any other swaps involving the same shift IDs are already accepted
+  const isShiftInvolvedInAcceptedSwap = allMatches.some(match => 
+    match.status === 'accepted' && 
+    (match.myShift.id === swap.myShift.id || 
+     match.otherShift.id === swap.myShift.id ||
+     match.myShift.id === swap.otherShift.id || 
+     match.otherShift.id === swap.otherShift.id)
+  );
+
+  // Check if any swap with the same request IDs is already accepted
+  const isRequestInvolvedInAcceptedSwap = allMatches.some(match => 
+    match.status === 'accepted' && 
+    (match.myRequestId === swap.myRequestId ||
+     match.otherRequestId === swap.myRequestId ||
+     match.myRequestId === swap.otherRequestId ||
+     match.otherRequestId === swap.otherRequestId)
+  );
+  
+  // Combined flag for any conflict
   const isConflicting = Boolean(swap.isConflictingWithAccepted) || 
-    (allMatches.length > 0 && allMatches.some(otherMatch => 
-      otherMatch.id !== swap.id && 
-      otherMatch.status === 'accepted' && 
-      (otherMatch.myShift.id === swap.myShift.id || 
-       otherMatch.otherShift.id === swap.myShift.id ||
-       otherMatch.myShift.id === swap.otherShift.id || 
-       otherMatch.otherShift.id === swap.otherShift.id ||
-       otherMatch.myRequestId === swap.myRequestId ||
-       otherMatch.otherRequestId === swap.myRequestId ||
-       otherMatch.myRequestId === swap.otherRequestId ||
-       otherMatch.otherRequestId === swap.otherRequestId)
-    ));
-    
+    isShiftInvolvedInAcceptedSwap || 
+    isRequestInvolvedInAcceptedSwap;
+  
+  // If the swap itself is not accepted but conflicts with an accepted swap,
+  // we'll display it as effectively conflicting
+  const effectiveStatus = isAccepted ? 'accepted' : 
+                          isConflicting ? 'conflicting' : 
+                          swap.status;
+  
   // Should we show the Accept button? Only if:
   // - Swap is pending (not accepted)
   // - Not conflicting with an accepted swap
-  // - No other swaps are accepted
   // - The onAccept handler exists
   const showAcceptButton = 
     swap.status === 'pending' && 
@@ -81,12 +93,13 @@ export const SwapCard = ({
           </div>
           <div>
             <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-              swap.status === 'pending' ? (isConflicting ? 'bg-orange-100 text-orange-800' : 'bg-amber-100 text-amber-800') :
-              swap.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
+              effectiveStatus === 'pending' ? 'bg-amber-100 text-amber-800' :
+              effectiveStatus === 'accepted' ? 'bg-blue-100 text-blue-800' :
+              effectiveStatus === 'conflicting' ? 'bg-orange-100 text-orange-800' :
               'bg-green-100 text-green-800'
             }`}>
-              {isConflicting ? 'Already Accepted by Others' : 
-               swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
+              {effectiveStatus === 'conflicting' ? 'Already Accepted by Others' : 
+               effectiveStatus.charAt(0).toUpperCase() + effectiveStatus.slice(1)}
             </span>
           </div>
         </div>
@@ -169,7 +182,7 @@ export const SwapCard = ({
         <CardFooter className="bg-secondary/20 border-t px-4 py-3">
           <div className="w-full flex justify-end gap-2">
             {/* Show message if the swap is conflicting */}
-            {(isConflicting || hasAcceptedSwap) && swap.status === 'pending' && (
+            {isConflicting && swap.status === 'pending' && (
               <div className="text-sm text-orange-600 pr-4 self-center">
                 This swap conflicts with another swap that has already been accepted.
               </div>

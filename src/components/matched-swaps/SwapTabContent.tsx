@@ -23,6 +23,12 @@ export const SwapTabContent = ({
   
   // Check if there's any accepted swap in the list
   const hasAcceptedSwap = swaps && swaps.some(swap => swap.status === 'accepted');
+  if (hasAcceptedSwap) {
+    console.log('Found at least one accepted swap in the list');
+  }
+
+  // Group swaps by shift ID to easily identify conflicts
+  const shiftToSwapsMap = new Map<string, SwapMatch[]>();
   
   if (swaps && swaps.length > 0) {
     // Log the colleague types and status of all swaps for debugging
@@ -40,6 +46,39 @@ export const SwapTabContent = ({
       // Log conflicts
       if (swap.isConflictingWithAccepted) {
         console.log(`Swap ${swap.id} is marked as conflicting with an accepted swap`);
+      }
+      
+      // Add to shift map for conflict detection
+      if (swap.myShift?.id) {
+        if (!shiftToSwapsMap.has(swap.myShift.id)) {
+          shiftToSwapsMap.set(swap.myShift.id, []);
+        }
+        shiftToSwapsMap.get(swap.myShift.id)!.push(swap);
+      }
+      
+      if (swap.otherShift?.id) {
+        if (!shiftToSwapsMap.has(swap.otherShift.id)) {
+          shiftToSwapsMap.set(swap.otherShift.id, []);
+        }
+        shiftToSwapsMap.get(swap.otherShift.id)!.push(swap);
+      }
+    });
+    
+    // Mark swaps that conflict with accepted swaps
+    swaps.forEach(swap => {
+      if (swap.status === 'pending') {
+        // Check if any accepted swap involves the same shifts
+        const myShiftSwaps = shiftToSwapsMap.get(swap.myShift.id) || [];
+        const otherShiftSwaps = shiftToSwapsMap.get(swap.otherShift.id) || [];
+        
+        const hasConflictingAcceptedSwap = [...myShiftSwaps, ...otherShiftSwaps].some(
+          relatedSwap => relatedSwap.id !== swap.id && relatedSwap.status === 'accepted'
+        );
+        
+        if (hasConflictingAcceptedSwap && !swap.isConflictingWithAccepted) {
+          console.log(`Marking swap ${swap.id} as conflicting because it involves shifts from an accepted swap`);
+          swap.isConflictingWithAccepted = true;
+        }
       }
     });
   }
