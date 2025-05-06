@@ -4,8 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SwapRequestCard from './swaps/SwapRequestCard';
 import SwapRequestSkeleton from './swaps/SwapRequestSkeleton';
 import EmptySwapRequests from './swaps/EmptySwapRequests';
+import EmptySwapState from './swaps/EmptySwapState';
 import SwapDeleteDialog from './swaps/SwapDeleteDialog';
-import { useSwapRequests } from '@/hooks/swap-requests';
+import { useSwapRequests } from '@/hooks/swap-requests/useSwapRequests';
 import { toast } from '@/hooks/use-toast';
 import { RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -71,12 +72,6 @@ const RequestedSwaps = () => {
         // Delete a single preferred date
         const result = await deletePreferredDay(deleteDialog.dayId, deleteDialog.requestId);
         console.log("Delete preferred day result:", result);
-        
-        // Type-safe check if this was the last date and the entire request was deleted
-        if (result && 'requestDeleted' in result && result.requestDeleted) {
-          // Refresh the list
-          fetchSwapRequests(activeTab === 'pending' ? 'pending' : 'completed');
-        }
       } else {
         // Delete the entire swap request
         await deleteSwapRequest(deleteDialog.requestId);

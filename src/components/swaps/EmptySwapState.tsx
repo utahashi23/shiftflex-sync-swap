@@ -17,3 +17,5 @@ export const EmptySwapState = ({ message, subtitle }: EmptySwapStateProps) => {
     </div>
   );
 };
+
+export default EmptySwapState;
