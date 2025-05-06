@@ -43,6 +43,15 @@ export const SwapCard = ({
     isAcceptedByOthers
   });
   
+  // The special user ID
+  const specialUserId = "96fc40f8-ceec-4ab2-80a6-3bd9fbf1cdd5";
+  
+  // Check if the current user is the special user
+  const isCurrentUserSpecial = swap.myShift.userId === specialUserId;
+  
+  // Special user (or users interacting with special user) should never see finalize or resend buttons
+  const hideActionButtons = isCurrentUserSpecial || (swap.status === 'accepted' && isAcceptedByOthers);
+  
   return (
     <Card className="overflow-hidden">
       <CardHeader className="bg-secondary/30 pb-3">
@@ -152,9 +161,10 @@ export const SwapCard = ({
       
       {/* Only show action buttons if:
           1. Not a past swap
-          2. Not accepted by others (special user involved)
+          2. Not accepted by others
+          3. Not the special user
       */}
-      {!isPast && !isAcceptedByOthers && (
+      {!isPast && !hideActionButtons && (
         <CardFooter className="bg-secondary/20 border-t px-4 py-3">
           <div className="w-full flex justify-end gap-2">
             {/* Only show accept button for pending swaps */}
