@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Trash2 } from 'lucide-react';
+import { Trash2, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ShiftTypeIcon from './ShiftTypeIcon';
 import ShiftTypeBadge from './ShiftTypeBadge';
@@ -17,6 +17,7 @@ interface SwapRequestCardProps {
   request: SwapRequest;
   onDeleteRequest: (requestId: string) => void;
   onDeletePreferredDate: (dayId: string, requestId: string) => void;
+  isCompleted?: boolean;
 }
 
 const ShiftHeader = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
@@ -62,12 +63,14 @@ const PreferredDateItem = ({
   preferredDay,
   requestId,
   canDelete, 
-  onDelete 
+  onDelete,
+  isCompleted
 }: { 
   preferredDay: PreferredDate;
   requestId: string;
   canDelete: boolean;
   onDelete: () => void;
+  isCompleted?: boolean;
 }) => {
   // Check if acceptedTypes exists and is an array before using map
   const acceptedTypes = preferredDay.acceptedTypes || [];
@@ -83,7 +86,7 @@ const PreferredDateItem = ({
         </div>
       </div>
       
-      {canDelete && (
+      {canDelete && !isCompleted && (
         <Button
           variant="ghost"
           size="icon"
@@ -99,10 +102,12 @@ const PreferredDateItem = ({
 
 const PreferredDatesSection = ({ 
   request,
-  onDeletePreferredDate 
+  onDeletePreferredDate,
+  isCompleted
 }: { 
   request: SwapRequest;
   onDeletePreferredDate: (dayId: string, requestId: string) => void;
+  isCompleted?: boolean;
 }) => {
   return (
     <div>
@@ -115,6 +120,7 @@ const PreferredDatesSection = ({
             requestId={request.id}
             canDelete={request.preferredDates.length > 1}
             onDelete={() => onDeletePreferredDate(preferredDay.id, request.id)}
+            isCompleted={isCompleted}
           />
         ))}
       </div>
@@ -131,17 +137,19 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-const SwapRequestCard = ({ request, onDeleteRequest, onDeletePreferredDate }: SwapRequestCardProps) => {
+const SwapRequestCard = ({ request, onDeleteRequest, onDeletePreferredDate, isCompleted = false }: SwapRequestCardProps) => {
   return (
     <Card className="relative">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-4 right-4 h-8 w-8 text-gray-500 hover:text-red-600"
-        onClick={() => onDeleteRequest(request.id)}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      {!isCompleted && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-4 right-4 h-8 w-8 text-gray-500 hover:text-red-600"
+          onClick={() => onDeleteRequest(request.id)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
       
       <CardHeader>
         <CardTitle className="text-lg">
@@ -155,6 +163,7 @@ const SwapRequestCard = ({ request, onDeleteRequest, onDeletePreferredDate }: Sw
           <PreferredDatesSection 
             request={request}
             onDeletePreferredDate={onDeletePreferredDate}
+            isCompleted={isCompleted}
           />
         </div>
       </CardContent>
@@ -162,9 +171,16 @@ const SwapRequestCard = ({ request, onDeleteRequest, onDeletePreferredDate }: Sw
       <CardFooter className="bg-secondary/20 border-t px-6">
         <div className="flex justify-between items-center w-full py-2">
           <div className="text-sm">Status:</div>
-          <div className="px-3 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
-            Pending
-          </div>
+          {isCompleted ? (
+            <div className="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full flex items-center">
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Completed
+            </div>
+          ) : (
+            <div className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full">
+              Pending
+            </div>
+          )}
         </div>
       </CardFooter>
     </Card>

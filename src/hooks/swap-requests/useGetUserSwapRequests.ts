@@ -8,24 +8,31 @@ import { getUserSwapRequestsApi } from './api';
 /**
  * Hook for fetching user's swap requests
  */
-export const useGetUserSwapRequests = (status: string = 'pending') => {
+export const useGetUserSwapRequests = (initialStatus: string = 'pending') => {
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [status, setStatus] = useState(initialStatus);
   const { user } = useAuth();
 
-  const fetchSwapRequests = useCallback(async () => {
+  const fetchSwapRequests = useCallback(async (requestStatus?: string) => {
     if (!user) {
       console.log('No user available, skipping fetch');
       return;
     }
     
+    // Update status if provided
+    if (requestStatus) {
+      setStatus(requestStatus);
+    }
+    
+    const statusToUse = requestStatus || status;
     setIsLoading(true);
     setError(null);
     
     try {
-      console.log(`Fetching ${status} swap requests for user:`, user.id);
-      const requests = await getUserSwapRequestsApi(status);
+      console.log(`Fetching ${statusToUse} swap requests for user:`, user.id);
+      const requests = await getUserSwapRequestsApi(statusToUse);
       
       console.log('Fetched swap requests:', requests);
       setSwapRequests(requests);
