@@ -33,38 +33,9 @@ export const SwapTabContent = ({
   // We ensure uniqueness by ID when displaying swaps
   const uniqueSwapsMap = new Map<string, SwapMatch>();
   
-  // Process all swaps to identify conflicts with accepted swaps
-  const acceptedSwapShiftIds = new Set<string>();
-  const acceptedSwapRequestIds = new Set<string>();
-  
-  // First pass: Find all accepted swaps and collect their shift and request IDs
+  // Add all swaps to the map, using the ID as key to ensure uniqueness
   swaps.forEach(swap => {
-    if (swap.status === 'accepted') {
-      console.log(`Found ACCEPTED swap with ID: ${swap.id}, collecting shift IDs for conflict detection`);
-      acceptedSwapShiftIds.add(swap.myShift.id);
-      acceptedSwapShiftIds.add(swap.otherShift.id);
-      acceptedSwapRequestIds.add(swap.myRequestId);
-      acceptedSwapRequestIds.add(swap.otherRequestId);
-    }
-  });
-  
-  // Second pass: Mark conflicts and add to the map
-  swaps.forEach(swap => {
-    // Mark as "otherAccepted" if it's pending but involves shifts that are part of an accepted swap
-    if (swap.status === 'pending') {
-      const isConflictingWithAccepted = 
-        acceptedSwapShiftIds.has(swap.myShift.id) || 
-        acceptedSwapShiftIds.has(swap.otherShift.id) ||
-        acceptedSwapRequestIds.has(swap.myRequestId) ||
-        acceptedSwapRequestIds.has(swap.otherRequestId);
-      
-      if (isConflictingWithAccepted) {
-        console.log(`Marking swap ${swap.id} as "otherAccepted" due to conflict with an accepted swap`);
-        swap.status = 'otherAccepted';
-      }
-    }
-    
-    // Log each swap's colleague types for debugging
+    // Log each swap's colleague types and status for debugging
     console.log(`Adding swap ${swap.id} to map with status ${swap.status} and colleague types:`, {
       myShift: swap.myShift?.colleagueType,
       otherShift: swap.otherShift?.colleagueType
@@ -86,7 +57,7 @@ export const SwapTabContent = ({
           onAccept={!isPast && swap.status === 'pending' ? onAcceptSwap : undefined}
           onFinalize={!isPast && swap.status === 'accepted' ? onFinalizeSwap : undefined}
           onResendEmail={!isPast && swap.status === 'accepted' ? onResendEmail : undefined}
-          allMatches={swaps} // Pass all swaps for conflict checking
+          allMatches={swaps} // Pass all swaps for reference if needed
         />
       ))}
     </div>
