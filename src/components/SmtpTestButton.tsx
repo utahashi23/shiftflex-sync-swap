@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { RefreshCw, Server } from "lucide-react";
 
 export function SmtpTestButton() {
   const [isLoading, setIsLoading] = useState(false);
@@ -16,77 +15,58 @@ export function SmtpTestButton() {
       setIsLoading(true);
       setApiKeyStatus(null);
       setConnectionDetails(null);
-      
+      toast.info("Testing Loop.so API connection...");
+      console.log("Testing Loop.so API connectivity and key validity");
+
       // Add a retry count for diagnostic purposes
       const currentRetry = retryCount + 1;
       setRetryCount(currentRetry);
-      
-      toast.info(`Testing Loop.so API connection (attempt ${currentRetry})...`);
-      console.log("Testing Loop.so API connectivity and key validity");
 
-      try {
-        const response = await Promise.race([
-          supabase.functions.invoke('loop_send_email', {
-            body: {
-              test_connectivity: true, // Flag to specifically test connectivity
-              test_api_key: true,
-              to: "njalasankhulani@gmail.com",
-              subject: `Loop.so API Connectivity Test (Attempt ${currentRetry})`,
-              html: `<p>Testing API connectivity at ${new Date().toISOString()}</p>`,
-              from: "admin@shiftflex.au"
-            }
-          }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Connection timed out")), 10000)
-          )
-        ]);
-
-        console.log(`Loop.so API connectivity test response (Attempt ${currentRetry}):`, response);
-
-        if (response.error) {
-          setApiKeyStatus("Connection failed");
-          
-          // More specific error handling
-          let errorMessage = response.error.message || String(response.error);
-          
-          // Check for common error patterns and provide more detailed feedback
-          if (errorMessage.includes("timeout")) {
-            setConnectionDetails("Timeout");
-            toast.error("Loop.so API connection timed out. Please check your network connection and firewall settings.");
-          } else if (errorMessage.includes("unreachable") || errorMessage.includes("sending request")) {
-            setConnectionDetails("Network issue");
-            toast.error("Loop.so API is unreachable. This appears to be a network connectivity issue. Check if your Supabase Edge Functions have outbound internet access.");
-          } else if (errorMessage.includes("invalid")) {
-            setConnectionDetails("Invalid key");
-            toast.error("Loop.so API key appears to be invalid. Please verify your API key format: it should be 32 characters with no spaces.");
-          } else {
-            setConnectionDetails("Unknown error");
-            toast.error(`Loop.so API test failed: ${errorMessage}`);
-          }
-          
-          console.error("Loop.so API connectivity test error details:", JSON.stringify(response.error));
-        } else {
-          setApiKeyStatus("Connected");
-          setConnectionDetails(response.data?.details || "API reachable");
-          toast.success("Loop.so API connection successful!");
+      const response = await supabase.functions.invoke('loop_send_email', {
+        body: {
+          test_connectivity: true, // Flag to specifically test connectivity
+          test_api_key: true,
+          to: "njalasankhulani@gmail.com",
+          subject: `Loop.so API Connectivity Test (Attempt ${currentRetry})`,
+          html: `<p>Testing API connectivity at ${new Date().toISOString()}</p>`,
+          from: "admin@shiftflex.au"
         }
-      } catch (error) {
-        console.error("Error testing Loop.so API connectivity:", error);
-        setApiKeyStatus("Error checking");
+      });
+
+      console.log(`Loop.so API connectivity test response (Attempt ${currentRetry}):`, response);
+
+      if (response.error) {
+        setApiKeyStatus("Connection failed");
         
-        if (error.message.includes("timed out")) {
+        // More specific error handling
+        let errorMessage = response.error.message || String(response.error);
+        
+        // Check for common error patterns and provide more detailed feedback
+        if (errorMessage.includes("timeout")) {
           setConnectionDetails("Timeout");
-          toast.error("Connection to Loop.so API timed out. This suggests a network connectivity issue or firewall restriction.");
+          toast.error("Loop.so API connection timed out. Please check your network connection and firewall settings.");
+        } else if (errorMessage.includes("unreachable") || errorMessage.includes("sending request")) {
+          setConnectionDetails("Network issue");
+          toast.error("Loop.so API is unreachable. This appears to be a network connectivity issue. Check if your Supabase Edge Functions have outbound internet access.");
+        } else if (errorMessage.includes("invalid")) {
+          setConnectionDetails("Invalid key");
+          toast.error("Loop.so API key appears to be invalid. Please verify your API key format: it should be 32 characters with no spaces.");
         } else {
-          setConnectionDetails("Exception: " + error.message.substring(0, 20));
-          toast.error(`Error testing Loop.so API: ${error.message || "Unknown error"}`);
+          setConnectionDetails("Unknown error");
+          toast.error(`Loop.so API test failed: ${errorMessage}`);
         }
+        
+        console.error("Loop.so API connectivity test error details:", JSON.stringify(response.error));
+      } else {
+        setApiKeyStatus("Connected");
+        setConnectionDetails(response.data?.details || "API reachable");
+        toast.success("Loop.so API connection successful!");
       }
     } catch (error) {
-      console.error("Unexpected error in test function:", error);
-      setApiKeyStatus("Critical error");
-      setConnectionDetails(error.message.substring(0, 30));
-      toast.error(`Unexpected error: ${error.message || "Unknown error"}`);
+      console.error("Error testing Loop.so API connectivity:", error);
+      setApiKeyStatus("Error checking");
+      setConnectionDetails("Exception");
+      toast.error(`Error testing Loop.so API: ${error.message || "Unknown error"}`);
     } finally {
       setIsLoading(false);
     }
@@ -99,17 +79,7 @@ export function SmtpTestButton() {
       variant="outline"
       className="w-full mt-2"
     >
-      {isLoading ? (
-        <>
-          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-          Testing API Connection...
-        </>
-      ) : (
-        <>
-          <Server className="mr-2 h-4 w-4" />
-          Test Loop.so API Connection
-        </>
-      )}
+      {isLoading ? "Testing API Connection..." : "Test Loop.so API Connection"}
       {apiKeyStatus && (
         <span className={`ml-2 text-xs ${apiKeyStatus === "Connected" ? "text-green-500" : "text-red-500"}`}>
           ({apiKeyStatus}{connectionDetails ? `: ${connectionDetails}` : ""})
