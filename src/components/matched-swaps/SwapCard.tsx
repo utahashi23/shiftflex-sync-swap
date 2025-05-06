@@ -59,7 +59,7 @@ export const SwapCard = ({
               {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
             </span>
 
-            {/* Show a badge when the swap is accepted but current user can't finalize it */}
+            {/* Show a badge when the swap is accepted by others */}
             {isAcceptedByOthers && (
               <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
                 Awaiting finalization
@@ -149,20 +149,19 @@ export const SwapCard = ({
         )}
       </CardContent>
       
-      {!isPast && (
+      {!isPast && !isAcceptedByOthers && (
         <CardFooter className="bg-secondary/20 border-t px-4 py-3">
           <div className="w-full flex justify-end gap-2">
-            {swap.status === 'pending' && onAccept && (
+            {onAccept && (
               <Button 
                 onClick={() => onAccept(swap.id)}
                 className="bg-green-600 hover:bg-green-700"
-                disabled={isAcceptedByOthers}
               >
-                {isAcceptedByOthers ? "Already Accepted" : "Accept Swap"}
+                Accept Swap
               </Button>
             )}
             
-            {/* Explicitly check for 'accepted' status */}
+            {/* Only show buttons if the swap is accepted AND not accepted by others */}
             {swap.status === 'accepted' && (
               <>
                 {onResendEmail && (
@@ -170,7 +169,6 @@ export const SwapCard = ({
                     onClick={() => onResendEmail(swap.id)}
                     variant="outline"
                     className="flex items-center"
-                    disabled={isAcceptedByOthers}
                   >
                     <Mail className="h-4 w-4 mr-2" />
                     Resend Email
@@ -181,7 +179,6 @@ export const SwapCard = ({
                   <Button 
                     onClick={() => onFinalize(swap.id)}
                     className="bg-blue-600 hover:bg-blue-700"
-                    disabled={isAcceptedByOthers}
                   >
                     Finalize Swap
                   </Button>

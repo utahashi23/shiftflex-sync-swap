@@ -67,15 +67,15 @@ export const SwapTabContent = ({
         const isCurrentUserSwap = swap.otherShift?.userId !== "96fc40f8-ceec-4ab2-80a6-3bd9fbf1cdd5";
         
         // For pending swaps, enable accept button only if it's not the past and we have the handler
-        const canAccept = !isPast && swap.status === 'pending' && !!onAcceptSwap;
+        const showAcceptButton = !isPast && swap.status === 'pending' && !!onAcceptSwap;
         
-        // For accepted swaps, only enable finalize if it belongs to the current user
-        const canFinalize = !isPast && swap.status === 'accepted' && !!onFinalizeSwap && isCurrentUserSwap;
+        // For accepted swaps, only show finalize button if it belongs to the current user
+        const showFinalizeButton = !isPast && swap.status === 'accepted' && !!onFinalizeSwap && isCurrentUserSwap;
         
         // Same for resend email button
-        const canResendEmail = !isPast && swap.status === 'accepted' && !!onResendEmail && isCurrentUserSwap;
+        const showResendEmailButton = !isPast && swap.status === 'accepted' && !!onResendEmail && isCurrentUserSwap;
         
-        // Mark swaps as accepted by others if they're accepted but user can't finalize them
+        // Mark swaps as accepted by others if they're accepted but not this user's
         const isAcceptedByOthers = swap.status === 'accepted' && !isCurrentUserSwap;
         
         return (
@@ -83,9 +83,9 @@ export const SwapTabContent = ({
             key={swap.id}
             swap={swap} 
             isPast={isPast}
-            onAccept={canAccept ? onAcceptSwap : undefined}
-            onFinalize={canFinalize ? onFinalizeSwap : undefined}
-            onResendEmail={canResendEmail ? onResendEmail : undefined}
+            onAccept={showAcceptButton ? onAcceptSwap : undefined}
+            onFinalize={showFinalizeButton ? onFinalizeSwap : undefined}
+            onResendEmail={showResendEmailButton ? onResendEmail : undefined}
             isAcceptedByOthers={isAcceptedByOthers}
           />
         );
