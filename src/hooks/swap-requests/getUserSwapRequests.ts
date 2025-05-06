@@ -28,8 +28,7 @@ export const getUserSwapRequestsApi = async (status: string = 'pending'): Promis
       body: { 
         user_id: userId,
         status: status,
-        auth_token: authToken,
-        include_accepted_by_others: true // Add this flag to retrieve matches accepted by others
+        auth_token: authToken
       }
     });
       
@@ -56,8 +55,6 @@ export const getUserSwapRequestsApi = async (status: string = 'pending'): Promis
         id: item.id,
         requesterId: item.requester_id,
         status: item.status,
-        acceptedByOthers: item.accepted_by_others || false, // Flag to indicate if this request has been accepted by others
-        acceptedMatchId: item.accepted_match_id || null, // Store the ID of the accepted match if available
         originalShift: {
           id: shift.id,
           date: shift.date,

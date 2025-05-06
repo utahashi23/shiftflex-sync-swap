@@ -16,7 +16,6 @@ interface SwapCardProps {
   onAccept?: (matchId: string) => void;
   onFinalize?: (matchId: string) => void;
   onResendEmail?: (matchId: string) => void;
-  isAcceptedByOthers?: boolean;
 }
 
 // Format date to a readable string
@@ -33,10 +32,9 @@ export const SwapCard = ({
   isPast = false, 
   onAccept, 
   onFinalize, 
-  onResendEmail,
-  isAcceptedByOthers = false
+  onResendEmail 
 }: SwapCardProps) => {
-  // Debug logging
+  // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
     otherShift: swap.otherShift.colleagueType
@@ -50,7 +48,7 @@ export const SwapCard = ({
             <ArrowRightLeft className="h-5 w-5 mr-2 text-primary" />
             <h3 className="text-lg font-medium">Shift Swap</h3>
           </div>
-          <div className="flex items-center gap-2">
+          <div>
             <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
               swap.status === 'pending' ? 'bg-amber-100 text-amber-800' :
               swap.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
@@ -58,13 +56,6 @@ export const SwapCard = ({
             }`}>
               {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
             </span>
-
-            {/* Show a badge when the swap is accepted by others */}
-            {isAcceptedByOthers && (
-              <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                Awaiting finalization
-              </span>
-            )}
           </div>
         </div>
       </CardHeader>
@@ -140,19 +131,12 @@ export const SwapCard = ({
             </div>
           </div>
         </div>
-
-        {/* Display a notice when the swap has been accepted by others */}
-        {isAcceptedByOthers && (
-          <div className="mt-4 p-3 border rounded-md bg-blue-50 text-blue-700 text-sm">
-            This swap has already been accepted by other users and is awaiting finalization.
-          </div>
-        )}
       </CardContent>
       
-      {!isPast && !isAcceptedByOthers && (
+      {!isPast && (
         <CardFooter className="bg-secondary/20 border-t px-4 py-3">
           <div className="w-full flex justify-end gap-2">
-            {onAccept && (
+            {swap.status === 'pending' && onAccept && (
               <Button 
                 onClick={() => onAccept(swap.id)}
                 className="bg-green-600 hover:bg-green-700"
@@ -161,7 +145,7 @@ export const SwapCard = ({
               </Button>
             )}
             
-            {/* Only show buttons if the swap is accepted AND not accepted by others */}
+            {/* Explicitly check for 'accepted' status */}
             {swap.status === 'accepted' && (
               <>
                 {onResendEmail && (
