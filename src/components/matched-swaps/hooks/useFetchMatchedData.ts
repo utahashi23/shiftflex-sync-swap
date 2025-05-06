@@ -93,7 +93,7 @@ export const useFetchMatchedData = () => {
       const filteredUserIds = Array.from(userIds).filter(Boolean);
       console.log('Fetching profiles for user IDs:', filteredUserIds);
       
-      // Fetch user profiles
+      // Fetch user profiles - explicitly select employee_id
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, employee_id')
@@ -103,6 +103,8 @@ export const useFetchMatchedData = () => {
         console.error('Error fetching profiles:', profilesError);
         throw profilesError;
       }
+      
+      console.log('Fetched profile data:', profilesData);
       
       // Create profiles map for quick lookup
       const profilesMap: Record<string, any> = {};
@@ -118,6 +120,8 @@ export const useFetchMatchedData = () => {
           const profile = profilesMap[otherUserId];
           match.otherShift.userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User';
           match.otherShift.employeeId = profile.employee_id || null;
+          
+          console.log(`Set other user employeeId to: ${match.otherShift.employeeId} for user ${otherUserId}`);
         } else {
           match.otherShift.userName = 'Unknown User';
           match.otherShift.employeeId = null;
@@ -126,6 +130,7 @@ export const useFetchMatchedData = () => {
         // Update myShift with current user's profile data
         if (profilesMap[userId]) {
           match.myShift.employeeId = profilesMap[userId].employee_id || null;
+          console.log(`Set my employeeId to: ${match.myShift.employeeId} for user ${userId}`);
         }
       });
       
