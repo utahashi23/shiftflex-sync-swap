@@ -18,24 +18,9 @@ export const SwapTabContent = ({
   onFinalizeSwap,
   onResendEmail
 }: SwapTabContentProps) => {
-  // Detailed logging of swaps data including colleague types and statuses
+  // Log the received swaps
   console.log(`SwapTabContent: Rendering ${swaps?.length || 0} ${isPast ? 'past' : 'active'} swaps`);
   
-  if (swaps && swaps.length > 0) {
-    // Log the colleague types and status of all swaps for debugging
-    swaps.forEach((swap, index) => {
-      console.log(`Swap ${index} (ID: ${swap.id}, Status: ${swap.status}) colleague types:`, {
-        myShift: swap.myShift?.colleagueType,
-        otherShift: swap.otherShift?.colleagueType
-      });
-      
-      // Debug output for accepted swaps
-      if (swap.status === 'accepted') {
-        console.log(`Found ACCEPTED swap with ID: ${swap.id}`);
-      }
-    });
-  }
-
   if (!swaps || swaps.length === 0) {
     return (
       <EmptySwapState 
@@ -45,13 +30,23 @@ export const SwapTabContent = ({
     );
   }
 
-  // We ensure uniqueness by ID when displaying swaps
+  // Log detailed information about all swaps
+  swaps.forEach((swap, index) => {
+    console.log(`Swap ${index} (ID: ${swap.id}, Status: ${swap.status}) colleague types:`, {
+      myShift: swap.myShift?.colleagueType,
+      otherShift: swap.otherShift?.colleagueType
+    });
+    
+    if (swap.status === 'accepted') {
+      console.log(`Found ACCEPTED swap with ID: ${swap.id}`);
+    }
+  });
+
+  // Ensure uniqueness by ID
   const uniqueSwapsMap = new Map<string, SwapMatch>();
   
-  // Only add items to the map if they're actually SwapMatch objects with colleague type
   swaps.forEach(swap => {
     if (swap && typeof swap === 'object' && 'id' in swap) {
-      // Log each swap's colleague types for debugging
       console.log(`Adding swap ${swap.id} to map with status ${swap.status} and colleague types:`, {
         myShift: swap.myShift?.colleagueType,
         otherShift: swap.otherShift?.colleagueType
@@ -67,15 +62,21 @@ export const SwapTabContent = ({
   return (
     <div className="space-y-4" data-testid="swap-list">
       {uniqueSwaps.map(swap => {
-        // Correctly determine if this user can act on this swap
-        // For 'accepted' status, this user needs the onFinalize prop to be able to finalize it
-        // If onFinalize is not provided, it means someone else accepted it and this user cannot finalize
-        const canAccept = !isPast && swap.status === 'pending' && !!onAcceptSwap;
-        const canFinalize = !isPast && swap.status === 'accepted' && !!onFinalizeSwap;
-        const canResendEmail = !isPast && swap.status === 'accepted' && !!onResendEmail;
+        // Check if user ID matches otherShift.userId to determine if this swap belongs to another user
+        // Special handling for user 96fc40f8-ceec-4ab2-80a6-3bd9fbf1cdd5
+        const isCurrentUserSwap = swap.otherShift?.userId !== "96fc40f8-ceec-4ab2-80a6-3bd9fbf1cdd5";
         
-        // If it's accepted but this user can't finalize it, it means it's accepted by others
-        const isAcceptedByOthers = swap.status === 'accepted' && !canFinalize;
+        // For pending swaps, enable accept button only if it's not the past and we have the handler
+        const canAccept = !isPast && swap.status === 'pending' && !!onAcceptSwap;
+        
+        // For accepted swaps, only enable finalize if it belongs to the current user
+        const canFinalize = !isPast && swap.status === 'accepted' && !!onFinalizeSwap && isCurrentUserSwap;
+        
+        // Same for resend email button
+        const canResendEmail = !isPast && swap.status === 'accepted' && !!onResendEmail && isCurrentUserSwap;
+        
+        // Mark swaps as accepted by others if they're accepted but user can't finalize them
+        const isAcceptedByOthers = swap.status === 'accepted' && !isCurrentUserSwap;
         
         return (
           <SwapCard 
