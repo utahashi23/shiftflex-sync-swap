@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from './useAuth';
 import { useSwapMatches } from './swap-matches';
 import { SwapMatch } from './swap-matches/types';
@@ -27,7 +28,7 @@ export function useMatchedSwaps() {
   } = useSwapMatches();
   
   // Filter out other_accepted swaps if the user has an accepted swap
-  const filteredMatches = React.useMemo(() => {
+  const filteredMatches = useMemo(() => {
     const hasAcceptedSwap = matches?.some(swap => swap.status === 'accepted');
     
     if (hasAcceptedSwap && matches) {
