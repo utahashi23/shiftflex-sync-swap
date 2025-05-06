@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   ShieldCheck,
-  HelpCircle
+  HelpCircle,
+  Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -57,6 +58,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
     { path: '/shifts', label: 'Shift Swaps', icon: <Calendar className="h-5 w-5" /> },
     { path: '/roster', label: 'Roster', icon: <Calendar className="h-5 w-5" /> },
+    { path: '/future-updates', label: 'Coming Soon', icon: <Clock className="h-5 w-5" /> },
     { path: '/settings', label: 'Settings', icon: <Settings className="h-5 w-5" /> },
     { path: '/faq', label: 'FAQ', icon: <HelpCircle className="h-5 w-5" /> },
     ...(isAdmin ? [{ path: '/admin', label: 'Admin', icon: <ShieldCheck className="h-5 w-5" /> }] : []),
@@ -144,3 +146,4 @@ const AppLayout = ({ children }: AppLayoutProps) => {
 };
 
 export default AppLayout;
+
