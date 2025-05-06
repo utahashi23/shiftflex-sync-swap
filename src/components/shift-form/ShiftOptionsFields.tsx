@@ -11,7 +11,6 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -33,18 +32,16 @@ export const ShiftOptionsFields = ({
       <div>
         <div className="flex justify-between items-center mb-1.5">
           <Label htmlFor="shift-length">Shift Length</Label>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <AlertCircle className="h-4 w-4 text-gray-400" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Select a predefined shift length or use custom times</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <AlertCircle className="h-4 w-4 text-gray-400" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Select a predefined shift length or use custom times</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
         <Select
           value={shiftLength}
@@ -66,18 +63,16 @@ export const ShiftOptionsFields = ({
       <div>
         <div className="flex justify-between items-center mb-1.5">
           <Label htmlFor="colleague-type">Colleague Type</Label>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <AlertCircle className="h-4 w-4 text-gray-400" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Specify who you'll be working with</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <AlertCircle className="h-4 w-4 text-gray-400" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Specify who you'll be working with</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
         <Select
           value={colleagueType}

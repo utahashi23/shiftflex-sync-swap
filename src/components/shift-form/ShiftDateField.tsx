@@ -5,7 +5,6 @@ import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -19,18 +18,16 @@ export const ShiftDateField = ({ value, onChange }: ShiftDateFieldProps) => {
     <div>
       <div className="flex justify-between items-center mb-1.5">
         <Label htmlFor="shift-date">Date</Label>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span>
-                <AlertCircle className="h-4 w-4 text-gray-400" />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="max-w-xs">Select a date on the calendar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <AlertCircle className="h-4 w-4 text-gray-400" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="max-w-xs">Select a date on the calendar</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
       <Input
         id="shift-date"
