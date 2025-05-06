@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -102,6 +101,7 @@ Type: ${swap.otherShift.type.charAt(0).toUpperCase() + swap.otherShift.type.slic
 Location: ${swap.otherShift.truckName || 'Not specified'}
 Colleague Type: ${swap.otherShift.colleagueType || 'Not specified'}
 Staff Member: ${swap.otherShift.userName || 'Not specified'}
+Employee ID: ${swap.otherShift.employeeId || 'Not provided'}
 
 Swap ID: ${swap.id}`;
   };

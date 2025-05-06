@@ -12,6 +12,7 @@ export interface SwapShift {
 export interface OtherSwapShift extends SwapShift {
   userId: string;
   userName: string;
+  employeeId?: string | null;
 }
 
 export interface SwapMatch {

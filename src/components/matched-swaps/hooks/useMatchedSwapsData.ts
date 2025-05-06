@@ -86,6 +86,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
           type: getShiftType(match.other_shift_start_time),
           userId: match.other_user_id,
           userName: match.other_user_name || 'Unknown User',
+          employeeId: match.other_user_employee_id || null,
           colleagueType: otherShiftColleagueType
         },
         myRequestId: match.my_request_id,

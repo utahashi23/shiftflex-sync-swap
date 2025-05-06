@@ -72,6 +72,7 @@ export const useFetchMatchedData = () => {
             type: getShiftType(match.other_shift_start_time),
             userId: match.other_user_id,
             userName: match.other_user_id, // We'll update this with profile data
+            employeeId: null, // We'll update this with profile data
             colleagueType: match.other_shift_colleague_type || null
           },
           myRequestId: match.my_request_id,
@@ -93,7 +94,7 @@ export const useFetchMatchedData = () => {
       // Fetch user profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name')
+        .select('id, first_name, last_name, employee_id')
         .in('id', filteredUserIds);
         
       if (profilesError) {
@@ -107,14 +108,16 @@ export const useFetchMatchedData = () => {
         profilesMap[profile.id] = profile;
       });
       
-      // Update matches with user names
+      // Update matches with user names and employee IDs
       formattedMatches.forEach(match => {
         const userId = match.otherShift.userId;
         if (userId && profilesMap[userId]) {
           const profile = profilesMap[userId];
           match.otherShift.userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User';
+          match.otherShift.employeeId = profile.employee_id || null;
         } else {
           match.otherShift.userName = 'Unknown User';
+          match.otherShift.employeeId = null;
         }
       });
       
