@@ -35,7 +35,17 @@ export const useMatchedSwaps = () => {
     // Log the data for debugging
     console.log(`Got ${matchedSwaps.length} matched swaps and ${completedSwaps.length} completed swaps`);
     
-    setSwapRequests(matchedSwaps);
+    // Filter out "other_accepted" swaps if the user has an accepted swap
+    const hasAcceptedSwap = matchedSwaps.some(swap => swap.status === 'accepted');
+    
+    // If user already has an accepted swap, filter out the "other_accepted" swaps
+    const filteredSwaps = hasAcceptedSwap 
+      ? matchedSwaps.filter(swap => swap.status !== 'other_accepted')
+      : matchedSwaps;
+    
+    console.log(`After filtering: showing ${filteredSwaps.length} swaps (filtered out ${matchedSwaps.length - filteredSwaps.length} 'other_accepted' swaps)`);
+    
+    setSwapRequests(filteredSwaps);
     setPastSwaps(completedSwaps);
   };
 
