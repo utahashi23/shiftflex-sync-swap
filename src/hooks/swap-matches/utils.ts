@@ -11,7 +11,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
   }
   
   // Process and format the matches data
-  const formattedMatches = matchesData.map(match => {
+  return matchesData.map(match => {
     // Log raw match data for debugging
     console.log(`Processing match ID ${match.match_id} with status ${match.match_status}:`, match);
     
@@ -56,62 +56,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
       },
       myRequestId: match.my_request_id,
       otherRequestId: match.other_request_id,
-      createdAt: match.created_at,
-      isConflictingWithAccepted: match.is_conflicting || false
+      createdAt: match.created_at
     };
   });
-
-  // Now let's identify conflicts with accepted swaps
-  // If there's an accepted swap for either the myShift or otherShift,
-  // mark other pending swaps involving those shifts as conflicting
-  const acceptedMatches = formattedMatches.filter(match => match.status === 'accepted');
-  
-  // Create sets of shifts that are already part of accepted matches
-  const acceptedShiftIds = new Set();
-  const acceptedRequestIds = new Set();
-  
-  acceptedMatches.forEach(match => {
-    acceptedShiftIds.add(match.myShift.id);
-    acceptedShiftIds.add(match.otherShift.id);
-    acceptedRequestIds.add(match.myRequestId);
-    acceptedRequestIds.add(match.otherRequestId);
-  });
-
-  // For pending matches, check if they conflict with accepted matches
-  return formattedMatches.map(match => {
-    if (match.status === 'pending') {
-      // If this pending match involves a shift or request that's part of an accepted match,
-      // mark it as conflicting
-      const isConflicting = 
-        acceptedShiftIds.has(match.myShift.id) || 
-        acceptedShiftIds.has(match.otherShift.id) ||
-        acceptedRequestIds.has(match.myRequestId) ||
-        acceptedRequestIds.has(match.otherRequestId);
-      
-      return { ...match, isConflictingWithAccepted: isConflicting };
-    }
-    return match;
-  });
-};
-
-/**
- * Check if a swap request is part of another accepted swap
- */
-export const isPartOfAcceptedSwap = (match: SwapMatch, allMatches: SwapMatch[]): boolean => {
-  // If the match itself is accepted, it's not conflicting
-  if (match.status === 'accepted') return false;
-  
-  // Look for accepted swaps that involve the same shift or request
-  return allMatches.some(otherMatch => 
-    otherMatch.id !== match.id && 
-    otherMatch.status === 'accepted' && 
-    (otherMatch.myShift.id === match.myShift.id || 
-     otherMatch.otherShift.id === match.myShift.id ||
-     otherMatch.myShift.id === match.otherShift.id || 
-     otherMatch.otherShift.id === match.otherShift.id ||
-     otherMatch.myRequestId === match.myRequestId ||
-     otherMatch.otherRequestId === match.myRequestId ||
-     otherMatch.myRequestId === match.otherRequestId ||
-     otherMatch.otherRequestId === match.otherRequestId)
-  );
 };

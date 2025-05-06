@@ -27,7 +27,6 @@ export interface SwapMatch {
   myRequestId: string;
   otherRequestId: string;
   createdAt: string;
-  isConflictingWithAccepted?: boolean; // Added this property to match with the hook's type definition
 }
 
 export interface ConfirmDialogState {
