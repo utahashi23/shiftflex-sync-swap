@@ -61,7 +61,8 @@ export const getUserSwapRequestsApi = async (status: string = 'pending'): Promis
           title: shift.truckName || `Shift-${shift.id.substring(0, 5)}`,
           startTime: shift.startTime?.substring(0, 5) || "",
           endTime: shift.endTime?.substring(0, 5) || "",
-          type: shift.type
+          type: shift.type,
+          colleagueType: shift.colleague_type || "Unknown"
         },
         preferredDates: formattedDates
       };

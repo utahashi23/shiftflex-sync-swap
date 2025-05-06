@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/auth';
 import { SwapMatch } from '../types';
@@ -65,9 +64,14 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
         otherShift: otherShiftColleagueType
       });
       
+      // Keep the match status directly from the database
+      // It will now include 'otherAccepted' when appropriate
+      const matchStatus = match.match_status;
+      console.log(`Match ${match.match_id} status from API: ${matchStatus}`);
+      
       return {
         id: match.match_id,
-        status: match.match_status,
+        status: matchStatus,
         myShift: {
           id: match.my_shift_id,
           date: match.my_shift_date,
@@ -129,50 +133,40 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       console.log('Formatted matches after processing:', formattedMatches);
       
       // Separate active and past matches
-      const activeMatches = formattedMatches.filter((match: SwapMatch) => 
-        match.status === 'pending' || match.status === 'accepted'
+      const activeMatches = formattedMatches.filter(match => 
+        match.status === 'pending' || match.status === 'accepted' || match.status === 'otherAccepted'
       );
       
-      const completedMatches = formattedMatches.filter((match: SwapMatch) => 
+      const completedMatches = formattedMatches.filter(match => 
         match.status === 'completed'
       );
       
-      console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
+      console.log(`Found ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
       
-      // Update the state with the new matches
+      // Count by status for debugging
+      const pendingCount = activeMatches.filter(m => m.status === 'pending').length;
+      const acceptedCount = activeMatches.filter(m => m.status === 'accepted').length;
+      const otherAcceptedCount = activeMatches.filter(m => m.status === 'otherAccepted').length;
+      console.log(`Status counts - pending: ${pendingCount}, accepted: ${acceptedCount}, otherAccepted: ${otherAcceptedCount}`);
+      
+      // Update state with the processed matches
       setMatches(activeMatches);
       setPastMatches(completedMatches);
       
-      // Show toast message about the results
-      if (activeMatches.length > 0) {
-        toast({
-          title: "Matches found!",
-          description: `Found ${activeMatches.length} potential swap matches.`,
-        });
-        
-        // If we've found matches, update parent tabs if needed
-        if (setRefreshTrigger && activeTab !== 'active') {
-          setActiveTab('active');
-          setTimeout(() => {
-            setRefreshTrigger(prevVal => prevVal + 1);
-          }, 100);
-        }
-      } else {
-        toast({
-          title: "No matches found",
-          description: "No potential swap matches were found at this time.",
-        });
+      // Refresh the UI if needed
+      if (setRefreshTrigger) {
+        setRefreshTrigger(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error fetching matches:', error);
       toast({
-        title: "Failed to load matches",
-        description: "Could not load your swap matches. Please try again.",
+        title: "Error fetching matches",
+        description: "There was a problem fetching your swap matches.",
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
-      fetchInProgressRef.current = false; // Reset the operation flag
+      fetchInProgressRef.current = false;
     }
   };
 
@@ -183,8 +177,6 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
     isProcessing,
     activeTab,
     setActiveTab,
-    fetchMatches,
-    initialFetchDone,
-    initialFetchCompleted
+    fetchMatches
   };
 };
