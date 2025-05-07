@@ -12,7 +12,8 @@ import {
   X,
   ShieldCheck,
   HelpCircle,
-  Clock
+  Clock,
+  Database
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -61,7 +62,10 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     { path: '/future-updates', label: 'Coming Soon', icon: <Clock className="h-5 w-5" /> },
     { path: '/settings', label: 'Settings', icon: <Settings className="h-5 w-5" /> },
     { path: '/faq', label: 'FAQ', icon: <HelpCircle className="h-5 w-5" /> },
-    ...(isAdmin ? [{ path: '/admin', label: 'Admin', icon: <ShieldCheck className="h-5 w-5" /> }] : []),
+    ...(isAdmin ? [
+      { path: '/admin', label: 'Admin', icon: <ShieldCheck className="h-5 w-5" /> },
+      { path: '/admin/data', label: 'Data Explorer', icon: <Database className="h-5 w-5" /> }
+    ] : []),
   ];
 
   return (
@@ -146,4 +150,3 @@ const AppLayout = ({ children }: AppLayoutProps) => {
 };
 
 export default AppLayout;
-

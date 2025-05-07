@@ -22,7 +22,8 @@ import {
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
 import { toast } from '@/hooks/use-toast';
-import { Database, Users, Truck } from 'lucide-react';
+import { Database, Users, Truck, Filter, Table2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 // Mock user data
 const mockUsers = [
@@ -71,6 +72,30 @@ const Admin = () => {
       </div>
 
       <div className="space-y-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Data Viewer</CardTitle>
+              <CardDescription>
+                View and filter data across the system
+              </CardDescription>
+            </div>
+            <Button asChild className="shrink-0">
+              <Link to="/admin/data">
+                <Table2 className="h-4 w-4 mr-2" />
+                View Data
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-800">
+              <p className="text-sm">
+                Access comprehensive data views with advanced filtering options to analyze users, shifts, and swap requests.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
