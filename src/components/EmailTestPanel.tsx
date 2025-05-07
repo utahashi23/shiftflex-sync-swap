@@ -3,6 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TestEmailButton } from "@/components/TestEmailButton";
 import { SmtpTestButton } from "@/components/SmtpTestButton";
+import { MailgunTestButton } from "@/components/MailgunTestButton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 
@@ -31,12 +32,15 @@ export function EmailTestPanel() {
         </Alert>
         
         <p className="text-sm mb-4">
-          Test the email service using both direct API and SMTP approaches.
+          Test the email service using different providers and approaches.
           Check your inbox for the test emails.
         </p>
         
-        <TestEmailButton />
-        <SmtpTestButton />
+        <div className="space-y-2">
+          <TestEmailButton />
+          <SmtpTestButton />
+          <MailgunTestButton />
+        </div>
       </CardContent>
     </Card>
   );

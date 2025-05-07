@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 interface EmailOptions {
@@ -13,7 +12,7 @@ interface EmailOptions {
 }
 
 /**
- * Send an email using the Loop.so API through a Supabase Edge Function
+ * Send an email using the Loop.so API or Mailgun through a Supabase Edge Function
  */
 export const sendEmail = async (options: EmailOptions): Promise<{ success: boolean; error?: string; result?: any }> => {
   try {
@@ -27,17 +26,34 @@ export const sendEmail = async (options: EmailOptions): Promise<{ success: boole
       from: options.from || "admin@shiftflex.au"
     };
     
-    const { data, error } = await supabase.functions.invoke('loop_send_email', {
+    // Try Loop.so first
+    try {
+      const { data, error } = await supabase.functions.invoke('loop_send_email', {
+        body: emailOptions
+      });
+      
+      if (!error) {
+        console.log('Email sent via Loop.so:', data);
+        return data || { success: true };
+      }
+      
+      console.warn('Loop.so email failed, trying Mailgun fallback:', error);
+    } catch (loopError) {
+      console.warn('Error with Loop.so, trying Mailgun fallback:', loopError);
+    }
+    
+    // Fallback to Mailgun if Loop.so fails
+    const { data, error } = await supabase.functions.invoke('send_email', {
       body: emailOptions
     });
     
     if (error) {
-      console.error('Error calling loop_send_email function:', error);
+      console.error('Error calling send_email function with Mailgun:', error);
       return { success: false, error: error.message || String(error) };
     }
     
-    console.log('Email function response:', data);
-    return data;
+    console.log('Email function response from Mailgun:', data);
+    return data || { success: true };
   } catch (err: any) {
     console.error('Error in sendEmail:', err);
     return { success: false, error: err.message || String(err) };
@@ -221,6 +237,51 @@ export const testEmailFunctionality = async (): Promise<{
     return {
       loopResult: { success: false, error: 'Loop.so test failed' },
       directResult: { success: false, error: 'Direct API test failed' }
+    };
+  }
+};
+
+/**
+ * Test Mailgun email functionality directly
+ */
+export const testMailgunService = async (): Promise<{
+  sdkResult: { success: boolean; error?: string; data?: any };
+  smtpResult: { success: boolean; error?: string; data?: any };
+}> => {
+  try {
+    console.log("Testing Mailgun SDK implementation...");
+    
+    // Test the Mailgun SDK implementation
+    const sdkResponse = await supabase.functions.invoke('test_mailgun_sdk', {
+      body: {}
+    });
+    
+    console.log("Mailgun SDK test response:", sdkResponse);
+    
+    // Test the Mailgun SMTP implementation
+    const smtpResponse = await supabase.functions.invoke('test_mailgun_smtp', {
+      body: { test_attempt: 1, timestamp: new Date().toISOString() }
+    });
+    
+    console.log("Mailgun SMTP test response:", smtpResponse);
+    
+    return {
+      sdkResult: {
+        success: !sdkResponse.error,
+        error: sdkResponse.error?.message,
+        data: sdkResponse.data
+      },
+      smtpResult: {
+        success: !smtpResponse.error,
+        error: smtpResponse.error?.message,
+        data: smtpResponse.data
+      }
+    };
+  } catch (err: any) {
+    console.error('Error testing Mailgun functionality:', err);
+    return {
+      sdkResult: { success: false, error: 'Mailgun SDK test failed' },
+      smtpResult: { success: false, error: 'Mailgun SMTP test failed' }
     };
   }
 };
