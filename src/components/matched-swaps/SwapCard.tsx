@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -48,7 +47,9 @@ export const SwapCard = ({
   
   // Determine status display text and color
   const getStatusDisplay = () => {
-    switch (swap.status) {
+    const status = swap.status;
+    
+    switch (status) {
       case 'pending':
         return {
           text: 'Pending',
@@ -70,8 +71,9 @@ export const SwapCard = ({
           colorClass: 'bg-green-100 text-green-800'
         };
       default:
+        // Safely handle the case when status doesn't match any of our defined types
         return {
-          text: swap.status.charAt(0).toUpperCase() + swap.status.slice(1),
+          text: typeof status === 'string' ? `${status.charAt(0).toUpperCase()}${status.slice(1)}` : 'Unknown',
           colorClass: 'bg-gray-100 text-gray-800'
         };
     }
