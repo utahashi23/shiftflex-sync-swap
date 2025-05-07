@@ -31,6 +31,7 @@ serve(async (req) => {
       throw new Error('Missing Mailgun domain in environment variables');
     }
     
+    // Log the domain with some basic validation
     console.log(`Using Mailgun domain: ${MAILGUN_DOMAIN}`);
     
     // Validate domain format (basic check)
@@ -42,12 +43,31 @@ serve(async (req) => {
     const requestData = await req.json();
     const recipientEmail = requestData.recipientEmail || "njalasankhulani@gmail.com";
     
+    console.log(`Will send test email to: ${recipientEmail}`);
+    
+    // Log the API key length and first/last few characters (for debugging without exposing the key)
+    console.log(`API key length: ${MAILGUN_API_KEY.length}, starts with: ${MAILGUN_API_KEY.substring(0, 3)}..., ends with: ...${MAILGUN_API_KEY.substring(MAILGUN_API_KEY.length - 3)}`);
+    
     // Import Mailgun SDK using importmap
+    console.log("Importing Mailgun SDK...");
+    try {
+      const { default: FormData } = await import("npm:form-data@4.0.1");
+      const { default: Mailgun } = await import("npm:mailgun.js@11.1.0");
+      console.log("Successfully imported Mailgun SDK");
+    } catch (importError) {
+      console.error("Failed to import Mailgun SDK:", importError);
+      throw new Error(`Failed to import Mailgun SDK: ${importError.message}`);
+    }
+    
     const { default: FormData } = await import("npm:form-data@4.0.1");
     const { default: Mailgun } = await import("npm:mailgun.js@11.1.0");
 
     console.log("Initializing Mailgun client");
     const mailgun = new Mailgun(FormData);
+    
+    // Log the client configuration (without exposing full API key)
+    console.log("Creating Mailgun client with username: api");
+    
     const mg = mailgun.client({
       username: "api",
       key: MAILGUN_API_KEY,
@@ -55,12 +75,17 @@ serve(async (req) => {
       // url: "https://api.eu.mailgun.net"
     });
     
+    console.log("Mailgun client initialized successfully");
     console.log("Preparing email data");
+    
+    // Use admin@shiftflex.au as the sender address
     const sender = `admin@${MAILGUN_DOMAIN}`;
     
     console.log(`Sending test email from ${sender} to ${recipientEmail}`);
+    console.log(`Using domain: ${MAILGUN_DOMAIN} for sending`);
     
     try {
+      console.log("Calling Mailgun messages.create API...");
       const data = await mg.messages.create(MAILGUN_DOMAIN, {
         from: sender,
         to: [recipientEmail],
@@ -85,25 +110,45 @@ serve(async (req) => {
         status: 200
       });
     } catch (mailgunError) {
-      console.error("Mailgun SDK error:", mailgunError);
+      console.error("Mailgun API error details:", mailgunError);
       
       // Extract more specific error details
-      const errorDetails = {
+      let errorDetails = {
         status: mailgunError.status || 'Unknown',
         message: mailgunError.message || 'Unknown error',
         details: mailgunError.details || 'No additional details',
         type: mailgunError.type || 'Unknown error type'
       };
       
+      // Check for network errors
+      if (mailgunError.code === 'ENOTFOUND' || mailgunError.code === 'ETIMEDOUT') {
+        errorDetails.details = `Network error: ${mailgunError.code}. This might be due to Supabase Edge Function network restrictions.`;
+      }
+      
+      // Check if there's an issue with the API key
+      if (mailgunError.status === 401) {
+        errorDetails.details = 'Authentication failed. Please check if your API key is correct and active.';
+      }
+      
+      // Check for domain validation issues
+      if (mailgunError.status === 400 && mailgunError.details && mailgunError.details.includes('domain')) {
+        errorDetails.details = 'Domain validation failed. Please check if your domain is properly configured and verified in Mailgun.';
+      }
+      
       throw new Error(`Mailgun SDK error: ${JSON.stringify(errorDetails)}`);
     }
   } catch (error) {
     console.error('Error in test_mailgun_sdk function:', error);
     
+    let errorType = 'unknown';
+    if (error.message && error.message.includes('network')) errorType = 'network';
+    if (error.message && error.message.includes('API key')) errorType = 'authentication';
+    if (error.message && error.message.includes('domain')) errorType = 'domain';
+    
     return new Response(JSON.stringify({
       success: false,
       error: error.message,
-      errorType: error.constructor.name,
+      errorType: errorType,
       timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
