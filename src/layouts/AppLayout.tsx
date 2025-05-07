@@ -1,3 +1,4 @@
+
 import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -37,11 +38,12 @@ const AppLayout = ({ children }: AppLayoutProps) => {
       setIsSigningOut(true);
       console.log("Starting sign out process");
       
+      // Call signOut which now handles both state clearing and navigation
       await signOut();
-      console.log("Sign out successful, redirecting to home");
+      console.log("Sign out process initiated");
       
-      // Force navigation to home page
-      navigate('/', { replace: true });
+      // The navigation is now handled in the AuthProvider
+      // No need for navigation here
     } catch (error) {
       console.error('Sign out error:', error);
       toast({
@@ -49,6 +51,8 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         description: "There was a problem signing you out. Please try again.",
         variant: "destructive",
       });
+      // If there's an error, we should still try to navigate to home
+      navigate('/', { replace: true });
     } finally {
       setIsSigningOut(false);
     }

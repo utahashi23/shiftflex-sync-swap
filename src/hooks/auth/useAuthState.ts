@@ -78,6 +78,7 @@ export const useAuthState = () => {
             setUser(null);
             setIsEmailVerified(false);
             setIsAdmin(false);
+            console.log("Auth state cleared on sign out");
           }
         } else {
           setUser(null);
@@ -89,6 +90,7 @@ export const useAuthState = () => {
 
     // THEN check for existing session
     supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
+      console.log("Getting initial session:", currentSession ? "Session exists" : "No session");
       setSession(currentSession);
       
       if (currentSession?.user) {

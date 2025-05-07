@@ -16,7 +16,7 @@ import {
 export const useAuthActions = () => {
   const navigate = useNavigate();
 
-  // Sign out function
+  // Sign out function - no navigation here as it's handled in AuthProvider
   const signOut = async () => {
     try {
       // Clear the session from Supabase
@@ -38,8 +38,8 @@ export const useAuthActions = () => {
         description: "You have been logged out of your account.",
       });
       
-      // Force navigation to the root page with replace to prevent back navigation
-      navigate('/', { replace: true });
+      // Note: Navigation is now done in AuthProvider, not here
+      // This ensures the state is cleared before navigation
       
       // Return resolved promise for chaining
       return Promise.resolve();
