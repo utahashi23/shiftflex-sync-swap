@@ -18,12 +18,19 @@ serve(async (req) => {
     
     // Get request data
     const requestData = await req.json();
+    const verboseLogging = requestData.verbose_logging || false;
+    const testAttempt = requestData.test_attempt || 1;
+
+    if (verboseLogging) {
+      console.log(`Request data: ${JSON.stringify(requestData)}`);
+    }
 
     // Check if this is a connectivity test
     if (requestData.check_connectivity) {
       console.log("Running connectivity test...")
       try {
         // Test DNS resolution and basic connectivity by trying to connect to api.mailgun.net (US region)
+        console.log("Testing connectivity to api.mailgun.net...");
         const testResponse = await fetch("https://api.mailgun.net/v3/domains", {
           method: 'HEAD',
           headers: { 'User-Agent': 'Supabase Edge Function Connection Test' }
@@ -45,6 +52,7 @@ serve(async (req) => {
         
         // Try alternative approach using DNS resolution only
         try {
+          console.log("Attempting alternative connectivity check...");
           const ipResponse = await fetch("https://api.ipify.org?format=json");
           const ipData = await ipResponse.json();
           
@@ -105,11 +113,16 @@ serve(async (req) => {
       // Use admin@shiftflex.au as the sender address
       const sender = `admin@${MAILGUN_DOMAIN}`;
       
+      if (verboseLogging) {
+        console.log(`Mailgun API URL: ${mailgunApiUrl}`);
+        console.log(`Sender address: ${sender}`);
+      }
+      
       // Create FormData object for the API request
       const formData = new FormData();
       formData.append('from', sender);
       formData.append('to', recipientEmail);
-      formData.append('subject', 'Direct API Test from Supabase Edge Function (US region)');
+      formData.append('subject', `Direct API Test from Supabase Edge Function (US region) - ${new Date().toISOString()}`);
       formData.append('text', 'This is a test email sent using direct Mailgun API from a Supabase Edge Function.');
       formData.append('html', `
         <h2>Mailgun API Direct Test (US Region)</h2>
@@ -117,9 +130,11 @@ serve(async (req) => {
         <p>If you're receiving this email, the integration is working correctly despite potential network restrictions.</p>
         <p>Region: US</p>
         <p>Time sent: ${new Date().toISOString()}</p>
-        <p>Test attempt: ${requestData.test_attempt || 1}</p>
+        <p>Test attempt: ${testAttempt}</p>
+        <p>Recipient: ${recipientEmail}</p>
       `);
       
+      console.log("Sending request to Mailgun API...");
       // Send the request
       const response = await fetch(mailgunApiUrl, {
         method: 'POST',
@@ -129,27 +144,52 @@ serve(async (req) => {
         body: formData
       });
       
+      console.log(`Mailgun API response status: ${response.status}`);
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Mailgun direct API error: ${response.status}`, errorText);
+        
+        if (verboseLogging) {
+          console.log(`Full error response: ${errorText}`);
+        }
+        
         throw new Error(`Mailgun API error: ${response.status} - ${errorText}`);
       }
       
       const result = await response.json();
       console.log("Direct API call successful:", result);
       
+      if (verboseLogging) {
+        console.log(`Full API response: ${JSON.stringify(result)}`);
+      }
+      
       return new Response(JSON.stringify({
         success: true,
         message: "Email sent successfully using direct API (US region)",
         data: result,
         method: "direct_api",
-        region: "US"
+        region: "US",
+        timestamp: new Date().toISOString(),
+        recipient: recipientEmail
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
       });
     } catch (directApiError) {
       console.error("Direct API approach failed:", directApiError);
+      
+      if (verboseLogging) {
+        console.log(`API error details: ${JSON.stringify(directApiError)}`);
+        
+        // Try to determine the type of error
+        let errorType = "unknown";
+        if (directApiError.message && directApiError.message.includes("network")) errorType = "network";
+        if (directApiError.message && directApiError.message.includes("DNS")) errorType = "dns";
+        if (directApiError.message && directApiError.message.includes("timeout")) errorType = "timeout";
+        console.log(`Detected error type: ${errorType}`);
+      }
+      
       throw directApiError;
     }
   } catch (error) {

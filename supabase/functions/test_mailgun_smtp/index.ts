@@ -17,21 +17,28 @@ serve(async (req) => {
   try {
     const requestData = await req.json();
     const testAttempt = requestData.test_attempt || 1;
+    const verboseLogging = requestData.verbose_logging || false;
+    const recipientEmail = requestData.recipientEmail || "njalasankhulani@gmail.com";
     
     console.log(`Starting test_mailgun_smtp function (attempt ${testAttempt})...`);
     console.log(`Test timestamp: ${requestData.timestamp || new Date().toISOString()}`);
     
+    if (verboseLogging) {
+      console.log(`Request data: ${JSON.stringify(requestData)}`);
+    }
+    
     // SMTP configuration for Mailgun with hardcoded credentials
     const client = new SmtpClient();
     
-    // Create a recipient email address (use the one from request or default)
-    const recipient = requestData.recipientEmail || "njalasankhulani@gmail.com";
-    
     console.log(`Connecting to SMTP server with username: admin@shiftflex.au`);
-    console.log(`Recipient email: ${recipient}`);
+    console.log(`Recipient email: ${recipientEmail}`);
     console.log(`Using Mailgun US region endpoint`);
     
     try {
+      if (verboseLogging) {
+        console.log("Attempting to establish SMTP connection...");
+      }
+      
       await client.connectTLS({
         hostname: "smtp.mailgun.org", // US region endpoint
         port: 587,
@@ -42,10 +49,14 @@ serve(async (req) => {
       console.log("SMTP connection established successfully");
       
       try {
+        if (verboseLogging) {
+          console.log("Connection successful, attempting to send email...");
+        }
+        
         await client.send({
           from: "admin@shiftflex.au",
-          to: recipient,
-          subject: `Mailgun SMTP Test (Attempt ${testAttempt}) - US Region`,
+          to: recipientEmail,
+          subject: `Mailgun SMTP Test (Attempt ${testAttempt}) - US Region - ${new Date().toISOString()}`,
           content: "This is a test email sent using the SMTP protocol from a Supabase Edge Function.",
           html: `
             <h2>Mailgun SMTP Test - US Region</h2>
@@ -54,6 +65,7 @@ serve(async (req) => {
             <p>Test attempt: ${testAttempt}</p>
             <p>Time sent: ${new Date().toISOString()}</p>
             <p>Region: US</p>
+            <p>Recipient: ${recipientEmail}</p>
           `,
         });
         
@@ -66,7 +78,7 @@ serve(async (req) => {
           details: {
             attempt: testAttempt,
             timestamp: new Date().toISOString(),
-            recipient: recipient,
+            recipient: recipientEmail,
             region: "US"
           }
         }), {
@@ -75,11 +87,20 @@ serve(async (req) => {
         });
       } catch (smtpError) {
         console.error("SMTP sending error:", smtpError);
+        
+        if (verboseLogging) {
+          console.log(`SMTP sending error details: ${JSON.stringify(smtpError)}`);
+        }
+        
         await client.close();
         throw new Error(`SMTP sending error: ${smtpError.message}`);
       }
     } catch (connectionError) {
       console.error("SMTP connection error:", connectionError);
+      
+      if (verboseLogging) {
+        console.log(`SMTP connection error details: ${JSON.stringify(connectionError)}`);
+      }
       
       // Try to diagnose the specific connection issue
       let errorType = "unknown";

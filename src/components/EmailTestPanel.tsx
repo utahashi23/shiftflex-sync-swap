@@ -6,6 +6,7 @@ import { SmtpTestButton } from "@/components/SmtpTestButton";
 import { MailgunTestButton } from "@/components/MailgunTestButton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function EmailTestPanel() {
   return (
@@ -13,7 +14,7 @@ export function EmailTestPanel() {
       <CardHeader>
         <CardTitle>Email Testing</CardTitle>
         <CardDescription>
-          Test the email functionality using different approaches
+          Test the email functionality using different providers and approaches
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -37,11 +38,25 @@ export function EmailTestPanel() {
           Check your inbox for test emails or review error details below.
         </p>
         
-        <div className="space-y-4">
-          <TestEmailButton />
-          <SmtpTestButton />
-          <MailgunTestButton />
-        </div>
+        <Tabs defaultValue="mailgun">
+          <TabsList className="mb-4 grid grid-cols-3 w-full">
+            <TabsTrigger value="mailgun">Mailgun (US)</TabsTrigger>
+            <TabsTrigger value="loop">Loop.so</TabsTrigger>
+            <TabsTrigger value="smtp">SMTP</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="mailgun" className="space-y-4">
+            <MailgunTestButton />
+          </TabsContent>
+          
+          <TabsContent value="loop" className="space-y-4">
+            <TestEmailButton />
+          </TabsContent>
+          
+          <TabsContent value="smtp" className="space-y-4">
+            <SmtpTestButton />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

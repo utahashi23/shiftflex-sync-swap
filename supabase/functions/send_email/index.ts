@@ -21,6 +21,7 @@ interface EmailPayload {
   bcc?: string | string[];
   template?: string;
   templateVariables?: Record<string, any>;
+  verbose_logging?: boolean;
 }
 
 serve(async (req) => {
@@ -40,7 +41,10 @@ serve(async (req) => {
     }
 
     // Get email data from request
-    const { to, subject, text, html, from, template, templateVariables, cc, bcc, replyTo } = await req.json() as EmailPayload;
+    const { to, subject, text, html, from, template, templateVariables, cc, bcc, replyTo, verbose_logging } = await req.json() as EmailPayload;
+    
+    // Enable verbose logging if requested
+    const isVerbose = verbose_logging || false;
     
     // Validation
     if (!to || !subject || (!text && !html && !template)) {
@@ -50,6 +54,19 @@ serve(async (req) => {
     // Log the email sending attempt
     console.log(`Attempting to send email to ${Array.isArray(to) ? to.join(', ') : to} with subject "${subject}"`);
     console.log(`Using Mailgun domain: ${MAILGUN_DOMAIN} (US region)`);
+    
+    if (isVerbose) {
+      console.log(`Full email details: 
+      - To: ${Array.isArray(to) ? to.join(', ') : to}
+      - Subject: ${subject}
+      - From: ${from || `admin@${MAILGUN_DOMAIN}`}
+      - Has text: ${!!text}
+      - Has HTML: ${!!html}
+      - Has template: ${!!template}
+      - Has CC: ${!!cc}
+      - Has BCC: ${!!bcc}
+      - Has Reply-To: ${!!replyTo}`);
+    }
     
     // Prepare request
     const formData = new FormData();
@@ -95,6 +112,10 @@ serve(async (req) => {
       const mailgunApiUrl = `https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`;
       console.log(`Using Mailgun US API URL: ${mailgunApiUrl}`);
       
+      if (isVerbose) {
+        console.log("Sending request to Mailgun API...");
+      }
+      
       const response = await fetch(mailgunApiUrl, {
         method: 'POST',
         headers: {
@@ -103,16 +124,34 @@ serve(async (req) => {
         body: formData
       });
       
+      if (isVerbose) {
+        console.log(`Mailgun API response status: ${response.status}`);
+      }
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Mailgun API error: HTTP status ${response.status}`, errorText);
+        
+        if (isVerbose) {
+          console.log(`Full error response: ${errorText}`);
+        }
+        
         throw new Error(`Mailgun API error: ${response.status} ${errorText}`);
       }
       
       const result = await response.json();
       console.log('Email sent successfully:', result);
       
-      return new Response(JSON.stringify({ success: true, result }), {
+      if (isVerbose) {
+        console.log(`Full API response: ${JSON.stringify(result)}`);
+      }
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        result,
+        timestamp: new Date().toISOString(),
+        recipient: Array.isArray(to) ? to : [to]
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
       });
@@ -126,7 +165,8 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({ 
       success: false, 
-      error: error.message 
+      error: error.message,
+      timestamp: new Date().toISOString() 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500
