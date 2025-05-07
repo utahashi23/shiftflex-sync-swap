@@ -10,7 +10,8 @@ import {
   LogOut,
   Menu,
   X,
-  ShieldCheck
+  ShieldCheck,
+  RocketIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -56,6 +57,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
     { path: '/shifts', label: 'Shift Swaps', icon: <Calendar className="h-5 w-5" /> },
     { path: '/calendar', label: 'Roster', icon: <Calendar className="h-5 w-5" /> },
+    { path: '/roadmap', label: 'Roadmap', icon: <RocketIcon className="h-5 w-5" /> },
     { path: '/settings', label: 'Settings', icon: <Settings className="h-5 w-5" /> },
     ...(isAdmin ? [{ path: '/admin', label: 'Admin', icon: <ShieldCheck className="h-5 w-5" /> }] : []),
   ];
