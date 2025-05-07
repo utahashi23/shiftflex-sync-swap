@@ -33,6 +33,7 @@ const DashboardStats = ({ stats, isLoading }: DashboardStatsProps) => {
         description="Ready for approval"
         icon={<Clock className="h-5 w-5 text-primary" />}
         isLoading={isLoading}
+        testId="matched-swaps-count"
       />
       
       <StatCard 

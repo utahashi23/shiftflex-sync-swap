@@ -72,6 +72,30 @@ export const useDashboardData = (user: ExtendedUser | null) => {
         const userRequests = swapRequests?.filter(req => req.requester_id === user.id) || [];
         console.log(`Found ${userRequests.length} swap requests for user`);
         
+        // Fetch potential matches to get accurate matched swaps count
+        const { data: potentialMatches, error: matchesError } = await supabase
+          .from('shift_swap_potential_matches')
+          .select('*')
+          .or(`requester_request_id.in.(${userRequests.map(r => r.id).join(',')}),acceptor_request_id.in.(${userRequests.map(r => r.id).join(',')})`)
+          .eq('status', 'accepted');
+          
+        if (matchesError) {
+          console.error('Error fetching potential matches:', matchesError);
+          // Continue with other data even if this fails
+        }
+        
+        // Fetch pending matches as well to include in active count
+        const { data: pendingMatches, error: pendingMatchesError } = await supabase
+          .from('shift_swap_potential_matches')
+          .select('*')
+          .or(`requester_request_id.in.(${userRequests.map(r => r.id).join(',')}),acceptor_request_id.in.(${userRequests.map(r => r.id).join(',')})`)
+          .eq('status', 'pending');
+          
+        if (pendingMatchesError) {
+          console.error('Error fetching pending matches:', pendingMatchesError);
+          // Continue with other data even if this fails
+        }
+        
         // Format the shifts for display
         const upcomingShifts = userShifts.map(shift => {
           // Create a title from the truck name or use a default
@@ -99,13 +123,25 @@ export const useDashboardData = (user: ExtendedUser | null) => {
           new Date(a.date).getTime() - new Date(b.date).getTime()
         );
         
-        // Count the different types of swap requests
-        // Only count requests with preferred dates as "active"
-        const activeSwaps = userRequests.filter(
-          req => req.status === 'pending' && req.preferred_dates_count > 0
-        ).length || 0;
+        // Calculate the number of matched swaps from potential_matches table
+        const matchedSwapsCount = potentialMatches?.length || 0;
         
-        const matchedSwaps = userRequests.filter(req => req.status === 'matched').length || 0;
+        // Count the different types of swap requests
+        // Only count requests with preferred dates as "active" but exclude those that are already matched
+        const activeRequestsIds = userRequests
+          .filter(req => req.status === 'pending' && req.preferred_dates_count > 0)
+          .map(req => req.id);
+        
+        // Determine active swap requests by filtering out any that are in accepted matches
+        const matchedRequestIds = new Set([
+          ...(potentialMatches?.map(match => match.requester_request_id) || []),
+          ...(potentialMatches?.map(match => match.acceptor_request_id) || [])
+        ]);
+        
+        // Count active swaps (pending requests that have preferred dates and aren't matched yet)
+        const activeSwaps = activeRequestsIds.filter(id => !matchedRequestIds.has(id)).length;
+        
+        // Count completed swaps
         const completedSwaps = userRequests.filter(req => req.status === 'completed').length || 0;
         
         // Format the recent activity (up to 5 items)
@@ -130,7 +166,7 @@ export const useDashboardData = (user: ExtendedUser | null) => {
         setStats({
           totalShifts: userShifts.length || 0,
           activeSwaps,
-          matchedSwaps,
+          matchedSwaps: matchedSwapsCount,
           completedSwaps,
           upcomingShifts: upcomingShifts.slice(0, 4), // Limit to 4 upcoming shifts
           recentActivity
