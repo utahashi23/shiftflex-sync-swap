@@ -41,7 +41,7 @@ export const useSwapActions = () => {
         
         onSuccess({
           id: swapId,
-          status: 'accepted',
+          status: 'accepted',  // CRITICAL: Set status to 'accepted' not 'completed'
           myShift: { 
             id: matchDetails.requester_shift_id || '', 
             date: '', 
@@ -49,8 +49,8 @@ export const useSwapActions = () => {
             endTime: '', 
             type: 'unknown', 
             colleagueType: '',
-            truckName: null, // Add the missing truckName property
-            employeeId: null  // Add employeeId property
+            truckName: null, 
+            employeeId: null 
           },
           otherShift: { 
             id: matchDetails.acceptor_shift_id || '', 
@@ -61,10 +61,9 @@ export const useSwapActions = () => {
             colleagueType: '',
             userId: '',
             userName: 'User',
-            truckName: null, // Add the missing truckName property
-            employeeId: null  // Add employeeId property
+            truckName: null, 
+            employeeId: null
           },
-          // Add the missing required properties
           myRequestId: matchDetails.requester_request_id || '',
           otherRequestId: matchDetails.acceptor_request_id || '',
           createdAt: new Date().toISOString()
