@@ -7,11 +7,13 @@ import { toast } from "sonner";
 export function MailgunTestButton() {
   const [isLoading, setIsLoading] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   const handleTestMailgun = async () => {
     try {
       setIsLoading(true);
       setTestResult(null);
+      setErrorDetails(null);
       toast.info("Testing Mailgun email service...");
 
       // Try SDK approach first
@@ -35,7 +37,12 @@ export function MailgunTestButton() {
         console.log("Mailgun SMTP test response:", smtpResponse);
         
         if (smtpResponse.error) {
-          throw new Error(`Both SDK and SMTP approaches failed. See console for details.`);
+          const sdkErrorMessage = sdkResponse.error?.message || JSON.stringify(sdkResponse.error);
+          const smtpErrorMessage = smtpResponse.error?.message || JSON.stringify(smtpResponse.error);
+          
+          const errorMsg = `Both SDK and SMTP approaches failed.`;
+          setErrorDetails(`SDK Error: ${sdkErrorMessage}\n\nSMTP Error: ${smtpErrorMessage}`);
+          throw new Error(errorMsg);
         } else {
           setTestResult("SMTP Success");
           toast.success("Mailgun SMTP test successful! Check your inbox.");
@@ -56,20 +63,29 @@ export function MailgunTestButton() {
   };
 
   return (
-    <Button 
-      onClick={handleTestMailgun}
-      disabled={isLoading}
-      variant="default"
-      className="w-full mt-2"
-    >
-      {isLoading ? "Testing Mailgun..." : "Test Mailgun Service"}
-      {testResult && (
-        <span className={`ml-2 text-xs ${
-          testResult.includes("Success") ? "text-green-500" : "text-red-500"
-        }`}>
-          ({testResult})
-        </span>
+    <div className="w-full">
+      <Button 
+        onClick={handleTestMailgun}
+        disabled={isLoading}
+        variant="default"
+        className="w-full mt-2"
+      >
+        {isLoading ? "Testing Mailgun..." : "Test Mailgun Service"}
+        {testResult && (
+          <span className={`ml-2 text-xs ${
+            testResult.includes("Success") ? "text-green-500" : "text-red-500"
+          }`}>
+            ({testResult})
+          </span>
+        )}
+      </Button>
+      
+      {errorDetails && (
+        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800 font-mono whitespace-pre-wrap">
+          <p className="font-semibold mb-1">Error Details:</p>
+          {errorDetails}
+        </div>
       )}
-    </Button>
+    </div>
   );
 }

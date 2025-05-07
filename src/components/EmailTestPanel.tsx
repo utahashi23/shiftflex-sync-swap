@@ -26,17 +26,18 @@ export function EmailTestPanel() {
               <li>DNS resolution issues can prevent connections to domain names</li>
               <li>Some services may require explicit IP allowlisting</li>
               <li>Connection timeouts may occur due to environment constraints</li>
+              <li>API credentials may be incorrect or expired</li>
             </ul>
-            <p className="text-sm">If you encounter issues, try using direct API approaches or consider using a service with dedicated Supabase integration.</p>
+            <p className="text-sm">If you encounter issues, check your API credentials in the Supabase dashboard and verify your domain settings with the email provider.</p>
           </AlertDescription>
         </Alert>
         
         <p className="text-sm mb-4">
           Test the email service using different providers and approaches.
-          Check your inbox for the test emails.
+          Check your inbox for test emails or review error details below.
         </p>
         
-        <div className="space-y-2">
+        <div className="space-y-4">
           <TestEmailButton />
           <SmtpTestButton />
           <MailgunTestButton />
