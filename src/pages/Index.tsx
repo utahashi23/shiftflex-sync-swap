@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/auth'; // Import from the correct barrel file
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Truck, Shuffle, Settings, HelpCircle } from "lucide-react";
+import { Calendar, Truck, Shuffle, Settings } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -18,10 +18,10 @@ const Index = () => {
 
   const features = [
     {
-      title: "Roster",
-      description: "View and manage your upcoming shifts in a convenient roster view",
+      title: "Shift Calendar",
+      description: "View and manage your upcoming shifts in a convenient calendar view",
       icon: <Calendar className="h-8 w-8 text-primary" />,
-      path: "/roster"
+      path: "/calendar"
     },
     {
       title: "Shift Swaps",
@@ -33,13 +33,13 @@ const Index = () => {
       title: "Truck Assignment",
       description: "See which truck you're assigned to for each shift",
       icon: <Truck className="h-8 w-8 text-primary" />,
-      path: "/roster"
+      path: "/calendar"
     },
     {
-      title: "FAQ",
-      description: "Find answers to common questions about using ShiftFlex",
-      icon: <HelpCircle className="h-8 w-8 text-primary" />,
-      path: "/faq"
+      title: "Account Settings",
+      description: "Update your personal information and preferences",
+      icon: <Settings className="h-8 w-8 text-primary" />,
+      path: "/settings"
     }
   ];
 

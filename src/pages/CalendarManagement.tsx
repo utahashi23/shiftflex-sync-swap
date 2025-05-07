@@ -15,7 +15,7 @@ const CalendarManagement = () => {
   return (
     <AppLayout>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Roster Management</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Calendar Management</h1>
         <p className="text-gray-500 mt-1">
           Add, edit, and manage your shifts
         </p>
