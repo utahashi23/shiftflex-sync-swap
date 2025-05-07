@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from './useAuth';
 import { useSwapMatches } from './swap-matches';
@@ -25,10 +26,25 @@ export function useMatchedSwaps() {
     acceptMatch,
     completeMatch
   } = useSwapMatches();
+
+  // Debug logging for matches visibility
+  useEffect(() => {
+    if (matches && matches.length > 0) {
+      console.log(`useMatchedSwaps: Found ${matches.length} matches with statuses:`, 
+        matches.map(m => ({ id: m.id, status: m.status })));
+      
+      // Log specific statuses for debugging
+      const acceptedMatches = matches.filter(m => m.status === 'accepted');
+      const otherAcceptedMatches = matches.filter(m => m.status === 'other_accepted');
+      
+      console.log(`useMatchedSwaps: Found ${acceptedMatches.length} 'accepted' matches`);
+      console.log(`useMatchedSwaps: Found ${otherAcceptedMatches.length} 'other_accepted' matches`);
+    }
+  }, [matches]);
   
   const refreshMatches = async () => {
     if (!user) return;
-    await fetchMatches();
+    await fetchMatches(true, false); // Set userInitiatorOnly to false to get all matches including other_accepted ones
   };
   
   const handleAcceptSwap = async () => {
