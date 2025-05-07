@@ -58,6 +58,7 @@ export function ShiftDetailsDialog({
     const details = `
 Swap Details (ID: ${swap.id})
 Status: ${statusDisplay.text}
+Requester Request ID: ${swap.myRequestId}
 
 Your Shift:
 Date: ${formatDate(swap.myShift.date)}
@@ -105,11 +106,20 @@ ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
         </DialogHeader>
         
         <div className="mt-4 space-y-6">
+          {/* Request Information */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium">Status</h3>
             <span className={`px-3 py-1 text-sm font-medium rounded-full ${statusDisplay.colorClass}`}>
               {statusDisplay.text}
             </span>
+          </div>
+          
+          <div className="p-3 bg-gray-50 rounded-md">
+            <div className="flex flex-col space-y-1">
+              <span className="text-sm font-medium">Match ID: {swap.id}</span>
+              <span className="text-sm">Requester Request ID: {swap.myRequestId}</span>
+              <span className="text-sm">Other Request ID: {swap.otherRequestId}</span>
+            </div>
           </div>
           
           {/* Your Shift */}
