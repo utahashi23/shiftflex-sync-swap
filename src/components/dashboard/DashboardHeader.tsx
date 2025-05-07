@@ -4,9 +4,7 @@ import { Users } from 'lucide-react';
 
 interface DashboardHeaderProps {
   totalUsers: number;
-  totalActiveSwaps: number;
   isLoadingUsers: boolean;
-  isLoadingSwaps: boolean;
 }
 
 const DashboardHeader = ({ 
