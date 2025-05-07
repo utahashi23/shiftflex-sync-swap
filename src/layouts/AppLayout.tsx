@@ -55,6 +55,9 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     }
   };
 
+  // Update navItems with a console log to help debug isAdmin status
+  console.log('Current user admin status:', isAdmin);
+  
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
     { path: '/shifts', label: 'Shift Swaps', icon: <Calendar className="h-5 w-5" /> },
@@ -62,11 +65,16 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     { path: '/future-updates', label: 'Coming Soon', icon: <Clock className="h-5 w-5" /> },
     { path: '/settings', label: 'Settings', icon: <Settings className="h-5 w-5" /> },
     { path: '/faq', label: 'FAQ', icon: <HelpCircle className="h-5 w-5" /> },
-    ...(isAdmin ? [
-      { path: '/admin', label: 'Admin', icon: <ShieldCheck className="h-5 w-5" /> },
-      { path: '/admin/data', label: 'Data Explorer', icon: <Database className="h-5 w-5" /> }
-    ] : []),
   ];
+  
+  // Add admin routes separately for clearer debugging
+  const adminItems = [
+    { path: '/admin', label: 'Admin', icon: <ShieldCheck className="h-5 w-5" /> },
+    { path: '/admin/data', label: 'Data Explorer', icon: <Database className="h-5 w-5" /> }
+  ];
+  
+  // Combine the arrays conditionally
+  const allNavItems = isAdmin ? [...navItems, ...adminItems] : navItems;
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -96,11 +104,14 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         <div className="mb-6 px-2">
           <div className="text-sm font-medium text-gray-400 mb-2">Welcome</div>
           <div className="font-medium">{userFirstName}</div>
+          {isAdmin && (
+            <div className="mt-1 text-xs text-primary font-medium">Admin Access</div>
+          )}
         </div>
 
         <nav className="flex-1">
           <ul className="space-y-1">
-            {navItems.map((item) => (
+            {allNavItems.map((item) => (
               <li key={item.path}>
                 <Link
                   to={item.path}
