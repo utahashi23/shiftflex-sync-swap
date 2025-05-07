@@ -33,11 +33,6 @@ serve(async (req) => {
     
     console.log(`Using Mailgun domain: ${MAILGUN_DOMAIN}`);
     
-    // Validate API key format
-    if (!MAILGUN_API_KEY.includes('-')) {
-      throw new Error('Invalid Mailgun API key format. Should be in the format "key-XXXXXXXXXXXXXXXXXXXX"');
-    }
-    
     // Validate domain format (basic check)
     if (!MAILGUN_DOMAIN.includes('.')) {
       throw new Error('Invalid Mailgun domain format. Should be a valid domain name like "example.com"');
