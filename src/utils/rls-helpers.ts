@@ -1,4 +1,3 @@
-
 /**
  * Helper functions for safely working with database entities 
  * This works around possible RLS recursion issues by using explicit permissions checks
@@ -244,5 +243,35 @@ export const fetchUserSwapRequestsSafe = async (userId: string, status: string =
   } catch (error) {
     console.error('Error in fetchUserSwapRequestsSafe:', error);
     return { data: [], error };
+  }
+};
+
+/**
+ * Fetch swap request details using the secure DB function
+ * This avoids RLS recursion issues when accessing request details
+ */
+export const fetchSwapRequestDetailsSafe = async (requestId: string) => {
+  try {
+    console.log(`Fetching swap request details for ID ${requestId} using DB function`);
+    
+    // Use our secure database function to get request details
+    const { data, error } = await supabase
+      .rpc('get_swap_request_details', { p_request_id: requestId });
+      
+    if (error) {
+      console.error('Error fetching request details:', error);
+      return { data: null, error };
+    }
+    
+    if (!data || data.length === 0) {
+      console.warn(`No request found with ID ${requestId}`);
+      return { data: null, error: new Error('Request not found') };
+    }
+    
+    console.log('Successfully fetched request details:', data[0]);
+    return { data: data[0], error: null };
+  } catch (error) {
+    console.error('Exception in fetchSwapRequestDetailsSafe:', error);
+    return { data: null, error };
   }
 };

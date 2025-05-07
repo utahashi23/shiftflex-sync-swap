@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +12,7 @@ import { useState, useEffect } from "react";
 import { SwapMatch } from "./types";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchSwapRequestDetailsSafe } from "@/utils/rls-helpers";
 
 interface ShiftDetailsDialogProps {
   open: boolean;
@@ -27,6 +26,7 @@ interface RequestDetails {
   requester_name: string;
   created_at: string;
   status: string;
+  employee_id?: string | null;
 }
 
 export function ShiftDetailsDialog({ 
@@ -35,7 +35,6 @@ export function ShiftDetailsDialog({
   swap 
 }: ShiftDetailsDialogProps) {
   const [copied, setCopied] = useState(false);
-  const [requesterInfo, setRequesterInfo] = useState<{ id: string, userName: string } | null>(null);
   const [myRequestDetails, setMyRequestDetails] = useState<RequestDetails | null>(null);
   const [otherRequestDetails, setOtherRequestDetails] = useState<RequestDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,58 +46,33 @@ export function ShiftDetailsDialog({
       setIsLoading(true);
       
       try {
-        // Fetch both requests separately instead of using a join
+        // Fetch both requests using our safe helper function
         const [myRequestResult, otherRequestResult] = await Promise.all([
-          // First fetch the request data
-          supabase
-            .from('shift_swap_requests')
-            .select('*')
-            .eq('id', swap.myRequestId)
-            .single(),
-            
-          supabase
-            .from('shift_swap_requests')
-            .select('*')
-            .eq('id', swap.otherRequestId)
-            .single()
+          fetchSwapRequestDetailsSafe(swap.myRequestId),
+          fetchSwapRequestDetailsSafe(swap.otherRequestId)
         ]);
         
         // Process my request results
         if (myRequestResult.error) {
           console.error('Error fetching my request details:', myRequestResult.error);
-          
-          // Check if this is a permissions error
-          if (myRequestResult.error.code === '42501') {
-            toast({
-              title: "Permission denied",
-              description: "You don't have permission to view this request details",
-              variant: "destructive"
-            });
-          }
+          toast({
+            title: "Error loading details",
+            description: "Could not load your request details. Please try again.",
+            variant: "destructive"
+          });
         } else if (myRequestResult.data) {
-          // Now fetch the profile data separately for this request
-          const myProfileResult = await supabase
-            .from('profiles')
-            .select('first_name, last_name')
-            .eq('id', myRequestResult.data.requester_id)
-            .single();
-          
-          const requesterName = myProfileResult.data
-            ? `${myProfileResult.data.first_name || ''} ${myProfileResult.data.last_name || ''}`.trim()
+          const data = myRequestResult.data;
+          const requesterName = data.requester_first_name && data.requester_last_name 
+            ? `${data.requester_first_name} ${data.requester_last_name}`.trim()
             : 'Unknown User';
             
           setMyRequestDetails({
-            id: myRequestResult.data.id,
-            requester_id: myRequestResult.data.requester_id,
+            id: data.id,
+            requester_id: data.requester_id,
             requester_name: requesterName,
-            created_at: new Date(myRequestResult.data.created_at).toLocaleString(),
-            status: myRequestResult.data.status
-          });
-          
-          // Set the original requester info from the data
-          setRequesterInfo({
-            id: myRequestResult.data.requester_id,
-            userName: requesterName
+            created_at: new Date(data.created_at).toLocaleString(),
+            status: data.status,
+            employee_id: data.requester_employee_id
           });
         }
         
@@ -106,28 +80,28 @@ export function ShiftDetailsDialog({
         if (otherRequestResult.error) {
           console.error('Error fetching other request details:', otherRequestResult.error);
         } else if (otherRequestResult.data) {
-          // Now fetch the profile data separately for this request
-          const otherProfileResult = await supabase
-            .from('profiles')
-            .select('first_name, last_name')
-            .eq('id', otherRequestResult.data.requester_id)
-            .single();
-            
-          const requesterName = otherProfileResult.data
-            ? `${otherProfileResult.data.first_name || ''} ${otherProfileResult.data.last_name || ''}`.trim()
+          const data = otherRequestResult.data;
+          const requesterName = data.requester_first_name && data.requester_last_name 
+            ? `${data.requester_first_name} ${data.requester_last_name}`.trim()
             : 'Unknown User';
             
           setOtherRequestDetails({
-            id: otherRequestResult.data.id,
-            requester_id: otherRequestResult.data.requester_id,
+            id: data.id,
+            requester_id: data.requester_id,
             requester_name: requesterName,
-            created_at: new Date(otherRequestResult.data.created_at).toLocaleString(),
-            status: otherRequestResult.data.status
+            created_at: new Date(data.created_at).toLocaleString(),
+            status: data.status,
+            employee_id: data.requester_employee_id
           });
         }
         
       } catch (error) {
         console.error('Error in fetchRequestDetails:', error);
+        toast({
+          title: "Error loading details",
+          description: "An unexpected error occurred while loading request details.",
+          variant: "destructive"
+        });
       } finally {
         setIsLoading(false);
       }
@@ -173,10 +147,11 @@ Status: ${statusDisplay.text}
 
 MY REQUEST:
 Request ID: ${swap.myRequestId}
-Requester ID: ${myRequestDetails?.requester_id || requesterInfo?.id || 'Not available'}
-Requester Name: ${myRequestDetails?.requester_name || requesterInfo?.userName || 'Not available'}
+Requester ID: ${myRequestDetails?.requester_id || 'Not available'}
+Requester Name: ${myRequestDetails?.requester_name || 'Not available'}
 Request Created: ${myRequestDetails?.created_at || 'Not available'}
 Request Status: ${myRequestDetails?.status || 'Not available'}
+${myRequestDetails?.employee_id ? `Service#: ${myRequestDetails.employee_id}` : ''}
 
 OTHER REQUEST:
 Request ID: ${swap.otherRequestId}
@@ -184,6 +159,7 @@ Requester ID: ${otherRequestDetails?.requester_id || 'Not available'}
 Requester Name: ${otherRequestDetails?.requester_name || 'Not available'}
 Request Created: ${otherRequestDetails?.created_at || 'Not available'}
 Request Status: ${otherRequestDetails?.status || 'Not available'}
+${otherRequestDetails?.employee_id ? `Service#: ${otherRequestDetails.employee_id}` : ''}
 
 YOUR SHIFT:
 Date: ${formatDate(swap.myShift.date)}
@@ -265,6 +241,9 @@ ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
                         <span className="text-sm">Created: {myRequestDetails.created_at}</span>
                       </div>
                       <span className="text-sm pl-6">Status: {myRequestDetails.status}</span>
+                      {myRequestDetails.employee_id && (
+                        <span className="text-sm pl-6">Service#: {myRequestDetails.employee_id}</span>
+                      )}
                     </>
                   ) : (
                     <span className="text-sm italic text-muted-foreground">Could not load details</span>
@@ -291,6 +270,9 @@ ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
                         <span className="text-sm">Created: {otherRequestDetails.created_at}</span>
                       </div>
                       <span className="text-sm pl-6">Status: {otherRequestDetails.status}</span>
+                      {otherRequestDetails.employee_id && (
+                        <span className="text-sm pl-6">Service#: {otherRequestDetails.employee_id}</span>
+                      )}
                     </>
                   ) : (
                     <span className="text-sm italic text-muted-foreground">Could not load details</span>

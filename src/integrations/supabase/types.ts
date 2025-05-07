@@ -420,6 +420,23 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_swap_request_details: {
+        Args: { p_request_id: string }
+        Returns: {
+          id: string
+          requester_id: string
+          requester_shift_id: string
+          acceptor_id: string
+          acceptor_shift_id: string
+          status: string
+          created_at: string
+          updated_at: string
+          preferred_dates_count: number
+          requester_first_name: string
+          requester_last_name: string
+          requester_employee_id: string
+        }[]
+      }
       get_user_matches_with_rls: {
         Args: { user_id: string }
         Returns: {
