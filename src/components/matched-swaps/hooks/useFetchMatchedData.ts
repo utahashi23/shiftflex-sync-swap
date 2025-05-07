@@ -135,7 +135,7 @@ export const useFetchMatchedData = () => {
       });
       
       // Separate active and past matches
-      // IMPORTANT: Include 'other_accepted' status in active matches
+      // IMPORTANT: Include 'accepted' and 'other_accepted' status in active matches
       const activeMatches = formattedMatches.filter((match: SwapMatch) => 
         match.status === 'pending' || match.status === 'accepted' || match.status === 'other_accepted'
       );

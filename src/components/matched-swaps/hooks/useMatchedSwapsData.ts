@@ -63,6 +63,9 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
         otherEmployeeId: otherUserEmployeeId
       });
       
+      // Log the match status for debugging
+      console.log(`Processing match ${match.match_id} with status: ${match.match_status}`);
+      
       return {
         id: match.match_id,
         status: match.match_status,
@@ -129,7 +132,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       console.log('Formatted matches after processing:', formattedMatches);
       
       // Separate active and past matches
-      // IMPORTANT: Include 'other_accepted' status in active matches
+      // IMPORTANT: Include 'accepted' and 'other_accepted' status in active matches
       const activeMatches = formattedMatches.filter((match: SwapMatch) => 
         match.status === 'pending' || match.status === 'accepted' || match.status === 'other_accepted'
       );

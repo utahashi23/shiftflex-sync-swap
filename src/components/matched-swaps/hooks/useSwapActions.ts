@@ -29,6 +29,42 @@ export const useSwapActions = () => {
         
       if (error) throw error;
       
+      console.log("Swap accepted successfully:", data);
+      
+      // If there's a onSuccess callback, call it with an updated swap object
+      if (typeof onSuccess === 'function' && data) {
+        // Create a dummy SwapMatch object if needed - the real data will be fetched on refresh
+        const acceptedSwap: SwapMatch = {
+          id: swapId,
+          status: 'accepted',
+          myShift: { 
+            id: '', 
+            date: '', 
+            startTime: '', 
+            endTime: '', 
+            truckName: '', 
+            type: 'day',
+            colleagueType: '' 
+          },
+          otherShift: {
+            id: '',
+            date: '',
+            startTime: '',
+            endTime: '',
+            truckName: '',
+            type: 'day',
+            userId: '',
+            userName: '',
+            colleagueType: ''
+          },
+          myRequestId: '',
+          otherRequestId: '',
+          createdAt: new Date().toISOString()
+        };
+        
+        onSuccess(acceptedSwap);
+      }
+      
       toast({
         title: "Swap Accepted",
         description: "The shift swap has been successfully accepted.",
