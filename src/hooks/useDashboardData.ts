@@ -46,45 +46,55 @@ export const useDashboardData = (user: ExtendedUser | null) => {
       }
       
       setIsLoading(true);
+      console.log('Starting dashboard data fetch for user:', user.id);
       
       try {
-        console.log('Fetching dashboard data for user:', user.id);
+        // First, test database connection
+        const { data: connectionTest, error: connectionError } = await supabase
+          .from('shifts')
+          .select('count(*)', { count: 'exact', head: true });
+          
+        if (connectionError) {
+          console.error('Database connection test failed:', connectionError);
+          throw new Error(`Database connection error: ${connectionError.message}`);
+        }
         
-        // Fetch the user's shifts
+        console.log('Database connection successful, proceeding with data fetch');
+        
+        // Fetch the user's shifts with detailed logging
+        console.log('Fetching shifts for user:', user.id);
         const { data: shiftsData, error: shiftsError } = await supabase
-          .rpc('get_all_shifts');
+          .from('shifts')
+          .select('*')
+          .eq('user_id', user.id);
           
         if (shiftsError) {
           console.error('Error fetching shifts:', shiftsError);
-          throw shiftsError;
+          throw new Error(`Error fetching shifts: ${shiftsError.message}`);
         }
         
-        // Filter shifts for current user
-        const userShifts = shiftsData?.filter(shift => shift.user_id === user.id) || [];
-        console.log(`Found ${userShifts.length} shifts for user`);
+        const userShifts = shiftsData || [];
+        console.log(`Found ${userShifts.length} shifts for user ${user.id}`);
         
         // Fetch swap requests where the user is the requester
+        console.log('Fetching swap requests for user:', user.id);
         const { data: swapRequests, error: swapRequestsError } = await supabase
-          .rpc('get_all_swap_requests');
+          .from('shift_swap_requests')
+          .select('*')
+          .eq('requester_id', user.id);
           
         if (swapRequestsError) {
           console.error('Error fetching swap requests:', swapRequestsError);
-          throw swapRequestsError;
+          throw new Error(`Error fetching swap requests: ${swapRequestsError.message}`);
         }
         
-        // Filter requests for current user
-        const userRequests = swapRequests?.filter(req => req.requester_id === user.id) || [];
-        console.log(`Found ${userRequests.length} swap requests for user`);
+        const userRequests = swapRequests || [];
+        console.log(`Found ${userRequests.length} swap requests for user ${user.id}`);
         
         // Format the shifts for display
         const upcomingShifts = userShifts.map(shift => {
-          // Create a title from the truck name or use a default
           const title = shift.truck_name ? shift.truck_name : `Shift-${shift.id.substring(0, 5)}`;
-          
-          // Determine the shift type using our common utility
           const type = getShiftType(shift.start_time);
-          
-          // Validate colleagueType to ensure it matches the union type
           const colleagueType = validateColleagueType(shift.colleague_type);
           
           return {
@@ -104,7 +114,6 @@ export const useDashboardData = (user: ExtendedUser | null) => {
         );
         
         // Count the different types of swap requests
-        // Only count requests with preferred dates as "active"
         const activeSwaps = userRequests.filter(
           req => req.status === 'pending' && req.preferred_dates_count > 0
         ).length || 0;
@@ -131,6 +140,9 @@ export const useDashboardData = (user: ExtendedUser | null) => {
             };
           });
         
+        // Set the stats with the fetched data
+        console.log('Setting dashboard stats with fetched data');
+        
         setStats({
           totalShifts: userShifts.length || 0,
           activeSwaps,
@@ -152,7 +164,7 @@ export const useDashboardData = (user: ExtendedUser | null) => {
         console.error('Error fetching dashboard data:', error);
         toast({
           title: "Error loading dashboard",
-          description: "Could not load your dashboard data. Please try again later.",
+          description: error.message || "Could not load your dashboard data. Please try again later.",
           variant: "destructive"
         });
         // Set default values to avoid rendering errors

@@ -21,6 +21,29 @@ export const useDashboardSummary = () => {
       setIsLoadingUsers(true);
       try {
         console.log('Fetching user count...');
+        
+        // First check if the database connection is working
+        try {
+          const { error: pingError } = await supabase
+            .from('profiles')
+            .select('count', { count: 'exact', head: true });
+            
+          if (pingError) {
+            console.error('Database connection test failed:', pingError);
+            throw new Error(`Cannot connect to database: ${pingError.message}`);
+          }
+          console.log('Database connection test successful');
+        } catch (pingErr) {
+          console.error('Database ping error:', pingErr);
+          toast({
+            title: "Database Connection Error",
+            description: "Unable to connect to the database. Please check your connection.",
+            variant: "destructive"
+          });
+          setIsLoadingUsers(false);
+          return;
+        }
+        
         // Use a count query without any filters to get all profiles
         const { count, error } = await supabase
           .from('profiles')
@@ -45,18 +68,21 @@ export const useDashboardSummary = () => {
       setIsLoadingSwaps(true);
       try {
         console.log('Fetching active swap requests...');
-        // Get total count of active swap requests using RPC to bypass RLS
-        const { data: swapRequestsData, error: requestsError } = await supabase
-          .rpc('get_all_swap_requests');
+        
+        // First try using direct query to get swap requests
+        const { data: swapData, error: swapError } = await supabase
+          .from('shift_swap_requests')
+          .select('id, status, preferred_dates_count')
+          .eq('status', 'pending');
           
-        if (requestsError) {
-          console.error('Error fetching all swap requests:', requestsError);
-          throw requestsError;
+        if (swapError) {
+          console.error('Error fetching swap requests:', swapError);
+          throw swapError;
         }
         
-        // Filter to count only pending requests with preferred dates
-        const activeSwapsCount = swapRequestsData?.filter(
-          req => req.status === 'pending' && req.preferred_dates_count > 0
+        // Count only pending requests with preferred dates
+        const activeSwapsCount = swapData?.filter(
+          req => req.preferred_dates_count > 0
         ).length || 0;
         
         console.log('Total active swap requests:', activeSwapsCount);
