@@ -14,6 +14,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isLoading, 
     isAdmin, 
     isEmailVerified, 
+    authChecked,
     setUser,
     setSession
   } = useAuthState();
@@ -55,6 +56,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isLoading,
     isAdmin,
     isEmailVerified,
+    authChecked,
     signUp,
     signIn,
     signOut,

@@ -13,6 +13,7 @@ export const useAuthState = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   // Function to check admin role from the user_roles table
   const checkAdminRole = async (userId: string) => {
@@ -31,7 +32,7 @@ export const useAuthState = () => {
         .select('role')
         .eq('user_id', userId)
         .eq('role', 'admin')
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error checking admin role:', error);
@@ -49,7 +50,17 @@ export const useAuthState = () => {
 
   useEffect(() => {
     let mounted = true;
+    let sessionCheckTimeout: NodeJS.Timeout;
+    
     console.log('Auth state hook initialized');
+
+    // Ensure loading state is always resolved after a timeout
+    sessionCheckTimeout = setTimeout(() => {
+      if (mounted && isLoading) {
+        console.log('Auth check timed out, forcing loading state to false');
+        setIsLoading(false);
+      }
+    }, 3000);
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -74,6 +85,8 @@ export const useAuthState = () => {
 
           // Handle authentication events
           if (event === 'SIGNED_IN') {
+            console.log('User signed in:', extendedUser.id);
+            
             // For sfadmin user, check if they're in the user_roles table
             if (extendedUser.email === 'sfadmin') {
               try {
@@ -97,6 +110,7 @@ export const useAuthState = () => {
             }
           } else if (event === 'SIGNED_OUT') {
             // Clear user state on sign out
+            console.log('User signed out');
             setUser(null);
             setIsEmailVerified(false);
             setIsAdmin(false);
@@ -108,6 +122,7 @@ export const useAuthState = () => {
         }
         
         if (mounted && event !== null) {
+          setAuthChecked(true);
           setIsLoading(false);
         }
       }
@@ -133,17 +148,20 @@ export const useAuthState = () => {
         setIsAdmin(userIsAdmin);
       }
       
-      // Always set loading to false, regardless of session state
+      // Always set loading to false and mark auth check as complete
+      setAuthChecked(true);
       setIsLoading(false);
     }).catch(error => {
       console.error('Error getting session:', error);
       if (mounted) {
+        setAuthChecked(true);
         setIsLoading(false);
       }
     });
 
     return () => {
       mounted = false;
+      clearTimeout(sessionCheckTimeout);
       subscription.unsubscribe();
     };
   }, []);
@@ -154,6 +172,7 @@ export const useAuthState = () => {
     isLoading,
     isAdmin,
     isEmailVerified,
+    authChecked,
     setUser,
     setSession
   };
