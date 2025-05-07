@@ -40,7 +40,7 @@ const App = () => (
             {/* App Routes */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/shifts" element={<ShiftSwaps />} />
-            <Route path="/calendar" element={<CalendarManagement />} />
+            <Route path="/calendar" element={<CalendarManagement />} /> {/* Roster page */}
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<Admin />} />
             
