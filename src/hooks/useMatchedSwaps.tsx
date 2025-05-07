@@ -51,6 +51,18 @@ export function useMatchedSwaps() {
   const handleAcceptSwap = async () => {
     if (!confirmDialog.matchId || !user) return;
     
+    // Check if this match has been accepted by someone else
+    const matchToAccept = matches.find(match => match.id === confirmDialog.matchId);
+    if (matchToAccept && matchToAccept.status === 'other_accepted') {
+      toast({
+        title: "Cannot Accept Swap",
+        description: "This swap has already been accepted by another user.",
+        variant: "destructive"
+      });
+      setConfirmDialog({ isOpen: false, matchId: null });
+      return;
+    }
+    
     const success = await acceptMatch(confirmDialog.matchId);
     
     if (success) {
