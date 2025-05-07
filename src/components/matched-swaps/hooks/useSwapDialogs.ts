@@ -10,9 +10,16 @@ export const useSwapDialogs = () => {
     isOpen: false,
     matchId: null
   });
+  
+  const [finalizeDialog, setFinalizeDialog] = useState<ConfirmDialogState>({
+    isOpen: false,
+    matchId: null
+  });
 
   return {
     confirmDialog,
-    setConfirmDialog
+    setConfirmDialog,
+    finalizeDialog,
+    setFinalizeDialog
   };
 };
