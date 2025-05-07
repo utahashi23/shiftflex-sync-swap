@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -24,7 +23,11 @@ export const useFetchMatchedData = () => {
       
       // Call the get_user_matches function
       const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
-        body: { user_id: userId }
+        body: { 
+          user_id: userId,
+          include_colleague_types: true,
+          include_employee_ids: true // Explicitly request employee IDs
+        }
       });
         
       if (matchesError) {
@@ -61,7 +64,8 @@ export const useFetchMatchedData = () => {
             endTime: match.my_shift_end_time,
             truckName: match.my_shift_truck,
             type: getShiftType(match.my_shift_start_time),
-            colleagueType: match.my_shift_colleague_type || null
+            colleagueType: match.my_shift_colleague_type || null,
+            employeeId: match.my_shift_employee_id || undefined
           },
           otherShift: {
             id: match.other_shift_id,
@@ -72,7 +76,8 @@ export const useFetchMatchedData = () => {
             type: getShiftType(match.other_shift_start_time),
             userId: match.other_user_id,
             userName: match.other_user_id, // We'll update this with profile data
-            colleagueType: match.other_shift_colleague_type || null
+            colleagueType: match.other_shift_colleague_type || null,
+            employeeId: match.other_shift_employee_id || undefined
           },
           myRequestId: match.my_request_id,
           otherRequestId: match.other_request_id,

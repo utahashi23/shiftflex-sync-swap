@@ -3,66 +3,48 @@ import { SwapMatch } from './types';
 import { getShiftType } from '@/utils/shiftUtils';
 
 /**
- * Format raw API matches data into SwapMatch objects
+ * Formats raw API matches data into SwapMatch objects
  */
 export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
-  if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
-    return [];
-  }
+  if (!matchesData || !Array.isArray(matchesData)) return [];
   
-  // Process and format the matches data
   return matchesData.map(match => {
-    // Log raw match data for debugging
-    console.log(`Processing match ID ${match.match_id} with status ${match.match_status}:`, match);
+    // Parse date strings for consistent formatting
+    const myShiftDate = match.my_shift_date ? match.my_shift_date : null;
+    const otherShiftDate = match.other_shift_date ? match.other_shift_date : null;
     
-    // Look for colleague_type in various possible locations
-    const myShiftColleagueType = 
-      match.my_shift_colleague_type || 
-      (match.my_shift_data && match.my_shift_data.colleague_type) ||
-      'Unknown';
+    // Format colleague types
+    const myShiftColleagueType = match.my_shift_colleague_type || 'Unknown';
+    const otherShiftColleagueType = match.other_shift_colleague_type || 'Unknown';
     
-    const otherShiftColleagueType = 
-      match.other_shift_colleague_type || 
-      (match.other_shift_data && match.other_shift_data.colleague_type) ||
-      'Unknown';
-    
-    // Check if this match has the other_accepted status or flag
-    const isOtherAccepted = 
-      match.match_status === 'other_accepted' || 
-      match.is_other_accepted === true || 
-      match.other_accepted === true;
-    
-    // Set the correct status, prioritizing 'other_accepted' if flag is present
-    const matchStatus = isOtherAccepted ? 'other_accepted' : match.match_status;
-    
-    console.log(`Match ${match.match_id} status: ${matchStatus}, colleague types:`, {
-      myShift: myShiftColleagueType,
-      otherShift: otherShiftColleagueType,
-      isOtherAccepted
-    });
+    // Format employee IDs
+    const myShiftEmployeeId = match.my_shift_employee_id || undefined;
+    const otherShiftEmployeeId = match.other_shift_employee_id || undefined;
     
     return {
       id: match.match_id,
-      status: matchStatus,
+      status: match.match_status,
       myShift: {
         id: match.my_shift_id,
-        date: match.my_shift_date,
+        date: myShiftDate,
         startTime: match.my_shift_start_time,
         endTime: match.my_shift_end_time,
         truckName: match.my_shift_truck,
         type: getShiftType(match.my_shift_start_time),
-        colleagueType: myShiftColleagueType
+        colleagueType: myShiftColleagueType,
+        employeeId: myShiftEmployeeId
       },
       otherShift: {
         id: match.other_shift_id,
-        date: match.other_shift_date,
+        date: otherShiftDate,
         startTime: match.other_shift_start_time,
         endTime: match.other_shift_end_time,
         truckName: match.other_shift_truck,
         type: getShiftType(match.other_shift_start_time),
         userId: match.other_user_id,
         userName: match.other_user_name || 'Unknown User',
-        colleagueType: otherShiftColleagueType
+        colleagueType: otherShiftColleagueType,
+        employeeId: otherShiftEmployeeId
       },
       myRequestId: match.my_request_id,
       otherRequestId: match.other_request_id,

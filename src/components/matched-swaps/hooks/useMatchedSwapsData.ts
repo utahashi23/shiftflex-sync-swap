@@ -50,19 +50,31 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
     
     // Process the data
     return uniqueMatches.map((match: any) => {
-      // Explicitly log the colleague_type fields for debugging
-      console.log(`Match ${match.match_id} colleague types from API:`, {
+      // Explicitly log the colleague_type and employee_id fields for debugging
+      console.log(`Match ${match.match_id} data from API:`, {
         my_shift_colleague_type: match.my_shift_colleague_type,
-        other_shift_colleague_type: match.other_shift_colleague_type
+        other_shift_colleague_type: match.other_shift_colleague_type,
+        my_shift_employee_id: match.my_shift_employee_id,
+        other_shift_employee_id: match.other_shift_employee_id
       });
       
       // Extract colleague types from raw data
       const myShiftColleagueType = match.my_shift_colleague_type || 'Unknown';
       const otherShiftColleagueType = match.other_shift_colleague_type || 'Unknown';
       
-      console.log(`Match ${match.match_id} processed colleague types:`, {
-        myShift: myShiftColleagueType,
-        otherShift: otherShiftColleagueType
+      // Extract employee IDs from raw data
+      const myShiftEmployeeId = match.my_shift_employee_id || undefined;
+      const otherShiftEmployeeId = match.other_shift_employee_id || undefined;
+      
+      console.log(`Match ${match.match_id} processed data:`, {
+        myShift: {
+          colleagueType: myShiftColleagueType,
+          employeeId: myShiftEmployeeId
+        },
+        otherShift: {
+          colleagueType: otherShiftColleagueType,
+          employeeId: otherShiftEmployeeId
+        }
       });
       
       return {
@@ -75,7 +87,8 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
           endTime: match.my_shift_end_time,
           truckName: match.my_shift_truck,
           type: getShiftType(match.my_shift_start_time),
-          colleagueType: myShiftColleagueType
+          colleagueType: myShiftColleagueType,
+          employeeId: myShiftEmployeeId
         },
         otherShift: {
           id: match.other_shift_id,
@@ -86,7 +99,8 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
           type: getShiftType(match.other_shift_start_time),
           userId: match.other_user_id,
           userName: match.other_user_name || 'Unknown User',
-          colleagueType: otherShiftColleagueType
+          colleagueType: otherShiftColleagueType,
+          employeeId: otherShiftEmployeeId
         },
         myRequestId: match.my_request_id,
         otherRequestId: match.other_request_id,

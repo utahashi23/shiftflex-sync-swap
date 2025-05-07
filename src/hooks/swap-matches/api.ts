@@ -8,14 +8,15 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
   console.log('Fetching matches for user:', userId);
   
   try {
-    // Call the edge function with explicit parameters to fetch colleague types
+    // Call the edge function with explicit parameters to fetch colleague types and employee IDs
     const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
       body: { 
         user_id: userId,
         user_perspective_only: userPerspectiveOnly,
         user_initiator_only: userInitiatorOnly,
         include_colleague_types: true, // Explicitly request colleague types
-        include_shift_data: true // Request full shift data
+        include_shift_data: true, // Request full shift data
+        include_employee_ids: true // Explicitly request employee IDs
       }
     });
     
@@ -26,13 +27,15 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
     
     console.log('Raw match data from function:', matchesData);
     
-    // Debug: Log the first match to check if colleague_type is present
+    // Debug: Log the first match to check if employee_id is present
     if (matchesData && Array.isArray(matchesData) && matchesData.length > 0) {
-      console.log('First match from API with colleague types:', {
+      console.log('First match from API with employee IDs:', {
         match_id: matchesData[0].match_id,
         match_status: matchesData[0].match_status,
         my_shift_colleague_type: matchesData[0].my_shift_colleague_type,
-        other_shift_colleague_type: matchesData[0].other_shift_colleague_type
+        other_shift_colleague_type: matchesData[0].other_shift_colleague_type,
+        my_shift_employee_id: matchesData[0].my_shift_employee_id, 
+        other_shift_employee_id: matchesData[0].other_shift_employee_id
       });
     }
     
