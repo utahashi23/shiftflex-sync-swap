@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Button } from "@/components/ui/card";
+import { Button } from "@/components/ui/button"; // Fixed import path
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, AlertTriangle, Check, Network, AlertCircle } from "lucide-react";
