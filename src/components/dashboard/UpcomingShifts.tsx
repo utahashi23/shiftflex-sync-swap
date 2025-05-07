@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from 'lucide-react';
 import { Shift } from '@/hooks/useShiftData';
+import { Link } from 'react-router-dom';
 
 interface UpcomingShiftsProps {
   shifts: Shift[];
@@ -43,8 +44,8 @@ const UpcomingShifts = ({ shifts, isLoading }: UpcomingShiftsProps) => {
           <div className="text-center py-8 text-gray-500">
             <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
             <p>No upcoming shifts scheduled</p>
-            <Button variant="outline" className="mt-4">
-              View Calendar
+            <Button variant="outline" className="mt-4" asChild>
+              <Link to="/roster">View Calendar</Link>
             </Button>
           </div>
         ) : (
@@ -71,8 +72,8 @@ const UpcomingShifts = ({ shifts, isLoading }: UpcomingShiftsProps) => {
               </div>
             ))}
             
-            <Button variant="outline" className="w-full mt-2">
-              View All Shifts
+            <Button variant="outline" className="w-full mt-2" asChild>
+              <Link to="/roster">View All Shifts</Link>
             </Button>
           </div>
         )}
