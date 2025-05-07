@@ -3,8 +3,8 @@ import { useState } from 'react';
 import AppLayout from '@/layouts/AppLayout';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarIntegration } from '@/components/settings/CalendarIntegration';
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
+import { CalendarIntegration } from '@/components/settings/CalendarIntegration';
 import { EmailIntegration } from '@/components/settings/EmailIntegration'; 
 import { EmailPreferences } from '@/components/settings/EmailPreferences';
 

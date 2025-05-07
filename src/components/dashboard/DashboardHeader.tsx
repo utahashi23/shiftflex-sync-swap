@@ -1,6 +1,6 @@
 
 import { useAuth } from '@/hooks/useAuth';
-import { Users, FileText } from 'lucide-react';
+import { Users, FileText, ShieldCheck } from 'lucide-react';
 
 interface DashboardHeaderProps {
   totalUsers: number;
@@ -15,7 +15,7 @@ const DashboardHeader = ({
   isLoadingUsers, 
   isLoadingSwaps 
 }: DashboardHeaderProps) => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return (
     <div className="mb-8 flex justify-between items-center">
@@ -23,6 +23,10 @@ const DashboardHeader = ({
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-gray-500 mt-1">
           Welcome back, {user?.user_metadata?.first_name || 'User'}
+          {isAdmin && <span className="ml-2 text-xs inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+            <ShieldCheck className="h-3 w-3 mr-1" />
+            Admin
+          </span>}
         </p>
       </div>
       <div className="flex items-center gap-4">
