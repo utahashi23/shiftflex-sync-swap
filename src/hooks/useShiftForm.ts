@@ -165,7 +165,7 @@ export const useShiftForm = ({
         description: "Please fill in all required fields.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (!user) {
@@ -174,7 +174,7 @@ export const useShiftForm = ({
         description: "You must be logged in to save shifts.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
     
     setIsLoading(true);
@@ -221,6 +221,7 @@ export const useShiftForm = ({
       
       resetSelection();
       resetFormState();
+      return true;
     } catch (error) {
       console.error("Error saving shift:", error);
       toast({
@@ -228,6 +229,7 @@ export const useShiftForm = ({
         description: "There was a problem saving your shift. Please try again.",
         variant: "destructive",
       });
+      return false;
     } finally {
       setIsLoading(false);
     }

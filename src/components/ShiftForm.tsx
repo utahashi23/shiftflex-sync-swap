@@ -7,20 +7,21 @@ import { ShiftOptionsFields } from './shift-form/ShiftOptionsFields';
 import { TimeFields } from './shift-form/TimeFields';
 import { ShiftTypeIndicator } from './shift-form/ShiftTypeIndicator';
 import { FormActions } from './shift-form/FormActions';
+import { Shift } from '@/hooks/useShiftData';
 
 // Types
 interface ShiftFormProps {
   selectedDate: Date | null;
-  selectedShift: any | null;
-  setSelectedShift: (shift: any | null) => void;
-  resetSelection: () => void;
+  selectedShift: Shift | null;
+  onCancel: () => void;
+  onSuccess: () => void;
 }
 
 const ShiftForm = ({ 
   selectedDate,
   selectedShift,
-  setSelectedShift,
-  resetSelection
+  onCancel,
+  onSuccess
 }: ShiftFormProps) => {
   const { user } = useAuth();
   
@@ -48,16 +49,24 @@ const ShiftForm = ({
   } = useShiftForm({
     selectedDate,
     selectedShift,
-    setSelectedShift,
-    resetSelection,
+    setSelectedShift: () => {}, // We'll handle this through onSuccess now
+    resetSelection: onCancel,
     user
   });
+  
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const success = await handleSubmit(e);
+    if (success) {
+      onSuccess();
+    }
+  };
   
   return (
     <div className="flex flex-col">
       <h3 className="text-lg font-semibold mb-6">{formTitle}</h3>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleFormSubmit} className="space-y-4">
         <ShiftDateField 
           value={shiftDate} 
           onChange={setShiftDate} 
@@ -93,7 +102,7 @@ const ShiftForm = ({
           isLoading={isLoading}
           isFormComplete={isFormComplete}
           onSave={() => {}} // Form will be submitted by the form's onSubmit handler
-          onCancel={resetSelection}
+          onCancel={onCancel}
           onDelete={handleDelete}
         />
       </form>
