@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 export interface DashboardSummary {
   totalUsers: number;
@@ -27,12 +28,14 @@ export const useDashboardSummary = () => {
           
         if (error) {
           console.error('Error fetching user count:', error);
+          throw error;
         } else {
           console.log('Total profiles count:', count);
           setTotalUsers(count || 0);
         }
       } catch (error) {
         console.error('Error fetching user count:', error);
+        setTotalUsers(0); // Set to 0 if there's an error
       } finally {
         setIsLoadingUsers(false);
       }
@@ -60,6 +63,7 @@ export const useDashboardSummary = () => {
         setTotalActiveSwaps(activeSwapsCount);
       } catch (error) {
         console.error('Error fetching active swap requests count:', error);
+        setTotalActiveSwaps(0); // Set to 0 if there's an error
       } finally {
         setIsLoadingSwaps(false);
       }
@@ -70,6 +74,11 @@ export const useDashboardSummary = () => {
       console.log('Auth checked and user logged in, fetching dashboard data...');
       fetchUserCount();
       fetchTotalActiveSwaps();
+    } else if (authChecked) {
+      // If auth is checked but no user, make sure loading states are reset
+      console.log('Auth checked but no user logged in');
+      setIsLoadingUsers(false);
+      setIsLoadingSwaps(false);
     }
   }, [user, authChecked]);
 

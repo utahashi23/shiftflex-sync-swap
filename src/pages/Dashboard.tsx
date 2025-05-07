@@ -4,6 +4,7 @@ import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useDashboardSummary } from '@/hooks/useDashboardSummary';
+import { useEffect } from 'react';
 
 // Import refactored components
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -13,8 +14,8 @@ import UpcomingShifts from '@/components/dashboard/UpcomingShifts';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 
 const Dashboard = () => {
-  useAuthRedirect({ protectedRoute: true });
-  const { user } = useAuth();
+  const { protectedRoute } = useAuthRedirect({ protectedRoute: true });
+  const { user, authChecked } = useAuth();
   const { stats, isLoading } = useDashboardData(user);
   const { 
     totalUsers, 
@@ -22,6 +23,31 @@ const Dashboard = () => {
     totalActiveSwaps, 
     isLoadingSwaps 
   } = useDashboardSummary();
+
+  useEffect(() => {
+    // Log authentication and data loading status
+    if (authChecked) {
+      console.log('Auth checked, user:', user ? 'logged in' : 'not logged in');
+    }
+  }, [authChecked, user]);
+
+  // Enhanced debug logging for data visibility
+  useEffect(() => {
+    if (!isLoading) {
+      console.log('Dashboard data loaded:', {
+        shiftsCount: stats.totalShifts,
+        upcomingShifts: stats.upcomingShifts?.length || 0,
+        activities: stats.recentActivity?.length || 0
+      });
+    }
+    
+    if (!isLoadingUsers && !isLoadingSwaps) {
+      console.log('Summary data loaded:', {
+        totalUsers,
+        totalActiveSwaps
+      });
+    }
+  }, [isLoading, isLoadingUsers, isLoadingSwaps, stats, totalUsers, totalActiveSwaps]);
 
   return (
     <AppLayout>
@@ -37,8 +63,8 @@ const Dashboard = () => {
         isLoading={isLoading} 
       />
 
-      {/* Debug panel is hidden */}
-      <DashboardDebug isVisible={false} />
+      {/* Debug panel is now visible during dev for troubleshooting */}
+      <DashboardDebug isVisible={true} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <UpcomingShifts 

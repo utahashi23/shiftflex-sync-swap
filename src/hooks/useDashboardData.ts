@@ -23,16 +23,19 @@ export interface DashboardStats {
   recentActivity: Activity[];
 }
 
+// Default empty stats to avoid null/undefined errors
+const defaultStats: DashboardStats = {
+  totalShifts: 0,
+  activeSwaps: 0,
+  matchedSwaps: 0,
+  completedSwaps: 0,
+  upcomingShifts: [],
+  recentActivity: []
+};
+
 export const useDashboardData = (user: ExtendedUser | null) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>({
-    totalShifts: 0,
-    activeSwaps: 0,
-    matchedSwaps: 0,
-    completedSwaps: 0,
-    upcomingShifts: [],
-    recentActivity: []
-  });
+  const [stats, setStats] = useState<DashboardStats>(defaultStats);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -135,13 +138,15 @@ export const useDashboardData = (user: ExtendedUser | null) => {
           upcomingShifts: upcomingShifts.slice(0, 4), // Limit to 4 upcoming shifts
           recentActivity
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching dashboard data:', error);
         toast({
           title: "Error loading dashboard",
           description: "Could not load your dashboard data. Please try again later.",
           variant: "destructive"
         });
+        // Set default values to avoid rendering errors
+        setStats(defaultStats);
       } finally {
         setIsLoading(false);
       }
