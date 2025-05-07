@@ -240,29 +240,18 @@ serve(async (req) => {
                         }
                       });
                       
-                      // Get user profiles with employee_id
-                      const { data: user1Profile } = await serviceClient
+                      // Get user info
+                      const { data: user1 } = await serviceClient
                         .from('profiles')
-                        .select('first_name, last_name, employee_id')
+                        .select('first_name, last_name')
                         .eq('id', req1.requester_id)
                         .single();
                         
-                      const { data: user2Profile } = await serviceClient
+                      const { data: user2 } = await serviceClient
                         .from('profiles')
-                        .select('first_name, last_name, employee_id')
+                        .select('first_name, last_name')
                         .eq('id', req2.requester_id)
                         .single();
-                      
-                      console.log('User profiles:', {
-                        user1: {
-                          id: req1.requester_id,
-                          profile: user1Profile
-                        },
-                        user2: {
-                          id: req2.requester_id,
-                          profile: user2Profile
-                        }
-                      });
                       
                       // Always ensure the user's request is the "my" side
                       const isUserReq1 = req1.requester_id === user_id;
@@ -270,10 +259,6 @@ serve(async (req) => {
                       // User's shift is first, other user's shift is second
                       const myShift = isUserReq1 ? shift1 : shift2;
                       const otherShift = isUserReq1 ? shift2 : shift1;
-                      
-                      // User's profile is first, other user's profile is second
-                      const myProfile = isUserReq1 ? user1Profile : user2Profile;
-                      const otherProfile = isUserReq1 ? user2Profile : user1Profile;
                       
                       formattedMatches.push({
                         match_id: match.id,
@@ -288,7 +273,6 @@ serve(async (req) => {
                         my_shift_end_time: myShift.end_time,
                         my_shift_truck: myShift.truck_name,
                         my_shift_colleague_type: myShift.colleague_type || 'Unknown',
-                        my_user_employee_id: myProfile?.employee_id || null,
                         other_shift_id: otherShift.id,
                         other_shift_date: otherShift.date,
                         other_shift_start_time: otherShift.start_time,
@@ -297,20 +281,19 @@ serve(async (req) => {
                         other_shift_colleague_type: otherShift.colleague_type || 'Unknown',
                         other_user_id: isUserReq1 ? req2.requester_id : req1.requester_id,
                         other_user_name: isUserReq1 
-                          ? `${user2Profile?.first_name || ''} ${user2Profile?.last_name || ''}`.trim() 
-                          : `${user1Profile?.first_name || ''} ${user1Profile?.last_name || ''}`.trim(),
-                        other_user_employee_id: otherProfile?.employee_id || null
+                          ? `${user2?.first_name || ''} ${user2?.last_name || ''}`.trim() 
+                          : `${user1?.first_name || ''} ${user1?.last_name || ''}`.trim()
                       });
                     }
                     
                     console.log(`Returning ${formattedMatches.length} formatted matches`);
                     
-                    // Log first match employee ID fields
+                    // Log first match to verify colleague_type fields are included
                     if (formattedMatches.length > 0) {
-                      console.log('First formatted match employee IDs:', {
+                      console.log('First formatted match:', {
                         match_id: formattedMatches[0].match_id,
-                        my_user_employee_id: formattedMatches[0].my_user_employee_id,
-                        other_user_employee_id: formattedMatches[0].other_user_employee_id
+                        my_shift_colleague_type: formattedMatches[0].my_shift_colleague_type,
+                        other_shift_colleague_type: formattedMatches[0].other_shift_colleague_type
                       });
                     }
                     

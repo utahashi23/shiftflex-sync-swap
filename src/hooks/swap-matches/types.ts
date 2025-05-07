@@ -7,13 +7,11 @@ export interface SwapShift {
   truckName: string | null;
   type: 'day' | 'afternoon' | 'night' | 'unknown';
   colleagueType: string | null;
-  employeeId?: string | null; // Added employeeId property
 }
 
 export interface OtherSwapShift extends SwapShift {
   userId: string;
   userName: string;
-  employeeId?: string | null;
 }
 
 export interface SwapMatch {

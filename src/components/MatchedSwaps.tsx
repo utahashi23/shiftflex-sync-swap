@@ -2,16 +2,18 @@
 import { useState, useCallback } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { FinalizeSwapDialog } from './matched-swaps/FinalizeSwapDialog';
+import { TestingTools } from './matched-swaps/TestingTools';
 import { MatchedSwapsTabs } from './matched-swaps/MatchedSwapsTabs';
 import { useMatchedSwapsData } from './matched-swaps/hooks/useMatchedSwapsData';
 import { useSwapConfirmation } from './matched-swaps/hooks/useSwapConfirmation';
-import { DebugPanel } from './matched-swaps/DebugPanel';
 
 interface MatchedSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
+  const [showTestingTools, setShowTestingTools] = useState(false); // Set to false by default
+  
   // Use our custom hooks
   const {
     matches,
@@ -20,9 +22,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     isProcessing,
     activeTab,
     setActiveTab,
-    fetchMatches,
-    debugData,
-    fetchDirectFromDatabase
+    fetchMatches
   } = useMatchedSwapsData(setRefreshTrigger);
   
   const {
@@ -52,6 +52,14 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Testing Tools Section */}
+      <TestingTools 
+        showTestingTools={showTestingTools}
+        setShowTestingTools={setShowTestingTools}
+        onMatchCreated={fetchMatches}
+        matches={matches}
+      />
+      
       {/* Matched Swaps Tabs */}
       <MatchedSwapsTabs
         activeTab={activeTab}
@@ -88,13 +96,6 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         }}
         onConfirm={handleFinalizeSwap}
         isLoading={isLoading || isActionLoading}
-      />
-      
-      {/* Debug Panel for seeing raw database data */}
-      <DebugPanel 
-        debugData={debugData}
-        onRefresh={fetchDirectFromDatabase}
-        isLoading={isLoading}
       />
     </div>
   );

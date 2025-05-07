@@ -34,7 +34,7 @@ export const FinalizeSwapDialog = ({
         
         <div className="bg-amber-50 border border-amber-200 p-3 rounded-md">
           <p className="text-sm text-amber-800">
-            <strong>Note:</strong> If you have a shared calendar, you'll need to manually update your external calendar to reflect this swap.
+            <strong>Important:</strong> This action finalizes the approved swap and updates the official schedules. Both users will receive email confirmation.
           </p>
         </div>
         

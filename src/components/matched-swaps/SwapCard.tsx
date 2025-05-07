@@ -6,16 +6,9 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ArrowRightLeft, Calendar, Clock, Copy, Eye, Mail, UserCircle2, AlertTriangle, Briefcase } from "lucide-react";
+import { ArrowRightLeft, Calendar, Clock, Mail, UserCircle2, AlertTriangle } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "./types";
-import { useState } from "react";
-import { toast } from "@/hooks/use-toast";
 
 interface SwapCardProps {
   swap: SwapMatch;
@@ -41,8 +34,6 @@ export const SwapCard = ({
   onFinalize, 
   onResendEmail 
 }: SwapCardProps) => {
-  const [isCopied, setIsCopied] = useState(false);
-  
   // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
@@ -81,52 +72,6 @@ export const SwapCard = ({
   };
   
   const statusDisplay = getStatusDisplay();
-
-  // Function to generate swap details for copying
-  const getSwapDetailsText = () => {
-    return `Shift Swap Details:
--------------------
-Status: ${statusDisplay.text}
-
-Your Shift:
-Date: ${formatDate(swap.myShift.date)}
-Time: ${swap.myShift.startTime} - ${swap.myShift.endTime}
-Type: ${swap.myShift.type.charAt(0).toUpperCase() + swap.myShift.type.slice(1)}
-Location: ${swap.myShift.truckName || 'Not specified'}
-Colleague Type: ${swap.myShift.colleagueType || 'Not specified'}
-Employee ID: ${swap.myShift.employeeId || 'Not provided'}
-
-Matched Shift:
-Date: ${formatDate(swap.otherShift.date)}
-Time: ${swap.otherShift.startTime} - ${swap.otherShift.endTime}
-Type: ${swap.otherShift.type.charAt(0).toUpperCase() + swap.otherShift.type.slice(1)}
-Location: ${swap.otherShift.truckName || 'Not specified'}
-Colleague Type: ${swap.otherShift.colleagueType || 'Not specified'}
-Staff Member: ${swap.otherShift.userName || 'Not specified'}
-Employee ID: ${swap.otherShift.employeeId || 'Not provided'}
-
-Swap ID: ${swap.id}`;
-  };
-
-  const handleCopyDetails = () => {
-    navigator.clipboard.writeText(getSwapDetailsText())
-      .then(() => {
-        setIsCopied(true);
-        toast({
-          title: "Copied to clipboard",
-          description: "Swap details copied to clipboard successfully"
-        });
-        setTimeout(() => setIsCopied(false), 2000);
-      })
-      .catch(err => {
-        console.error('Failed to copy: ', err);
-        toast({
-          title: "Copy failed",
-          description: "Could not copy to clipboard. Please try again.",
-          variant: "destructive"
-        });
-      });
-  };
   
   return (
     <Card className="overflow-hidden">
@@ -153,12 +98,6 @@ Swap ID: ${swap.id}`;
             <div className="p-3 border rounded-md bg-background">
               <div className="flex items-center justify-between">
                 <ShiftTypeBadge type={swap.myShift.type} />
-                {swap.myShift.employeeId && (
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <Briefcase className="h-3 w-3 mr-1" />
-                    <span>{swap.myShift.employeeId}</span>
-                  </div>
-                )}
               </div>
               
               <div className="flex items-center mt-2">
@@ -193,16 +132,8 @@ Swap ID: ${swap.id}`;
             <div className="p-3 border rounded-md bg-background">
               <div className="flex items-center justify-between">
                 <ShiftTypeBadge type={swap.otherShift.type} />
-                <div className="flex flex-col items-end gap-1">
-                  <div className="text-xs font-medium text-muted-foreground">
-                    {swap.otherShift.userName}
-                  </div>
-                  {swap.otherShift.employeeId && (
-                    <div className="flex items-center text-xs text-muted-foreground">
-                      <Briefcase className="h-3 w-3 mr-1" />
-                      <span>{swap.otherShift.employeeId}</span>
-                    </div>
-                  )}
+                <div className="text-xs font-medium text-muted-foreground">
+                  {swap.otherShift.userName}
                 </div>
               </div>
               
@@ -273,38 +204,16 @@ Swap ID: ${swap.id}`;
             {/* Explicitly check for 'accepted' status */}
             {swap.status === 'accepted' && (
               <>
-                {/* See Swap Details button */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button 
-                      variant="outline"
-                      className="flex items-center"
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      See Swap Details
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-4">
-                    <div className="space-y-4">
-                      <h4 className="font-medium text-sm">Swap Details</h4>
-                      <div className="text-xs whitespace-pre-wrap border p-3 rounded-md bg-slate-50">
-                        {getSwapDetailsText()}
-                      </div>
-                      <Button 
-                        onClick={handleCopyDetails}
-                        className="w-full flex items-center justify-center"
-                        variant="secondary"
-                        size="sm"
-                      >
-                        <Copy className="h-4 w-4 mr-2" />
-                        {isCopied ? "Copied!" : "Copy Details"}
-                      </Button>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Copy these details to manually send via email or your preferred method.
-                      </p>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                {onResendEmail && (
+                  <Button 
+                    onClick={() => onResendEmail(swap.id)}
+                    variant="outline"
+                    className="flex items-center"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Resend Email
+                  </Button>
+                )}
                 
                 {onFinalize && (
                   <Button 

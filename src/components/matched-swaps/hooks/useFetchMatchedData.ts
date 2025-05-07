@@ -61,8 +61,7 @@ export const useFetchMatchedData = () => {
             endTime: match.my_shift_end_time,
             truckName: match.my_shift_truck,
             type: getShiftType(match.my_shift_start_time),
-            colleagueType: match.my_shift_colleague_type || null,
-            employeeId: null // We'll update this with profile data
+            colleagueType: match.my_shift_colleague_type || null
           },
           otherShift: {
             id: match.other_shift_id,
@@ -73,7 +72,6 @@ export const useFetchMatchedData = () => {
             type: getShiftType(match.other_shift_start_time),
             userId: match.other_user_id,
             userName: match.other_user_id, // We'll update this with profile data
-            employeeId: null, // We'll update this with profile data
             colleagueType: match.other_shift_colleague_type || null
           },
           myRequestId: match.my_request_id,
@@ -85,7 +83,6 @@ export const useFetchMatchedData = () => {
       // Get user IDs involved in swaps for profile info
       const userIds = new Set<string>();
       formattedMatches.forEach(match => {
-        userIds.add(userId); // Add current user to get their employeeId
         if (match.otherShift.userId) userIds.add(match.otherShift.userId);
       });
       
@@ -93,10 +90,10 @@ export const useFetchMatchedData = () => {
       const filteredUserIds = Array.from(userIds).filter(Boolean);
       console.log('Fetching profiles for user IDs:', filteredUserIds);
       
-      // Fetch user profiles - explicitly select employee_id
+      // Fetch user profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, employee_id')
+        .select('id, first_name, last_name')
         .in('id', filteredUserIds);
         
       if (profilesError) {
@@ -104,38 +101,25 @@ export const useFetchMatchedData = () => {
         throw profilesError;
       }
       
-      console.log('Fetched profile data:', profilesData);
-      
       // Create profiles map for quick lookup
       const profilesMap: Record<string, any> = {};
       profilesData?.forEach(profile => {
         profilesMap[profile.id] = profile;
       });
       
-      // Update matches with user names and employee IDs
+      // Update matches with user names
       formattedMatches.forEach(match => {
-        // Update otherShift with user profile data
-        const otherUserId = match.otherShift.userId;
-        if (otherUserId && profilesMap[otherUserId]) {
-          const profile = profilesMap[otherUserId];
+        const userId = match.otherShift.userId;
+        if (userId && profilesMap[userId]) {
+          const profile = profilesMap[userId];
           match.otherShift.userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User';
-          match.otherShift.employeeId = profile.employee_id || null;
-          
-          console.log(`Set other user employeeId to: ${match.otherShift.employeeId} for user ${otherUserId}`);
         } else {
           match.otherShift.userName = 'Unknown User';
-          match.otherShift.employeeId = null;
-        }
-        
-        // Update myShift with current user's profile data
-        if (profilesMap[userId]) {
-          match.myShift.employeeId = profilesMap[userId].employee_id || null;
-          console.log(`Set my employeeId to: ${match.myShift.employeeId} for user ${userId}`);
         }
       });
       
       // Separate active and past matches
-      // IMPORTANT: Include 'accepted' and 'other_accepted' status in active matches
+      // IMPORTANT: Include 'other_accepted' status in active matches
       const activeMatches = formattedMatches.filter((match: SwapMatch) => 
         match.status === 'pending' || match.status === 'accepted' || match.status === 'other_accepted'
       );
