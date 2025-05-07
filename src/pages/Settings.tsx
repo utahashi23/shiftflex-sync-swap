@@ -4,7 +4,7 @@ import AppLayout from '@/layouts/AppLayout';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIntegration } from '@/components/settings/CalendarIntegration';
-import { UserProfile } from '@/components/settings/UserProfile';
+import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { EmailIntegration } from '@/components/settings/EmailIntegration'; 
 import { EmailPreferences } from '@/components/settings/EmailPreferences';
 
@@ -31,7 +31,7 @@ const Settings = () => {
           </TabsList>
           <div className="mt-6">
             <TabsContent value="profile">
-              <UserProfile />
+              <ProfileSettings />
             </TabsContent>
             <TabsContent value="email">
               <EmailIntegration />
