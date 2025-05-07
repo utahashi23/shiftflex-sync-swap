@@ -72,17 +72,19 @@ export const useDashboardData = (user: ExtendedUser | null) => {
         const userRequests = swapRequests?.filter(req => req.requester_id === user.id) || [];
         console.log(`Found ${userRequests.length} swap requests for user`);
         
-        // Fetch potential matches to get accurate matched swaps count
+        // Fetch all potential matches for the user's requests
         const { data: potentialMatches, error: matchesError } = await supabase
           .from('shift_swap_potential_matches')
           .select('*')
           .or(`requester_request_id.in.(${userRequests.map(r => r.id).join(',')}),acceptor_request_id.in.(${userRequests.map(r => r.id).join(',')})`)
-          .eq('status', 'accepted');
+          .in('status', ['accepted', 'other_accepted']);
           
         if (matchesError) {
-          console.error('Error fetching potential matches:', matchesError);
+          console.error('Error fetching accepted matches:', matchesError);
           // Continue with other data even if this fails
         }
+        
+        console.log('Found potential matches:', potentialMatches);
         
         // Fetch pending matches as well to include in active count
         const { data: pendingMatches, error: pendingMatchesError } = await supabase
@@ -124,7 +126,10 @@ export const useDashboardData = (user: ExtendedUser | null) => {
         );
         
         // Calculate the number of matched swaps from potential_matches table
+        // Include both 'accepted' and 'other_accepted' status in the count
         const matchedSwapsCount = potentialMatches?.length || 0;
+        
+        console.log(`Found ${matchedSwapsCount} matched swaps for user`);
         
         // Count the different types of swap requests
         // Only count requests with preferred dates as "active" but exclude those that are already matched
