@@ -35,3 +35,12 @@ export interface ConfirmDialogState {
   isOpen: boolean;
   matchId: string | null;
 }
+
+export interface SwapCardProps {
+  swap: SwapMatch;
+  isPast?: boolean;
+  onAccept?: (matchId: string) => void;
+  onFinalize?: (matchId: string) => void;
+  onCancel?: (matchId: string) => void;
+  onResendEmail?: (matchId: string) => void;
+}

@@ -18,6 +18,7 @@ interface SwapCardProps {
   onAccept?: (matchId: string) => void;
   onFinalize?: (matchId: string) => void;
   onCancel?: (matchId: string) => void;
+  onResendEmail?: (matchId: string) => void;
 }
 
 // Format date to a readable string
@@ -34,7 +35,8 @@ export const SwapCard = ({
   isPast = false, 
   onAccept, 
   onFinalize, 
-  onCancel 
+  onCancel,
+  onResendEmail
 }: SwapCardProps) => {
   // Dialog state for shift details
   const [detailsOpen, setDetailsOpen] = useState(false);
