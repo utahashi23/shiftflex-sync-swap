@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -5,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogClose,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Calendar, Clock, Copy, UserCircle2, Info, Badge, User, Clock8 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -45,31 +47,18 @@ export function ShiftDetailsDialog({
       setIsLoading(true);
       
       try {
-        // Fetch both requests in parallel for efficiency
+        // Fetch both requests separately instead of using a join
         const [myRequestResult, otherRequestResult] = await Promise.all([
+          // First fetch the request data
           supabase
             .from('shift_swap_requests')
-            .select(`
-              id,
-              requester_id,
-              status,
-              created_at,
-              preferred_dates_count,
-              profiles:requester_id(first_name, last_name)
-            `)
+            .select('*')
             .eq('id', swap.myRequestId)
             .single(),
             
           supabase
             .from('shift_swap_requests')
-            .select(`
-              id,
-              requester_id,
-              status,
-              created_at,
-              preferred_dates_count,
-              profiles:requester_id(first_name, last_name)
-            `)
+            .select('*')
             .eq('id', swap.otherRequestId)
             .single()
         ]);
@@ -87,9 +76,15 @@ export function ShiftDetailsDialog({
             });
           }
         } else if (myRequestResult.data) {
-          const profiles = myRequestResult.data.profiles as any;
-          const requesterName = profiles 
-            ? `${profiles.first_name || ''} ${profiles.last_name || ''}`.trim() 
+          // Now fetch the profile data separately for this request
+          const myProfileResult = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', myRequestResult.data.requester_id)
+            .single();
+          
+          const requesterName = myProfileResult.data
+            ? `${myProfileResult.data.first_name || ''} ${myProfileResult.data.last_name || ''}`.trim()
             : 'Unknown User';
             
           setMyRequestDetails({
@@ -111,9 +106,15 @@ export function ShiftDetailsDialog({
         if (otherRequestResult.error) {
           console.error('Error fetching other request details:', otherRequestResult.error);
         } else if (otherRequestResult.data) {
-          const profiles = otherRequestResult.data.profiles as any;
-          const requesterName = profiles 
-            ? `${profiles.first_name || ''} ${profiles.last_name || ''}`.trim() 
+          // Now fetch the profile data separately for this request
+          const otherProfileResult = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', otherRequestResult.data.requester_id)
+            .single();
+            
+          const requesterName = otherProfileResult.data
+            ? `${otherProfileResult.data.first_name || ''} ${otherProfileResult.data.last_name || ''}`.trim()
             : 'Unknown User';
             
           setOtherRequestDetails({
@@ -227,6 +228,9 @@ ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
             <Info className="h-5 w-5" />
             <span>Swap Details</span>
           </DialogTitle>
+          <DialogDescription>
+            View information about this swap match
+          </DialogDescription>
         </DialogHeader>
         
         <div className="mt-4 space-y-6">
