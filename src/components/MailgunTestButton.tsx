@@ -1,11 +1,12 @@
 
 import React, { useState, useRef } from 'react';
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, AlertTriangle, Check, Network } from "lucide-react";
+import { Loader2, AlertTriangle, Check, Network, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface MailgunTestButtonProps {
   recipientEmail: string;
@@ -20,12 +21,15 @@ export function MailgunTestButton({ recipientEmail, showAdvanced = false }: Mail
   const [retryCount, setRetryCount] = useState(0);
   const [networkLogs, setNetworkLogs] = useState<Array<{time: string, message: string, type: 'request'|'response'|'error'|'info'}>>([]);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [edgeFunctionError, setEdgeFunctionError] = useState<any>(null);
+  const [environmentInfo, setEnvironmentInfo] = useState<any>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   // Helper function to add logs
   const addLog = (message: string, type: 'request'|'response'|'error'|'info') => {
+    const timestamp = new Date().toLocaleTimeString();
     setNetworkLogs(prev => [...prev, {
-      time: new Date().toISOString().split('T')[1].split('.')[0],
+      time: timestamp,
       message,
       type
     }]);
@@ -41,6 +45,43 @@ export function MailgunTestButton({ recipientEmail, showAdvanced = false }: Mail
   const clearLogs = () => {
     setNetworkLogs([]);
     setErrorDetails(null);
+    setEdgeFunctionError(null);
+    setEnvironmentInfo(null);
+  };
+
+  // Fetch environment information to help debug issues
+  const fetchEnvironmentInfo = async () => {
+    try {
+      addLog("Fetching Mailgun environment configuration...", "request");
+      
+      const response = await supabase.functions.invoke('test_mailgun_environment', {
+        body: {}
+      });
+      
+      if (response.error) {
+        addLog(`Environment check error: ${JSON.stringify(response.error)}`, "error");
+        return;
+      }
+      
+      addLog("Environment information received", "response");
+      setEnvironmentInfo(response.data);
+      
+      // Log domain format validation
+      if (response.data?.domain_format_valid === false) {
+        addLog(`⚠️ DOMAIN FORMAT INVALID: ${response.data?.domain || 'Not set'}`, "error");
+      } else if (response.data?.domain) {
+        addLog(`Domain format valid: ${response.data.domain}`, "info");
+      }
+      
+      // Log API key validation
+      if (response.data?.api_key_format_valid === false) {
+        addLog(`⚠️ API KEY FORMAT INVALID`, "error");
+      } else if (response.data?.api_key_format_valid) {
+        addLog(`API key format appears valid`, "info");
+      }
+    } catch (err) {
+      addLog(`Environment fetch error: ${err instanceof Error ? err.message : String(err)}`, "error");
+    }
   };
 
   const handleTestMailgun = async () => {
@@ -50,6 +91,7 @@ export function MailgunTestButton({ recipientEmail, showAdvanced = false }: Mail
       setConnectionDetails(null);
       setShowError(false);
       setErrorDetails(null);
+      setEdgeFunctionError(null);
       clearLogs();
       toast.info("Testing Mailgun connection (US region)...");
       
@@ -59,8 +101,11 @@ export function MailgunTestButton({ recipientEmail, showAdvanced = false }: Mail
       // Add a retry count for diagnostic purposes
       const currentRetry = retryCount + 1;
       setRetryCount(currentRetry);
+      
+      // First, fetch environment information
+      await fetchEnvironmentInfo();
 
-      // First, check connectivity to see if network restrictions might be an issue
+      // Check connectivity to see if network restrictions might be an issue
       addLog("Testing basic connectivity to Mailgun servers...", "request");
       try {
         const connectivityCheck = await supabase.functions.invoke('test_mailgun_sdk', {
@@ -72,6 +117,7 @@ export function MailgunTestButton({ recipientEmail, showAdvanced = false }: Mail
         
         if (connectivityCheck.error) {
           addLog(`Connectivity check failed: ${JSON.stringify(connectivityCheck.error)}`, "error");
+          setEdgeFunctionError(connectivityCheck.error);
           
           // Try to extract more details from the error
           const errorMessage = connectivityCheck.error instanceof Error 
@@ -114,6 +160,7 @@ export function MailgunTestButton({ recipientEmail, showAdvanced = false }: Mail
       
       if (response.error) {
         addLog(`Error response: ${JSON.stringify(response.error)}`, "error");
+        setEdgeFunctionError(response.error);
         
         // Try to extract more details from the error
         if (typeof response.error === 'object') {
@@ -143,6 +190,11 @@ export function MailgunTestButton({ recipientEmail, showAdvanced = false }: Mail
         
         if (smtpResponse.error) {
           addLog(`SMTP error response: ${JSON.stringify(smtpResponse.error)}`, "error");
+          
+          // Store the SMTP error for display
+          if (!edgeFunctionError) {
+            setEdgeFunctionError(smtpResponse.error);
+          }
           
           // Try to extract more details from the SMTP error
           if (typeof smtpResponse.error === 'object') {
@@ -232,10 +284,45 @@ export function MailgunTestButton({ recipientEmail, showAdvanced = false }: Mail
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            Connection to Mailgun server (US region) failed. This may be due to network restrictions in Supabase Edge Functions.
-            The test was attempted with your configured API key on the US region endpoint.
+            Connection to Mailgun server (US region) failed. This may be due to network restrictions in Supabase Edge Functions
+            or misconfigured API credentials.
           </AlertDescription>
         </Alert>
+      )}
+      
+      {edgeFunctionError && (
+        <Alert variant="destructive" className="bg-amber-50 border-amber-200">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800">
+            Edge Function Error: {edgeFunctionError.name || 'Unknown error'}
+            {edgeFunctionError.message && <p className="text-xs mt-1">{edgeFunctionError.message}</p>}
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {environmentInfo && showAdvanced && (
+        <Card className="mt-2 bg-slate-50">
+          <CardContent className="p-3 pt-3">
+            <div className="text-xs font-semibold mb-1">Environment Info:</div>
+            <div className="text-xs space-y-1">
+              <div>
+                Domain: {environmentInfo.domain_format_valid ? 
+                  <span className="text-green-600">{environmentInfo.domain || 'Not set'}</span> : 
+                  <span className="text-red-600">{environmentInfo.domain || 'Invalid or not set'}</span>}
+              </div>
+              <div>
+                API Key: {environmentInfo.api_key_format_valid ? 
+                  <span className="text-green-600">Valid format</span> : 
+                  <span className="text-red-600">Invalid format</span>}
+              </div>
+              {environmentInfo.domain_issues && (
+                <div className="text-red-600">
+                  Domain issue: {environmentInfo.domain_issues}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
       
       {errorDetails && showAdvanced && (

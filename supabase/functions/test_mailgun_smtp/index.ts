@@ -29,14 +29,43 @@ serve(async (req) => {
 
     // First, check if we have a valid domain
     const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN') || 'shiftflex.au';
+    const MAILGUN_SMTP_PASSWORD = Deno.env.get('MAILGUN_SMTP_PASSWORD') || Deno.env.get('MAILGUN_API_KEY');
+    
+    if (!MAILGUN_SMTP_PASSWORD) {
+      console.error('Missing SMTP password or API key');
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Missing SMTP password. Please set MAILGUN_SMTP_PASSWORD or MAILGUN_API_KEY environment variable.",
+        details: {
+          errorType: 'configuration',
+          timestamp: new Date().toISOString()
+        }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
+      });
+    }
     
     // Validate domain format
     if (!MAILGUN_DOMAIN || !MAILGUN_DOMAIN.includes('.') || MAILGUN_DOMAIN.startsWith('c1') || MAILGUN_DOMAIN.length > 100) {
       console.error(`Invalid Mailgun domain format: "${MAILGUN_DOMAIN}"`);
-      throw new Error(`Invalid Mailgun domain format. Should be a valid domain name like "example.com"`);
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: `Invalid Mailgun domain format: "${MAILGUN_DOMAIN}". Should be a valid domain name like "example.com"`,
+        details: {
+          domain: MAILGUN_DOMAIN,
+          errorType: 'domain',
+          timestamp: new Date().toISOString()
+        }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400
+      });
     }
     
-    // SMTP configuration for Mailgun with hardcoded credentials
+    // SMTP configuration for Mailgun
     const client = new SmtpClient();
     
     console.log(`Connecting to SMTP server with username: admin@${MAILGUN_DOMAIN}`);
@@ -52,7 +81,7 @@ serve(async (req) => {
         hostname: "smtp.mailgun.org", // US region endpoint
         port: 587,
         username: `admin@${MAILGUN_DOMAIN}`,
-        password: Deno.env.get('MAILGUN_SMTP_PASSWORD') || "", // Using the password from environment
+        password: MAILGUN_SMTP_PASSWORD,
       });
       
       console.log("SMTP connection established successfully");
@@ -101,8 +130,24 @@ serve(async (req) => {
           console.log(`SMTP sending error details: ${JSON.stringify(smtpError)}`);
         }
         
-        await client.close();
-        throw new Error(`SMTP sending error: ${smtpError.message}`);
+        try {
+          await client.close();
+        } catch (e) {
+          console.error("Error closing SMTP client:", e);
+        }
+        
+        return new Response(JSON.stringify({
+          success: false,
+          error: `SMTP sending error: ${smtpError.message || String(smtpError)}`,
+          details: {
+            errorType: 'smtp_sending',
+            timestamp: new Date().toISOString(),
+            region: "US"
+          }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        });
       }
     } catch (connectionError) {
       console.error("SMTP connection error:", connectionError);
@@ -124,7 +169,18 @@ serve(async (req) => {
         errorType = "network";
       }
       
-      throw new Error(`SMTP connection error (${errorType}): ${connectionError.message}`);
+      return new Response(JSON.stringify({
+        success: false,
+        error: `SMTP connection error (${errorType}): ${connectionError.message || String(connectionError)}`,
+        details: {
+          errorType: errorType,
+          timestamp: new Date().toISOString(),
+          region: "US"
+        }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
+      });
     }
   } catch (error) {
     console.error('Error in test_mailgun_smtp function:', error);
@@ -141,7 +197,7 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({
       success: false,
-      error: error.message,
+      error: errorMessage,
       isNetworkRestriction: isNetworkRestriction,
       details: {
         errorType: isNetworkRestriction ? 'network_restriction' : 'smtp_error',

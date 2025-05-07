@@ -89,7 +89,15 @@ serve(async (req) => {
     
     if (!MAILGUN_API_KEY) {
       console.error('Missing Mailgun API key');
-      throw new Error('Missing Mailgun API key in environment variables');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Missing Mailgun API key in environment variables',
+        errorType: 'configuration',
+        timestamp: new Date().toISOString()
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
+      });
     }
     
     // Log the domain with validation
@@ -98,7 +106,17 @@ serve(async (req) => {
     // Validate domain format more strictly
     if (!MAILGUN_DOMAIN || !MAILGUN_DOMAIN.includes('.') || MAILGUN_DOMAIN.startsWith('c1') || MAILGUN_DOMAIN.length > 100) {
       console.error(`Invalid Mailgun domain format: "${MAILGUN_DOMAIN}"`);
-      throw new Error(`Invalid Mailgun domain format. Should be a valid domain name like "example.com"`);
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: `Invalid Mailgun domain format: "${MAILGUN_DOMAIN}". Should be a valid domain name like "example.com"`,
+        errorType: 'domain',
+        domain: MAILGUN_DOMAIN,
+        timestamp: new Date().toISOString()
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400
+      });
     }
     
     console.log(`Will send test email to: ${recipientEmail}`);
@@ -202,7 +220,7 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({
       success: false,
-      error: error.message,
+      error: error.message || "Unknown error",
       errorType: errorType,
       timestamp: new Date().toISOString(),
       region: "US",
