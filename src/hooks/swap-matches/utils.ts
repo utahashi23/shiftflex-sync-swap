@@ -35,10 +35,16 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
     // Set the correct status, prioritizing 'other_accepted' if flag is present
     const matchStatus = isOtherAccepted ? 'other_accepted' : match.match_status;
     
+    // Extract employee IDs if available
+    const myEmployeeId = match.my_employee_id || null;
+    const otherEmployeeId = match.other_employee_id || null;
+    
     console.log(`Match ${match.match_id} status: ${matchStatus}, colleague types:`, {
       myShift: myShiftColleagueType,
       otherShift: otherShiftColleagueType,
-      isOtherAccepted
+      isOtherAccepted,
+      myEmployeeId,
+      otherEmployeeId
     });
     
     return {
@@ -51,7 +57,8 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         endTime: match.my_shift_end_time,
         truckName: match.my_shift_truck,
         type: getShiftType(match.my_shift_start_time),
-        colleagueType: myShiftColleagueType
+        colleagueType: myShiftColleagueType,
+        employeeId: myEmployeeId
       },
       otherShift: {
         id: match.other_shift_id,
@@ -62,7 +69,8 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         type: getShiftType(match.other_shift_start_time),
         userId: match.other_user_id,
         userName: match.other_user_name || 'Unknown User',
-        colleagueType: otherShiftColleagueType
+        colleagueType: otherShiftColleagueType,
+        employeeId: otherEmployeeId
       },
       myRequestId: match.my_request_id,
       otherRequestId: match.other_request_id,

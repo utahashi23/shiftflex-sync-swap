@@ -12,6 +12,7 @@ export interface SwapMatch {
     truckName: string | null;
     type: "day" | "afternoon" | "night" | "unknown";
     colleagueType: string | null;
+    employeeId?: string | null;
   };
   otherShift: {
     id: string;
@@ -23,6 +24,7 @@ export interface SwapMatch {
     userId: string;
     userName: string;
     colleagueType: string | null;
+    employeeId?: string | null;
   };
   myRequestId: string;
   otherRequestId: string;

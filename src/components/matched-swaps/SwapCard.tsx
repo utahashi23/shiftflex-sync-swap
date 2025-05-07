@@ -6,16 +6,17 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { ArrowRightLeft, Calendar, Clock, Mail, UserCircle2, AlertTriangle } from "lucide-react";
+import { ArrowRightLeft, Calendar, Clock, UserCircle2, AlertTriangle, FileText } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "./types";
+import { useState } from "react";
+import { ShiftDetailsDialog } from "./ShiftDetailsDialog";
 
 interface SwapCardProps {
   swap: SwapMatch;
   isPast?: boolean;
   onAccept?: (matchId: string) => void;
   onFinalize?: (matchId: string) => void;
-  onResendEmail?: (matchId: string) => void;
   onCancel?: (matchId: string) => void;
 }
 
@@ -33,9 +34,11 @@ export const SwapCard = ({
   isPast = false, 
   onAccept, 
   onFinalize, 
-  onResendEmail,
   onCancel 
 }: SwapCardProps) => {
+  // Dialog state for shift details
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  
   // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
@@ -184,6 +187,15 @@ export const SwapCard = ({
       {!isPast && (
         <CardFooter className="bg-secondary/20 border-t px-4 py-3">
           <div className="w-full flex justify-end gap-2">
+            <Button 
+              onClick={() => setDetailsOpen(true)}
+              variant="outline"
+              className="flex items-center"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Swap Details
+            </Button>
+          
             {swap.status === 'pending' && onAccept && (
               <Button 
                 onClick={() => onAccept(swap.id)}
@@ -215,16 +227,6 @@ export const SwapCard = ({
                     Cancel
                   </Button>
                 )}
-                {onResendEmail && (
-                  <Button 
-                    onClick={() => onResendEmail(swap.id)}
-                    variant="outline"
-                    className="flex items-center"
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    Resend Email
-                  </Button>
-                )}
                 
                 {onFinalize && (
                   <Button 
@@ -239,6 +241,13 @@ export const SwapCard = ({
           </div>
         </CardFooter>
       )}
+      
+      {/* Shift Details Dialog */}
+      <ShiftDetailsDialog
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        swap={swap}
+      />
     </Card>
   );
 };
