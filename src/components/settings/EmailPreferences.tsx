@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -10,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 export const EmailPreferences = () => {
   const [dailyDigest, setDailyDigest] = useState(true);
   const [swapNotifications, setSwapNotifications] = useState(true);
-  const [rosterUpdates, setRosterUpdates] = useState(true);
+  const [rosterUpdates, setRosterUpdates] = useState(false); // Changed from true to false
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [frequency, setFrequency] = useState([2]); // 0=none, 1=low, 2=normal, 3=high
   
