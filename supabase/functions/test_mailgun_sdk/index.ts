@@ -43,6 +43,10 @@ serve(async (req) => {
       throw new Error('Invalid Mailgun domain format. Should be a valid domain name like "example.com"');
     }
     
+    // Get request data
+    const requestData = await req.json();
+    const recipientEmail = requestData.recipientEmail || "njalasankhulani@gmail.com";
+    
     // Import Mailgun SDK using importmap
     const { default: FormData } = await import("npm:form-data@4.0.1");
     const { default: Mailgun } = await import("npm:mailgun.js@11.1.0");
@@ -57,15 +61,14 @@ serve(async (req) => {
     });
     
     console.log("Preparing email data");
-    const recipient = "njalasankhulani@gmail.com";
-    const sender = `postmaster@${MAILGUN_DOMAIN}`;
+    const sender = `admin@${MAILGUN_DOMAIN}`;
     
-    console.log(`Sending test email from ${sender} to ${recipient}`);
+    console.log(`Sending test email from ${sender} to ${recipientEmail}`);
     
     try {
       const data = await mg.messages.create(MAILGUN_DOMAIN, {
         from: sender,
-        to: [recipient],
+        to: [recipientEmail],
         subject: "Testing Mailgun SDK Integration",
         text: "This is a test email sent using the Mailgun SDK in a Supabase Edge Function.",
         html: `

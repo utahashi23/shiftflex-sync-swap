@@ -3,14 +3,22 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export function MailgunTestButton() {
   const [isLoading, setIsLoading] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState("");
 
   const handleTestMailgun = async () => {
+    if (!recipientEmail) {
+      toast.error("Please enter a recipient email address");
+      return;
+    }
+
     try {
       setIsLoading(true);
       setTestResult(null);
@@ -20,7 +28,10 @@ export function MailgunTestButton() {
       // Try SDK approach first
       console.log("Testing Mailgun SDK integration...");
       const sdkResponse = await supabase.functions.invoke('test_mailgun_sdk', {
-        body: { timestamp: new Date().toISOString() }
+        body: { 
+          timestamp: new Date().toISOString(),
+          recipientEmail: recipientEmail 
+        }
       });
 
       console.log("Mailgun SDK test response:", sdkResponse);
@@ -32,7 +43,11 @@ export function MailgunTestButton() {
         
         console.log("Testing Mailgun SMTP integration...");
         const smtpResponse = await supabase.functions.invoke('test_mailgun_smtp', {
-          body: { test_attempt: 1, timestamp: new Date().toISOString() }
+          body: { 
+            test_attempt: 1, 
+            timestamp: new Date().toISOString(),
+            recipientEmail: recipientEmail 
+          }
         });
         
         console.log("Mailgun SMTP test response:", smtpResponse);
@@ -63,11 +78,11 @@ export function MailgunTestButton() {
           throw new Error(errorMsg);
         } else {
           setTestResult("SMTP Success");
-          toast.success("Mailgun SMTP test successful! Check your inbox.");
+          toast.success(`Mailgun SMTP test successful! Email sent to ${recipientEmail}.`);
         }
       } else {
         setTestResult("SDK Success");
-        toast.success("Mailgun SDK test successful! Check your inbox.");
+        toast.success(`Mailgun SDK test successful! Email sent to ${recipientEmail}.`);
       }
     } catch (error) {
       console.error("Error testing Mailgun:", error);
@@ -82,9 +97,23 @@ export function MailgunTestButton() {
 
   return (
     <div className="w-full">
+      <div className="mb-4">
+        <Label htmlFor="recipient-email" className="mb-2 block">
+          Recipient Email
+        </Label>
+        <Input
+          id="recipient-email"
+          type="email"
+          placeholder="Enter recipient email address"
+          value={recipientEmail}
+          onChange={(e) => setRecipientEmail(e.target.value)}
+          className="mb-2"
+        />
+      </div>
+      
       <Button 
         onClick={handleTestMailgun}
-        disabled={isLoading}
+        disabled={isLoading || !recipientEmail}
         variant="default"
         className="w-full mt-2"
       >
