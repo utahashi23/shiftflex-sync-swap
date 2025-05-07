@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { testMailgunEmailFunctionality } from "@/utils/emailService";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -12,28 +12,35 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogClose
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function MailgunTestButton() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [testEmail, setTestEmail] = useState("");
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   
   const handleTestClick = () => {
     setIsDialogOpen(true);
+    setErrorDetails(null);
   };
   
   const handleSendTest = async () => {
     try {
       setIsLoading(true);
+      setErrorDetails(null);
       toast.info("Testing Mailgun email service...");
       console.log(`Testing Mailgun email to: ${testEmail || "default test email"}`);
       
       const result = await testMailgunEmailFunctionality(testEmail);
       
       if (!result.success) {
-        toast.error(`Error testing Mailgun: ${result.error || "Unknown error"}`);
-        console.error("Mailgun test error:", result.error);
+        const errorMsg = result.error || "Unknown error";
+        setErrorDetails(errorMsg);
+        toast.error(`Error testing Mailgun: ${errorMsg}`);
+        console.error("Mailgun test error:", errorMsg);
         return;
       }
       
@@ -41,8 +48,10 @@ export function MailgunTestButton() {
       console.log("Mailgun test success:", result.result);
       setIsDialogOpen(false);
     } catch (error: any) {
+      const errorMsg = error.message || "Unknown error";
+      setErrorDetails(errorMsg);
       console.error("Error in Mailgun test:", error);
-      toast.error(`Error testing Mailgun: ${error.message || "Unknown error"}`);
+      toast.error(`Error testing Mailgun: ${errorMsg}`);
     } finally {
       setIsLoading(false);
     }
@@ -81,10 +90,21 @@ export function MailgunTestButton() {
             </p>
           </div>
           
+          {errorDetails && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                {errorDetails}
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Cancel
-            </Button>
+            <DialogClose asChild>
+              <Button variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
             <Button onClick={handleSendTest} disabled={isLoading}>
               {isLoading ? (
                 <>
