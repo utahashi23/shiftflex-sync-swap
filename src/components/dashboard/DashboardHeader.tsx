@@ -33,7 +33,7 @@ const DashboardHeader = ({
             <p className="font-medium">{isLoadingUsers ? '...' : totalUsers}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-secondary/60 px-4 py-2 rounded-lg">
+        <div className="flex items-center gap-2 bg-secondary/60 px-4 py-2 rounded-lg" data-testid="all-active-requests">
           <FileText className="h-5 w-5 text-primary" />
           <div>
             <span className="text-sm text-gray-500">All Active Requests</span>

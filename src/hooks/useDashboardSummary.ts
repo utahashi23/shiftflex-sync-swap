@@ -40,7 +40,8 @@ export const useDashboardSummary = () => {
     const fetchTotalActiveSwaps = async () => {
       setIsLoadingSwaps(true);
       try {
-        // Get total count of active swap requests using RPC to bypass RLS
+        // Get total count of active swap requests across all users
+        // Use the RPC function to bypass RLS issues and get a complete view
         const { data: swapRequestsData, error: requestsError } = await supabase
           .rpc('get_all_swap_requests');
           
@@ -49,12 +50,12 @@ export const useDashboardSummary = () => {
           throw requestsError;
         }
         
-        // Filter to count only pending requests with preferred dates
+        // Filter to count only pending requests with preferred dates across ALL users
         const activeSwapsCount = swapRequestsData?.filter(
           req => req.status === 'pending' && req.preferred_dates_count > 0
         ).length || 0;
         
-        console.log('Total active swap requests:', activeSwapsCount);
+        console.log('Total active swap requests across all users:', activeSwapsCount);
         setTotalActiveSwaps(activeSwapsCount);
       } catch (error) {
         console.error('Error fetching active swap requests count:', error);
