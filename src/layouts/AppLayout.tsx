@@ -37,10 +37,10 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     try {
       setIsSigningOut(true);
       
-      // Call the signOut function - it now returns void not boolean
       await signOut();
       
-      // Always navigate after sign-out attempt
+      // The navigation is handled inside the signOut function
+      // but we add this as a fallback
       navigate('/', { replace: true });
     } catch (error) {
       console.error('Sign out error:', error);

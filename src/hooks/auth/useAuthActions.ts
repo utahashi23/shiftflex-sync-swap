@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "./supabase-client";
@@ -29,7 +28,7 @@ export const useAuthActions = () => {
           description: error.message,
           variant: "destructive",
         });
-        return false;
+        return Promise.reject(error);
       }
       
       // Navigate to home page after successful sign out
@@ -40,7 +39,7 @@ export const useAuthActions = () => {
       
       // Force navigation to the root page
       navigate('/', { replace: true });
-      return true;
+      return Promise.resolve();
     } catch (error: any) {
       console.error("Sign out exception:", error);
       toast({
@@ -48,7 +47,7 @@ export const useAuthActions = () => {
         description: error?.message || "An unexpected error occurred",
         variant: "destructive",
       });
-      return false;
+      return Promise.reject(error);
     }
   };
 
@@ -85,7 +84,7 @@ export const useAuthActions = () => {
         employee_id: metadata?.employeeId
       };
       
-      const { error } = await authSignUp(email, password, transformedMetadata);
+      const { error } } = await authSignUp(email, password, transformedMetadata);
       
       if (error) {
         return { success: false, error };
