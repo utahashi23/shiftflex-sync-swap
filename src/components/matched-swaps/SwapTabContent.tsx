@@ -17,8 +17,7 @@ export const SwapTabContent = ({
   isPast = false, 
   onAcceptSwap, 
   onFinalizeSwap,
-  onCancelSwap,
-  onResendEmail
+  onCancelSwap
 }: SwapTabContentProps) => {
   // Detailed logging of swaps data including colleague types and statuses
   console.log(`SwapTabContent: Rendering ${swaps?.length || 0} ${isPast ? 'past' : 'active'} swaps`);
@@ -86,9 +85,8 @@ export const SwapTabContent = ({
           onAccept={!isPast && swap.status === 'pending' ? onAcceptSwap : undefined}
           onFinalize={!isPast && swap.status === 'accepted' ? onFinalizeSwap : undefined}
           onCancel={!isPast && swap.status === 'accepted' ? onCancelSwap : undefined}
-          onResendEmail={!isPast && swap.status === 'accepted' ? onResendEmail : undefined}
         />
       ))}
     </div>
   );
-};
+}

@@ -6,9 +6,11 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { ArrowRightLeft, Calendar, Clock, Mail, UserCircle2, AlertTriangle } from "lucide-react";
+import { ArrowRightLeft, Calendar, Clock, UserCircle2, AlertTriangle, FileText } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "./types";
+import { useState } from "react";
+import { ShiftDetailsDialog } from "./ShiftDetailsDialog";
 
 interface SwapCardProps {
   swap: SwapMatch;
@@ -36,6 +38,8 @@ export const SwapCard = ({
   onResendEmail,
   onCancel 
 }: SwapCardProps) => {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  
   // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
@@ -215,16 +219,16 @@ export const SwapCard = ({
                     Cancel
                   </Button>
                 )}
-                {onResendEmail && (
-                  <Button 
-                    onClick={() => onResendEmail(swap.id)}
-                    variant="outline"
-                    className="flex items-center"
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    Resend Email
-                  </Button>
-                )}
+                
+                {/* Replace Resend Email with Shift Details button */}
+                <Button 
+                  onClick={() => setDetailsOpen(true)}
+                  variant="outline"
+                  className="flex items-center"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Shift Details
+                </Button>
                 
                 {onFinalize && (
                   <Button 
@@ -239,6 +243,13 @@ export const SwapCard = ({
           </div>
         </CardFooter>
       )}
+      
+      {/* Shift Details Dialog */}
+      <ShiftDetailsDialog 
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        swap={detailsOpen ? swap : null}
+      />
     </Card>
   );
 };
