@@ -29,7 +29,8 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
     // Check if this match has the other_accepted status or flag
     const isOtherAccepted = 
       match.match_status === 'other_accepted' || 
-      match.is_other_accepted === true;
+      match.is_other_accepted === true || 
+      match.other_accepted === true;
     
     // Set the correct status, prioritizing 'other_accepted' if flag is present
     const matchStatus = isOtherAccepted ? 'other_accepted' : match.match_status;

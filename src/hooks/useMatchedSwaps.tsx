@@ -44,7 +44,8 @@ export function useMatchedSwaps() {
   
   const refreshMatches = async () => {
     if (!user) return;
-    await fetchMatches(true, false); // Set userInitiatorOnly to false to get all matches including other_accepted ones
+    // Important: Set userInitiatorOnly to false to get all matches including other_accepted ones
+    await fetchMatches(true, false); 
   };
   
   const handleAcceptSwap = async () => {
@@ -57,6 +58,9 @@ export function useMatchedSwaps() {
         title: "Swap Accepted",
         description: "You have successfully accepted the swap.",
       });
+      
+      // After accepting, refresh to get updated statuses
+      await refreshMatches();
     }
     
     setConfirmDialog({ isOpen: false, matchId: null });
@@ -66,6 +70,9 @@ export function useMatchedSwaps() {
     if (!matchId || !user) return;
     
     await completeMatch(matchId);
+    
+    // After completing, refresh to get updated statuses
+    await refreshMatches();
   };
   
   return {

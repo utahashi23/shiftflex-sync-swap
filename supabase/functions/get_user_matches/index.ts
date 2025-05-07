@@ -1,4 +1,3 @@
-
 // Follow this setup guide to integrate the Supabase Edge Functions with your app:
 // https://supabase.com/docs/guides/functions/getting-started
 
@@ -213,6 +212,25 @@ serve(async (req) => {
                     // Process matches to return formatted data
                     const formattedMatches = [];
                     
+                    // Add this code to check if a match has been accepted elsewhere
+                    const { data: potentialMatches } = await serviceClient
+                      .from('shift_swap_potential_matches')
+                      .select('*');
+                      
+                    // Create a map of request IDs to their accepted matches
+                    const acceptedRequestMap = new Map();
+                    
+                    if (potentialMatches && potentialMatches.length > 0) {
+                      // Identify all requests involved in accepted matches
+                      potentialMatches.forEach(match => {
+                        if (match.status === 'accepted') {
+                          // Mark both the requester and acceptor requests as involved in an accepted match
+                          acceptedRequestMap.set(match.requester_request_id, true);
+                          acceptedRequestMap.set(match.acceptor_request_id, true);
+                        }
+                      });
+                    }
+                    
                     for (const match of matches) {
                       // Get user and shift info for both sides of the match
                       const req1 = userRequests.find(r => r.id === match.requester_request_id) || 
@@ -260,9 +278,23 @@ serve(async (req) => {
                       const myShift = isUserReq1 ? shift1 : shift2;
                       const otherShift = isUserReq1 ? shift2 : shift1;
                       
+                      let matchStatus = match.status || 'pending';
+                      let isOtherAccepted = false;
+                      
+                      // Check if the other request in this match is already involved in an accepted match elsewhere
+                      if (matchStatus === 'pending' && 
+                          (acceptedRequestMap.has(isUserReq1 ? req2.id : req1.id) || 
+                           acceptedRequestMap.has(isUserReq1 ? req1.id : req2.id))) {
+                        // If either request is involved in an accepted match elsewhere,
+                        // mark this match as "other_accepted"
+                        matchStatus = 'other_accepted';
+                        isOtherAccepted = true;
+                      }
+                      
                       formattedMatches.push({
                         match_id: match.id,
-                        match_status: match.status || 'pending',
+                        match_status: matchStatus,
+                        is_other_accepted: isOtherAccepted,
                         created_at: match.created_at,
                         match_date: match.match_date,
                         my_request_id: isUserReq1 ? req1.id : req2.id,
