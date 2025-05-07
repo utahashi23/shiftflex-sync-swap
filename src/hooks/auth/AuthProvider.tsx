@@ -5,6 +5,7 @@ import { AuthContextType } from "./types";
 import { useAuthState } from "./useAuthState";
 import { useAuthActions } from "./useAuthActions";
 import { AuthContext } from "./AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
@@ -30,22 +31,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkOrganizationCode,
   } = useAuthActions();
 
-  // Enhanced sign out to ensure state is cleared
+  // Enhanced sign out to ensure state is cleared and redirect happens correctly
   const signOut = async () => {
     try {
+      console.log("Starting sign out process");
+      
+      // Clear local state first to improve perceived performance
+      setUser(null);
+      setSession(null);
+      
+      // Then call the actual sign out action
       const result = await signOutAction();
       
-      // Clear local state regardless of API success
-      if (user || session) {
-        setUser(null);
-        setSession(null);
-      }
+      // Show success toast
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out of your account.",
+      });
       
-      // Return void instead of a boolean to match the type in AuthContextType
+      // Force navigation to home page
+      console.log("Redirecting to home page after sign out");
+      navigate('/', { replace: true });
+      
       return;
     } catch (error) {
       console.error("Error in signOut:", error);
-      // Still return void to match the expected type
+      
+      // Show error toast
+      toast({
+        title: "Sign out error",
+        description: "There was an issue signing out. Please try again.",
+        variant: "destructive",
+      });
+      
       return;
     }
   };

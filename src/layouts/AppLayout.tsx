@@ -1,4 +1,3 @@
-
 import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -38,19 +37,12 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     try {
       setIsSigningOut(true);
       
-      // Call the signOut function - it now returns void not boolean
+      console.log("AppLayout: Initiating sign out");
       await signOut();
       
-      // Always navigate after sign-out attempt
-      navigate('/', { replace: true });
+      // Note: We don't need to navigate here as the AuthProvider will handle that
     } catch (error) {
-      console.error('Sign out error:', error);
-      toast({
-        title: "Sign out failed",
-        description: "There was a problem signing you out.",
-        variant: "destructive",
-      });
-    } finally {
+      console.error('Sign out error in AppLayout:', error);
       setIsSigningOut(false);
     }
   };
