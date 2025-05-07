@@ -1,6 +1,6 @@
 
 import { useAuth } from '@/hooks/useAuth';
-import { Users, FileText } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 interface DashboardHeaderProps {
   totalUsers: number;
@@ -11,9 +11,7 @@ interface DashboardHeaderProps {
 
 const DashboardHeader = ({ 
   totalUsers, 
-  totalActiveSwaps, 
-  isLoadingUsers, 
-  isLoadingSwaps 
+  isLoadingUsers 
 }: DashboardHeaderProps) => {
   const { user } = useAuth();
 
@@ -31,13 +29,6 @@ const DashboardHeader = ({
           <div>
             <span className="text-sm text-gray-500">Total Users</span>
             <p className="font-medium">{isLoadingUsers ? '...' : totalUsers}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 bg-secondary/60 px-4 py-2 rounded-lg" data-testid="all-active-requests">
-          <FileText className="h-5 w-5 text-primary" />
-          <div>
-            <span className="text-sm text-gray-500">All Active Requests</span>
-            <p className="font-medium">{isLoadingSwaps ? '...' : totalActiveSwaps}</p>
           </div>
         </div>
       </div>

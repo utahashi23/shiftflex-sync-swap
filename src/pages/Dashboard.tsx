@@ -18,18 +18,14 @@ const Dashboard = () => {
   const { stats, isLoading } = useDashboardData(user);
   const { 
     totalUsers, 
-    isLoadingUsers, 
-    totalActiveSwaps, 
-    isLoadingSwaps 
+    isLoadingUsers 
   } = useDashboardSummary();
 
   return (
     <AppLayout>
       <DashboardHeader 
         totalUsers={totalUsers}
-        totalActiveSwaps={totalActiveSwaps}
         isLoadingUsers={isLoadingUsers}
-        isLoadingSwaps={isLoadingSwaps}
       />
 
       <DashboardStats 
