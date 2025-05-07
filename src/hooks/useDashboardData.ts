@@ -40,6 +40,7 @@ export const useDashboardData = (user: ExtendedUser | null) => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!user) {
+        console.log('No user provided to useDashboardData, skipping data fetch');
         setIsLoading(false);
         return;
       }
@@ -137,6 +138,15 @@ export const useDashboardData = (user: ExtendedUser | null) => {
           completedSwaps,
           upcomingShifts: upcomingShifts.slice(0, 4), // Limit to 4 upcoming shifts
           recentActivity
+        });
+
+        console.log('Dashboard data loaded successfully:', {
+          shiftsCount: userShifts.length || 0,
+          upcomingShifts: upcomingShifts.length || 0,
+          activities: recentActivity.length || 0,
+          activeSwaps,
+          matchedSwaps,
+          completedSwaps
         });
       } catch (error: any) {
         console.error('Error fetching dashboard data:', error);

@@ -14,7 +14,7 @@ import UpcomingShifts from '@/components/dashboard/UpcomingShifts';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 
 const Dashboard = () => {
-  // Fix: Access correct properties from useAuthRedirect
+  // Use isAuthenticated from useAuthRedirect
   const { isAuthenticated } = useAuthRedirect({ protectedRoute: true });
   const { user, authChecked } = useAuth();
   const { stats, isLoading } = useDashboardData(user);
