@@ -8,13 +8,14 @@ interface StatCardProps {
   description: string;
   icon: ReactNode;
   isLoading?: boolean;
+  testId?: string;
 }
 
-const StatCard = ({ title, value, description, icon, isLoading = false }: StatCardProps) => {
+const StatCard = ({ title, value, description, icon, isLoading = false, testId }: StatCardProps) => {
   return (
     <Card>
       <CardContent className="pt-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between" data-testid={testId}>
           <div>
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <h3 className="text-2xl font-bold">{isLoading ? '...' : value}</h3>
