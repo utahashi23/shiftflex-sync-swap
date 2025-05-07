@@ -1,38 +1,20 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/auth'; // Import from the correct barrel file
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Truck, Shuffle, Settings, HelpCircle } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
-  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
-  
-  console.log('Index page loading state:', isLoading, 'User:', user?.id);
-
-  // Add a timeout to prevent infinite loading
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (isLoading) {
-        console.log('Loading timed out, forcing state update');
-        setLoadingTimedOut(true);
-      }
-    }, 5000); // 5 seconds timeout
-    
-    return () => clearTimeout(timer);
-  }, [isLoading]);
 
   useEffect(() => {
-    // Only redirect if not loading and we have a user
-    if ((!isLoading || loadingTimedOut) && user) {
-      console.log('User authenticated, redirecting to dashboard');
+    if (!isLoading && user) {
       navigate('/dashboard');
     }
-  }, [user, isLoading, loadingTimedOut, navigate]);
+  }, [user, isLoading, navigate]);
 
   const features = [
     {
@@ -61,8 +43,7 @@ const Index = () => {
     }
   ];
 
-  // Show simplified loading screen to debug the issue, but allow bypass if loading takes too long
-  if (isLoading && !loadingTimedOut) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
@@ -70,20 +51,11 @@ const Index = () => {
             <div className="w-10 h-10 rounded-full animate-pulse bg-primary"></div>
           </div>
           <h1 className="text-2xl font-bold mb-4 text-gray-700">Loading ShiftFlex...</h1>
-          <p className="text-sm text-gray-500 mb-4">Checking authentication status...</p>
-          <Button 
-            variant="outline" 
-            onClick={() => setLoadingTimedOut(true)}
-            className="mt-2"
-          >
-            Continue to site
-          </Button>
         </div>
       </div>
     );
   }
 
-  // If the user is not logged in, show the landing page
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
       <div className="container mx-auto px-4 py-16">

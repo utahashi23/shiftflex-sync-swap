@@ -23,84 +23,64 @@ export interface DashboardStats {
   recentActivity: Activity[];
 }
 
-// Default empty stats to avoid null/undefined errors
-const defaultStats: DashboardStats = {
-  totalShifts: 0,
-  activeSwaps: 0,
-  matchedSwaps: 0,
-  completedSwaps: 0,
-  upcomingShifts: [],
-  recentActivity: []
-};
-
 export const useDashboardData = (user: ExtendedUser | null) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>(defaultStats);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalShifts: 0,
+    activeSwaps: 0,
+    matchedSwaps: 0,
+    completedSwaps: 0,
+    upcomingShifts: [],
+    recentActivity: []
+  });
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!user) {
-        console.log('No user provided to useDashboardData, skipping data fetch');
         setIsLoading(false);
         return;
       }
       
       setIsLoading(true);
-      setConnectionError(null);
-      console.log('Starting dashboard data fetch for user:', user.id);
       
       try {
-        // First, test database connection
-        const { data: connectionTest, error: connectionError } = await supabase
-          .from('shifts')
-          .select('count(*)', { count: 'exact', head: true })
-          .limit(1);
-          
-        if (connectionError) {
-          console.error('Database connection test failed:', connectionError);
-          setConnectionError(connectionError.message);
-          throw new Error(`Database connection error: ${connectionError.message}`);
-        }
+        console.log('Fetching dashboard data for user:', user.id);
         
-        console.log('Database connection successful, proceeding with data fetch', connectionTest);
-        
-        // Fetch the user's shifts with detailed logging
-        console.log('Fetching shifts for user:', user.id);
+        // Fetch the user's shifts
         const { data: shiftsData, error: shiftsError } = await supabase
-          .from('shifts')
-          .select('*')
-          .eq('user_id', user.id);
+          .rpc('get_all_shifts');
           
         if (shiftsError) {
           console.error('Error fetching shifts:', shiftsError);
-          setConnectionError(shiftsError.message);
-          throw new Error(`Error fetching shifts: ${shiftsError.message}`);
+          throw shiftsError;
         }
         
-        const userShifts = shiftsData || [];
-        console.log(`Found ${userShifts.length} shifts for user ${user.id}`);
+        // Filter shifts for current user
+        const userShifts = shiftsData?.filter(shift => shift.user_id === user.id) || [];
+        console.log(`Found ${userShifts.length} shifts for user`);
         
         // Fetch swap requests where the user is the requester
-        console.log('Fetching swap requests for user:', user.id);
         const { data: swapRequests, error: swapRequestsError } = await supabase
-          .from('shift_swap_requests')
-          .select('*')
-          .eq('requester_id', user.id);
+          .rpc('get_all_swap_requests');
           
         if (swapRequestsError) {
           console.error('Error fetching swap requests:', swapRequestsError);
-          setConnectionError(swapRequestsError.message);
-          throw new Error(`Error fetching swap requests: ${swapRequestsError.message}`);
+          throw swapRequestsError;
         }
         
-        const userRequests = swapRequests || [];
-        console.log(`Found ${userRequests.length} swap requests for user ${user.id}`);
+        // Filter requests for current user
+        const userRequests = swapRequests?.filter(req => req.requester_id === user.id) || [];
+        console.log(`Found ${userRequests.length} swap requests for user`);
         
         // Format the shifts for display
         const upcomingShifts = userShifts.map(shift => {
+          // Create a title from the truck name or use a default
           const title = shift.truck_name ? shift.truck_name : `Shift-${shift.id.substring(0, 5)}`;
+          
+          // Determine the shift type using our common utility
           const type = getShiftType(shift.start_time);
+          
+          // Validate colleagueType to ensure it matches the union type
           const colleagueType = validateColleagueType(shift.colleague_type);
           
           return {
@@ -120,6 +100,7 @@ export const useDashboardData = (user: ExtendedUser | null) => {
         );
         
         // Count the different types of swap requests
+        // Only count requests with preferred dates as "active"
         const activeSwaps = userRequests.filter(
           req => req.status === 'pending' && req.preferred_dates_count > 0
         ).length || 0;
@@ -146,9 +127,6 @@ export const useDashboardData = (user: ExtendedUser | null) => {
             };
           });
         
-        // Set the stats with the fetched data
-        console.log('Setting dashboard stats with fetched data');
-        
         setStats({
           totalShifts: userShifts.length || 0,
           activeSwaps,
@@ -157,25 +135,13 @@ export const useDashboardData = (user: ExtendedUser | null) => {
           upcomingShifts: upcomingShifts.slice(0, 4), // Limit to 4 upcoming shifts
           recentActivity
         });
-
-        console.log('Dashboard data loaded successfully:', {
-          shiftsCount: userShifts.length || 0,
-          upcomingShifts: upcomingShifts.length || 0,
-          activities: recentActivity.length || 0,
-          activeSwaps,
-          matchedSwaps,
-          completedSwaps
-        });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        setConnectionError(error.message || 'Unknown error');
         toast({
           title: "Error loading dashboard",
-          description: error.message || "Could not load your dashboard data. Please try again later.",
+          description: "Could not load your dashboard data. Please try again later.",
           variant: "destructive"
         });
-        // Set default values to avoid rendering errors
-        setStats(defaultStats);
       } finally {
         setIsLoading(false);
       }
@@ -184,5 +150,5 @@ export const useDashboardData = (user: ExtendedUser | null) => {
     fetchDashboardData();
   }, [user]);
 
-  return { stats, isLoading, connectionError };
+  return { stats, isLoading };
 };

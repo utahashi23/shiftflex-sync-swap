@@ -51,7 +51,6 @@ export const ProfileSettings = () => {
       }
       
       try {
-        console.log('Fetching profile data for user:', user.id);
         // Fetch the profile data from the database
         const { data: profileData, error } = await supabase
           .from('profiles')
@@ -67,22 +66,12 @@ export const ProfileSettings = () => {
             variant: "destructive",
           });
         } else if (profileData) {
-          console.log('Profile data loaded:', profileData);
           // Update form with data from database
           profileForm.reset({
             firstName: profileData.first_name || user?.user_metadata?.first_name || '',
             lastName: profileData.last_name || user?.user_metadata?.last_name || '',
             email: user?.email || '',
             employeeId: profileData.employee_id || user?.user_metadata?.employee_id || ''
-          });
-        } else {
-          console.log('No profile data found, using metadata');
-          // If no profile data, try to use metadata from auth user
-          profileForm.reset({
-            firstName: user?.user_metadata?.first_name || '',
-            lastName: user?.user_metadata?.last_name || '',
-            email: user?.email || '',
-            employeeId: user?.user_metadata?.employee_id || ''
           });
         }
       } catch (error) {
@@ -99,8 +88,6 @@ export const ProfileSettings = () => {
     setProfileLoading(true);
     
     try {
-      console.log('Updating user profile:', data);
-      
       // Update the user metadata in auth
       const { success, error } = await updateUser({
         firstName: data.firstName,

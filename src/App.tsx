@@ -16,7 +16,6 @@ import ShiftSwaps from "./pages/ShiftSwaps";
 import CalendarManagement from "./pages/CalendarManagement";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
-import AdminData from "./pages/AdminData";
 import FAQ from "./pages/FAQ";
 import FutureUpdates from "./pages/FutureUpdates";
 import NotFound from "./pages/NotFound";
@@ -46,7 +45,6 @@ const App = () => (
             <Route path="/roster" element={<CalendarManagement />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<Admin />} />
-            <Route path="/admin/data" element={<AdminData />} />
             <Route path="/future-updates" element={<FutureUpdates />} />
             <Route path="/faq" element={<FAQ />} />
             

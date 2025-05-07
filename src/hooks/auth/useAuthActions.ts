@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "./supabase-client";
@@ -16,19 +17,37 @@ import {
 export const useAuthActions = () => {
   const navigate = useNavigate();
 
-  // Sign out function - simplified to just handle the Supabase signOut call
+  // Sign out function
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
       
       if (error) {
-        console.error("Supabase sign out error:", error);
+        console.error("Sign out error:", error);
+        toast({
+          title: "Sign out failed",
+          description: error.message,
+          variant: "destructive",
+        });
         return false;
       }
       
+      // Navigate to home page after successful sign out
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out of your account.",
+      });
+      
+      // Force navigation to the root page
+      navigate('/', { replace: true });
       return true;
     } catch (error: any) {
       console.error("Sign out exception:", error);
+      toast({
+        title: "Sign out failed",
+        description: error?.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
       return false;
     }
   };
