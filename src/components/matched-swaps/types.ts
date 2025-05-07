@@ -3,7 +3,7 @@
 
 export interface SwapMatch {
   id: string;
-  status: string;
+  status: "pending" | "accepted" | "completed" | "other_accepted";
   myShift: {
     id: string;
     date: string;
