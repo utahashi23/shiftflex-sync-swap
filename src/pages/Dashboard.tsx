@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useDashboardSummary } from '@/hooks/useDashboardSummary';
 import { useEffect, useState } from 'react';
+import { checkSupabaseConnection } from '@/integrations/supabase/client';
 
 // Import refactored components
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -13,9 +14,8 @@ import DashboardDebug from '@/components/dashboard/DashboardDebug';
 import UpcomingShifts from '@/components/dashboard/UpcomingShifts';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, AlertTriangle, Database } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Database, Wifi, WifiOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
   // Use isAuthenticated from useAuthRedirect
@@ -32,39 +32,46 @@ const Dashboard = () => {
 
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [databaseError, setDatabaseError] = useState<string | null>(null);
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
   // Check database connection
-  useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        console.log('Testing database connection...');
-        setConnectionStatus('checking');
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('count', { count: 'exact', head: true })
-          .limit(1);
-        
-        if (error) {
-          console.error('Database connection test failed:', error);
-          setConnectionStatus('error');
-          setDatabaseError(error.message);
-          toast({
-            title: "Database Connection Error",
-            description: error.message || "Unable to connect to the database. Please check your connection.",
-            variant: "destructive"
-          });
-        } else {
-          console.log('Database connection successful', data);
-          setConnectionStatus('connected');
-          setDatabaseError(null);
-        }
-      } catch (err: any) {
-        console.error('Database connection test error:', err);
+  const checkConnection = async () => {
+    try {
+      console.log('Testing database connection...');
+      setConnectionStatus('checking');
+      
+      const result = await checkSupabaseConnection();
+      
+      if (!result.connected) {
+        console.error('Database connection test failed:', result.error);
         setConnectionStatus('error');
-        setDatabaseError(err.message || "Unknown connection error");
+        setDatabaseError(result.error || 'Unknown connection error');
+        toast({
+          title: "Database Connection Error",
+          description: result.error || "Unable to connect to the database. Please check your connection.",
+          variant: "destructive"
+        });
+      } else {
+        console.log('Database connection successful', result);
+        setConnectionStatus('connected');
+        setDatabaseError(null);
+        toast({
+          title: "Database Connected",
+          description: "Successfully connected to the database.",
+          variant: "default"
+        });
       }
-    };
-    
+      
+      setLastChecked(new Date());
+    } catch (err: any) {
+      console.error('Database connection test error:', err);
+      setConnectionStatus('error');
+      setDatabaseError(err.message || "Unknown connection error");
+    }
+  };
+  
+  // Initial connection check
+  useEffect(() => {
     if (user) {
       checkConnection();
     }
@@ -78,8 +85,8 @@ const Dashboard = () => {
     }
   }, [summaryError, dashboardError]);
 
+  // Enhanced debug logging for data loading status
   useEffect(() => {
-    // Log authentication and data loading status
     if (authChecked) {
       console.log('Auth checked, user:', user ? 'logged in' : 'not logged in');
       console.log('Connection status:', connectionStatus);
@@ -87,10 +94,7 @@ const Dashboard = () => {
         console.error('Database error:', databaseError);
       }
     }
-  }, [authChecked, user, connectionStatus, databaseError]);
-
-  // Enhanced debug logging for data visibility
-  useEffect(() => {
+    
     if (!isLoadingDashboard) {
       console.log('Dashboard data loaded:', {
         shiftsCount: stats.totalShifts,
@@ -105,10 +109,18 @@ const Dashboard = () => {
         totalActiveSwaps
       });
     }
-  }, [isLoadingDashboard, isLoadingUsers, isLoadingSwaps, stats, totalUsers, totalActiveSwaps]);
+  }, [
+    authChecked, user, connectionStatus, databaseError,
+    isLoadingDashboard, stats, isLoadingUsers, isLoadingSwaps, 
+    totalUsers, totalActiveSwaps
+  ]);
 
   const handleRefresh = () => {
     window.location.reload();
+  };
+
+  const handleRetryConnection = () => {
+    checkConnection();
   };
 
   return (
@@ -124,16 +136,25 @@ const Dashboard = () => {
         <div className="mb-4 p-4 bg-red-100 border border-red-300 rounded-lg flex justify-between items-center">
           <div className="text-red-800">
             <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
+              <WifiOff className="h-5 w-5 text-red-600" />
               <strong>Database Connection Error</strong>
             </div>
-            <p className="text-sm">{databaseError || "Unable to connect to the database. This may prevent data from loading properly."}</p>
-            <p className="text-xs mt-1 text-red-600">Try refreshing the page or check your internet connection.</p>
+            <p className="text-sm">{databaseError || "Unable to connect to the database. This will prevent data from loading properly."}</p>
+            <p className="text-xs mt-1 text-red-600">
+              Try refreshing the page or check your internet connection.
+              {lastChecked && ` Last checked: ${lastChecked.toLocaleTimeString()}`}
+            </p>
           </div>
-          <Button onClick={handleRefresh} variant="outline" size="sm" className="flex items-center gap-1">
-            <RefreshCw className="h-4 w-4" />
-            Retry
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleRetryConnection} variant="outline" size="sm" className="flex items-center gap-1">
+              <Database className="h-4 w-4" />
+              Test Connection
+            </Button>
+            <Button onClick={handleRefresh} variant="outline" size="sm" className="flex items-center gap-1">
+              <RefreshCw className="h-4 w-4" />
+              Refresh Page
+            </Button>
+          </div>
         </div>
       )}
 
@@ -153,11 +174,16 @@ const Dashboard = () => {
         <div className="mb-4 p-4 bg-green-50 border border-green-300 rounded-lg flex justify-between items-center">
           <div className="text-green-800">
             <div className="flex items-center gap-2">
-              <Database className="h-5 w-5 text-green-600" />
+              <Wifi className="h-5 w-5 text-green-600" />
               <strong>Database Connected</strong>
             </div>
             <p className="text-sm">Your database is connected and working properly.</p>
+            {lastChecked && <p className="text-xs mt-1">Last checked: {lastChecked.toLocaleTimeString()}</p>}
           </div>
+          <Button onClick={handleRetryConnection} variant="outline" size="sm" className="flex items-center gap-1">
+            <RefreshCw className="h-4 w-4" />
+            Check Again
+          </Button>
         </div>
       )}
 

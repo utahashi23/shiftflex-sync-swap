@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, checkSupabaseConnection } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 export interface DashboardSummary {
@@ -24,23 +24,11 @@ export const useDashboardSummary = () => {
       try {
         console.log('Fetching user count...');
         
-        // First check if the database connection is working
-        try {
-          // Use a simple lightweight query to test connection
-          const { data: connectionTest, error: pingError } = await supabase
-            .from('profiles')
-            .select('count', { count: 'exact', head: true })
-            .limit(1);
-            
-          if (pingError) {
-            console.error('Database connection test failed:', pingError);
-            setConnectionError(`Cannot connect to database: ${pingError.message}`);
-            throw new Error(`Cannot connect to database: ${pingError.message}`);
-          }
-          console.log('Database connection test successful', connectionTest);
-        } catch (pingErr: any) {
-          console.error('Database ping error:', pingErr);
-          setConnectionError(pingErr.message || 'Connection error');
+        // First ensure we have a working database connection
+        const connectionStatus = await checkSupabaseConnection();
+        if (!connectionStatus.connected) {
+          console.error('Database connection test failed:', connectionStatus.error);
+          setConnectionError(`Cannot connect to database: ${connectionStatus.error}`);
           toast({
             title: "Database Connection Error",
             description: "Unable to connect to the database. Please check your connection.",
@@ -49,6 +37,8 @@ export const useDashboardSummary = () => {
           setIsLoadingUsers(false);
           return;
         }
+        
+        console.log('Database connection confirmed, proceeding with query');
         
         // Use a count query without any filters to get all profiles
         const { count, error } = await supabase
@@ -77,7 +67,6 @@ export const useDashboardSummary = () => {
       try {
         console.log('Fetching active swap requests...');
         
-        // First try using direct query to get swap requests
         const { data: swapData, error: swapError } = await supabase
           .from('shift_swap_requests')
           .select('id, status, preferred_dates_count')
