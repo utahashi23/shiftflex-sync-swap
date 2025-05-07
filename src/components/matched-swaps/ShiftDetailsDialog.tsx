@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Calendar, Clock, Copy, UserCircle2, Info, Badge } from "lucide-react";
 import { useState } from "react";
-import { SwapMatch } from "../matched-swaps/types";
+import { SwapMatch } from "./types";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { toast } from "@/hooks/use-toast";
 
