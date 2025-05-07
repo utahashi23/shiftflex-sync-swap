@@ -5,6 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { ExtendedUser } from '@/hooks/useAuth';
 import { Shift, validateColleagueType } from '@/hooks/useShiftData';
 import { getShiftType } from '@/utils/shiftUtils';
+import { useSwapMatcher } from './swap-matching';
 
 export interface Activity {
   id: string;
@@ -25,6 +26,7 @@ export interface DashboardStats {
 
 export const useDashboardData = (user: ExtendedUser | null) => {
   const [isLoading, setIsLoading] = useState(true);
+  const { findSwapMatches } = useSwapMatcher();
   const [stats, setStats] = useState<DashboardStats>({
     totalShifts: 0,
     activeSwaps: 0,
@@ -72,33 +74,40 @@ export const useDashboardData = (user: ExtendedUser | null) => {
         const userRequests = swapRequests?.filter(req => req.requester_id === user.id) || [];
         console.log(`Found ${userRequests.length} swap requests for user`);
         
-        // Fetch all potential matches for the user's requests
-        const { data: potentialMatches, error: matchesError } = await supabase
-          .from('shift_swap_potential_matches')
-          .select('*')
-          .or(`requester_request_id.in.(${userRequests.map(r => r.id).join(',')}),acceptor_request_id.in.(${userRequests.map(r => r.id).join(',')})`)
-          .in('status', ['accepted', 'other_accepted']);
-          
-        if (matchesError) {
-          console.error('Error fetching accepted matches:', matchesError);
-          // Continue with other data even if this fails
-        }
+        // Use our new function to get matches - this avoids the RLS recursion issue
+        const matches = await findSwapMatches(user.id, false, false);
+        console.log('Found potential matches:', matches);
         
-        console.log('Found potential matches:', potentialMatches);
+        // Count matched swaps (both 'accepted' and 'other_accepted' status)
+        const matchedSwapsCount = matches?.filter(match => 
+          match.match_status === 'accepted' || 
+          match.match_status === 'other_accepted'
+        ).length || 0;
         
-        // Fetch pending matches as well to include in active count
-        const { data: pendingMatches, error: pendingMatchesError } = await supabase
-          .from('shift_swap_potential_matches')
-          .select('*')
-          .or(`requester_request_id.in.(${userRequests.map(r => r.id).join(',')}),acceptor_request_id.in.(${userRequests.map(r => r.id).join(',')})`)
-          .eq('status', 'pending');
-          
-        if (pendingMatchesError) {
-          console.error('Error fetching pending matches:', pendingMatchesError);
-          // Continue with other data even if this fails
-        }
+        console.log(`Found ${matchedSwapsCount} matched swaps for user`);
         
-        // Format the shifts for display
+        // Count the different types of swap requests
+        const activeRequestsIds = userRequests
+          .filter(req => req.status === 'pending' && req.preferred_dates_count > 0)
+          .map(req => req.id);
+        
+        // Determine active swap requests by filtering out any that are in accepted matches
+        const matchedRequestIds = new Set(
+          (matches || [])
+            .filter(match => 
+              match.match_status === 'accepted' || 
+              match.match_status === 'other_accepted'
+            )
+            .flatMap(match => [match.my_request_id, match.other_request_id])
+        );
+        
+        // Count active swaps (pending requests that have preferred dates and aren't matched yet)
+        const activeSwaps = activeRequestsIds.filter(id => !matchedRequestIds.has(id)).length;
+        
+        // Count completed swaps
+        const completedSwaps = userRequests.filter(req => req.status === 'completed').length || 0;
+        
+        // Format the upcoming shifts for display
         const upcomingShifts = userShifts.map(shift => {
           // Create a title from the truck name or use a default
           const title = shift.truck_name ? shift.truck_name : `Shift-${shift.id.substring(0, 5)}`;
@@ -124,30 +133,6 @@ export const useDashboardData = (user: ExtendedUser | null) => {
         upcomingShifts.sort((a, b) => 
           new Date(a.date).getTime() - new Date(b.date).getTime()
         );
-        
-        // Calculate the number of matched swaps from potential_matches table
-        // Include both 'accepted' and 'other_accepted' status in the count
-        const matchedSwapsCount = potentialMatches?.length || 0;
-        
-        console.log(`Found ${matchedSwapsCount} matched swaps for user`);
-        
-        // Count the different types of swap requests
-        // Only count requests with preferred dates as "active" but exclude those that are already matched
-        const activeRequestsIds = userRequests
-          .filter(req => req.status === 'pending' && req.preferred_dates_count > 0)
-          .map(req => req.id);
-        
-        // Determine active swap requests by filtering out any that are in accepted matches
-        const matchedRequestIds = new Set([
-          ...(potentialMatches?.map(match => match.requester_request_id) || []),
-          ...(potentialMatches?.map(match => match.acceptor_request_id) || [])
-        ]);
-        
-        // Count active swaps (pending requests that have preferred dates and aren't matched yet)
-        const activeSwaps = activeRequestsIds.filter(id => !matchedRequestIds.has(id)).length;
-        
-        // Count completed swaps
-        const completedSwaps = userRequests.filter(req => req.status === 'completed').length || 0;
         
         // Format the recent activity (up to 5 items)
         const recentActivity: Activity[] = userRequests
@@ -189,7 +174,7 @@ export const useDashboardData = (user: ExtendedUser | null) => {
     };
 
     fetchDashboardData();
-  }, [user]);
+  }, [user, findSwapMatches]);
 
   return { stats, isLoading };
 };

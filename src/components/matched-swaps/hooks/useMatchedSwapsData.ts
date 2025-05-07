@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/auth';
 import { SwapMatch } from '../types';
 import { toast } from '@/hooks/use-toast';
-import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
+import { useSwapMatcher } from '@/hooks/swap-matching';
 import { getShiftType } from '@/utils/shiftUtils';
 
 /**
@@ -110,7 +110,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       console.log('Finding matches for user:', user.id);
       
       // Explicitly request colleague types inclusion
-      const matchesData = await findSwapMatches(user.id, true, true, true, true);
+      const matchesData = await findSwapMatches(user.id, true, true);
       console.log('Raw match data received from function:', matchesData);
       
       if (!matchesData || matchesData.length === 0) {
