@@ -41,8 +41,10 @@ export const useSwapRequests = (): UseSwapRequestsReturn => {
           })
         );
       } else {
-        // The backend deleted the entire request, so refresh
-        refetchSwapRequests();
+        // The backend deleted the entire request, so remove it from the UI
+        setSwapRequests(prevRequests => 
+          prevRequests.filter(request => request.id !== requestId)
+        );
       }
     }
   });
