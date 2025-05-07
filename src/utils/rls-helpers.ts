@@ -1,3 +1,4 @@
+
 /**
  * Helper functions for safely working with database entities 
  * This works around possible RLS recursion issues by using explicit permissions checks
@@ -243,43 +244,5 @@ export const fetchUserSwapRequestsSafe = async (userId: string, status: string =
   } catch (error) {
     console.error('Error in fetchUserSwapRequestsSafe:', error);
     return { data: [], error };
-  }
-};
-
-/**
- * Safely fetch details about a shift swap request
- * Uses a service-role approach to bypass RLS issues
- */
-export const fetchRequestDetails = async (requestId: string) => {
-  if (!requestId) {
-    console.error('No request ID provided to fetchRequestDetails');
-    return null;
-  }
-
-  try {
-    console.log('Fetching request details for:', requestId);
-    
-    // Use an edge function to bypass RLS
-    const { data, error } = await supabase.functions.invoke('get_swap_request_details', {
-      body: {
-        request_id: requestId
-      }
-    });
-
-    if (error) {
-      console.error('Error from get_swap_request_details function:', error);
-      return null;
-    }
-
-    if (!data) {
-      console.log('No data returned from get_swap_request_details');
-      return null;
-    }
-
-    console.log('Request details fetched successfully:', data);
-    return data;
-  } catch (error) {
-    console.error('Error in fetchRequestDetails:', error);
-    return null;
   }
 };

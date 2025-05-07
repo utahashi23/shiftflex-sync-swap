@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +14,6 @@ import { SwapMatch } from "./types";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchRequestDetails } from "@/utils/rls-helpers";
 
 interface ShiftDetailsDialogProps {
   open: boolean;
@@ -41,68 +41,100 @@ export function ShiftDetailsDialog({
   const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
-    async function loadRequestDetails() {
+    async function fetchRequestDetails() {
       if (!swap) return;
       
       setIsLoading(true);
       
       try {
-        // Use our helper function that bypasses RLS issues
-        const [myRequestData, otherRequestData] = await Promise.all([
-          fetchRequestDetails(swap.myRequestId),
-          fetchRequestDetails(swap.otherRequestId)
+        // Fetch both requests separately instead of using a join
+        const [myRequestResult, otherRequestResult] = await Promise.all([
+          // First fetch the request data
+          supabase
+            .from('shift_swap_requests')
+            .select('*')
+            .eq('id', swap.myRequestId)
+            .single(),
+            
+          supabase
+            .from('shift_swap_requests')
+            .select('*')
+            .eq('id', swap.otherRequestId)
+            .single()
         ]);
-
-        // Process my request data
-        if (myRequestData) {
+        
+        // Process my request results
+        if (myRequestResult.error) {
+          console.error('Error fetching my request details:', myRequestResult.error);
+          
+          // Check if this is a permissions error
+          if (myRequestResult.error.code === '42501') {
+            toast({
+              title: "Permission denied",
+              description: "You don't have permission to view this request details",
+              variant: "destructive"
+            });
+          }
+        } else if (myRequestResult.data) {
+          // Now fetch the profile data separately for this request
+          const myProfileResult = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', myRequestResult.data.requester_id)
+            .single();
+          
+          const requesterName = myProfileResult.data
+            ? `${myProfileResult.data.first_name || ''} ${myProfileResult.data.last_name || ''}`.trim()
+            : 'Unknown User';
+            
           setMyRequestDetails({
-            id: myRequestData.id,
-            requester_id: myRequestData.requester_id,
-            requester_name: myRequestData.requester_name || 'Unknown User',
-            created_at: new Date(myRequestData.created_at).toLocaleString(),
-            status: myRequestData.status
+            id: myRequestResult.data.id,
+            requester_id: myRequestResult.data.requester_id,
+            requester_name: requesterName,
+            created_at: new Date(myRequestResult.data.created_at).toLocaleString(),
+            status: myRequestResult.data.status
           });
           
           // Set the original requester info from the data
           setRequesterInfo({
-            id: myRequestData.requester_id,
-            userName: myRequestData.requester_name || 'Unknown User'
-          });
-        } else {
-          console.error('No data returned for my request');
-          toast({
-            title: "Error loading request",
-            description: "Could not load my request details",
-            variant: "destructive"
+            id: myRequestResult.data.requester_id,
+            userName: requesterName
           });
         }
         
-        // Process other request data
-        if (otherRequestData) {
+        // Process other request results
+        if (otherRequestResult.error) {
+          console.error('Error fetching other request details:', otherRequestResult.error);
+        } else if (otherRequestResult.data) {
+          // Now fetch the profile data separately for this request
+          const otherProfileResult = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', otherRequestResult.data.requester_id)
+            .single();
+            
+          const requesterName = otherProfileResult.data
+            ? `${otherProfileResult.data.first_name || ''} ${otherProfileResult.data.last_name || ''}`.trim()
+            : 'Unknown User';
+            
           setOtherRequestDetails({
-            id: otherRequestData.id,
-            requester_id: otherRequestData.requester_id,
-            requester_name: otherRequestData.requester_name || 'Unknown User',
-            created_at: new Date(otherRequestData.created_at).toLocaleString(),
-            status: otherRequestData.status
+            id: otherRequestResult.data.id,
+            requester_id: otherRequestResult.data.requester_id,
+            requester_name: requesterName,
+            created_at: new Date(otherRequestResult.data.created_at).toLocaleString(),
+            status: otherRequestResult.data.status
           });
-        } else {
-          console.error('No data returned for other request');
         }
+        
       } catch (error) {
-        console.error('Error in loadRequestDetails:', error);
-        toast({
-          title: "Error loading details",
-          description: "There was a problem loading request details",
-          variant: "destructive"
-        });
+        console.error('Error in fetchRequestDetails:', error);
       } finally {
         setIsLoading(false);
       }
     }
     
     if (open && swap) {
-      loadRequestDetails();
+      fetchRequestDetails();
     }
   }, [swap, open]);
   
