@@ -13,12 +13,13 @@ export const useDashboardSummary = () => {
   const [isLoadingUsers, setIsLoadingUsers] = useState<boolean>(true);
   const [totalActiveSwaps, setTotalActiveSwaps] = useState<number>(0);
   const [isLoadingSwaps, setIsLoadingSwaps] = useState<boolean>(true);
-  const { user } = useAuth();
+  const { user, authChecked } = useAuth();
 
   useEffect(() => {
     const fetchUserCount = async () => {
       setIsLoadingUsers(true);
       try {
+        console.log('Fetching user count...');
         // Use a count query without any filters to get all profiles
         const { count, error } = await supabase
           .from('profiles')
@@ -40,6 +41,7 @@ export const useDashboardSummary = () => {
     const fetchTotalActiveSwaps = async () => {
       setIsLoadingSwaps(true);
       try {
+        console.log('Fetching active swap requests...');
         // Get total count of active swap requests using RPC to bypass RLS
         const { data: swapRequestsData, error: requestsError } = await supabase
           .rpc('get_all_swap_requests');
@@ -63,11 +65,13 @@ export const useDashboardSummary = () => {
       }
     };
 
-    if (user) {
+    // Only fetch data when auth is checked and user is logged in
+    if (authChecked && user) {
+      console.log('Auth checked and user logged in, fetching dashboard data...');
       fetchUserCount();
       fetchTotalActiveSwaps();
     }
-  }, [user]);
+  }, [user, authChecked]);
 
   return {
     totalUsers,
