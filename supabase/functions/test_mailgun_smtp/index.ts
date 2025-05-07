@@ -88,7 +88,8 @@ serve(async (req) => {
       } else if (connectionError.message && (
           connectionError.message.includes("connect") || 
           connectionError.message.includes("timeout") ||
-          connectionError.message.includes("network")
+          connectionError.message.includes("network") ||
+          connectionError.message.includes("bufio")
       )) {
         errorType = "network";
       }
@@ -105,7 +106,8 @@ serve(async (req) => {
       errorMessage.includes('network') ||
       errorMessage.includes('unreachable') ||
       errorMessage.includes('timeout') ||
-      errorMessage.includes('dns');
+      errorMessage.includes('dns') ||
+      errorMessage.includes('bufio');
     
     return new Response(JSON.stringify({
       success: false,

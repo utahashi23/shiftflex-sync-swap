@@ -76,16 +76,11 @@ serve(async (req) => {
     
     // Get API key and domain from environment variables
     const MAILGUN_API_KEY = Deno.env.get('MAILGUN_API_KEY');
-    const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN');
+    const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN') || 'shiftflex.au';
     
     if (!MAILGUN_API_KEY) {
       console.error('Missing Mailgun API key');
       throw new Error('Missing Mailgun API key in environment variables');
-    }
-    
-    if (!MAILGUN_DOMAIN) {
-      console.error('Missing Mailgun domain');
-      throw new Error('Missing Mailgun domain in environment variables');
     }
     
     // Log the domain with some basic validation
@@ -122,6 +117,7 @@ serve(async (req) => {
         <p>If you're receiving this email, the integration is working correctly despite potential network restrictions.</p>
         <p>Region: US</p>
         <p>Time sent: ${new Date().toISOString()}</p>
+        <p>Test attempt: ${requestData.test_attempt || 1}</p>
       `);
       
       // Send the request
@@ -154,71 +150,7 @@ serve(async (req) => {
       });
     } catch (directApiError) {
       console.error("Direct API approach failed:", directApiError);
-      
-      // If direct API fails, try SDK approach as fallback
-      try {
-        console.log("Falling back to SDK approach (US region)...");
-        
-        // Import Mailgun SDK using importmap
-        const { default: FormData } = await import("npm:form-data@4.0.1");
-        const { default: Mailgun } = await import("npm:mailgun.js@11.1.0");
-        
-        console.log("Successfully imported Mailgun SDK");
-        
-        const mailgun = new Mailgun(FormData);
-        const mg = mailgun.client({
-          username: "api",
-          key: MAILGUN_API_KEY,
-          url: "https://api.mailgun.net" // US region URL
-        });
-        
-        const sendResult = await mg.messages.create(MAILGUN_DOMAIN, {
-          from: `admin@${MAILGUN_DOMAIN}`,
-          to: [recipientEmail],
-          subject: "SDK Fallback Test from Supabase Edge Function (US Region)",
-          text: "This is a test email sent using the Mailgun SDK in a Supabase Edge Function.",
-          html: `
-            <h2>Mailgun SDK Test (US Region)</h2>
-            <p>This is a test email sent using the Mailgun SDK from a Supabase Edge Function.</p>
-            <p>If you're receiving this email, the SDK integration is working correctly as a fallback.</p>
-            <p>Region: US</p>
-            <p>Time sent: ${new Date().toISOString()}</p>
-          `
-        });
-        
-        console.log("SDK approach successful:", sendResult);
-        
-        return new Response(JSON.stringify({
-          success: true,
-          message: "Email sent successfully using SDK fallback (US region)",
-          data: sendResult,
-          method: "sdk",
-          region: "US"
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200
-        });
-      } catch (sdkError) {
-        // Both approaches failed - provide detailed diagnostics
-        console.error("Both approaches failed:", {
-          directApiError, 
-          sdkError
-        });
-        
-        // Try to get network diagnostics
-        let networkDiagnostics;
-        try {
-          const ipResponse = await fetch("https://api.ipify.org?format=json");
-          networkDiagnostics = await ipResponse.json();
-        } catch (netError) {
-          networkDiagnostics = {
-            error: "Unable to perform network diagnostics",
-            details: netError.message
-          };
-        }
-        
-        throw new Error(`All email sending approaches failed. This is likely due to network restrictions in your Supabase project. API error: ${directApiError.message}. SDK error: ${sdkError.message}`);
-      }
+      throw directApiError;
     }
   } catch (error) {
     console.error('Error in test_mailgun_sdk function:', error);
