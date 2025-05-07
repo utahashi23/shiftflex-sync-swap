@@ -58,5 +58,6 @@ export const useAuthRedirect = ({
   return {
     isAuthenticated: !!user,
     isAuthorized: adminRoute ? !!user && isAdmin : !!user,
+    protectedRoute, // Add this property to match what Dashboard component expects
   };
 };
