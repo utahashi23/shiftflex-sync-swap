@@ -28,15 +28,9 @@ export const SwapConfirmDialog = ({
         <DialogHeader>
           <DialogTitle>Accept Shift Swap</DialogTitle>
           <DialogDescription>
-            Are you sure you want to accept this shift swap? This action will notify the other party and update your roster.
+            Are you sure you want to accept this shift swap request? By confirming, the other party will be notified, and the swap will require finalising pending required approvals.
           </DialogDescription>
         </DialogHeader>
-        
-        <div className="bg-amber-50 border border-amber-200 p-3 rounded-md">
-          <p className="text-sm text-amber-800">
-            <strong>Note:</strong> If you have a shared calendar, you'll need to manually update your external calendar to reflect this swap.
-          </p>
-        </div>
         
         <DialogFooter>
           <Button
