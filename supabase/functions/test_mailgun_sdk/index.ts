@@ -19,14 +19,29 @@ serve(async (req) => {
     
     // Get API key and domain from environment variables
     const MAILGUN_API_KEY = Deno.env.get('MAILGUN_API_KEY');
-    const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN') || "shiftflex.au";
+    const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN');
     
     if (!MAILGUN_API_KEY) {
       console.error('Missing Mailgun API key');
-      throw new Error('Missing Mailgun API key');
+      throw new Error('Missing Mailgun API key in environment variables');
+    }
+    
+    if (!MAILGUN_DOMAIN) {
+      console.error('Missing Mailgun domain');
+      throw new Error('Missing Mailgun domain in environment variables');
     }
     
     console.log(`Using Mailgun domain: ${MAILGUN_DOMAIN}`);
+    
+    // Validate API key format
+    if (!MAILGUN_API_KEY.includes('-')) {
+      throw new Error('Invalid Mailgun API key format. Should be in the format "key-XXXXXXXXXXXXXXXXXXXX"');
+    }
+    
+    // Validate domain format (basic check)
+    if (!MAILGUN_DOMAIN.includes('.')) {
+      throw new Error('Invalid Mailgun domain format. Should be a valid domain name like "example.com"');
+    }
     
     // Import Mailgun SDK using importmap
     const { default: FormData } = await import("npm:form-data@4.0.1");
@@ -43,7 +58,7 @@ serve(async (req) => {
     
     console.log("Preparing email data");
     const recipient = "njalasankhulani@gmail.com";
-    const sender = "postmaster@shiftflex.au";
+    const sender = `postmaster@${MAILGUN_DOMAIN}`;
     
     console.log(`Sending test email from ${sender} to ${recipient}`);
     
@@ -73,14 +88,25 @@ serve(async (req) => {
       });
     } catch (mailgunError) {
       console.error("Mailgun SDK error:", mailgunError);
-      throw new Error(`Mailgun SDK error: ${mailgunError.message}`);
+      
+      // Extract more specific error details
+      const errorDetails = {
+        status: mailgunError.status || 'Unknown',
+        message: mailgunError.message || 'Unknown error',
+        details: mailgunError.details || 'No additional details',
+        type: mailgunError.type || 'Unknown error type'
+      };
+      
+      throw new Error(`Mailgun SDK error: ${JSON.stringify(errorDetails)}`);
     }
   } catch (error) {
     console.error('Error in test_mailgun_sdk function:', error);
     
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: error.message,
+      errorType: error.constructor.name,
+      timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500
