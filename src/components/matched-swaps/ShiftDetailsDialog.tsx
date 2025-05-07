@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Calendar, Clock, Copy, UserCircle2, Info } from "lucide-react";
+import { Calendar, Clock, Copy, UserCircle2, Info, Badge } from "lucide-react";
 import { useState } from "react";
 import { SwapMatch } from "../matched-swaps/types";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
@@ -138,7 +138,7 @@ ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
               
               {swap.myShift.employeeId && (
                 <div className="flex items-center col-span-2">
-                  <Info className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <Badge className="h-4 w-4 mr-2 text-muted-foreground" />
                   <span className="text-sm"><strong>Service#:</strong> {swap.myShift.employeeId}</span>
                 </div>
               )}
@@ -181,7 +181,7 @@ ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
               
               {swap.otherShift.employeeId && (
                 <div className="flex items-center col-span-2">
-                  <Info className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <Badge className="h-4 w-4 mr-2 text-muted-foreground" />
                   <span className="text-sm"><strong>Service#:</strong> {swap.otherShift.employeeId}</span>
                 </div>
               )}
