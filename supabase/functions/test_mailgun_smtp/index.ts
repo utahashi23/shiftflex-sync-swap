@@ -29,10 +29,11 @@ serve(async (req) => {
     
     console.log(`Connecting to SMTP server with username: admin@shiftflex.au`);
     console.log(`Recipient email: ${recipient}`);
+    console.log(`Using Mailgun US region endpoint`);
     
     try {
       await client.connectTLS({
-        hostname: "smtp.mailgun.org",
+        hostname: "smtp.mailgun.org", // US region endpoint
         port: 587,
         username: "admin@shiftflex.au",
         password: "Bear151194Ns%", // Using the password provided
@@ -44,14 +45,15 @@ serve(async (req) => {
         await client.send({
           from: "admin@shiftflex.au",
           to: recipient,
-          subject: `Mailgun SMTP Test (Attempt ${testAttempt})`,
+          subject: `Mailgun SMTP Test (Attempt ${testAttempt}) - US Region`,
           content: "This is a test email sent using the SMTP protocol from a Supabase Edge Function.",
           html: `
-            <h2>Mailgun SMTP Test</h2>
+            <h2>Mailgun SMTP Test - US Region</h2>
             <p>This is a test email sent using SMTP from a Supabase Edge Function.</p>
             <p>If you're receiving this email, the SMTP integration is working correctly.</p>
             <p>Test attempt: ${testAttempt}</p>
             <p>Time sent: ${new Date().toISOString()}</p>
+            <p>Region: US</p>
           `,
         });
         
@@ -60,11 +62,12 @@ serve(async (req) => {
         
         return new Response(JSON.stringify({
           success: true,
-          message: "Email sent successfully via SMTP",
+          message: "Email sent successfully via SMTP (US region)",
           details: {
             attempt: testAttempt,
             timestamp: new Date().toISOString(),
-            recipient: recipient
+            recipient: recipient,
+            region: "US"
           }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -110,7 +113,8 @@ serve(async (req) => {
       isNetworkRestriction: isNetworkRestriction,
       details: {
         errorType: isNetworkRestriction ? 'network_restriction' : 'smtp_error',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        region: "US"
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

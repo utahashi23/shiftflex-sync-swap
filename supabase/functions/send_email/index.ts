@@ -49,7 +49,7 @@ serve(async (req) => {
 
     // Log the email sending attempt
     console.log(`Attempting to send email to ${Array.isArray(to) ? to.join(', ') : to} with subject "${subject}"`);
-    console.log(`Using Mailgun domain: ${MAILGUN_DOMAIN}`);
+    console.log(`Using Mailgun domain: ${MAILGUN_DOMAIN} (US region)`);
     
     // Prepare request
     const formData = new FormData();
@@ -90,10 +90,10 @@ serve(async (req) => {
       formData.append('h:X-Mailgun-Variables', JSON.stringify(templateVariables));
     }
     
-    // Send the email using Mailgun API
+    // Send the email using Mailgun API (US region)
     try {
       const mailgunApiUrl = `https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`;
-      console.log(`Using Mailgun API URL: ${mailgunApiUrl}`);
+      console.log(`Using Mailgun US API URL: ${mailgunApiUrl}`);
       
       const response = await fetch(mailgunApiUrl, {
         method: 'POST',

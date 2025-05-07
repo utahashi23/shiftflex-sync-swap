@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Starting test_mailgun_sdk function...")
+    console.log("Starting test_mailgun_sdk function (US region)...")
     
     // Get request data
     const requestData = await req.json();
@@ -23,7 +23,7 @@ serve(async (req) => {
     if (requestData.check_connectivity) {
       console.log("Running connectivity test...")
       try {
-        // Test DNS resolution and basic connectivity by trying to connect to api.mailgun.net
+        // Test DNS resolution and basic connectivity by trying to connect to api.mailgun.net (US region)
         const testResponse = await fetch("https://api.mailgun.net/v3/domains", {
           method: 'HEAD',
           headers: { 'User-Agent': 'Supabase Edge Function Connection Test' }
@@ -34,7 +34,8 @@ serve(async (req) => {
         return new Response(JSON.stringify({
           success: true,
           message: "Connection test successful",
-          status: testResponse.status
+          status: testResponse.status,
+          region: "US"
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200
@@ -49,10 +50,11 @@ serve(async (req) => {
           
           return new Response(JSON.stringify({
             success: false,
-            error: "Connection to Mailgun API failed",
+            error: "Connection to Mailgun API (US) failed",
             message: "Your Supabase project may have network restrictions",
             error_details: connError.message,
-            your_ip: ipData.ip
+            your_ip: ipData.ip,
+            region: "US"
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200
@@ -62,7 +64,8 @@ serve(async (req) => {
             success: false,
             error: "Network connectivity severely restricted",
             message: "Unable to make any external connections",
-            error_details: `${connError.message} and ${ipError.message}`
+            error_details: `${connError.message} and ${ipError.message}`,
+            region: "US"
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200
@@ -86,7 +89,7 @@ serve(async (req) => {
     }
     
     // Log the domain with some basic validation
-    console.log(`Using Mailgun domain: ${MAILGUN_DOMAIN}`);
+    console.log(`Using Mailgun domain: ${MAILGUN_DOMAIN} (US region)`);
     
     // Validate domain format (basic check)
     if (!MAILGUN_DOMAIN.includes('.')) {
@@ -99,9 +102,9 @@ serve(async (req) => {
     
     // Try using direct API call first as it has better chances of working with network restrictions
     try {
-      console.log("Trying direct Mailgun API call...");
+      console.log("Trying direct Mailgun API call (US region)...");
       
-      // Create URL for sending messages via Mailgun API
+      // Create URL for sending messages via Mailgun API - US region
       const mailgunApiUrl = `https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`;
       
       // Use admin@shiftflex.au as the sender address
@@ -111,12 +114,13 @@ serve(async (req) => {
       const formData = new FormData();
       formData.append('from', sender);
       formData.append('to', recipientEmail);
-      formData.append('subject', 'Direct API Test from Supabase Edge Function');
+      formData.append('subject', 'Direct API Test from Supabase Edge Function (US region)');
       formData.append('text', 'This is a test email sent using direct Mailgun API from a Supabase Edge Function.');
       formData.append('html', `
-        <h2>Mailgun API Direct Test</h2>
+        <h2>Mailgun API Direct Test (US Region)</h2>
         <p>This is a test email sent directly using the Mailgun API from a Supabase Edge Function.</p>
         <p>If you're receiving this email, the integration is working correctly despite potential network restrictions.</p>
+        <p>Region: US</p>
         <p>Time sent: ${new Date().toISOString()}</p>
       `);
       
@@ -140,9 +144,10 @@ serve(async (req) => {
       
       return new Response(JSON.stringify({
         success: true,
-        message: "Email sent successfully using direct API",
+        message: "Email sent successfully using direct API (US region)",
         data: result,
-        method: "direct_api"
+        method: "direct_api",
+        region: "US"
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
@@ -152,7 +157,7 @@ serve(async (req) => {
       
       // If direct API fails, try SDK approach as fallback
       try {
-        console.log("Falling back to SDK approach...");
+        console.log("Falling back to SDK approach (US region)...");
         
         // Import Mailgun SDK using importmap
         const { default: FormData } = await import("npm:form-data@4.0.1");
@@ -163,18 +168,20 @@ serve(async (req) => {
         const mailgun = new Mailgun(FormData);
         const mg = mailgun.client({
           username: "api",
-          key: MAILGUN_API_KEY
+          key: MAILGUN_API_KEY,
+          url: "https://api.mailgun.net" // US region URL
         });
         
         const sendResult = await mg.messages.create(MAILGUN_DOMAIN, {
           from: `admin@${MAILGUN_DOMAIN}`,
           to: [recipientEmail],
-          subject: "SDK Fallback Test from Supabase Edge Function",
+          subject: "SDK Fallback Test from Supabase Edge Function (US Region)",
           text: "This is a test email sent using the Mailgun SDK in a Supabase Edge Function.",
           html: `
-            <h2>Mailgun SDK Test</h2>
+            <h2>Mailgun SDK Test (US Region)</h2>
             <p>This is a test email sent using the Mailgun SDK from a Supabase Edge Function.</p>
             <p>If you're receiving this email, the SDK integration is working correctly as a fallback.</p>
+            <p>Region: US</p>
             <p>Time sent: ${new Date().toISOString()}</p>
           `
         });
@@ -183,9 +190,10 @@ serve(async (req) => {
         
         return new Response(JSON.stringify({
           success: true,
-          message: "Email sent successfully using SDK fallback",
+          message: "Email sent successfully using SDK fallback (US region)",
           data: sendResult,
-          method: "sdk"
+          method: "sdk",
+          region: "US"
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200
@@ -225,11 +233,12 @@ serve(async (req) => {
       error: error.message,
       errorType: errorType,
       timestamp: new Date().toISOString(),
+      region: "US",
       resolution_steps: [
         "Check if your Supabase project has network restrictions - contact Supabase support for help enabling external API access",
         "Verify your Mailgun API key and domain are correct in your Supabase Edge Function settings",
         "Make sure your Mailgun domain is properly verified in your Mailgun account",
-        "Try using the EU endpoint if your Mailgun account is in the EU region"
+        "Confirm you're using the correct region (US) for your Mailgun account"
       ]
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

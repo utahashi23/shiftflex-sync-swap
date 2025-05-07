@@ -19,8 +19,8 @@ export function MailgunTestButton() {
       setTestStatus(null);
       setConnectionDetails(null);
       setShowError(false);
-      toast.info("Testing Mailgun connection...");
-      console.log("Testing Mailgun connectivity with SMTP");
+      toast.info("Testing Mailgun connection (US region)...");
+      console.log("Testing Mailgun connectivity with SMTP (US region)");
 
       // Add a retry count for diagnostic purposes
       const currentRetry = retryCount + 1;
@@ -86,10 +86,10 @@ export function MailgunTestButton() {
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Testing Mailgun SMTP...
+            Testing Mailgun SMTP (US)...
           </>
         ) : (
-          "Test Mailgun SMTP Connection"
+          "Test Mailgun SMTP Connection (US)"
         )}
         {testStatus && (
           <span className={`ml-2 text-xs ${testStatus === "Connected" ? "text-green-500" : "text-red-500"}`}>
@@ -102,7 +102,7 @@ export function MailgunTestButton() {
         <Alert variant="destructive" className="mt-2">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            Connection to Mailgun SMTP server failed. This may be due to network restrictions in Supabase Edge Functions.
+            Connection to Mailgun SMTP server (US region) failed. This may be due to network restrictions in Supabase Edge Functions.
             The provided credentials (admin@shiftflex.au) were used for this test.
           </AlertDescription>
         </Alert>
