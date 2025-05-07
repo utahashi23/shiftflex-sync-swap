@@ -32,13 +32,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Enhanced sign out to ensure state is cleared
   const signOut = async () => {
     try {
-      await signOutAction();
-      // Clear local state regardless of API success
+      // Clear local state immediately - this ensures UI updates even if API call fails
       setUser(null);
       setSession(null);
+      
+      // Then attempt to sign out from Supabase
+      await signOutAction();
       return Promise.resolve();
     } catch (error) {
       console.error("Error in signOut:", error);
+      // Even if the API call fails, we've already cleared the local state
       return Promise.reject(error);
     }
   };

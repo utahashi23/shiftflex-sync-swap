@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "./supabase-client";
@@ -20,6 +19,7 @@ export const useAuthActions = () => {
   // Sign out function
   const signOut = async () => {
     try {
+      // Clear the session from Supabase
       const { error } = await supabase.auth.signOut();
       
       if (error) {
@@ -32,14 +32,16 @@ export const useAuthActions = () => {
         return Promise.reject(error);
       }
       
-      // Navigate to home page after successful sign out
+      // Show toast notification for successful sign out
       toast({
         title: "Signed out successfully",
         description: "You have been logged out of your account.",
       });
       
-      // Force navigation to the root page
+      // Force navigation to the root page with replace to prevent back navigation
       navigate('/', { replace: true });
+      
+      // Return resolved promise for chaining
       return Promise.resolve();
     } catch (error: any) {
       console.error("Sign out exception:", error);
