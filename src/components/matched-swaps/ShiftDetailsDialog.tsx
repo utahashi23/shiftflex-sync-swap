@@ -147,10 +147,12 @@ Swap Details (ID: ${swap.id})
 Status: ${statusDisplay.text}
 
 YOUR SHIFT:
+Person: ${myRequestDetails?.requester_name || 'Unknown User'}
 Date: ${formatDate(swap.myShift.date)}
 Time: ${swap.myShift.startTime} - ${swap.myShift.endTime}
 ${swap.myShift.colleagueType ? `Colleague Type: ${swap.myShift.colleagueType}` : ''}
-${swap.myShift.employeeId ? `Service#: ${swap.myShift.employeeId}` : ''}
+${myRequestDetails?.employee_id ? `Service#: ${myRequestDetails.employee_id}` : 
+  (swap.myShift.employeeId ? `Service#: ${swap.myShift.employeeId}` : '')}
 ${swap.myShift.truckName ? `Location: ${swap.myShift.truckName}` : ''}
 
 THEIR SHIFT:
@@ -209,6 +211,10 @@ ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
             <h3 className="text-lg font-medium border-b pb-2">Your Shift</h3>
             
             <div className="grid grid-cols-2 gap-y-3">
+              <div className="flex items-center col-span-2 text-sm font-medium text-primary">
+                {myRequestDetails?.requester_name || 'Your Name'}
+              </div>
+              
               <div className="flex items-center">
                 <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
                 <span className="text-sm">{formatDate(swap.myShift.date)}</span>
@@ -227,13 +233,6 @@ ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
                 <div className="flex items-center">
                   <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
                   <span className="text-sm">{swap.myShift.colleagueType}</span>
-                </div>
-              )}
-              
-              {myRequestDetails?.requester_name && (
-                <div className="flex items-center col-span-2">
-                  <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm"><strong>Requester:</strong> {myRequestDetails.requester_name}</span>
                 </div>
               )}
               
