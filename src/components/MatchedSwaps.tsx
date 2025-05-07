@@ -5,6 +5,7 @@ import { FinalizeSwapDialog } from './matched-swaps/FinalizeSwapDialog';
 import { MatchedSwapsTabs } from './matched-swaps/MatchedSwapsTabs';
 import { useMatchedSwapsData } from './matched-swaps/hooks/useMatchedSwapsData';
 import { useSwapConfirmation } from './matched-swaps/hooks/useSwapConfirmation';
+import { DebugPanel } from './matched-swaps/DebugPanel';
 
 interface MatchedSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
@@ -19,7 +20,9 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     isProcessing,
     activeTab,
     setActiveTab,
-    fetchMatches
+    fetchMatches,
+    debugData,
+    fetchDirectFromDatabase
   } = useMatchedSwapsData(setRefreshTrigger);
   
   const {
@@ -85,6 +88,13 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         }}
         onConfirm={handleFinalizeSwap}
         isLoading={isLoading || isActionLoading}
+      />
+      
+      {/* Debug Panel for seeing raw database data */}
+      <DebugPanel 
+        debugData={debugData}
+        onRefresh={fetchDirectFromDatabase}
+        isLoading={isLoading}
       />
     </div>
   );
