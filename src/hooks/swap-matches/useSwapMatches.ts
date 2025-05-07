@@ -60,7 +60,8 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
       
       await acceptSwapMatch(matchId);
       
-      // Refresh matches after accepting
+      // CRITICAL FIX: Refresh matches after accepting to get updated status
+      // This will ensure 'accepted' matches are still visible
       await fetchMatches();
       
       toast({

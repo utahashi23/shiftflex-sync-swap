@@ -29,6 +29,9 @@ export const useSwapActions = () => {
         
       if (error) throw error;
       
+      // Important: We don't change any UI state here, just process the response
+      console.log('Accept swap response:', data);
+      
       toast({
         title: "Swap Accepted",
         description: "The shift swap has been successfully accepted.",

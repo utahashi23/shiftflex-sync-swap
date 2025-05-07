@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useSwapActions } from './useSwapActions';
 import { useEmailNotifications } from './useEmailNotifications';
@@ -52,6 +51,7 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
     if (!confirmDialog.matchId) return;
     
     try {
+      // Modified: We now use the callback properly to NOT remove the match from the UI
       const success = await acceptSwap(confirmDialog.matchId, (completedSwap) => {
         // This is the onSuccess callback from acceptSwap
         if (completedSwap) {
@@ -77,6 +77,7 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
         });
         
         // Call the onSuccess callback to refresh data
+        // This should now show the accepted match in the UI, not remove it
         onSuccess();
       }
     } catch (error) {

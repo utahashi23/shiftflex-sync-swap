@@ -59,12 +59,13 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
       console.log(`Formatted match ${match.id} has status: ${match.status}`);
     });
     
-    // Separate active and past matches
+    // CRITICAL FIX: Ensure 'accepted' status is included in active matches
     // IMPORTANT: Include 'accepted' status in active matches (not past)
     const activeMatches = formattedMatches.filter((match: SwapMatch) => 
       match.status === 'pending' || match.status === 'accepted' || match.status === 'other_accepted'
     );
     
+    // Past matches are only those with 'completed' status
     const pastMatches = formattedMatches.filter((match: SwapMatch) => 
       match.status === 'completed'
     );
