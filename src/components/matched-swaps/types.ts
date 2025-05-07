@@ -9,20 +9,22 @@ export interface SwapMatch {
     date: string;
     startTime: string;
     endTime: string;
-    truckName: string | null;
+    truckName?: string;
     type: "day" | "afternoon" | "night" | "unknown";
-    colleagueType: string | null;
+    colleagueType: string;
+    employeeId?: string;
   };
   otherShift: {
     id: string;
     date: string;
     startTime: string;
     endTime: string;
-    truckName: string | null;
+    truckName?: string;
     type: "day" | "afternoon" | "night" | "unknown";
     userId: string;
     userName: string;
-    colleagueType: string | null;
+    colleagueType: string;
+    employeeId?: string;
   };
   myRequestId: string;
   otherRequestId: string;

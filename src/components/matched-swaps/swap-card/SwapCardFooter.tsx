@@ -68,7 +68,7 @@ export const SwapCardFooter = ({
                 className="flex items-center"
               >
                 <FileText className="h-4 w-4 mr-2" />
-                Shift Details
+                Swap Details
               </Button>
               
               {onFinalize && (
