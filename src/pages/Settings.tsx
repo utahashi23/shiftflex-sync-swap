@@ -4,9 +4,24 @@ import AppLayout from '@/layouts/AppLayout';
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { PasswordSettings } from '@/components/settings/PasswordSettings';
 import { CalendarIntegration } from '@/components/settings/CalendarIntegration';
+import { useToast } from "@/hooks/use-toast";
+import { useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 
 const Settings = () => {
   useAuthRedirect({ protectedRoute: true });
+  const { toast } = useToast();
+  const { user, isLoading } = useAuth();
+  
+  useEffect(() => {
+    if (!isLoading && !user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to access your settings.",
+        variant: "destructive",
+      });
+    }
+  }, [user, isLoading]);
   
   return (
     <AppLayout>
