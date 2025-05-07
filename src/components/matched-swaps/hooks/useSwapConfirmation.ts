@@ -1,70 +1,34 @@
 
 import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { acceptSwapMatch, finalizeSwapMatch } from '@/hooks/swap-matches/api';
-import { resendSwapNotification } from '@/utils/emailService';
+import { useSwapDialogs } from './useSwapDialogs';
+import { useEmailNotifications } from './useEmailNotifications';
 
 /**
- * Hook to manage swap confirmation state and actions
+ * Hook for managing swap confirmation dialogs and actions
  */
-export const useSwapConfirmation = (onSuccess: () => void) => {
+export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
+  const { confirmDialog, setConfirmDialog, finalizeDialog, setFinalizeDialog } = useSwapDialogs();
+  const { sendSwapConfirmationEmail } = useEmailNotifications();
   const [isLoading, setIsLoading] = useState(false);
-  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; matchId: string | null }>({
-    isOpen: false,
-    matchId: null
-  });
-  const [finalizeDialog, setFinalizeDialog] = useState<{ isOpen: boolean; matchId: string | null }>({
-    isOpen: false,
-    matchId: null
-  });
 
   /**
-   * Handler for Accept Swap button click
+   * Trigger the accept confirmation dialog
    */
   const handleAcceptClick = (matchId: string) => {
     setConfirmDialog({ isOpen: true, matchId });
   };
 
   /**
-   * Handler for Finalize Swap button click
+   * Trigger the finalize dialog
    */
   const handleFinalizeClick = (matchId: string) => {
     setFinalizeDialog({ isOpen: true, matchId });
   };
 
   /**
-   * Handler for resending email notification
-   */
-  const handleResendEmail = async (matchId: string) => {
-    if (!matchId) return;
-    
-    setIsLoading(true);
-    
-    try {
-      const result = await resendSwapNotification(matchId);
-      
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      
-      toast({
-        title: "Email Notification Resent",
-        description: "The swap notification emails have been resent successfully.",
-      });
-    } catch (error) {
-      console.error('Error resending email notification:', error);
-      toast({
-        title: "Failed to Resend Email",
-        description: "There was a problem resending the notification. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /**
-   * Handler for accepting a swap match
+   * Accept the swap and close the dialog
    */
   const handleAcceptSwap = async () => {
     if (!confirmDialog.matchId) return;
@@ -72,22 +36,28 @@ export const useSwapConfirmation = (onSuccess: () => void) => {
     setIsLoading(true);
     
     try {
-      await acceptSwapMatch(confirmDialog.matchId);
+      // Call the accept_swap_match function
+      const { data, error } = await supabase.functions.invoke('accept_swap_match', {
+        body: { match_id: confirmDialog.matchId }
+      });
+      
+      if (error) throw error;
       
       toast({
         title: "Swap Accepted",
-        description: "The swap has been accepted. Notifications have been sent.",
+        description: "The shift swap has been successfully accepted.",
       });
       
-      // Close dialog
+      if (onSuccessCallback) {
+        onSuccessCallback();
+      }
+      
       setConfirmDialog({ isOpen: false, matchId: null });
       
-      // Execute callback for refreshing data
-      onSuccess();
     } catch (error) {
-      console.error('Error accepting swap match:', error);
+      console.error('Error accepting swap:', error);
       toast({
-        title: "Failed to Accept Swap",
+        title: "Failed to accept swap",
         description: "There was a problem accepting the swap. Please try again.",
         variant: "destructive"
       });
@@ -97,7 +67,7 @@ export const useSwapConfirmation = (onSuccess: () => void) => {
   };
 
   /**
-   * Handler for finalizing a swap match
+   * Finalize the swap and close the dialog
    */
   const handleFinalizeSwap = async () => {
     if (!finalizeDialog.matchId) return;
@@ -105,23 +75,94 @@ export const useSwapConfirmation = (onSuccess: () => void) => {
     setIsLoading(true);
     
     try {
-      await finalizeSwapMatch(finalizeDialog.matchId);
+      // Call the finalize_swap_match function
+      const { data, error } = await supabase.functions.invoke('finalize_swap_match', {
+        body: { match_id: finalizeDialog.matchId }
+      });
+      
+      if (error) throw error;
       
       toast({
         title: "Swap Finalized",
-        description: "The swap has been finalized and calendars updated. Notifications have been sent.",
+        description: "The shift swap has been finalized and the calendar has been updated.",
       });
       
-      // Close dialog
+      if (onSuccessCallback) {
+        onSuccessCallback();
+      }
+      
       setFinalizeDialog({ isOpen: false, matchId: null });
       
-      // Execute callback for refreshing data
-      onSuccess();
     } catch (error) {
-      console.error('Error finalizing swap match:', error);
+      console.error('Error finalizing swap:', error);
       toast({
-        title: "Failed to Finalize Swap",
+        title: "Failed to finalize swap",
         description: "There was a problem finalizing the swap. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Cancel an accepted swap, returning it to pending status
+   */
+  const handleCancelSwap = async (matchId: string) => {
+    if (!matchId) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Call the cancel_swap_match function
+      const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
+        body: { match_id: matchId }
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Swap Canceled",
+        description: "The swap has been canceled and returned to pending status.",
+      });
+      
+      if (onSuccessCallback) {
+        onSuccessCallback();
+      }
+      
+    } catch (error) {
+      console.error('Error canceling swap:', error);
+      toast({
+        title: "Failed to cancel swap",
+        description: "There was a problem canceling the swap. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Resend the swap confirmation email
+   */
+  const handleResendEmail = async (matchId: string) => {
+    if (!matchId) return;
+    
+    setIsLoading(true);
+    
+    try {
+      await sendSwapConfirmationEmail(matchId);
+      
+      toast({
+        title: "Email Sent",
+        description: "The swap confirmation email has been resent.",
+      });
+      
+    } catch (error) {
+      console.error('Error resending email:', error);
+      toast({
+        title: "Failed to resend email",
+        description: "There was a problem resending the email. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -139,6 +180,7 @@ export const useSwapConfirmation = (onSuccess: () => void) => {
     handleFinalizeClick,
     handleAcceptSwap,
     handleFinalizeSwap,
+    handleCancelSwap,
     handleResendEmail
   };
 };

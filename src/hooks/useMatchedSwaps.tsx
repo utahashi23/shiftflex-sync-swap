@@ -24,6 +24,7 @@ export function useMatchedSwaps() {
     isLoading,
     fetchMatches,
     acceptMatch,
+    cancelMatch,
     completeMatch
   } = useSwapMatches();
 
@@ -78,6 +79,15 @@ export function useMatchedSwaps() {
     setConfirmDialog({ isOpen: false, matchId: null });
   };
   
+  const handleCancelSwap = async (matchId: string) => {
+    if (!matchId || !user) return;
+    
+    await cancelMatch(matchId);
+    
+    // After canceling, refresh to get updated statuses
+    await refreshMatches();
+  };
+  
   const handleMarkComplete = async (matchId: string) => {
     if (!matchId || !user) return;
     
@@ -96,6 +106,7 @@ export function useMatchedSwaps() {
     setConfirmDialog,
     isLoading,
     handleAcceptSwap,
+    handleCancelSwap,
     handleMarkComplete,
     refreshMatches
   };

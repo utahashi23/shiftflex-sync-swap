@@ -35,7 +35,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     handleFinalizeClick,
     handleAcceptSwap,
     handleFinalizeSwap,
-    handleResendEmail
+    handleResendEmail,
+    handleCancelSwap
   } = useSwapConfirmation(() => {
     // Callback after successful acceptance - use setRefreshTrigger after a delay to avoid infinite re-renders
     setTimeout(() => {
@@ -68,6 +69,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         pastMatches={pastMatches}
         onAcceptSwap={handleAcceptClick}
         onFinalizeSwap={handleFinalizeClick}
+        onCancelSwap={handleCancelSwap}
         onResendEmail={handleResendEmail}
         onRefresh={fetchMatches}
         isLoading={isLoading || isActionLoading}

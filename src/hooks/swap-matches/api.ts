@@ -105,6 +105,27 @@ export const acceptSwapMatch = async (matchId: string) => {
   }
 };
 
+export const cancelSwapMatch = async (matchId: string) => {
+  console.log('Canceling swap match:', matchId);
+  
+  try {
+    const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
+      body: { match_id: matchId }
+    });
+    
+    if (error) {
+      console.error('Error from cancel_swap_match function:', error);
+      throw error;
+    }
+    
+    console.log('Swap match canceled response:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in cancelSwapMatch:', error);
+    throw error;
+  }
+};
+
 export const finalizeSwapMatch = async (matchId: string) => {
   console.log('Finalizing swap match:', matchId);
   

@@ -16,6 +16,7 @@ interface SwapCardProps {
   onAccept?: (matchId: string) => void;
   onFinalize?: (matchId: string) => void;
   onResendEmail?: (matchId: string) => void;
+  onCancel?: (matchId: string) => void;
 }
 
 // Format date to a readable string
@@ -32,7 +33,8 @@ export const SwapCard = ({
   isPast = false, 
   onAccept, 
   onFinalize, 
-  onResendEmail 
+  onResendEmail,
+  onCancel 
 }: SwapCardProps) => {
   // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
@@ -204,6 +206,15 @@ export const SwapCard = ({
             {/* Explicitly check for 'accepted' status */}
             {swap.status === 'accepted' && (
               <>
+                {onCancel && (
+                  <Button 
+                    onClick={() => onCancel(swap.id)}
+                    variant="outline"
+                    className="hover:bg-red-50"
+                  >
+                    Cancel
+                  </Button>
+                )}
                 {onResendEmail && (
                   <Button 
                     onClick={() => onResendEmail(swap.id)}

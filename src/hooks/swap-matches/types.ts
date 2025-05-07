@@ -1,24 +1,27 @@
 
-export interface SwapShift {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  truckName: string | null;
-  type: 'day' | 'afternoon' | 'night' | 'unknown';
-  colleagueType: string | null;
-}
-
-export interface OtherSwapShift extends SwapShift {
-  userId: string;
-  userName: string;
-}
-
 export interface SwapMatch {
   id: string;
-  status: string;
-  myShift: SwapShift;
-  otherShift: OtherSwapShift;
+  status: "pending" | "accepted" | "completed" | "other_accepted";
+  myShift: {
+    id: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    truckName?: string;
+    type: string;
+    colleagueType: string;
+  };
+  otherShift: {
+    id: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    truckName?: string;
+    type: string;
+    userId: string;
+    userName: string;
+    colleagueType: string;
+  };
   myRequestId: string;
   otherRequestId: string;
   createdAt: string;
@@ -27,7 +30,7 @@ export interface SwapMatch {
 export interface SwapMatchesState {
   matches: SwapMatch[];
   pastMatches: SwapMatch[];
-  rawApiData: any | null;
+  rawApiData: any;
   isLoading: boolean;
   error: Error | null;
 }
@@ -35,6 +38,7 @@ export interface SwapMatchesState {
 export interface UseSwapMatchesReturn extends SwapMatchesState {
   fetchMatches: (userPerspectiveOnly?: boolean, userInitiatorOnly?: boolean) => Promise<void>;
   acceptMatch: (matchId: string) => Promise<boolean>;
+  cancelMatch: (matchId: string) => Promise<boolean>;
   finalizeMatch: (matchId: string) => Promise<boolean>;
   completeMatch: (matchId: string) => Promise<boolean>;
 }

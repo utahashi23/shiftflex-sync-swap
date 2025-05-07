@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../useAuth';
 import { toast } from '../use-toast';
-import { fetchUserMatches, acceptSwapMatch, finalizeSwapMatch, completeSwapMatch } from './api';
+import { fetchUserMatches, acceptSwapMatch, finalizeSwapMatch, completeSwapMatch, cancelSwapMatch } from './api';
 import { SwapMatchesState, UseSwapMatchesReturn } from './types';
 
 export const useSwapMatches = (): UseSwapMatchesReturn => {
@@ -81,6 +81,35 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
     }
   };
   
+  const cancelMatch = async (matchId: string) => {
+    if (!user || !matchId) return false;
+    
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+      
+      await cancelSwapMatch(matchId);
+      
+      // Refresh matches after canceling
+      await fetchMatches();
+      
+      toast({
+        title: "Swap Canceled",
+        description: "The shift swap has been canceled and returned to pending status",
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error canceling swap match:', error);
+      toast({
+        title: "Failed to cancel swap",
+        description: "There was a problem canceling the swap",
+        variant: "destructive"
+      });
+      setState(prev => ({ ...prev, isLoading: false }));
+      return false;
+    }
+  };
+  
   const finalizeMatch = async (matchId: string) => {
     if (!user || !matchId) return false;
     
@@ -151,6 +180,7 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
     ...state,
     fetchMatches,
     acceptMatch,
+    cancelMatch,
     finalizeMatch,
     completeMatch
   };
