@@ -48,10 +48,15 @@ export const useAuthState = () => {
   };
 
   useEffect(() => {
+    let mounted = true;
+    console.log('Auth state hook initialized');
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         console.log('Auth state changed event:', event);
+        
+        if (!mounted) return;
         
         setSession(newSession);
         
@@ -63,7 +68,7 @@ export const useAuthState = () => {
           
           // Check if user is admin - first check app_metadata then the user_roles table
           const userIsAdmin = extendedUser.app_metadata?.role === 'admin' || 
-                              await checkAdminRole(extendedUser.id);
+                            await checkAdminRole(extendedUser.id);
           
           setIsAdmin(userIsAdmin);
 
@@ -101,11 +106,17 @@ export const useAuthState = () => {
           setIsEmailVerified(false);
           setIsAdmin(false);
         }
+        
+        if (mounted && event !== null) {
+          setIsLoading(false);
+        }
       }
     );
 
     // THEN check for existing session
     supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
+      if (!mounted) return;
+      
       setSession(currentSession);
       
       if (currentSession?.user) {
@@ -116,19 +127,23 @@ export const useAuthState = () => {
         
         // Check admin status from both app_metadata and user_roles table
         const userIsAdmin = extendedUser.app_metadata?.role === 'admin' || 
-                           await checkAdminRole(extendedUser.id);
+                          await checkAdminRole(extendedUser.id);
         
         console.log(`Setting isAdmin to ${userIsAdmin} for user ${extendedUser.id}`);
         setIsAdmin(userIsAdmin);
       }
       
+      // Always set loading to false, regardless of session state
       setIsLoading(false);
     }).catch(error => {
       console.error('Error getting session:', error);
-      setIsLoading(false);
+      if (mounted) {
+        setIsLoading(false);
+      }
     });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);

@@ -9,9 +9,13 @@ import { Calendar, Truck, Shuffle, Settings, HelpCircle } from "lucide-react";
 const Index = () => {
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
+  
+  console.log('Index page loading state:', isLoading, 'User:', user?.id);
 
   useEffect(() => {
+    // Only redirect if not loading and we have a user
     if (!isLoading && user) {
+      console.log('User authenticated, redirecting to dashboard');
       navigate('/dashboard');
     }
   }, [user, isLoading, navigate]);
@@ -43,6 +47,7 @@ const Index = () => {
     }
   ];
 
+  // Show simplified loading screen to debug the issue
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -51,11 +56,13 @@ const Index = () => {
             <div className="w-10 h-10 rounded-full animate-pulse bg-primary"></div>
           </div>
           <h1 className="text-2xl font-bold mb-4 text-gray-700">Loading ShiftFlex...</h1>
+          <p className="text-sm text-gray-500">Checking authentication status...</p>
         </div>
       </div>
     );
   }
 
+  // If the user is not logged in, show the landing page
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
       <div className="container mx-auto px-4 py-16">
