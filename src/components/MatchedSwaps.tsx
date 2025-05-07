@@ -34,7 +34,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     handleFinalizeSwap,
     handleResendEmail
   } = useSwapConfirmation(() => {
-    // Callback after successful acceptance - use setRefreshTrigger after a delay to avoid infinite re-renders
+    // Callback after successful acceptance
+    console.log("Success callback executed - refreshing data");
+    
+    // Make sure to refresh both the parent component and our matches data
+    // Use setTimeout to avoid race conditions and ensure the database has updated
     setTimeout(() => {
       if (setRefreshTrigger) {
         setRefreshTrigger(prev => prev + 1);

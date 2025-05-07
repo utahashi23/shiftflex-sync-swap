@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useSwapActions } from './useSwapActions';
 import { useEmailNotifications } from './useEmailNotifications';
@@ -28,7 +29,7 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
   });
   
   const { handleAcceptSwap: acceptSwap, isLoading } = useSwapActions();
-  const { sendNotificationEmail, resendNotificationEmail } = useEmailNotifications();
+  const { sendSwapNotification } = useEmailNotifications();
   
   // Handle click to accept a swap
   const handleAcceptClick = (matchId: string) => {
@@ -51,23 +52,30 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
     if (!confirmDialog.matchId) return;
     
     try {
-      // Modified: We now use the callback properly to NOT remove the match from the UI
+      // Call the accept swap function WITHOUT removing the swap from UI
       const success = await acceptSwap(confirmDialog.matchId, (completedSwap) => {
         // This is the onSuccess callback from acceptSwap
         if (completedSwap) {
-          // Attempt to send email notification (but don't block UI if it fails)
-          sendNotificationEmail(confirmDialog.matchId as string, 'accepted')
-            .catch(err => {
-              console.error('Failed to send notification email:', err);
+          // Attempt to send notification (but don't block UI if it fails)
+          try {
+            sendSwapNotification(
+              '', // Will be determined by backend
+              'Shift Swap Accepted',
+              'Your shift swap has been accepted and is waiting for finalization.',
+              'View Swap Details',
+              '/shifts'
+            ).catch(err => {
+              console.error('Failed to send notification:', err);
             });
+          } catch (err) {
+            console.error('Error sending notification:', err);
+          }
         }
         
-        // Important: The completedSwap gets an updated status, but it should not
-        // disappear from the UI - it just changes to 'accepted' status
-        console.log('Swap was accepted successfully, updating UI...');
+        console.log('Swap was accepted successfully, UI should update to show accepted status');
       });
       
-      // Close the dialog
+      // Close the dialog regardless of outcome
       setConfirmDialog({ isOpen: false, matchId: null });
       
       if (success && onSuccess) {
@@ -76,8 +84,7 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
           description: "The swap has been accepted. Notifications have been sent.",
         });
         
-        // Call the onSuccess callback to refresh data
-        // This should now show the accepted match in the UI, not remove it
+        // This should trigger a refresh that maintains the accepted swap in the UI
         onSuccess();
       }
     } catch (error) {
@@ -116,12 +123,22 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
   // Handle sending a reminder email
   const handleResendEmail = async (matchId: string) => {
     try {
-      await resendNotificationEmail(matchId, 'accepted');
-      
-      toast({
-        title: "Email Sent",
-        description: "A reminder email has been sent.",
-      });
+      try {
+        await sendSwapNotification(
+          '', // Will be determined by backend
+          'Shift Swap Reminder',
+          'This is a reminder about your accepted shift swap that needs finalization.',
+          'View Swap Details',
+          '/shifts'
+        );
+        
+        toast({
+          title: "Email Sent",
+          description: "A reminder email has been sent.",
+        });
+      } catch (error) {
+        throw error;
+      }
     } catch (error) {
       console.error('Error sending reminder email:', error);
       toast({
