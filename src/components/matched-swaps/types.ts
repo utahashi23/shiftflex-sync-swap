@@ -28,6 +28,7 @@ export interface SwapMatch {
   };
   myRequestId: string;
   otherRequestId: string;
+  requesterId?: string; // Added field for the requester ID
   createdAt: string;
 }
 

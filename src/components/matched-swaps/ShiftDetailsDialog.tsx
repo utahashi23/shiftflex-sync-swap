@@ -7,11 +7,12 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Calendar, Clock, Copy, UserCircle2, Info, Badge } from "lucide-react";
-import { useState } from "react";
+import { Calendar, Clock, Copy, UserCircle2, Info, Badge, User } from "lucide-react";
+import { useState, useEffect } from "react";
 import { SwapMatch } from "./types";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ShiftDetailsDialogProps {
   open: boolean;
@@ -25,6 +26,53 @@ export function ShiftDetailsDialog({
   swap 
 }: ShiftDetailsDialogProps) {
   const [copied, setCopied] = useState(false);
+  const [requesterInfo, setRequesterInfo] = useState<{ id: string, userName: string } | null>(null);
+  
+  useEffect(() => {
+    async function fetchRequesterInfo() {
+      if (swap) {
+        try {
+          // Get the request details to find the requester ID
+          const { data: requestData, error: requestError } = await supabase
+            .from('shift_swap_requests')
+            .select('requester_id')
+            .eq('id', swap.myRequestId)
+            .single();
+            
+          if (requestError) {
+            console.error('Error fetching request data:', requestError);
+            return;
+          }
+          
+          if (requestData) {
+            // Now fetch the profile info of the requester
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', requestData.requester_id)
+              .single();
+              
+            if (profileError) {
+              console.error('Error fetching profile data:', profileError);
+              return;
+            }
+            
+            if (profileData) {
+              const userName = `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim() || 'Unknown User';
+              setRequesterInfo({
+                id: requestData.requester_id,
+                userName
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error in fetchRequesterInfo:', error);
+        }
+      }
+    }
+    
+    fetchRequesterInfo();
+  }, [swap]);
   
   if (!swap) return null;
   
@@ -59,6 +107,8 @@ export function ShiftDetailsDialog({
 Swap Details (ID: ${swap.id})
 Status: ${statusDisplay.text}
 Requester Request ID: ${swap.myRequestId}
+Requester ID: ${requesterInfo?.id || 'Not available'}
+Requester Name: ${requesterInfo?.userName || 'Not available'}
 
 Your Shift:
 Date: ${formatDate(swap.myShift.date)}
@@ -119,6 +169,16 @@ ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
               <span className="text-sm font-medium">Match ID: {swap.id}</span>
               <span className="text-sm">Requester Request ID: {swap.myRequestId}</span>
               <span className="text-sm">Other Request ID: {swap.otherRequestId}</span>
+              
+              {requesterInfo && (
+                <>
+                  <div className="flex items-center mt-2 pt-2 border-t border-gray-200">
+                    <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <span className="text-sm font-medium">Requester ID: {requesterInfo.id}</span>
+                  </div>
+                  <span className="text-sm pl-6">Requester Name: {requesterInfo.userName}</span>
+                </>
+              )}
             </div>
           </div>
           
