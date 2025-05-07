@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -7,7 +8,7 @@ import {
   DialogClose,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Calendar, Clock, Copy, UserCircle2, Info, Badge, User, Clock8 } from "lucide-react";
+import { Calendar, Clock, Copy, UserCircle2, Info, Badge, User } from "lucide-react";
 import { useState, useEffect } from "react";
 import { SwapMatch } from "./types";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
@@ -145,35 +146,20 @@ export function ShiftDetailsDialog({
 Swap Details (ID: ${swap.id})
 Status: ${statusDisplay.text}
 
-MY REQUEST:
-Request ID: ${swap.myRequestId}
-Requester ID: ${myRequestDetails?.requester_id || 'Not available'}
-Requester Name: ${myRequestDetails?.requester_name || 'Not available'}
-Request Created: ${myRequestDetails?.created_at || 'Not available'}
-Request Status: ${myRequestDetails?.status || 'Not available'}
-${myRequestDetails?.employee_id ? `Service#: ${myRequestDetails.employee_id}` : ''}
-
-OTHER REQUEST:
-Request ID: ${swap.otherRequestId}
-Requester ID: ${otherRequestDetails?.requester_id || 'Not available'}
-Requester Name: ${otherRequestDetails?.requester_name || 'Not available'}
-Request Created: ${otherRequestDetails?.created_at || 'Not available'}
-Request Status: ${otherRequestDetails?.status || 'Not available'}
-${otherRequestDetails?.employee_id ? `Service#: ${otherRequestDetails.employee_id}` : ''}
-
 YOUR SHIFT:
 Date: ${formatDate(swap.myShift.date)}
 Time: ${swap.myShift.startTime} - ${swap.myShift.endTime}
-Colleague Type: ${swap.myShift.colleagueType || 'Not specified'}
+${swap.myShift.colleagueType ? `Colleague Type: ${swap.myShift.colleagueType}` : ''}
 ${swap.myShift.employeeId ? `Service#: ${swap.myShift.employeeId}` : ''}
 ${swap.myShift.truckName ? `Location: ${swap.myShift.truckName}` : ''}
 
 THEIR SHIFT:
-Person: ${swap.otherShift.userName || 'Unknown User'}
+Person: ${otherRequestDetails?.requester_name || swap.otherShift.userName || 'Unknown User'}
 Date: ${formatDate(swap.otherShift.date)}
 Time: ${swap.otherShift.startTime} - ${swap.otherShift.endTime}
-Colleague Type: ${swap.otherShift.colleagueType || 'Not specified'}
-${swap.otherShift.employeeId ? `Service#: ${swap.otherShift.employeeId}` : ''}
+${swap.otherShift.colleagueType ? `Colleague Type: ${swap.otherShift.colleagueType}` : ''}
+${otherRequestDetails?.employee_id ? `Service#: ${otherRequestDetails.employee_id}` : 
+  (swap.otherShift.employeeId ? `Service#: ${swap.otherShift.employeeId}` : '')}
 ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
     `.trim();
     
@@ -218,70 +204,6 @@ ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
             </span>
           </div>
           
-          <div className="p-3 bg-gray-50 rounded-md space-y-4">
-            <div className="flex flex-col space-y-1">
-              <span className="text-sm font-medium">Match ID: {swap.id}</span>
-              
-              {/* My Request Section */}
-              <div className="mt-3 pt-2 border-t border-gray-200">
-                <span className="text-sm font-semibold">My Request:</span>
-                <div className="pl-4 space-y-1 mt-1">
-                  <span className="text-sm">Request ID: {swap.myRequestId}</span>
-                  {isLoading ? (
-                    <span className="text-sm italic text-muted-foreground">Loading details...</span>
-                  ) : myRequestDetails ? (
-                    <>
-                      <div className="flex items-center">
-                        <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span className="text-sm">Requester ID: {myRequestDetails.requester_id}</span>
-                      </div>
-                      <span className="text-sm pl-6">Requester Name: {myRequestDetails.requester_name}</span>
-                      <div className="flex items-center">
-                        <Clock8 className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span className="text-sm">Created: {myRequestDetails.created_at}</span>
-                      </div>
-                      <span className="text-sm pl-6">Status: {myRequestDetails.status}</span>
-                      {myRequestDetails.employee_id && (
-                        <span className="text-sm pl-6">Service#: {myRequestDetails.employee_id}</span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-sm italic text-muted-foreground">Could not load details</span>
-                  )}
-                </div>
-              </div>
-              
-              {/* Other Request Section */}
-              <div className="mt-3 pt-2 border-t border-gray-200">
-                <span className="text-sm font-semibold">Other Request:</span>
-                <div className="pl-4 space-y-1 mt-1">
-                  <span className="text-sm">Request ID: {swap.otherRequestId}</span>
-                  {isLoading ? (
-                    <span className="text-sm italic text-muted-foreground">Loading details...</span>
-                  ) : otherRequestDetails ? (
-                    <>
-                      <div className="flex items-center">
-                        <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span className="text-sm">Requester ID: {otherRequestDetails.requester_id}</span>
-                      </div>
-                      <span className="text-sm pl-6">Requester Name: {otherRequestDetails.requester_name}</span>
-                      <div className="flex items-center">
-                        <Clock8 className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span className="text-sm">Created: {otherRequestDetails.created_at}</span>
-                      </div>
-                      <span className="text-sm pl-6">Status: {otherRequestDetails.status}</span>
-                      {otherRequestDetails.employee_id && (
-                        <span className="text-sm pl-6">Service#: {otherRequestDetails.employee_id}</span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-sm italic text-muted-foreground">Could not load details</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-          
           {/* Your Shift */}
           <div className="space-y-2">
             <h3 className="text-lg font-medium border-b pb-2">Your Shift</h3>
@@ -301,15 +223,24 @@ ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
                 <span className="text-sm">{swap.myShift.startTime} - {swap.myShift.endTime}</span>
               </div>
               
-              <div className="flex items-center">
-                <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span className="text-sm">{swap.myShift.colleagueType || 'Not specified'}</span>
-              </div>
+              {swap.myShift.colleagueType && (
+                <div className="flex items-center">
+                  <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="text-sm">{swap.myShift.colleagueType}</span>
+                </div>
+              )}
               
-              {swap.myShift.employeeId && (
+              {myRequestDetails?.requester_name && (
+                <div className="flex items-center col-span-2">
+                  <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="text-sm"><strong>Requester:</strong> {myRequestDetails.requester_name}</span>
+                </div>
+              )}
+              
+              {(myRequestDetails?.employee_id || swap.myShift.employeeId) && (
                 <div className="flex items-center col-span-2">
                   <Badge className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm"><strong>Service#:</strong> {swap.myShift.employeeId}</span>
+                  <span className="text-sm"><strong>Service#:</strong> {myRequestDetails?.employee_id || swap.myShift.employeeId}</span>
                 </div>
               )}
               
@@ -327,7 +258,7 @@ ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
             
             <div className="grid grid-cols-2 gap-y-3">
               <div className="flex items-center col-span-2 text-sm font-medium text-primary">
-                {swap.otherShift.userName || 'Unknown User'}
+                {otherRequestDetails?.requester_name || swap.otherShift.userName || 'Unknown User'}
               </div>
               
               <div className="flex items-center">
@@ -344,15 +275,17 @@ ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
                 <span className="text-sm">{swap.otherShift.startTime} - {swap.otherShift.endTime}</span>
               </div>
               
-              <div className="flex items-center">
-                <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span className="text-sm">{swap.otherShift.colleagueType || 'Not specified'}</span>
-              </div>
+              {swap.otherShift.colleagueType && (
+                <div className="flex items-center">
+                  <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="text-sm">{swap.otherShift.colleagueType}</span>
+                </div>
+              )}
               
-              {swap.otherShift.employeeId && (
+              {(otherRequestDetails?.employee_id || swap.otherShift.employeeId) && (
                 <div className="flex items-center col-span-2">
                   <Badge className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm"><strong>Service#:</strong> {swap.otherShift.employeeId}</span>
+                  <span className="text-sm"><strong>Service#:</strong> {otherRequestDetails?.employee_id || swap.otherShift.employeeId}</span>
                 </div>
               )}
               
