@@ -21,31 +21,30 @@ serve(async (req) => {
     console.log(`Starting test_mailgun_smtp function (attempt ${testAttempt})...`);
     console.log(`Test timestamp: ${requestData.timestamp || new Date().toISOString()}`);
     
-    // SMTP configuration for Mailgun
+    // SMTP configuration for Mailgun with hardcoded credentials
     const client = new SmtpClient();
     
-    console.log("Creating SMTP connection to Mailgun...");
+    // Create a recipient email address (use the one from request or default)
+    const recipient = requestData.recipientEmail || "njalasankhulani@gmail.com";
+    
+    console.log(`Connecting to SMTP server with username: admin@shiftflex.au`);
+    console.log(`Recipient email: ${recipient}`);
     
     try {
-      console.log("Connecting to SMTP server...");
       await client.connectTLS({
         hostname: "smtp.mailgun.org",
         port: 587,
         username: "admin@shiftflex.au",
-        password: "3kh9umujora5", // In production, use Deno.env.get() instead of hardcoding
+        password: "Bear151194Ns%", // Using the password provided
       });
       
       console.log("SMTP connection established successfully");
       
-      const recipient = "njalasankhulani@gmail.com";
-      
-      console.log(`Sending test email to ${recipient}`);
-      
       try {
         await client.send({
-          from: "postmaster@shiftflex.au",
+          from: "admin@shiftflex.au",
           to: recipient,
-          subject: `Testing Mailgun SMTP Integration (Attempt ${testAttempt})`,
+          subject: `Mailgun SMTP Test (Attempt ${testAttempt})`,
           content: "This is a test email sent using the SMTP protocol from a Supabase Edge Function.",
           html: `
             <h2>Mailgun SMTP Test</h2>
@@ -64,7 +63,8 @@ serve(async (req) => {
           message: "Email sent successfully via SMTP",
           details: {
             attempt: testAttempt,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            recipient: recipient
           }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -77,7 +77,20 @@ serve(async (req) => {
       }
     } catch (connectionError) {
       console.error("SMTP connection error:", connectionError);
-      throw new Error(`SMTP connection error: ${connectionError.message}`);
+      
+      // Try to diagnose the specific connection issue
+      let errorType = "unknown";
+      if (connectionError.message && connectionError.message.includes("authentication")) {
+        errorType = "authentication";
+      } else if (connectionError.message && (
+          connectionError.message.includes("connect") || 
+          connectionError.message.includes("timeout") ||
+          connectionError.message.includes("network")
+      )) {
+        errorType = "network";
+      }
+      
+      throw new Error(`SMTP connection error (${errorType}): ${connectionError.message}`);
     }
   } catch (error) {
     console.error('Error in test_mailgun_smtp function:', error);
