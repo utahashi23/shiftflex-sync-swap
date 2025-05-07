@@ -2,95 +2,77 @@
 import React from 'react';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { RocketIcon, CalendarIcon, ClockIcon, SparkleIcon } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { CalendarIcon, SearchIcon, BellIcon, FilterIcon, RocketIcon, SparkleIcon } from 'lucide-react';
 
-// Feature type definition
+// Feature type definition with progress percentage for slider
 type Feature = {
   title: string;
   description: string;
+  icon: React.ReactNode;
+  progress: number; // 0-100
+  expectedRelease: string;
   category: string;
-  priority: 'high' | 'medium' | 'low';
-  timeline: string;
-  status: 'planned' | 'in-progress' | 'completed';
 };
 
-// Updated roadmap data with removed features and more engaging descriptions
+// New roadmap data with the requested features
 const roadmapFeatures: Feature[] = [
   {
-    title: 'Team Chat Integration',
-    description: 'Connect with your team seamlessly! Our in-app messaging system will allow instant coordination for shift changes and important updates.',
-    category: 'Communication',
-    priority: 'medium',
-    timeline: 'Q3 2025',
-    status: 'in-progress',
-  },
-  {
-    title: 'Staff Availability Calendar',
-    description: 'Take control of your schedule! This feature lets staff indicate their preferred working hours for more balanced and fair shift assignments.',
-    category: 'Scheduling',
-    priority: 'high',
-    timeline: 'Q2 2025',
-    status: 'in-progress',
-  },
-  {
-    title: 'Calendar Integrations',
-    description: 'Never miss a shift again! Sync your ShiftFlex schedule directly with Google Calendar, Outlook, and other popular calendar apps.',
+    title: 'Calendar Integration',
+    description: 'Seamlessly sync your ShiftFlex schedule with popular calendar apps like Google Calendar, Outlook, and Apple Calendar.',
+    icon: <CalendarIcon className="h-6 w-6" />,
+    progress: 85,
+    expectedRelease: 'Q2 2025',
     category: 'Integration',
-    priority: 'low',
-    timeline: 'Q3 2025',
-    status: 'planned',
   },
   {
-    title: 'Shift Pattern Analytics',
-    description: 'Unlock powerful insights about your team\'s scheduling patterns and identify opportunities to optimize coverage and efficiency.',
-    category: 'Analytics',
-    priority: 'medium',
-    timeline: 'Q4 2025',
-    status: 'planned',
+    title: 'Search Requests',
+    description: 'Powerful search capabilities to quickly find specific shifts, colleagues, or locations across your entire schedule history.',
+    icon: <SearchIcon className="h-6 w-6" />,
+    progress: 60,
+    expectedRelease: 'Q3 2025',
+    category: 'Utility',
+  },
+  {
+    title: 'SMS/Email Notifications',
+    description: 'Stay informed with timely alerts about schedule changes, shift swap requests, and upcoming shifts via SMS or email.',
+    icon: <BellIcon className="h-6 w-6" />,
+    progress: 45,
+    expectedRelease: 'Q3 2025',
+    category: 'Communication',
+  },
+  {
+    title: 'Custom Filters',
+    description: 'Create personalized filters to view exactly what matters to you - filter by location, shift time, colleagues, and more.',
+    icon: <FilterIcon className="h-6 w-6" />,
+    progress: 30,
+    expectedRelease: 'Q4 2025',
+    category: 'Customization',
   },
 ];
 
-// Helper function for rendering priority badges
-const PriorityBadge = ({ priority }: { priority: Feature['priority'] }) => {
-  const colors = {
-    high: 'bg-red-100 text-red-800 hover:bg-red-100',
-    medium: 'bg-amber-100 text-amber-800 hover:bg-amber-100',
-    low: 'bg-green-100 text-green-800 hover:bg-green-100',
-  };
-  
+// Release progress component with slider
+const ReleaseProgress = ({ progress, expectedRelease }: { progress: number, expectedRelease: string }) => {
   return (
-    <Badge variant="outline" className={colors[priority]}>
-      {priority}
-    </Badge>
-  );
-};
-
-// Helper function for rendering status badges
-const StatusBadge = ({ status }: { status: Feature['status'] }) => {
-  const statusConfig = {
-    'planned': { class: 'bg-blue-100 text-blue-800 hover:bg-blue-100', label: 'Planned' },
-    'in-progress': { class: 'bg-purple-100 text-purple-800 hover:bg-purple-100', label: 'In Progress' },
-    'completed': { class: 'bg-green-100 text-green-800 hover:bg-green-100', label: 'Completed' },
-  };
-  
-  const config = statusConfig[status];
-  
-  return (
-    <Badge variant="outline" className={config.class}>
-      {config.label}
-    </Badge>
-  );
-};
-
-// Timeline indicator component to make the roadmap more engaging
-const TimelineIndicator = ({ timeline }: { timeline: string }) => {
-  return (
-    <div className="flex items-center gap-2 text-sm bg-primary/5 px-3 py-1 rounded-full">
-      <CalendarIcon className="h-4 w-4 text-primary" />
-      <span className="font-medium">Expected: {timeline}</span>
+    <div className="mt-4 space-y-2">
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium text-gray-700">Development progress</span>
+        <span className="text-sm font-medium text-primary">{progress}%</span>
+      </div>
+      <Slider
+        defaultValue={[progress]}
+        max={100}
+        step={1}
+        disabled
+        className="cursor-default"
+      />
+      <div className="flex items-center gap-1.5 text-sm text-gray-600 mt-2">
+        <CalendarIcon className="h-3.5 w-3.5" />
+        <span>Expected release: {expectedRelease}</span>
+      </div>
     </div>
   );
 };
@@ -106,7 +88,7 @@ const Roadmap = () => {
           Product Roadmap
         </h1>
         <p className="text-gray-500 mt-1">
-          Explore upcoming features and planned improvements for ShiftFlex
+          Explore the exciting features coming soon to ShiftFlex
         </p>
       </div>
       
@@ -114,40 +96,47 @@ const Roadmap = () => {
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
             <SparkleIcon className="h-5 w-5 text-primary" />
-            Our Vision for the Future
+            Upcoming Features
           </h2>
           <p className="text-gray-600">
-            We're continuously working to improve ShiftFlex and add exciting new features 
-            that make shift management easier and more efficient. Check out our upcoming releases below!
+            We're continuously improving ShiftFlex with new features to enhance your shift management experience.
+            Track our progress below!
           </p>
         </div>
         
         <Separator className="my-6" />
         
-        <div className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {roadmapFeatures.map((feature, index) => (
-            <div key={index} className="border rounded-lg p-5 hover:shadow-md transition-shadow bg-white">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="text-lg font-medium">{feature.title}</h3>
-                <div className="flex gap-2">
-                  <PriorityBadge priority={feature.priority} />
-                  <StatusBadge status={feature.status} />
+            <div 
+              key={index}
+              className="border rounded-lg p-5 hover:shadow-md transition-shadow bg-white animate-fade-in"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-full text-primary">
+                  {feature.icon}
                 </div>
+                <h3 className="text-lg font-medium">{feature.title}</h3>
               </div>
               
-              <p className="text-gray-600 mb-4">{feature.description}</p>
+              <p className="text-gray-600 mt-3 mb-4">{feature.description}</p>
               
-              <div className="flex justify-between items-center">
-                <span className="bg-gray-100 px-2 py-1 rounded text-sm">{feature.category}</span>
-                <TimelineIndicator timeline={feature.timeline} />
-              </div>
+              <Badge variant="outline" className="bg-gray-100 text-gray-800 hover:bg-gray-100 mb-4">
+                {feature.category}
+              </Badge>
+              
+              <ReleaseProgress 
+                progress={feature.progress} 
+                expectedRelease={feature.expectedRelease} 
+              />
             </div>
           ))}
         </div>
         
         <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-dashed border-blue-200">
           <div className="flex items-center gap-2 mb-3">
-            <ClockIcon className="h-5 w-5 text-blue-500" />
+            <RocketIcon className="h-5 w-5 text-blue-500" />
             <h3 className="font-medium text-blue-700">Have a feature request?</h3>
           </div>
           <p className="text-gray-600">
