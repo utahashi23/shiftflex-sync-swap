@@ -5,7 +5,7 @@ import AppLayout from '@/layouts/AppLayout';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { RocketIcon } from 'lucide-react';
+import { RocketIcon, CalendarIcon, ClockIcon, SparkleIcon } from 'lucide-react';
 
 // Feature type definition
 type Feature = {
@@ -17,35 +17,11 @@ type Feature = {
   status: 'planned' | 'in-progress' | 'completed';
 };
 
-// Sample roadmap data
+// Updated roadmap data with removed features and more engaging descriptions
 const roadmapFeatures: Feature[] = [
   {
-    title: 'Advanced Shift Analytics',
-    description: 'Detailed metrics and insights about shift patterns, coverage, and efficiency to help optimize staff scheduling.',
-    category: 'Analytics',
-    priority: 'high',
-    timeline: 'Q3 2025',
-    status: 'planned',
-  },
-  {
-    title: 'Mobile Application',
-    description: 'A dedicated mobile app for iOS and Android providing on-the-go access to all ShiftFlex features.',
-    category: 'Platform',
-    priority: 'high',
-    timeline: 'Q4 2025',
-    status: 'planned',
-  },
-  {
-    title: 'AI-Powered Shift Recommendations',
-    description: 'Intelligent shift recommendations based on historical data and staff preferences.',
-    category: 'Intelligence',
-    priority: 'medium',
-    timeline: 'Q1 2026',
-    status: 'planned',
-  },
-  {
     title: 'Team Chat Integration',
-    description: 'In-app messaging for teams to coordinate shifts and communicate about schedule changes.',
+    description: 'Connect with your team seamlessly! Our in-app messaging system will allow instant coordination for shift changes and important updates.',
     category: 'Communication',
     priority: 'medium',
     timeline: 'Q3 2025',
@@ -53,7 +29,7 @@ const roadmapFeatures: Feature[] = [
   },
   {
     title: 'Staff Availability Calendar',
-    description: 'Allow staff to mark their availability preferences for more optimized scheduling.',
+    description: 'Take control of your schedule! This feature lets staff indicate their preferred working hours for more balanced and fair shift assignments.',
     category: 'Scheduling',
     priority: 'high',
     timeline: 'Q2 2025',
@@ -61,10 +37,18 @@ const roadmapFeatures: Feature[] = [
   },
   {
     title: 'Calendar Integrations',
-    description: 'Sync shifts with popular calendar applications like Google Calendar and Outlook.',
+    description: 'Never miss a shift again! Sync your ShiftFlex schedule directly with Google Calendar, Outlook, and other popular calendar apps.',
     category: 'Integration',
     priority: 'low',
     timeline: 'Q3 2025',
+    status: 'planned',
+  },
+  {
+    title: 'Shift Pattern Analytics',
+    description: 'Unlock powerful insights about your team\'s scheduling patterns and identify opportunities to optimize coverage and efficiency.',
+    category: 'Analytics',
+    priority: 'medium',
+    timeline: 'Q4 2025',
     status: 'planned',
   },
 ];
@@ -101,6 +85,16 @@ const StatusBadge = ({ status }: { status: Feature['status'] }) => {
   );
 };
 
+// Timeline indicator component to make the roadmap more engaging
+const TimelineIndicator = ({ timeline }: { timeline: string }) => {
+  return (
+    <div className="flex items-center gap-2 text-sm bg-primary/5 px-3 py-1 rounded-full">
+      <CalendarIcon className="h-4 w-4 text-primary" />
+      <span className="font-medium">Expected: {timeline}</span>
+    </div>
+  );
+};
+
 const Roadmap = () => {
   useAuthRedirect({ protectedRoute: true });
   
@@ -118,10 +112,13 @@ const Roadmap = () => {
       
       <Card className="p-6">
         <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-2">Our Vision</h2>
+          <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
+            <SparkleIcon className="h-5 w-5 text-primary" />
+            Our Vision for the Future
+          </h2>
           <p className="text-gray-600">
-            We're continuously working to improve ShiftFlex and add new features that make shift management 
-            easier and more efficient. Here's what we're planning for upcoming releases.
+            We're continuously working to improve ShiftFlex and add exciting new features 
+            that make shift management easier and more efficient. Check out our upcoming releases below!
           </p>
         </div>
         
@@ -129,7 +126,7 @@ const Roadmap = () => {
         
         <div className="space-y-8">
           {roadmapFeatures.map((feature, index) => (
-            <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div key={index} className="border rounded-lg p-5 hover:shadow-md transition-shadow bg-white">
               <div className="flex justify-between items-start mb-2">
                 <h3 className="text-lg font-medium">{feature.title}</h3>
                 <div className="flex gap-2">
@@ -140,17 +137,20 @@ const Roadmap = () => {
               
               <p className="text-gray-600 mb-4">{feature.description}</p>
               
-              <div className="flex justify-between items-center text-sm text-gray-500">
-                <span className="bg-gray-100 px-2 py-1 rounded">{feature.category}</span>
-                <span>Expected: {feature.timeline}</span>
+              <div className="flex justify-between items-center">
+                <span className="bg-gray-100 px-2 py-1 rounded text-sm">{feature.category}</span>
+                <TimelineIndicator timeline={feature.timeline} />
               </div>
             </div>
           ))}
         </div>
         
-        <div className="mt-8 bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300">
-          <h3 className="font-medium mb-2">Have a feature request?</h3>
-          <p className="text-gray-600 text-sm">
+        <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-dashed border-blue-200">
+          <div className="flex items-center gap-2 mb-3">
+            <ClockIcon className="h-5 w-5 text-blue-500" />
+            <h3 className="font-medium text-blue-700">Have a feature request?</h3>
+          </div>
+          <p className="text-gray-600">
             We value your input! If you have ideas for new features or improvements, 
             please share them with our team through the feedback form in the Settings page.
           </p>
