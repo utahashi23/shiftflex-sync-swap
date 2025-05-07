@@ -14,27 +14,33 @@ export const useDashboardSummary = () => {
   const [isLoadingUsers, setIsLoadingUsers] = useState<boolean>(true);
   const [totalActiveSwaps, setTotalActiveSwaps] = useState<number>(0);
   const [isLoadingSwaps, setIsLoadingSwaps] = useState<boolean>(true);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const { user, authChecked } = useAuth();
 
   useEffect(() => {
     const fetchUserCount = async () => {
       setIsLoadingUsers(true);
+      setConnectionError(null);
       try {
         console.log('Fetching user count...');
         
         // First check if the database connection is working
         try {
-          const { error: pingError } = await supabase
+          // Use a simple lightweight query to test connection
+          const { data: connectionTest, error: pingError } = await supabase
             .from('profiles')
-            .select('count', { count: 'exact', head: true });
+            .select('count', { count: 'exact', head: true })
+            .limit(1);
             
           if (pingError) {
             console.error('Database connection test failed:', pingError);
+            setConnectionError(`Cannot connect to database: ${pingError.message}`);
             throw new Error(`Cannot connect to database: ${pingError.message}`);
           }
-          console.log('Database connection test successful');
-        } catch (pingErr) {
+          console.log('Database connection test successful', connectionTest);
+        } catch (pingErr: any) {
           console.error('Database ping error:', pingErr);
+          setConnectionError(pingErr.message || 'Connection error');
           toast({
             title: "Database Connection Error",
             description: "Unable to connect to the database. Please check your connection.",
@@ -51,13 +57,15 @@ export const useDashboardSummary = () => {
           
         if (error) {
           console.error('Error fetching user count:', error);
+          setConnectionError(error.message);
           throw error;
         } else {
           console.log('Total profiles count:', count);
           setTotalUsers(count || 0);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching user count:', error);
+        setConnectionError(error.message || 'Unknown error');
         setTotalUsers(0); // Set to 0 if there's an error
       } finally {
         setIsLoadingUsers(false);
@@ -77,6 +85,7 @@ export const useDashboardSummary = () => {
           
         if (swapError) {
           console.error('Error fetching swap requests:', swapError);
+          setConnectionError(swapError.message);
           throw swapError;
         }
         
@@ -87,8 +96,9 @@ export const useDashboardSummary = () => {
         
         console.log('Total active swap requests:', activeSwapsCount);
         setTotalActiveSwaps(activeSwapsCount);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching active swap requests count:', error);
+        setConnectionError(error.message || 'Unknown error');
         setTotalActiveSwaps(0); // Set to 0 if there's an error
       } finally {
         setIsLoadingSwaps(false);
@@ -112,6 +122,7 @@ export const useDashboardSummary = () => {
     totalUsers,
     isLoadingUsers,
     totalActiveSwaps,
-    isLoadingSwaps
+    isLoadingSwaps,
+    connectionError
   };
 };

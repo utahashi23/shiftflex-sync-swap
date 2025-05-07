@@ -36,6 +36,7 @@ const defaultStats: DashboardStats = {
 export const useDashboardData = (user: ExtendedUser | null) => {
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>(defaultStats);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -46,20 +47,23 @@ export const useDashboardData = (user: ExtendedUser | null) => {
       }
       
       setIsLoading(true);
+      setConnectionError(null);
       console.log('Starting dashboard data fetch for user:', user.id);
       
       try {
         // First, test database connection
         const { data: connectionTest, error: connectionError } = await supabase
           .from('shifts')
-          .select('count(*)', { count: 'exact', head: true });
+          .select('count(*)', { count: 'exact', head: true })
+          .limit(1);
           
         if (connectionError) {
           console.error('Database connection test failed:', connectionError);
+          setConnectionError(connectionError.message);
           throw new Error(`Database connection error: ${connectionError.message}`);
         }
         
-        console.log('Database connection successful, proceeding with data fetch');
+        console.log('Database connection successful, proceeding with data fetch', connectionTest);
         
         // Fetch the user's shifts with detailed logging
         console.log('Fetching shifts for user:', user.id);
@@ -70,6 +74,7 @@ export const useDashboardData = (user: ExtendedUser | null) => {
           
         if (shiftsError) {
           console.error('Error fetching shifts:', shiftsError);
+          setConnectionError(shiftsError.message);
           throw new Error(`Error fetching shifts: ${shiftsError.message}`);
         }
         
@@ -85,6 +90,7 @@ export const useDashboardData = (user: ExtendedUser | null) => {
           
         if (swapRequestsError) {
           console.error('Error fetching swap requests:', swapRequestsError);
+          setConnectionError(swapRequestsError.message);
           throw new Error(`Error fetching swap requests: ${swapRequestsError.message}`);
         }
         
@@ -162,6 +168,7 @@ export const useDashboardData = (user: ExtendedUser | null) => {
         });
       } catch (error: any) {
         console.error('Error fetching dashboard data:', error);
+        setConnectionError(error.message || 'Unknown error');
         toast({
           title: "Error loading dashboard",
           description: error.message || "Could not load your dashboard data. Please try again later.",
@@ -177,5 +184,5 @@ export const useDashboardData = (user: ExtendedUser | null) => {
     fetchDashboardData();
   }, [user]);
 
-  return { stats, isLoading };
+  return { stats, isLoading, connectionError };
 };
