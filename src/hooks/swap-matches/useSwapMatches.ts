@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../useAuth';
 import { toast } from '../use-toast';
@@ -59,8 +60,7 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
       
       await acceptSwapMatch(matchId);
       
-      // CRITICAL FIX: Refresh matches after accepting to get updated status
-      // This will ensure 'accepted' matches are still visible
+      // Refresh matches after accepting
       await fetchMatches();
       
       toast({

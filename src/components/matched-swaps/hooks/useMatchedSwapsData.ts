@@ -63,9 +63,6 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
         otherEmployeeId: otherUserEmployeeId
       });
       
-      // Extract and log status information
-      console.log(`Match ${match.match_id} status: ${match.match_status}`);
-      
       return {
         id: match.match_id,
         status: match.match_status,
@@ -112,7 +109,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
     try {
       console.log('Finding matches for user:', user.id);
       
-      // Explicitly request employee IDs inclusion and ensure force_check is true
+      // Explicitly request employee IDs inclusion
       const matchesData = await findSwapMatches(user.id, true, true, true, true);
       console.log('Raw match data received from function:', matchesData);
       
@@ -131,17 +128,8 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       const formattedMatches = processMatchesData(matchesData || []);
       console.log('Formatted matches after processing:', formattedMatches);
       
-      // Log all statuses to help with debugging
-      const statusCount = {
-        pending: formattedMatches.filter(m => m.status === 'pending').length,
-        accepted: formattedMatches.filter(m => m.status === 'accepted').length,
-        other_accepted: formattedMatches.filter(m => m.status === 'other_accepted').length,
-        completed: formattedMatches.filter(m => m.status === 'completed').length,
-      };
-      console.log('Status distribution:', statusCount);
-      
       // Separate active and past matches
-      // IMPORTANT: Include 'accepted' status in active matches
+      // IMPORTANT: Include 'other_accepted' status in active matches
       const activeMatches = formattedMatches.filter((match: SwapMatch) => 
         match.status === 'pending' || match.status === 'accepted' || match.status === 'other_accepted'
       );
@@ -157,8 +145,8 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       setMatches(activeMatches);
       setPastMatches(completedMatches);
       
-      // Show toast message about the results if appropriate
-      if (activeMatches.length > 0 && !initialFetchDone) {
+      // Show toast message about the results
+      if (activeMatches.length > 0) {
         toast({
           title: "Matches found!",
           description: `Found ${activeMatches.length} potential swap matches.`,
@@ -171,6 +159,11 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
             setRefreshTrigger(prevVal => prevVal + 1);
           }, 100);
         }
+      } else {
+        toast({
+          title: "No matches found",
+          description: "No potential swap matches were found at this time.",
+        });
       }
     } catch (error) {
       console.error('Error fetching matches:', error);

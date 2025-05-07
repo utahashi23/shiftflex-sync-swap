@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from './useAuth';
 import { useSwapMatches } from './swap-matches';
@@ -42,9 +41,6 @@ export function useMatchedSwaps() {
         title: "Swap Accepted",
         description: "You have successfully accepted the swap.",
       });
-      
-      // Important: After accepting, refresh the matches to get the updated status
-      await refreshMatches();
     }
     
     setConfirmDialog({ isOpen: false, matchId: null });

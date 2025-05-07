@@ -29,47 +29,6 @@ export const useSwapActions = () => {
         
       if (error) throw error;
       
-      // Important: We don't change any UI state here, just process the response
-      console.log('Accept swap response:', data);
-      
-      // If we have a callback, call it with the updated swap data
-      // This ensures the UI can be properly updated without removing the swap
-      if (typeof onSuccess === 'function') {
-        // Create a properly typed SwapMatch object with all required fields
-        // Get some details from response if available, otherwise use placeholders
-        const matchDetails = data?.data || {};
-        
-        onSuccess({
-          id: swapId,
-          status: 'accepted',  // CRITICAL: Set status to 'accepted' not 'completed'
-          myShift: { 
-            id: matchDetails.requester_shift_id || '', 
-            date: '', 
-            startTime: '', 
-            endTime: '', 
-            type: 'unknown', 
-            colleagueType: '',
-            truckName: null, 
-            employeeId: null 
-          },
-          otherShift: { 
-            id: matchDetails.acceptor_shift_id || '', 
-            date: '', 
-            startTime: '', 
-            endTime: '', 
-            type: 'unknown',
-            colleagueType: '',
-            userId: '',
-            userName: 'User',
-            truckName: null, 
-            employeeId: null
-          },
-          myRequestId: matchDetails.requester_request_id || '',
-          otherRequestId: matchDetails.acceptor_request_id || '',
-          createdAt: new Date().toISOString()
-        });
-      }
-      
       toast({
         title: "Swap Accepted",
         description: "The shift swap has been successfully accepted.",
