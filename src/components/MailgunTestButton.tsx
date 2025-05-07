@@ -117,7 +117,7 @@ export function MailgunTestButton() {
             <div className="mt-3 pt-2 border-t border-red-200">
               <p className="font-medium mb-1">Configuration Steps:</p>
               <ol className="list-decimal ml-5 space-y-1">
-                <li>Go to Supabase Dashboard > Edge Functions > Settings</li>
+                <li>Go to Supabase Dashboard {'->'} Edge Functions {'->'} Settings</li>
                 <li>Check or update your MAILGUN_API_KEY (should start with "key-")</li>
                 <li>Check or update your MAILGUN_DOMAIN (should be your verified domain)</li>
                 <li>Make sure your domain is properly verified in Mailgun</li>
