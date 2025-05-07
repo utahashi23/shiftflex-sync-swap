@@ -3,28 +3,26 @@
 
 export interface SwapMatch {
   id: string;
-  status: "pending" | "accepted" | "completed" | "other_accepted";
+  status: string;
   myShift: {
     id: string;
     date: string;
     startTime: string;
     endTime: string;
-    truckName?: string;
+    truckName: string | null;
     type: "day" | "afternoon" | "night" | "unknown";
-    colleagueType: string;
-    employeeId?: string;
+    colleagueType: string | null;
   };
   otherShift: {
     id: string;
     date: string;
     startTime: string;
     endTime: string;
-    truckName?: string;
+    truckName: string | null;
     type: "day" | "afternoon" | "night" | "unknown";
     userId: string;
     userName: string;
-    colleagueType: string;
-    employeeId?: string;
+    colleagueType: string | null;
   };
   myRequestId: string;
   otherRequestId: string;

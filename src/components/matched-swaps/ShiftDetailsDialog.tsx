@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SwapMatch } from "@/hooks/swap-matches/types";
-import { Calendar, Clock, Clipboard, UserCircle2, IdCard } from "lucide-react";
+import { Calendar, Clock, Clipboard, UserCircle2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 
@@ -36,7 +36,7 @@ export function ShiftDetailsDialog({ open, onOpenChange, swap }: ShiftDetailsDia
   const getClipboardText = () => {
     if (!swap) return "";
     
-    return `Swap Details:
+    return `Shift Swap Details:
 -------------------
 Status: ${swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
 
@@ -44,7 +44,6 @@ Your Shift:
 Date: ${formatDate(swap.myShift.date)}
 Time: ${swap.myShift.startTime} - ${swap.myShift.endTime}
 Type: ${swap.myShift.colleagueType}
-${swap.myShift.employeeId ? `Service#: ${swap.myShift.employeeId}` : ''}
 ${swap.myShift.truckName ? `Location: ${swap.myShift.truckName}` : ''}
 
 Matched Shift:
@@ -52,7 +51,6 @@ Date: ${formatDate(swap.otherShift.date)}
 Time: ${swap.otherShift.startTime} - ${swap.otherShift.endTime}
 Colleague: ${swap.otherShift.userName}
 Type: ${swap.otherShift.colleagueType}
-${swap.otherShift.employeeId ? `Service#: ${swap.otherShift.employeeId}` : ''}
 ${swap.otherShift.truckName ? `Location: ${swap.otherShift.truckName}` : ''}
 
 Swap ID: ${swap.id}
@@ -68,7 +66,7 @@ Created: ${new Date(swap.createdAt).toLocaleString()}`;
         setCopied(true);
         toast({
           title: "Copied to clipboard",
-          description: "Swap details have been copied to your clipboard",
+          description: "Shift details have been copied to your clipboard",
         });
         
         // Reset copied state after 2 seconds
@@ -90,7 +88,7 @@ Created: ${new Date(swap.createdAt).toLocaleString()}`;
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md mx-auto">
         <DialogHeader>
-          <DialogTitle>Swap Details</DialogTitle>
+          <DialogTitle>Shift Swap Details</DialogTitle>
           <DialogDescription>
             Full details about this shift swap
           </DialogDescription>
@@ -127,13 +125,6 @@ Created: ${new Date(swap.createdAt).toLocaleString()}`;
                 <span>{swap.myShift.colleagueType}</span>
               </div>
               
-              {swap.myShift.employeeId && (
-                <div className="flex items-start">
-                  <IdCard className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
-                  <span>Service#: {swap.myShift.employeeId}</span>
-                </div>
-              )}
-              
               {swap.myShift.truckName && (
                 <div className="text-sm text-muted-foreground mt-1">
                   Location: {swap.myShift.truckName}
@@ -164,13 +155,6 @@ Created: ${new Date(swap.createdAt).toLocaleString()}`;
               <div className="text-sm font-medium">
                 Colleague: {swap.otherShift.userName}
               </div>
-              
-              {swap.otherShift.employeeId && (
-                <div className="flex items-start">
-                  <IdCard className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
-                  <span>Service#: {swap.otherShift.employeeId}</span>
-                </div>
-              )}
               
               {swap.otherShift.truckName && (
                 <div className="text-sm text-muted-foreground mt-1">
