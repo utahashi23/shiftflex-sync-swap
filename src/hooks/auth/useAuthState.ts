@@ -14,29 +14,6 @@ export const useAuthState = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
 
-  // Helper function to check if user is admin
-  const checkAdminStatus = async (userId: string) => {
-    try {
-      // Check admin role directly in user_roles table
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .eq('role', 'admin')
-        .single();
-      
-      if (error) {
-        console.error('Error checking admin role:', error);
-        return false;
-      }
-      
-      return !!data;
-    } catch (error) {
-      console.error('Error in checkAdminStatus:', error);
-      return false;
-    }
-  };
-
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -51,38 +28,27 @@ export const useAuthState = () => {
           setUser(extendedUser);
           setIsEmailVerified(extendedUser.email_confirmed_at !== null);
           
-          // Check admin status directly from database
-          const isUserAdmin = await checkAdminStatus(extendedUser.id);
-          console.log(`User ${extendedUser.id} admin check result:`, isUserAdmin);
-          setIsAdmin(isUserAdmin);
-
-          // For demonstration purpose, also log if the app_metadata has admin role
-          if (extendedUser.app_metadata?.role === 'admin') {
-            console.log('User has admin role in app_metadata');
-          }
+          // Check if user is admin
+          setIsAdmin(extendedUser.app_metadata?.role === 'admin');
 
           // Handle authentication events
           if (event === 'SIGNED_IN') {
-            // For admin handling - moved admin check to checkAdminStatus function
-            if (extendedUser.email === 'admin@shiftflex.com' || extendedUser.email === 'sfadmin') {
+            // For admin user (sfadmin), check if they're in the user_roles table
+            if (extendedUser.email === 'sfadmin') {
               try {
-                // Check if already has admin role
-                const hasRole = await checkAdminStatus(extendedUser.id);
+                // Use type assertions to work around TypeScript errors with Supabase client
+                const { data, error } = await supabase.rpc('has_role', { 
+                  _user_id: extendedUser.id,
+                  _role: 'admin'
+                });
                 
-                if (!hasRole) {
+                if (!error && !data) {
                   // Add admin role if not already present
-                  const { error } = await supabase.from('user_roles')
+                  await supabase.from('user_roles')
                     .insert({
                       user_id: extendedUser.id,
                       role: 'admin'
                     });
-                    
-                  if (error) {
-                    console.error("Error assigning admin role:", error);
-                  } else {
-                    console.log("Admin role assigned successfully");
-                    setIsAdmin(true);
-                  }
                 }
               } catch (error) {
                 console.error("Error checking admin role:", error);
@@ -103,7 +69,7 @@ export const useAuthState = () => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession);
       
       if (currentSession?.user) {
@@ -111,11 +77,7 @@ export const useAuthState = () => {
         const extendedUser = currentSession.user as unknown as ExtendedUser;
         setUser(extendedUser);
         setIsEmailVerified(extendedUser.email_confirmed_at !== null);
-        
-        // Check admin status directly from database
-        const isUserAdmin = await checkAdminStatus(extendedUser.id);
-        console.log(`Initial session: User ${extendedUser.id} admin check result:`, isUserAdmin);
-        setIsAdmin(isUserAdmin);
+        setIsAdmin(extendedUser.app_metadata?.role === 'admin');
       }
       
       setIsLoading(false);
