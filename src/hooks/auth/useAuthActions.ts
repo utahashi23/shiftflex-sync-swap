@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "./supabase-client";
@@ -84,7 +85,7 @@ export const useAuthActions = () => {
         employee_id: metadata?.employeeId
       };
       
-      const { error } } = await authSignUp(email, password, transformedMetadata);
+      const { error } = await authSignUp(email, password, transformedMetadata);
       
       if (error) {
         return { success: false, error };
