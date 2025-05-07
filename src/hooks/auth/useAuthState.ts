@@ -14,25 +14,6 @@ export const useAuthState = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
 
-  // Function to check admin status directly from database
-  const checkAdminRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase.rpc('has_role', { 
-        _user_id: userId,
-        _role: 'admin'
-      });
-      
-      if (!error) {
-        console.log('Admin role check result:', data);
-        setIsAdmin(!!data);
-      } else {
-        console.error('Error checking admin role:', error);
-      }
-    } catch (err) {
-      console.error('Failed to check admin role:', err);
-    }
-  };
-
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -47,8 +28,8 @@ export const useAuthState = () => {
           setUser(extendedUser);
           setIsEmailVerified(extendedUser.email_confirmed_at !== null);
           
-          // Check admin status directly from the database
-          await checkAdminRole(extendedUser.id);
+          // Check if user is admin
+          setIsAdmin(extendedUser.app_metadata?.role === 'admin');
 
           // Handle authentication events
           if (event === 'SIGNED_IN') {
@@ -78,7 +59,6 @@ export const useAuthState = () => {
             setUser(null);
             setIsEmailVerified(false);
             setIsAdmin(false);
-            console.log("Auth state cleared on sign out");
           }
         } else {
           setUser(null);
@@ -89,8 +69,7 @@ export const useAuthState = () => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
-      console.log("Getting initial session:", currentSession ? "Session exists" : "No session");
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession);
       
       if (currentSession?.user) {
@@ -98,9 +77,7 @@ export const useAuthState = () => {
         const extendedUser = currentSession.user as unknown as ExtendedUser;
         setUser(extendedUser);
         setIsEmailVerified(extendedUser.email_confirmed_at !== null);
-        
-        // Check admin status directly from the database
-        await checkAdminRole(extendedUser.id);
+        setIsAdmin(extendedUser.app_metadata?.role === 'admin');
       }
       
       setIsLoading(false);

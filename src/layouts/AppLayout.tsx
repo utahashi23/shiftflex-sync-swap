@@ -36,23 +36,19 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     
     try {
       setIsSigningOut(true);
-      console.log("Starting sign out process");
       
-      // Call signOut which now handles both state clearing and navigation
+      // Call the signOut function - it now returns void not boolean
       await signOut();
-      console.log("Sign out process initiated");
       
-      // The navigation is now handled in the AuthProvider
-      // No need for navigation here
+      // Always navigate after sign-out attempt
+      navigate('/', { replace: true });
     } catch (error) {
       console.error('Sign out error:', error);
       toast({
         title: "Sign out failed",
-        description: "There was a problem signing you out. Please try again.",
+        description: "There was a problem signing you out.",
         variant: "destructive",
       });
-      // If there's an error, we should still try to navigate to home
-      navigate('/', { replace: true });
     } finally {
       setIsSigningOut(false);
     }
@@ -150,3 +146,4 @@ const AppLayout = ({ children }: AppLayoutProps) => {
 };
 
 export default AppLayout;
+
