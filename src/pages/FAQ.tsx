@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
@@ -9,7 +8,7 @@ import {
   AccordionTrigger 
 } from '@/components/ui/accordion';
 import { Card } from '@/components/ui/card';
-import { QuestionIcon, Calendar, RocketIcon, HelpCircle, UsersIcon, CalendarIcon, MessageCircleQuestion, ShieldQuestion } from 'lucide-react';
+import { Calendar, RocketIcon, HelpCircle, UsersIcon, CalendarIcon, MessageCircleQuestion, ShieldQuestion } from 'lucide-react';
 
 // Define FAQ type
 type FAQItem = {
