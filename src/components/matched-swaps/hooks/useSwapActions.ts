@@ -48,17 +48,21 @@ export const useSwapActions = () => {
             startTime: '', 
             endTime: '', 
             type: 'unknown', 
-            colleagueType: '' 
+            colleagueType: '',
+            truckName: null, // Add the missing truckName property
+            employeeId: null  // Add employeeId property
           },
           otherShift: { 
             id: matchDetails.acceptor_shift_id || '', 
             date: '', 
             startTime: '', 
             endTime: '', 
-            type: 'unknown', 
+            type: 'unknown',
             colleagueType: '',
             userId: '',
-            userName: 'User'
+            userName: 'User',
+            truckName: null, // Add the missing truckName property
+            employeeId: null  // Add employeeId property
           },
           // Add the missing required properties
           myRequestId: matchDetails.requester_request_id || '',
