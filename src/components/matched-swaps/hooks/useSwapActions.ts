@@ -35,16 +35,36 @@ export const useSwapActions = () => {
       // If we have a callback, call it with the updated swap data
       // This ensures the UI can be properly updated without removing the swap
       if (typeof onSuccess === 'function') {
-        // Assume the response contains match data that can be mapped to our SwapMatch type
-        // This is a simplified approach - if actual data structure is different, adjust accordingly
+        // Create a properly typed SwapMatch object with all required fields
+        // Get some details from response if available, otherwise use placeholders
+        const matchDetails = data?.data || {};
+        
         onSuccess({
           id: swapId,
           status: 'accepted',
-          // The rest of the fields would actually come from data,
-          // but for now we'll just pass a minimal object to indicate success
-          myShift: { id: '', date: '', startTime: '', endTime: '', type: '', colleagueType: '' },
-          otherShift: { id: '', date: '', startTime: '', endTime: '', type: '', colleagueType: '' }
-        } as SwapMatch);
+          myShift: { 
+            id: matchDetails.requester_shift_id || '', 
+            date: '', 
+            startTime: '', 
+            endTime: '', 
+            type: 'unknown', 
+            colleagueType: '' 
+          },
+          otherShift: { 
+            id: matchDetails.acceptor_shift_id || '', 
+            date: '', 
+            startTime: '', 
+            endTime: '', 
+            type: 'unknown', 
+            colleagueType: '',
+            userId: '',
+            userName: 'User'
+          },
+          // Add the missing required properties
+          myRequestId: matchDetails.requester_request_id || '',
+          otherRequestId: matchDetails.acceptor_request_id || '',
+          createdAt: new Date().toISOString()
+        });
       }
       
       toast({
