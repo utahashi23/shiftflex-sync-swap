@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { sendEmail, sendSwapEmail } from '@/utils/emailService';
+import { sendEmail, sendSwapEmail, resendSwapNotification } from '@/utils/emailService';
 import { toast } from '@/hooks/use-toast';
 import { SwapMatch } from '../types';
 
@@ -55,6 +55,51 @@ export const useEmailNotifications = () => {
   };
 
   /**
+   * Send a notification email for a match
+   */
+  const sendNotificationEmail = async (matchId: string, type: 'accepted' | 'finalized' | 'completed'): Promise<boolean> => {
+    setIsSending(true);
+    
+    try {
+      // Call the resendSwapNotification function which handles email logic
+      const result = await resendSwapNotification(matchId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send notification email');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`Error sending ${type} notification:`, error);
+      return false;
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  /**
+   * Resend a notification email for a match
+   */
+  const resendNotificationEmail = async (matchId: string, type: 'accepted' | 'finalized' | 'completed'): Promise<boolean> => {
+    setIsSending(true);
+    
+    try {
+      const result = await resendSwapNotification(matchId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to resend notification');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`Error resending ${type} notification:`, error);
+      return false;
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  /**
    * Send a test email
    */
   const sendTestEmail = async (recipientEmail: string): Promise<boolean> => {
@@ -99,6 +144,8 @@ export const useEmailNotifications = () => {
 
   return {
     sendSwapNotification,
+    sendNotificationEmail,
+    resendNotificationEmail,
     sendTestEmail,
     isSending
   };

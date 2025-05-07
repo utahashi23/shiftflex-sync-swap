@@ -63,12 +63,21 @@ export const deletePreferredDateApi = async (dayId: string, requestId: string) =
     // If the RPC function was successful, return its result with the preferred day ID
     console.log('RPC function returned:', rpcData);
     
-    // Fix: Create a properly typed object by explicitly defining the properties
+    // Fix: Ensure we're handling the RPC data correctly with type checking
+    if (rpcData && typeof rpcData === 'object') {
+      return {
+        success: true,
+        requestDeleted: rpcData.requestDeleted === true,
+        preferredDayId: dayId,
+        message: rpcData.message || undefined
+      };
+    }
+    
+    // Fallback if response format is unexpected
     return {
       success: true,
-      requestDeleted: rpcData?.requestDeleted || false,
-      preferredDayId: dayId,
-      message: rpcData?.message
+      requestDeleted: false,
+      preferredDayId: dayId
     };
     
   } catch (error) {

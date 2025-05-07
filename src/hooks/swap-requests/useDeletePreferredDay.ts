@@ -42,7 +42,8 @@ export const useDeletePreferredDay = ({ onSuccess }: UseDeletePreferredDayOption
         onSuccess(result, requestId);
         return true;
       } else {
-        throw new Error(result.error || 'Failed to delete preferred date');
+        // Fixed: Use a custom message instead of accessing a non-existent error property
+        throw new Error('Failed to delete preferred date');
       }
     } catch (error) {
       console.error('Error deleting preferred date:', error);
