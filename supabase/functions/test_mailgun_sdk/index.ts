@@ -20,6 +20,7 @@ serve(async (req) => {
     const requestData = await req.json();
     const verboseLogging = requestData.verbose_logging || false;
     const testAttempt = requestData.test_attempt || 1;
+    const recipientEmail = requestData.recipientEmail || "njalasankhulani@gmail.com";
 
     if (verboseLogging) {
       console.log(`Request data: ${JSON.stringify(requestData)}`);
@@ -91,15 +92,14 @@ serve(async (req) => {
       throw new Error('Missing Mailgun API key in environment variables');
     }
     
-    // Log the domain with some basic validation
+    // Log the domain with validation
     console.log(`Using Mailgun domain: ${MAILGUN_DOMAIN} (US region)`);
     
-    // Validate domain format (basic check)
-    if (!MAILGUN_DOMAIN.includes('.')) {
-      throw new Error('Invalid Mailgun domain format. Should be a valid domain name like "example.com"');
+    // Validate domain format more strictly
+    if (!MAILGUN_DOMAIN || !MAILGUN_DOMAIN.includes('.') || MAILGUN_DOMAIN.startsWith('c1') || MAILGUN_DOMAIN.length > 100) {
+      console.error(`Invalid Mailgun domain format: "${MAILGUN_DOMAIN}"`);
+      throw new Error(`Invalid Mailgun domain format. Should be a valid domain name like "example.com"`);
     }
-    
-    const recipientEmail = requestData.recipientEmail || "njalasankhulani@gmail.com";
     
     console.log(`Will send test email to: ${recipientEmail}`);
     
@@ -110,7 +110,7 @@ serve(async (req) => {
       // Create URL for sending messages via Mailgun API - US region
       const mailgunApiUrl = `https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`;
       
-      // Use admin@shiftflex.au as the sender address
+      // Use admin@domain as the sender address
       const sender = `admin@${MAILGUN_DOMAIN}`;
       
       if (verboseLogging) {

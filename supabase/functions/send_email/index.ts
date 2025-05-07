@@ -51,6 +51,12 @@ serve(async (req) => {
       throw new Error('Missing required email parameters (to, subject, and either text, html, or template)');
     }
 
+    // Check domain format first
+    if (!MAILGUN_DOMAIN || !MAILGUN_DOMAIN.includes('.') || MAILGUN_DOMAIN.startsWith('c1') || MAILGUN_DOMAIN.length > 100) {
+      console.error(`Invalid Mailgun domain format: "${MAILGUN_DOMAIN}"`);
+      throw new Error(`Invalid Mailgun domain format. Should be a valid domain name like "example.com"`);
+    }
+
     // Log the email sending attempt
     console.log(`Attempting to send email to ${Array.isArray(to) ? to.join(', ') : to} with subject "${subject}"`);
     console.log(`Using Mailgun domain: ${MAILGUN_DOMAIN} (US region)`);

@@ -5,17 +5,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, AlertTriangle, Check, Network } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-export function MailgunTestButton() {
+interface MailgunTestButtonProps {
+  recipientEmail: string;
+  showAdvanced?: boolean;
+}
+
+export function MailgunTestButton({ recipientEmail, showAdvanced = false }: MailgunTestButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const [connectionDetails, setConnectionDetails] = useState<string | null>(null);
   const [showError, setShowError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [recipientEmail, setRecipientEmail] = useState("njalasankhulani@gmail.com");
   const [networkLogs, setNetworkLogs] = useState<Array<{time: string, message: string, type: 'request'|'response'|'error'|'info'}>>([]);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   // Helper function to add logs
@@ -36,6 +40,7 @@ export function MailgunTestButton() {
   
   const clearLogs = () => {
     setNetworkLogs([]);
+    setErrorDetails(null);
   };
 
   const handleTestMailgun = async () => {
@@ -44,6 +49,7 @@ export function MailgunTestButton() {
       setTestStatus(null);
       setConnectionDetails(null);
       setShowError(false);
+      setErrorDetails(null);
       clearLogs();
       toast.info("Testing Mailgun connection (US region)...");
       
@@ -54,11 +60,47 @@ export function MailgunTestButton() {
       const currentRetry = retryCount + 1;
       setRetryCount(currentRetry);
 
+      // First, check connectivity to see if network restrictions might be an issue
+      addLog("Testing basic connectivity to Mailgun servers...", "request");
+      try {
+        const connectivityCheck = await supabase.functions.invoke('test_mailgun_sdk', {
+          body: {
+            check_connectivity: true,
+            timestamp: new Date().toISOString()
+          }
+        });
+        
+        if (connectivityCheck.error) {
+          addLog(`Connectivity check failed: ${JSON.stringify(connectivityCheck.error)}`, "error");
+          
+          // Try to extract more details from the error
+          const errorMessage = connectivityCheck.error instanceof Error 
+            ? connectivityCheck.error.message 
+            : typeof connectivityCheck.error === 'string' 
+              ? connectivityCheck.error
+              : JSON.stringify(connectivityCheck.error);
+              
+          setErrorDetails(`Connectivity error: ${errorMessage}`);
+        } else {
+          addLog(`Connectivity check result: ${JSON.stringify(connectivityCheck.data)}`, "response");
+        }
+      } catch (connectivityError) {
+        addLog(`Connectivity check exception: ${connectivityError instanceof Error ? connectivityError.message : String(connectivityError)}`, "error");
+      }
+
       // Call the API test function first (more likely to succeed with network restrictions)
       addLog(`Sending request to test_mailgun_sdk function (attempt ${currentRetry})`, "request");
+      addLog(`Request payload: ${JSON.stringify({
+        recipientEmail,
+        test_attempt: currentRetry,
+        timestamp: new Date().toISOString(),
+        region: "US",
+        verbose_logging: true
+      })}`, "info");
+      
       const response = await supabase.functions.invoke('test_mailgun_sdk', {
         body: {
-          recipientEmail: recipientEmail,
+          recipientEmail,
           test_attempt: currentRetry,
           timestamp: new Date().toISOString(),
           region: "US",
@@ -72,6 +114,13 @@ export function MailgunTestButton() {
       
       if (response.error) {
         addLog(`Error response: ${JSON.stringify(response.error)}`, "error");
+        
+        // Try to extract more details from the error
+        if (typeof response.error === 'object') {
+          setErrorDetails(JSON.stringify(response.error, null, 2));
+        } else {
+          setErrorDetails(String(response.error));
+        }
       }
 
       console.log(`Mailgun API test response (Attempt ${currentRetry}):`, response);
@@ -81,7 +130,7 @@ export function MailgunTestButton() {
         addLog("API test failed, trying SMTP as fallback", "info");
         const smtpResponse = await supabase.functions.invoke('test_mailgun_smtp', {
           body: {
-            recipientEmail: recipientEmail,
+            recipientEmail,
             test_attempt: currentRetry,
             timestamp: new Date().toISOString(),
             verbose_logging: true
@@ -94,6 +143,13 @@ export function MailgunTestButton() {
         
         if (smtpResponse.error) {
           addLog(`SMTP error response: ${JSON.stringify(smtpResponse.error)}`, "error");
+          
+          // Try to extract more details from the SMTP error
+          if (typeof smtpResponse.error === 'object') {
+            setErrorDetails((prev) => `${prev ? prev + '\n\n' : ''}SMTP Error:\n${JSON.stringify(smtpResponse.error, null, 2)}`);
+          } else {
+            setErrorDetails((prev) => `${prev ? prev + '\n\n' : ''}SMTP Error:\n${String(smtpResponse.error)}`);
+          }
         }
         
         console.log(`Mailgun SMTP test response:`, smtpResponse);
@@ -108,7 +164,7 @@ export function MailgunTestButton() {
             setConnectionDetails("Auth failed");
             setShowError(true);
             toast.error("SMTP authentication failed. Please verify the credentials.");
-          } else if (errorMessage.includes("network") || errorMessage.includes("timeout") || errorMessage.includes("connection")) {
+          } else if (errorMessage.includes("network") || errorMessage.includes("timeout") || errorMessage.includes("connection") || errorMessage.includes("bufio")) {
             setConnectionDetails("Network restriction");
             setShowError(true);
             toast.error("Network restriction detected. This is a common issue with Supabase Edge Functions.");
@@ -135,6 +191,7 @@ export function MailgunTestButton() {
       
       const errorMessage = error instanceof Error ? error.message : String(error);
       addLog(`Exception: ${errorMessage}`, "error");
+      setErrorDetails(`Exception: ${errorMessage}`);
       toast.error(`Error testing Mailgun: ${errorMessage || "Unknown error"}`);
     } finally {
       setIsLoading(false);
@@ -143,44 +200,33 @@ export function MailgunTestButton() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col space-y-2">
-        <label htmlFor="recipient-email" className="text-sm font-medium">
-          Recipient Email
-        </label>
-        <div className="flex space-x-2">
-          <Input 
-            id="recipient-email"
-            type="email" 
-            value={recipientEmail} 
-            onChange={(e) => setRecipientEmail(e.target.value)} 
-            placeholder="Enter recipient email"
-            className="flex-1"
-          />
-          <Button 
-            onClick={handleTestMailgun}
-            disabled={isLoading}
-            variant="outline"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Testing...
-              </>
-            ) : (
-              <>
-                <Network className="mr-2 h-4 w-4" />
-                Test Mailgun API
-              </>
-            )}
-          </Button>
-        </div>
-        {testStatus && (
-          <div className={`text-xs px-2 py-1 rounded-md ${testStatus === "Connected" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-            {testStatus === "Connected" ? <Check className="inline h-3 w-3 mr-1" /> : <AlertTriangle className="inline h-3 w-3 mr-1" />}
-            Status: {testStatus}{connectionDetails ? `: ${connectionDetails}` : ""}
-          </div>
-        )}
+      <div className="flex space-x-2">
+        <Button 
+          onClick={handleTestMailgun}
+          disabled={isLoading}
+          variant="outline"
+          className="w-full"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Testing...
+            </>
+          ) : (
+            <>
+              <Network className="mr-2 h-4 w-4" />
+              Test Mailgun API
+            </>
+          )}
+        </Button>
       </div>
+      
+      {testStatus && (
+        <div className={`text-xs px-2 py-1 rounded-md ${testStatus === "Connected" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+          {testStatus === "Connected" ? <Check className="inline h-3 w-3 mr-1" /> : <AlertTriangle className="inline h-3 w-3 mr-1" />}
+          Status: {testStatus}{connectionDetails ? `: ${connectionDetails}` : ""}
+        </div>
+      )}
 
       {showError && (
         <Alert variant="destructive">
@@ -192,7 +238,16 @@ export function MailgunTestButton() {
         </Alert>
       )}
       
-      <Accordion type="single" collapsible className="w-full">
+      {errorDetails && showAdvanced && (
+        <div className="mt-2">
+          <div className="text-xs font-semibold mb-1">Error Details:</div>
+          <pre className="bg-gray-50 border rounded-md p-2 text-xs overflow-auto max-h-40">
+            {errorDetails}
+          </pre>
+        </div>
+      )}
+      
+      <Accordion type="single" collapsible className="w-full" defaultValue={showAdvanced ? "network-logs" : undefined}>
         <AccordionItem value="network-logs">
           <AccordionTrigger className="text-sm">
             Network Activity Logs ({networkLogs.length})

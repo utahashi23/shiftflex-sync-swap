@@ -26,11 +26,20 @@ serve(async (req) => {
     if (verboseLogging) {
       console.log(`Request data: ${JSON.stringify(requestData)}`);
     }
+
+    // First, check if we have a valid domain
+    const MAILGUN_DOMAIN = Deno.env.get('MAILGUN_DOMAIN') || 'shiftflex.au';
+    
+    // Validate domain format
+    if (!MAILGUN_DOMAIN || !MAILGUN_DOMAIN.includes('.') || MAILGUN_DOMAIN.startsWith('c1') || MAILGUN_DOMAIN.length > 100) {
+      console.error(`Invalid Mailgun domain format: "${MAILGUN_DOMAIN}"`);
+      throw new Error(`Invalid Mailgun domain format. Should be a valid domain name like "example.com"`);
+    }
     
     // SMTP configuration for Mailgun with hardcoded credentials
     const client = new SmtpClient();
     
-    console.log(`Connecting to SMTP server with username: admin@shiftflex.au`);
+    console.log(`Connecting to SMTP server with username: admin@${MAILGUN_DOMAIN}`);
     console.log(`Recipient email: ${recipientEmail}`);
     console.log(`Using Mailgun US region endpoint`);
     
@@ -42,8 +51,8 @@ serve(async (req) => {
       await client.connectTLS({
         hostname: "smtp.mailgun.org", // US region endpoint
         port: 587,
-        username: "admin@shiftflex.au",
-        password: "Bear151194Ns%", // Using the password provided
+        username: `admin@${MAILGUN_DOMAIN}`,
+        password: Deno.env.get('MAILGUN_SMTP_PASSWORD') || "", // Using the password from environment
       });
       
       console.log("SMTP connection established successfully");
@@ -54,7 +63,7 @@ serve(async (req) => {
         }
         
         await client.send({
-          from: "admin@shiftflex.au",
+          from: `admin@${MAILGUN_DOMAIN}`,
           to: recipientEmail,
           subject: `Mailgun SMTP Test (Attempt ${testAttempt}) - US Region - ${new Date().toISOString()}`,
           content: "This is a test email sent using the SMTP protocol from a Supabase Edge Function.",

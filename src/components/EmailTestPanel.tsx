@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TestEmailButton } from "@/components/TestEmailButton";
 import { SmtpTestButton } from "@/components/SmtpTestButton";
@@ -7,8 +7,13 @@ import { MailgunTestButton } from "@/components/MailgunTestButton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export function EmailTestPanel() {
+  const [recipientEmail, setRecipientEmail] = useState("njalasankhulani@gmail.com");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -33,6 +38,29 @@ export function EmailTestPanel() {
           </AlertDescription>
         </Alert>
         
+        <div className="mb-4">
+          <label htmlFor="recipient-email" className="text-sm font-medium block mb-1">
+            Recipient Email
+          </label>
+          <div className="flex space-x-2">
+            <Input 
+              id="recipient-email"
+              type="email" 
+              value={recipientEmail} 
+              onChange={(e) => setRecipientEmail(e.target.value)} 
+              placeholder="Enter recipient email"
+              className="flex-1"
+            />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowAdvanced(!showAdvanced)}
+            >
+              {showAdvanced ? "Hide Advanced" : "Show Advanced"}
+            </Button>
+          </div>
+        </div>
+        
         <p className="text-sm mb-4">
           Test the email service using different providers and approaches.
           Check your inbox for test emails or review error details below.
@@ -46,15 +74,15 @@ export function EmailTestPanel() {
           </TabsList>
           
           <TabsContent value="mailgun" className="space-y-4">
-            <MailgunTestButton />
+            <MailgunTestButton recipientEmail={recipientEmail} showAdvanced={showAdvanced} />
           </TabsContent>
           
           <TabsContent value="loop" className="space-y-4">
-            <TestEmailButton />
+            <TestEmailButton recipientEmail={recipientEmail} />
           </TabsContent>
           
           <TabsContent value="smtp" className="space-y-4">
-            <SmtpTestButton />
+            <SmtpTestButton recipientEmail={recipientEmail} />
           </TabsContent>
         </Tabs>
       </CardContent>

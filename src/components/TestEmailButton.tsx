@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export function TestEmailButton() {
+interface TestEmailButtonProps {
+  recipientEmail: string;
+}
+
+export function TestEmailButton({ recipientEmail }: TestEmailButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [apiStatus, setApiStatus] = useState<string | null>(null);
   const [connectionDetails, setConnectionDetails] = useState<string | null>(null);
@@ -16,13 +20,15 @@ export function TestEmailButton() {
       setConnectionDetails(null);
       toast.info("Testing email service...");
 
+      console.log(`Testing Loop.so email with recipient: ${recipientEmail}`);
+
       // Test API connectivity first
       console.log("Testing Loop.so API connectivity first...");
       const connectivityResponse = await supabase.functions.invoke('loop_send_email', {
         body: {
           test_connectivity: true,
           test_api_key: true,
-          to: "test@example.com",
+          to: recipientEmail,
           subject: "Connectivity Test",
           html: "<p>Connectivity test</p>"
         }
@@ -62,9 +68,9 @@ export function TestEmailButton() {
       toast.success("API connection successful! Proceeding with test email...");
 
       // Now test email sending with the verified key
-      console.log("Calling test_loop_email function...");
+      console.log(`Calling test_loop_email function with recipient: ${recipientEmail}`);
       const loopResponse = await supabase.functions.invoke('test_loop_email', {
-        body: {}
+        body: { recipientEmail }
       });
 
       console.log("Test email response:", loopResponse);
@@ -92,7 +98,7 @@ export function TestEmailButton() {
       } else {
         setApiStatus("Email sent");
         setConnectionDetails("Success");
-        toast.success("Test email sent! Check your inbox for njalasankhulani@gmail.com.");
+        toast.success(`Test email sent! Check your inbox for ${recipientEmail}.`);
       }
     } catch (error) {
       console.error("Error testing email:", error);
@@ -115,7 +121,7 @@ export function TestEmailButton() {
       // Call our fallback email service
       const fallbackResponse = await supabase.functions.invoke('send_email', {
         body: {
-          to: "njalasankhulani@gmail.com",
+          to: recipientEmail,
           subject: "Email Test via Fallback Service",
           text: "This is a test email sent via the fallback email service.",
           from: "admin@shiftflex.au"
