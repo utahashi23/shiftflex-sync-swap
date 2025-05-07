@@ -13,7 +13,7 @@ const UserRoleIndicator = () => {
         <TooltipTrigger asChild>
           <Badge 
             variant={isAdmin ? "default" : "outline"} 
-            className={`flex items-center gap-1 px-2 py-1 ${isAdmin ? 'bg-primary-foreground text-primary border-primary' : 'text-muted-foreground'}`}
+            className={`flex items-center gap-1 px-2 py-1 ${isAdmin ? 'bg-green-600 hover:bg-green-700 text-white' : 'text-muted-foreground'}`}
           >
             {isAdmin ? (
               <>
@@ -34,6 +34,7 @@ const UserRoleIndicator = () => {
               ? 'You have administrator privileges' 
               : 'You have regular user privileges'}
           </p>
+          <p className="text-xs mt-1 text-gray-400">User ID: {user?.id?.substring(0, 8)}</p>
         </TooltipContent>
       </Tooltip>
     </div>
