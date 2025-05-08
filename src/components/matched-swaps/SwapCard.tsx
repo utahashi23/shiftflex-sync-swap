@@ -6,7 +6,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { ArrowRightLeft, Calendar, Clock, UserCircle2, AlertTriangle, FileText } from "lucide-react";
+import { ArrowRightLeft, Calendar, Clock, UserCircle2, AlertTriangle, FileText, Mail } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "./types";
 import { useState } from "react";
@@ -123,6 +123,15 @@ export const SwapCard = ({
                   {swap.myShift.colleagueType}
                 </span>
               </div>
+
+              {swap.myShift.employeeId && (
+                <div className="flex items-center mt-1">
+                  <span className="h-4 w-4 mr-2 text-muted-foreground">🪪</span>
+                  <span className="text-sm" data-testid="my-employee-id">
+                    Service#: {swap.myShift.employeeId}
+                  </span>
+                </div>
+              )}
               
               <div className="mt-2 text-xs font-medium text-muted-foreground">
                 {swap.myShift.truckName || 'Shift'}
@@ -160,6 +169,15 @@ export const SwapCard = ({
                   {swap.otherShift.colleagueType}
                 </span>
               </div>
+
+              {swap.otherShift.employeeId && (
+                <div className="flex items-center mt-1">
+                  <span className="h-4 w-4 mr-2 text-muted-foreground">🪪</span>
+                  <span className="text-sm" data-testid="other-employee-id">
+                    Service#: {swap.otherShift.employeeId}
+                  </span>
+                </div>
+              )}
               
               <div className="mt-2 text-xs font-medium text-muted-foreground">
                 {swap.otherShift.truckName || 'Shift'}
@@ -227,6 +245,17 @@ export const SwapCard = ({
                     className="hover:bg-red-50"
                   >
                     Cancel
+                  </Button>
+                )}
+
+                {onResendEmail && (
+                  <Button 
+                    onClick={() => onResendEmail(swap.id)}
+                    variant="outline"
+                    className="flex items-center"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Resend Email
                   </Button>
                 )}
                 

@@ -147,6 +147,7 @@ serve(async (req) => {
     
     console.log(`User emails: Requester: ${requesterEmail || 'unknown'}, Acceptor: ${acceptorEmail || 'unknown'}`);
     console.log(`User names: Requester: ${requesterName}, Acceptor: ${acceptorName}`);
+    console.log(`Employee IDs: Requester: ${requesterEmployeeId}, Acceptor: ${acceptorEmployeeId}`);
 
     // Fetch detailed shift information including colleague types
     const shiftsPromises = [
@@ -213,7 +214,7 @@ serve(async (req) => {
 
     // Only attempt to send emails if we have email addresses
     if (requesterEmail) {
-      // Create Shift Swap Card styled email for requester that matches the UI in the image
+      // Create email for requester with flat icons and employee IDs
       const requesterEmailContent = `
       <!DOCTYPE html>
       <html lang="en">
@@ -229,221 +230,186 @@ serve(async (req) => {
             color: #334155;
             background-color: #f8fafc;
           }
-          .card {
+          .email-container {
             max-width: 600px;
             margin: 0 auto;
+            background-color: white;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
             overflow: hidden;
-            background-color: white;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
           }
-          .card-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid #e2e8f0;
-            background-color: #f8fafc;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-          .card-title {
-            display: flex;
-            align-items: center;
-            font-size: 18px;
-            font-weight: 600;
-            margin: 0;
-          }
-          .status-badge {
-            padding: 5px 12px;
-            background-color: #dbeafe;
-            color: #1e40af;
-            border-radius: 9999px;
-            font-size: 14px;
-            font-weight: 500;
-          }
-          .card-content {
+          .header {
             padding: 20px;
+            background-color: #f1f5f9;
+            border-bottom: 1px solid #e2e8f0;
+          }
+          .header h1 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 22px;
+          }
+          .content {
+            padding: 20px;
+          }
+          .swap-details {
+            margin-bottom: 25px;
           }
           .shift-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
           }
-          .shift-section h3 {
-            color: #64748b;
-            font-size: 16px;
-            margin-top: 0;
-            margin-bottom: 10px;
-            font-weight: 500;
-          }
           .shift-box {
-            padding: 15px;
             border: 1px solid #e2e8f0;
             border-radius: 6px;
+            padding: 15px;
             background-color: #f8fafc;
           }
-          .shift-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 9999px;
+          .shift-box-title {
+            font-weight: 500;
+            color: #64748b;
             margin-bottom: 10px;
             font-size: 14px;
-            font-weight: 500;
           }
-          .day-badge {
-            background-color: #e0f2fe;
-            color: #0369a1;
-          }
-          .afternoon-badge {
-            background-color: #ffedd5;
-            color: #9a3412;
-          }
-          .night-badge {
-            background-color: #dbeafe;
-            color: #1e40af;
+          .shift-type {
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 16px;
           }
           .shift-detail {
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
-            margin-bottom: 6px;
           }
           .shift-detail-icon {
             margin-right: 8px;
             color: #64748b;
             width: 16px;
-            text-align: center;
-          }
-          .shift-location {
-            margin-top: 10px;
-            font-size: 13px;
-            color: #64748b;
-            font-weight: 500;
-          }
-          .card-footer {
-            padding: 15px 20px;
-            border-top: 1px solid #e2e8f0;
-            background-color: #f1f5f9;
-            display: flex;
-            justify-content: space-between;
-          }
-          .footer-content {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e2e8f0;
-            font-size: 14px;
-            color: #64748b;
+            display: inline-block;
           }
           .warning-box {
-            margin-top: 20px;
-            padding: 15px;
-            border-left: 4px solid #f59e0b;
             background-color: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
           }
           .warning-box p {
+            margin: 0 0 10px;
+          }
+          .warning-box p:last-child {
             margin: 0;
           }
-          .button {
+          .status-badge {
             display: inline-block;
-            background-color: #4f46e5;
-            color: white;
-            text-decoration: none;
-            padding: 10px 16px;
-            border-radius: 6px;
+            padding: 6px 12px;
+            background-color: #dbeafe;
+            color: #1e40af;
+            border-radius: 9999px;
+            font-size: 14px;
             font-weight: 500;
+          }
+          .footer {
+            padding: 15px 20px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 12px;
+            color: #64748b;
+          }
+          @media only screen and (max-width: 620px) {
+            .shift-grid {
+              grid-template-columns: 1fr;
+            }
           }
         </style>
       </head>
       <body>
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <span style="color:#3b82f6;margin-right:10px;">↔️</span>
-              Shift Swap
-            </div>
-            <div class="status-badge">Accepted</div>
+        <div class="email-container">
+          <div class="header">
+            <h1>Shift Swap Notification</h1>
           </div>
           
-          <div class="card-content">
+          <div class="content">
+            <div class="swap-details">
+              <h2>Your swap has been accepted</h2>
+              <p>A colleague has accepted your shift swap request. Details are below:</p>
+            </div>
+            
             <div class="shift-grid">
-              <div class="shift-section">
-                <h3>Your Shift</h3>
-                <div class="shift-box">
-                  <div class="${requesterShiftType === 'day' ? 'shift-badge day-badge' : requesterShiftType === 'afternoon' ? 'shift-badge afternoon-badge' : 'shift-badge night-badge'}">
-                    ${requesterShiftType.charAt(0).toUpperCase() + requesterShiftType.slice(1)} Shift
-                  </div>
-                  
-                  <div class="shift-detail">
-                    <span class="shift-detail-icon">📅</span>
-                    <span>${formatDate(requesterShift.data?.date)}</span>
-                  </div>
-                  
-                  <div class="shift-detail">
-                    <span class="shift-detail-icon">⏱️</span>
-                    <span>${formatTime(requesterShift.data?.start_time)} - ${formatTime(requesterShift.data?.end_time)}</span>
-                  </div>
-                  
-                  <div class="shift-detail">
-                    <span class="shift-detail-icon">👤</span>
-                    <span>${requesterShift.data?.colleague_type || 'Not specified'}</span>
-                  </div>
-                  
-                  <div class="shift-location">
-                    ${requesterShift.data?.truck_name || 'Not specified'}
-                  </div>
+              <div class="shift-box">
+                <div class="shift-box-title">YOUR SHIFT</div>
+                <div class="shift-type">${requesterShiftType.charAt(0).toUpperCase() + requesterShiftType.slice(1)} Shift</div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">📅</span>
+                  <span>${formatDate(requesterShift.data?.date)}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">⏱️</span>
+                  <span>${formatTime(requesterShift.data?.start_time)} - ${formatTime(requesterShift.data?.end_time)}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">👤</span>
+                  <span>${requesterShift.data?.colleague_type || 'Not specified'}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">🪪</span>
+                  <span>Service#: ${requesterEmployeeId}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">📍</span>
+                  <span>${requesterShift.data?.truck_name || 'Not specified'}</span>
                 </div>
               </div>
               
-              <div class="shift-section">
-                <h3>Matched Shift</h3>
-                <div class="shift-box">
-                  <div class="${acceptorShiftType === 'day' ? 'shift-badge day-badge' : acceptorShiftType === 'afternoon' ? 'shift-badge afternoon-badge' : 'shift-badge night-badge'}">
-                    ${acceptorShiftType.charAt(0).toUpperCase() + acceptorShiftType.slice(1)} Shift
-                  </div>
-
-                  <div style="text-align:right; font-size:14px; color:#64748b; margin-top:-25px;">
-                    ${acceptorName}
-                  </div>
-                  
-                  <div class="shift-detail">
-                    <span class="shift-detail-icon">📅</span>
-                    <span>${formatDate(acceptorShift.data?.date)}</span>
-                  </div>
-                  
-                  <div class="shift-detail">
-                    <span class="shift-detail-icon">⏱️</span>
-                    <span>${formatTime(acceptorShift.data?.start_time)} - ${formatTime(acceptorShift.data?.end_time)}</span>
-                  </div>
-                  
-                  <div class="shift-detail">
-                    <span class="shift-detail-icon">👤</span>
-                    <span>${acceptorShift.data?.colleague_type || 'Not specified'}</span>
-                  </div>
-                  
-                  <div class="shift-location">
-                    ${acceptorShift.data?.truck_name || 'Not specified'}
-                  </div>
+              <div class="shift-box">
+                <div class="shift-box-title">MATCHED SHIFT</div>
+                <div class="shift-type">${acceptorShiftType.charAt(0).toUpperCase() + acceptorShiftType.slice(1)} Shift - ${acceptorName}</div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">📅</span>
+                  <span>${formatDate(acceptorShift.data?.date)}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">⏱️</span>
+                  <span>${formatTime(acceptorShift.data?.start_time)} - ${formatTime(acceptorShift.data?.end_time)}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">👤</span>
+                  <span>${acceptorShift.data?.colleague_type || 'Not specified'}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">🪪</span>
+                  <span>Service#: ${acceptorEmployeeId}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">📍</span>
+                  <span>${acceptorShift.data?.truck_name || 'Not specified'}</span>
                 </div>
               </div>
             </div>
 
             <div class="warning-box">
               <p><strong>Important:</strong> This swap is pending approval from Rosters. Once approved, you'll be notified to finalize the swap.</p>
-              <p style="margin-top:10px;"><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
+              <p><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
+            </div>
+            
+            <div style="margin-top: 25px;">
+              <div>Current Status: <span class="status-badge">Accepted</span></div>
             </div>
           </div>
           
-          <div class="card-footer">
-            <div style="font-size:14px;">Status:</div>
-            <div style="padding:4px 12px;background-color:#dbeafe;color:#1e40af;border-radius:9999px;font-size:12px;font-weight:500;">
-              Accepted
-            </div>
+          <div class="footer">
+            <p>Thank you for using the Shift Swap system!</p>
+            <p>This is an automated notification. Please do not reply to this email.</p>
+            <p>Swap Reference: ${match_id}</p>
           </div>
-        </div>
-        
-        <div class="footer-content">
-          <p>Thank you for using the Shift Swap system!</p>
-          <p>This is an automated notification. Please do not reply to this email.</p>
-          <p>Swap Reference: ${match_id}</p>
         </div>
       </body>
       </html>
@@ -489,7 +455,7 @@ serve(async (req) => {
     }
 
     if (acceptorEmail) {
-      // Create Shift Swap Card styled email for acceptor
+      // Create email for acceptor with flat icons and employee IDs
       const acceptorEmailContent = `
       <!DOCTYPE html>
       <html lang="en">
@@ -505,221 +471,186 @@ serve(async (req) => {
             color: #334155;
             background-color: #f8fafc;
           }
-          .card {
+          .email-container {
             max-width: 600px;
             margin: 0 auto;
+            background-color: white;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
             overflow: hidden;
-            background-color: white;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
           }
-          .card-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid #e2e8f0;
-            background-color: #f8fafc;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-          .card-title {
-            display: flex;
-            align-items: center;
-            font-size: 18px;
-            font-weight: 600;
-            margin: 0;
-          }
-          .status-badge {
-            padding: 5px 12px;
-            background-color: #dbeafe;
-            color: #1e40af;
-            border-radius: 9999px;
-            font-size: 14px;
-            font-weight: 500;
-          }
-          .card-content {
+          .header {
             padding: 20px;
+            background-color: #f1f5f9;
+            border-bottom: 1px solid #e2e8f0;
+          }
+          .header h1 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 22px;
+          }
+          .content {
+            padding: 20px;
+          }
+          .swap-details {
+            margin-bottom: 25px;
           }
           .shift-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
           }
-          .shift-section h3 {
-            color: #64748b;
-            font-size: 16px;
-            margin-top: 0;
-            margin-bottom: 10px;
-            font-weight: 500;
-          }
           .shift-box {
-            padding: 15px;
             border: 1px solid #e2e8f0;
             border-radius: 6px;
+            padding: 15px;
             background-color: #f8fafc;
           }
-          .shift-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 9999px;
+          .shift-box-title {
+            font-weight: 500;
+            color: #64748b;
             margin-bottom: 10px;
             font-size: 14px;
-            font-weight: 500;
           }
-          .day-badge {
-            background-color: #e0f2fe;
-            color: #0369a1;
-          }
-          .afternoon-badge {
-            background-color: #ffedd5;
-            color: #9a3412;
-          }
-          .night-badge {
-            background-color: #dbeafe;
-            color: #1e40af;
+          .shift-type {
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 16px;
           }
           .shift-detail {
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
-            margin-bottom: 6px;
           }
           .shift-detail-icon {
             margin-right: 8px;
             color: #64748b;
             width: 16px;
-            text-align: center;
-          }
-          .shift-location {
-            margin-top: 10px;
-            font-size: 13px;
-            color: #64748b;
-            font-weight: 500;
-          }
-          .card-footer {
-            padding: 15px 20px;
-            border-top: 1px solid #e2e8f0;
-            background-color: #f1f5f9;
-            display: flex;
-            justify-content: space-between;
-          }
-          .footer-content {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e2e8f0;
-            font-size: 14px;
-            color: #64748b;
+            display: inline-block;
           }
           .warning-box {
-            margin-top: 20px;
-            padding: 15px;
-            border-left: 4px solid #f59e0b;
             background-color: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
           }
           .warning-box p {
+            margin: 0 0 10px;
+          }
+          .warning-box p:last-child {
             margin: 0;
           }
-          .button {
+          .status-badge {
             display: inline-block;
-            background-color: #4f46e5;
-            color: white;
-            text-decoration: none;
-            padding: 10px 16px;
-            border-radius: 6px;
+            padding: 6px 12px;
+            background-color: #dbeafe;
+            color: #1e40af;
+            border-radius: 9999px;
+            font-size: 14px;
             font-weight: 500;
+          }
+          .footer {
+            padding: 15px 20px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 12px;
+            color: #64748b;
+          }
+          @media only screen and (max-width: 620px) {
+            .shift-grid {
+              grid-template-columns: 1fr;
+            }
           }
         </style>
       </head>
       <body>
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <span style="color:#3b82f6;margin-right:10px;">↔️</span>
-              Shift Swap
-            </div>
-            <div class="status-badge">Accepted</div>
+        <div class="email-container">
+          <div class="header">
+            <h1>Shift Swap Confirmation</h1>
           </div>
           
-          <div class="card-content">
+          <div class="content">
+            <div class="swap-details">
+              <h2>You've accepted a shift swap</h2>
+              <p>You have accepted a shift swap request. Details are below:</p>
+            </div>
+            
             <div class="shift-grid">
-              <div class="shift-section">
-                <h3>Your Shift</h3>
-                <div class="shift-box">
-                  <div class="${acceptorShiftType === 'day' ? 'shift-badge day-badge' : acceptorShiftType === 'afternoon' ? 'shift-badge afternoon-badge' : 'shift-badge night-badge'}">
-                    ${acceptorShiftType.charAt(0).toUpperCase() + acceptorShiftType.slice(1)} Shift
-                  </div>
-                  
-                  <div class="shift-detail">
-                    <span class="shift-detail-icon">📅</span>
-                    <span>${formatDate(acceptorShift.data?.date)}</span>
-                  </div>
-                  
-                  <div class="shift-detail">
-                    <span class="shift-detail-icon">⏱️</span>
-                    <span>${formatTime(acceptorShift.data?.start_time)} - ${formatTime(acceptorShift.data?.end_time)}</span>
-                  </div>
-                  
-                  <div class="shift-detail">
-                    <span class="shift-detail-icon">👤</span>
-                    <span>${acceptorShift.data?.colleague_type || 'Not specified'}</span>
-                  </div>
-                  
-                  <div class="shift-location">
-                    ${acceptorShift.data?.truck_name || 'Not specified'}
-                  </div>
+              <div class="shift-box">
+                <div class="shift-box-title">YOUR SHIFT</div>
+                <div class="shift-type">${acceptorShiftType.charAt(0).toUpperCase() + acceptorShiftType.slice(1)} Shift</div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">📅</span>
+                  <span>${formatDate(acceptorShift.data?.date)}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">⏱️</span>
+                  <span>${formatTime(acceptorShift.data?.start_time)} - ${formatTime(acceptorShift.data?.end_time)}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">👤</span>
+                  <span>${acceptorShift.data?.colleague_type || 'Not specified'}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">🪪</span>
+                  <span>Service#: ${acceptorEmployeeId}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">📍</span>
+                  <span>${acceptorShift.data?.truck_name || 'Not specified'}</span>
                 </div>
               </div>
               
-              <div class="shift-section">
-                <h3>Matched Shift</h3>
-                <div class="shift-box">
-                  <div class="${requesterShiftType === 'day' ? 'shift-badge day-badge' : requesterShiftType === 'afternoon' ? 'shift-badge afternoon-badge' : 'shift-badge night-badge'}">
-                    ${requesterShiftType.charAt(0).toUpperCase() + requesterShiftType.slice(1)} Shift
-                  </div>
-
-                  <div style="text-align:right; font-size:14px; color:#64748b; margin-top:-25px;">
-                    ${requesterName}
-                  </div>
-                  
-                  <div class="shift-detail">
-                    <span class="shift-detail-icon">📅</span>
-                    <span>${formatDate(requesterShift.data?.date)}</span>
-                  </div>
-                  
-                  <div class="shift-detail">
-                    <span class="shift-detail-icon">⏱️</span>
-                    <span>${formatTime(requesterShift.data?.start_time)} - ${formatTime(requesterShift.data?.end_time)}</span>
-                  </div>
-                  
-                  <div class="shift-detail">
-                    <span class="shift-detail-icon">👤</span>
-                    <span>${requesterShift.data?.colleague_type || 'Not specified'}</span>
-                  </div>
-                  
-                  <div class="shift-location">
-                    ${requesterShift.data?.truck_name || 'Not specified'}
-                  </div>
+              <div class="shift-box">
+                <div class="shift-box-title">MATCHED SHIFT</div>
+                <div class="shift-type">${requesterShiftType.charAt(0).toUpperCase() + requesterShiftType.slice(1)} Shift - ${requesterName}</div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">📅</span>
+                  <span>${formatDate(requesterShift.data?.date)}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">⏱️</span>
+                  <span>${formatTime(requesterShift.data?.start_time)} - ${formatTime(requesterShift.data?.end_time)}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">👤</span>
+                  <span>${requesterShift.data?.colleague_type || 'Not specified'}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">🪪</span>
+                  <span>Service#: ${requesterEmployeeId}</span>
+                </div>
+                
+                <div class="shift-detail">
+                  <span class="shift-detail-icon">📍</span>
+                  <span>${requesterShift.data?.truck_name || 'Not specified'}</span>
                 </div>
               </div>
             </div>
 
             <div class="warning-box">
               <p><strong>Important:</strong> This swap is pending approval from Rosters. Once approved, you'll be notified to finalize the swap.</p>
-              <p style="margin-top:10px;"><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
+              <p><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
+            </div>
+            
+            <div style="margin-top: 25px;">
+              <div>Current Status: <span class="status-badge">Accepted</span></div>
             </div>
           </div>
           
-          <div class="card-footer">
-            <div style="font-size:14px;">Status:</div>
-            <div style="padding:4px 12px;background-color:#dbeafe;color:#1e40af;border-radius:9999px;font-size:12px;font-weight:500;">
-              Accepted
-            </div>
+          <div class="footer">
+            <p>Thank you for using the Shift Swap system!</p>
+            <p>This is an automated notification. Please do not reply to this email.</p>
+            <p>Swap Reference: ${match_id}</p>
           </div>
-        </div>
-        
-        <div class="footer-content">
-          <p>Thank you for using the Shift Swap system!</p>
-          <p>This is an automated notification. Please do not reply to this email.</p>
-          <p>Swap Reference: ${match_id}</p>
         </div>
       </body>
       </html>

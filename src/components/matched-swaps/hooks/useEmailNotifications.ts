@@ -187,7 +187,8 @@ export const useEmailNotifications = () => {
         },
         body: JSON.stringify({
           triggered_at: new Date().toISOString(),
-          test_user_id: userId
+          test_user_id: userId,
+          view_url: "https://www.shiftflex.au/shifts"
         })
       }).then(res => res.json());
       
