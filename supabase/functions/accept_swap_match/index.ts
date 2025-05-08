@@ -277,16 +277,6 @@ serve(async (req) => {
                 border-top: 1px solid #eee; 
                 padding-top: 10px; 
               }
-              .button {
-                display: inline-block;
-                background-color: #3b82f6;
-                color: white;
-                text-decoration: none;
-                padding: 10px 20px;
-                border-radius: 4px;
-                margin-top: 15px;
-                font-weight: bold;
-              }
             </style>
           </head>
           <body>
@@ -340,7 +330,6 @@ serve(async (req) => {
               </table>
               
               <p>You can view and manage your shift swaps in the ShiftFlex application.</p>
-              <a href="https://www.shiftflex.au/shifts" class="button">View All Swaps</a>
             </div>
             <div class="footer">
               <p>This is an automated notification from the Shift Swap system. Please do not reply to this email.</p>
@@ -445,16 +434,6 @@ serve(async (req) => {
                 border-top: 1px solid #eee; 
                 padding-top: 10px; 
               }
-              .button {
-                display: inline-block;
-                background-color: #3b82f6;
-                color: white;
-                text-decoration: none;
-                padding: 10px 20px;
-                border-radius: 4px;
-                margin-top: 15px;
-                font-weight: bold;
-              }
             </style>
           </head>
           <body>
@@ -508,7 +487,6 @@ serve(async (req) => {
               </table>
               
               <p>You can view and manage your shift swaps in the ShiftFlex application.</p>
-              <a href="https://www.shiftflex.au/shifts" class="button">View All Swaps</a>
             </div>
             <div class="footer">
               <p>This is an automated notification from the Shift Swap system. Please do not reply to this email.</p>
