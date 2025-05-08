@@ -103,13 +103,23 @@ serve(async (req) => {
     
     console.log(`Users involved: Requester ID: ${requesterUserId}, Acceptor ID: ${acceptorUserId}`)
 
-    // Fetch users' email addresses
+    // Fetch detailed user data including profile information 
     const usersPromises = [
       supabaseAdmin.auth.admin.getUserById(requesterUserId),
-      supabaseAdmin.auth.admin.getUserById(acceptorUserId)
+      supabaseAdmin.auth.admin.getUserById(acceptorUserId),
+      supabaseAdmin
+        .from('profiles')
+        .select('first_name, last_name, employee_id')
+        .eq('id', requesterUserId)
+        .single(),
+      supabaseAdmin
+        .from('profiles')
+        .select('first_name, last_name, employee_id')
+        .eq('id', acceptorUserId)
+        .single()
     ]
 
-    const [requesterUser, acceptorUser] = await Promise.all(usersPromises)
+    const [requesterUser, acceptorUser, requesterProfile, acceptorProfile] = await Promise.all(usersPromises)
     
     if (requesterUser.error) {
       console.error(`Error fetching requester user: ${requesterUser.error.message}`)
@@ -124,18 +134,30 @@ serve(async (req) => {
     const requesterEmail = requesterUser.data?.user?.email
     const acceptorEmail = acceptorUser.data?.user?.email
     
+    const requesterName = requesterProfile.data ? 
+      `${requesterProfile.data.first_name || ''} ${requesterProfile.data.last_name || ''}`.trim() : 
+      'Unknown User'
+    
+    const acceptorName = acceptorProfile.data ? 
+      `${acceptorProfile.data.first_name || ''} ${acceptorProfile.data.last_name || ''}`.trim() : 
+      'Unknown User'
+    
+    const requesterEmployeeId = requesterProfile.data?.employee_id || 'Not specified'
+    const acceptorEmployeeId = acceptorProfile.data?.employee_id || 'Not specified'
+    
     console.log(`User emails: Requester: ${requesterEmail || 'unknown'}, Acceptor: ${acceptorEmail || 'unknown'}`)
+    console.log(`User names: Requester: ${requesterName}, Acceptor: ${acceptorName}`)
 
-    // Fetch shift details for email content
+    // Fetch detailed shift information including colleague types
     const shiftsPromises = [
       supabaseAdmin
         .from('shifts')
-        .select('date, start_time, end_time, truck_name')
+        .select('*')
         .eq('id', matchData.requester_shift_id)
         .single(),
       supabaseAdmin
         .from('shifts')
-        .select('date, start_time, end_time, truck_name')
+        .select('*')
         .eq('id', matchData.acceptor_shift_id)
         .single()
     ]
@@ -151,6 +173,17 @@ serve(async (req) => {
       console.error(`Error fetching acceptor shift: ${acceptorShift.error.message}`)
       // Continue even if we can't get shift details
     }
+    
+    // Determine shift types based on time
+    const getShiftType = (startTime) => {
+      const hour = parseInt(startTime.split(':')[0], 10);
+      if (hour <= 8) return 'day';
+      if (hour > 8 && hour < 16) return 'afternoon';
+      return 'night';
+    };
+    
+    const requesterShiftType = requesterShift.data ? getShiftType(requesterShift.data.start_time) : 'unknown';
+    const acceptorShiftType = acceptorShift.data ? getShiftType(acceptorShift.data.start_time) : 'unknown';
 
     // Format the shift dates and times for email content
     const formatDate = (dateStr) => {
@@ -175,20 +208,120 @@ serve(async (req) => {
       throw new Error('Missing Mailgun API configuration');
     }
 
-    // Send emails
+    // Send emails with detailed information matching SwapDetailsDialog
     const emailResults = [];
 
     // Only attempt to send emails if we have email addresses
     if (requesterEmail) {
+      // Prepare detailed information matching the SwapDetailsDialog format
       const requesterEmailContent = `
-        <h2>Shift Swap Accepted (Re-sent Notification)</h2>
+        <h2>Shift Swap Accepted</h2>
         <p>Your shift swap has been accepted by your colleague.</p>
-        <h3>Swap Details:</h3>
-        <p><strong>Your Original Shift:</strong> ${formatDate(requesterShift.data?.date)} from ${formatTime(requesterShift.data?.start_time)} to ${formatTime(requesterShift.data?.end_time)} at ${requesterShift.data?.truck_name || 'your assigned location'}</p>
-        <p><strong>Your New Shift:</strong> ${formatDate(acceptorShift.data?.date)} from ${formatTime(acceptorShift.data?.start_time)} to ${formatTime(acceptorShift.data?.end_time)} at ${acceptorShift.data?.truck_name || 'your colleague\'s location'}</p>
-        <p>This swap is pending approval from Rosters. Once approved, you'll be notified to finalize the swap.</p>
-        <p><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
-        <p>Thank you for using the Shift Swap system!</p>
+        
+        <div style="margin-top: 20px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 5px; background-color: #f8fafc;">
+          <h3 style="margin-top: 0; color: #4b5563; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Swap Status: <span style="color: #3b82f6; background-color: #dbeafe; padding: 3px 8px; border-radius: 20px; font-size: 14px;">Accepted</span></h3>
+          
+          <div style="margin-top: 20px;">
+            <h4 style="color: #4b5563; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">YOUR ORIGINAL SHIFT</h4>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Person</div>
+                <div style="font-weight: 500;">${requesterName}</div>
+              </div>
+              
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Date</div>
+                <div style="font-weight: 500;">${formatDate(requesterShift.data?.date)}</div>
+              </div>
+              
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Shift Type</div>
+                <div style="font-weight: 500; display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; ${
+                  requesterShiftType === 'day' ? "background-color: #fef3c7; color: #92400e;" :
+                  requesterShiftType === 'afternoon' ? "background-color: #ffedd5; color: #9a3412;" :
+                  "background-color: #dbeafe; color: #1e40af;"
+                }">${requesterShiftType.charAt(0).toUpperCase() + requesterShiftType.slice(1)}</div>
+              </div>
+              
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Time</div>
+                <div style="font-weight: 500;">${formatTime(requesterShift.data?.start_time)} - ${formatTime(requesterShift.data?.end_time)}</div>
+              </div>
+              
+              <div style="grid-column: span 2;">
+                <div style="font-size: 13px; color: #6b7280;">Colleague Type</div>
+                <div style="font-weight: 500;">${requesterShift.data?.colleague_type || 'Not specified'}</div>
+              </div>
+              
+              <div style="grid-column: span 2;">
+                <div style="font-size: 13px; color: #6b7280;">Service#</div>
+                <div style="font-weight: 500;">${requesterEmployeeId}</div>
+              </div>
+              
+              <div style="grid-column: span 2;">
+                <div style="font-size: 13px; color: #6b7280;">Location</div>
+                <div style="font-weight: 500;">${requesterShift.data?.truck_name || 'Not specified'}</div>
+              </div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 30px;">
+            <h4 style="color: #4b5563; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">YOUR NEW SHIFT</h4>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Person</div>
+                <div style="font-weight: 500;">${acceptorName}</div>
+              </div>
+              
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Date</div>
+                <div style="font-weight: 500;">${formatDate(acceptorShift.data?.date)}</div>
+              </div>
+              
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Shift Type</div>
+                <div style="font-weight: 500; display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; ${
+                  acceptorShiftType === 'day' ? "background-color: #fef3c7; color: #92400e;" :
+                  acceptorShiftType === 'afternoon' ? "background-color: #ffedd5; color: #9a3412;" :
+                  "background-color: #dbeafe; color: #1e40af;"
+                }">${acceptorShiftType.charAt(0).toUpperCase() + acceptorShiftType.slice(1)}</div>
+              </div>
+              
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Time</div>
+                <div style="font-weight: 500;">${formatTime(acceptorShift.data?.start_time)} - ${formatTime(acceptorShift.data?.end_time)}</div>
+              </div>
+              
+              <div style="grid-column: span 2;">
+                <div style="font-size: 13px; color: #6b7280;">Colleague Type</div>
+                <div style="font-weight: 500;">${acceptorShift.data?.colleague_type || 'Not specified'}</div>
+              </div>
+              
+              <div style="grid-column: span 2;">
+                <div style="font-size: 13px; color: #6b7280;">Service#</div>
+                <div style="font-weight: 500;">${acceptorEmployeeId}</div>
+              </div>
+              
+              <div style="grid-column: span 2;">
+                <div style="font-size: 13px; color: #6b7280;">Location</div>
+                <div style="font-weight: 500;">${acceptorShift.data?.truck_name || 'Not specified'}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-top: 20px; padding: 15px; border-left: 4px solid #f59e0b; background-color: #fffbeb;">
+          <p style="margin: 0;"><strong>Important:</strong> This swap is pending approval from Rosters. Once approved, you'll be notified to finalize the swap.</p>
+          <p style="margin-top: 10px;"><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #6b7280;">
+          <p>Thank you for using the Shift Swap system!</p>
+          <p>This is an automated notification. Please do not reply to this email.</p>
+          <p>Swap Reference: ${match_id}</p>
+        </div>
       `
       
       try {
@@ -199,7 +332,7 @@ serve(async (req) => {
         const formData = new FormData();
         formData.append('from', `Shift Swap System <admin@${MAILGUN_DOMAIN}>`);
         formData.append('to', requesterEmail);
-        formData.append('subject', 'Your Shift Swap Has Been Accepted (Re-sent Notification)');
+        formData.append('subject', 'Your Shift Swap Has Been Accepted');
         formData.append('html', requesterEmailContent);
         
         // Call Mailgun directly
@@ -231,15 +364,115 @@ serve(async (req) => {
     }
 
     if (acceptorEmail) {
+      // Prepare detailed information matching the SwapDetailsDialog format
       const acceptorEmailContent = `
-        <h2>Shift Swap Confirmation (Re-sent Notification)</h2>
+        <h2>Shift Swap Confirmation</h2>
         <p>You have successfully accepted a shift swap.</p>
-        <h3>Swap Details:</h3>
-        <p><strong>Your Original Shift:</strong> ${formatDate(acceptorShift.data?.date)} from ${formatTime(acceptorShift.data?.start_time)} to ${formatTime(acceptorShift.data?.end_time)} at ${acceptorShift.data?.truck_name || 'your assigned location'}</p>
-        <p><strong>Your New Shift:</strong> ${formatDate(requesterShift.data?.date)} from ${formatTime(requesterShift.data?.start_time)} to ${formatTime(requesterShift.data?.end_time)} at ${requesterShift.data?.truck_name || 'your colleague\'s location'}</p>
-        <p>This swap is pending approval from Rosters. Once approved, you'll be notified to finalize the swap.</p>
-        <p><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
-        <p>Thank you for using the Shift Swap system!</p>
+        
+        <div style="margin-top: 20px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 5px; background-color: #f8fafc;">
+          <h3 style="margin-top: 0; color: #4b5563; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Swap Status: <span style="color: #3b82f6; background-color: #dbeafe; padding: 3px 8px; border-radius: 20px; font-size: 14px;">Accepted</span></h3>
+          
+          <div style="margin-top: 20px;">
+            <h4 style="color: #4b5563; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">YOUR ORIGINAL SHIFT</h4>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Person</div>
+                <div style="font-weight: 500;">${acceptorName}</div>
+              </div>
+              
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Date</div>
+                <div style="font-weight: 500;">${formatDate(acceptorShift.data?.date)}</div>
+              </div>
+              
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Shift Type</div>
+                <div style="font-weight: 500; display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; ${
+                  acceptorShiftType === 'day' ? "background-color: #fef3c7; color: #92400e;" :
+                  acceptorShiftType === 'afternoon' ? "background-color: #ffedd5; color: #9a3412;" :
+                  "background-color: #dbeafe; color: #1e40af;"
+                }">${acceptorShiftType.charAt(0).toUpperCase() + acceptorShiftType.slice(1)}</div>
+              </div>
+              
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Time</div>
+                <div style="font-weight: 500;">${formatTime(acceptorShift.data?.start_time)} - ${formatTime(acceptorShift.data?.end_time)}</div>
+              </div>
+              
+              <div style="grid-column: span 2;">
+                <div style="font-size: 13px; color: #6b7280;">Colleague Type</div>
+                <div style="font-weight: 500;">${acceptorShift.data?.colleague_type || 'Not specified'}</div>
+              </div>
+              
+              <div style="grid-column: span 2;">
+                <div style="font-size: 13px; color: #6b7280;">Service#</div>
+                <div style="font-weight: 500;">${acceptorEmployeeId}</div>
+              </div>
+              
+              <div style="grid-column: span 2;">
+                <div style="font-size: 13px; color: #6b7280;">Location</div>
+                <div style="font-weight: 500;">${acceptorShift.data?.truck_name || 'Not specified'}</div>
+              </div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 30px;">
+            <h4 style="color: #4b5563; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">YOUR NEW SHIFT</h4>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Person</div>
+                <div style="font-weight: 500;">${requesterName}</div>
+              </div>
+              
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Date</div>
+                <div style="font-weight: 500;">${formatDate(requesterShift.data?.date)}</div>
+              </div>
+              
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Shift Type</div>
+                <div style="font-weight: 500; display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; ${
+                  requesterShiftType === 'day' ? "background-color: #fef3c7; color: #92400e;" :
+                  requesterShiftType === 'afternoon' ? "background-color: #ffedd5; color: #9a3412;" :
+                  "background-color: #dbeafe; color: #1e40af;"
+                }">${requesterShiftType.charAt(0).toUpperCase() + requesterShiftType.slice(1)}</div>
+              </div>
+              
+              <div>
+                <div style="font-size: 13px; color: #6b7280;">Time</div>
+                <div style="font-weight: 500;">${formatTime(requesterShift.data?.start_time)} - ${formatTime(requesterShift.data?.end_time)}</div>
+              </div>
+              
+              <div style="grid-column: span 2;">
+                <div style="font-size: 13px; color: #6b7280;">Colleague Type</div>
+                <div style="font-weight: 500;">${requesterShift.data?.colleague_type || 'Not specified'}</div>
+              </div>
+              
+              <div style="grid-column: span 2;">
+                <div style="font-size: 13px; color: #6b7280;">Service#</div>
+                <div style="font-weight: 500;">${requesterEmployeeId}</div>
+              </div>
+              
+              <div style="grid-column: span 2;">
+                <div style="font-size: 13px; color: #6b7280;">Location</div>
+                <div style="font-weight: 500;">${requesterShift.data?.truck_name || 'Not specified'}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-top: 20px; padding: 15px; border-left: 4px solid #f59e0b; background-color: #fffbeb;">
+          <p style="margin: 0;"><strong>Important:</strong> This swap is pending approval from Rosters. Once approved, you'll be notified to finalize the swap.</p>
+          <p style="margin-top: 10px;"><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #6b7280;">
+          <p>Thank you for using the Shift Swap system!</p>
+          <p>This is an automated notification. Please do not reply to this email.</p>
+          <p>Swap Reference: ${match_id}</p>
+        </div>
       `
       
       try {
@@ -250,7 +483,7 @@ serve(async (req) => {
         const formData = new FormData();
         formData.append('from', `Shift Swap System <admin@${MAILGUN_DOMAIN}>`);
         formData.append('to', acceptorEmail);
-        formData.append('subject', 'Shift Swap Confirmation (Re-sent Notification)');
+        formData.append('subject', 'Shift Swap Confirmation');
         formData.append('html', acceptorEmailContent);
         
         // Call Mailgun directly
