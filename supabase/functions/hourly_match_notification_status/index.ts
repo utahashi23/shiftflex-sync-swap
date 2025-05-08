@@ -50,7 +50,10 @@ serve(async (req) => {
     let logsError = null;
     
     try {
-      // Try to query the function_execution_log table if it exists
+      // First try to create the table if it doesn't exist
+      await createExecutionLogTable(supabaseAdmin);
+      
+      // Then query the function_execution_log table
       const { data: executionLogs, error } = await supabaseAdmin
         .from('function_execution_log')
         .select('*')
@@ -61,28 +64,12 @@ serve(async (req) => {
       if (!error) {
         recentExecutions = executionLogs || [];
       } else {
-        // Table might not exist yet
-        if (error.message?.includes('does not exist')) {
-          console.log("function_execution_log table does not exist yet");
-          await createExecutionLogTable(supabaseAdmin);
-          recentExecutions = [];
-        } else {
-          logsError = error.message;
-          console.log("Error fetching logs from database:", logsError);
-        }
+        logsError = error.message;
+        console.log("Error fetching logs from database:", logsError);
       }
     } catch (e) {
       logsError = e.message;
       console.log("Exception when fetching logs:", logsError);
-      
-      // Try to create the table if it doesn't exist
-      if (e.message?.includes('does not exist')) {
-        try {
-          await createExecutionLogTable(supabaseAdmin);
-        } catch (createError) {
-          console.error("Failed to create function_execution_log table:", createError);
-        }
-      }
     }
     
     // Get information from _http_request_logs table (if it exists)
@@ -102,11 +89,11 @@ serve(async (req) => {
         recentLogs = logs || [];
       } else {
         httpLogsError = error.message;
-        console.log("Error fetching logs from database:", httpLogsError);
+        console.log("Error fetching HTTP logs:", httpLogsError);
       }
     } catch (e) {
       httpLogsError = e.message;
-      console.log("Exception when fetching logs:", httpLogsError);
+      console.log("Exception when fetching HTTP logs:", httpLogsError);
     }
     
     // Format logs to be more readable
@@ -214,25 +201,60 @@ serve(async (req) => {
 // Helper function to create the execution log table if it doesn't exist
 async function createExecutionLogTable(supabase) {
   try {
-    // SQL to create the table
-    const { error } = await supabase.rpc('create_function_execution_log_table');
+    console.log("Attempting to create function_execution_log table if it doesn't exist...");
     
-    if (error) {
-      // Try with raw SQL query if the RPC doesn't exist
-      await supabase.sql(`
-        CREATE TABLE IF NOT EXISTS public.function_execution_log (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          function_name TEXT NOT NULL,
-          status TEXT NOT NULL,
-          scheduled BOOLEAN DEFAULT false,
-          error TEXT,
-          execution_details JSONB,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-        );
-      `);
+    // First try using the RPC function
+    try {
+      const { error: rpcError } = await supabase.rpc('create_function_execution_log_table');
+      
+      if (!rpcError) {
+        console.log("Successfully created table using RPC function");
+        return true;
+      } else if (rpcError.message?.includes('does not exist')) {
+        console.log("RPC function doesn't exist, will try direct SQL");
+        // Continue to next method if RPC doesn't exist
+      } else {
+        console.log("RPC error:", rpcError.message);
+        // Continue to next method
+      }
+    } catch (rpcException) {
+      console.log("RPC exception:", rpcException.message);
+      // Continue to next method
     }
     
-    return true;
+    // If RPC fails, try direct SQL query
+    const { error: sqlError } = await supabase.from('function_execution_log')
+      .select('id')
+      .limit(1);
+    
+    if (sqlError && sqlError.message?.includes('does not exist')) {
+      // Table doesn't exist, so try to create it with direct DDL
+      // We'll do this by manually inserting and catching if needed
+      console.log("Table doesn't exist, attempting insert to trigger creation");
+      
+      try {
+        const { error: insertError } = await supabase.from('function_execution_log').insert({
+          function_name: 'table_creation_test',
+          status: 'testing',
+          scheduled: false,
+          execution_details: { test: true }
+        });
+        
+        if (!insertError) {
+          console.log("Table now exists!");
+          return true;
+        } else {
+          console.log("Insert error:", insertError.message);
+        }
+      } catch (insertException) {
+        console.log("Insert exception:", insertException.message);
+      }
+    } else if (!sqlError) {
+      console.log("Table already exists!");
+      return true;
+    }
+    
+    return false;
   } catch (e) {
     console.error("Error creating function_execution_log table:", e);
     return false;

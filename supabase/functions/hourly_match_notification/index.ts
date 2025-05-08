@@ -38,6 +38,13 @@ serve(async (req) => {
     const includeDetailedLogging = requestBody.include_detailed_logging === true || isScheduledExecution;
     if (includeDetailedLogging) {
       console.log("Detailed logging enabled for this execution");
+      
+      // Log all request headers for debugging scheduled triggers
+      const headers = {};
+      for (const [key, value] of req.headers.entries()) {
+        headers[key] = value;
+      }
+      console.log("Request headers:", headers);
     }
     
     // Create Supabase client with admin role to bypass RLS
@@ -50,6 +57,24 @@ serve(async (req) => {
     
     console.log(`Creating admin client with URL: ${supabaseUrl.substring(0, 20)}...`);
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+    
+    // Log the execution attempt to the database for tracking
+    try {
+      console.log("Logging execution start to database...");
+      await supabaseAdmin.from('function_execution_log').insert({
+        function_name: 'hourly_match_notification',
+        status: 'started',
+        scheduled: isScheduledExecution,
+        execution_details: { 
+          timestamp,
+          user_agent: req.headers.get('user-agent') || 'unknown',
+          request_body: requestBody
+        }
+      });
+    } catch (logError) {
+      // Just log the error but continue with the execution
+      console.error("Failed to log execution start:", logError);
+    }
     
     // Verify email configuration before proceeding
     const mailgunApiKey = Deno.env.get('MAILGUN_API_KEY');
@@ -97,19 +122,6 @@ serve(async (req) => {
     
     if (includeDetailedLogging) {
       console.log(`MAILGUN configuration: domain=${mailgunDomain}, API key length=${mailgunApiKey.length}`);
-    }
-    
-    // Log the execution attempt to the database for tracking
-    try {
-      await supabaseAdmin.from('function_execution_log').insert({
-        function_name: 'hourly_match_notification',
-        status: 'started',
-        scheduled: isScheduledExecution,
-        execution_details: { timestamp }
-      });
-    } catch (logError) {
-      // Just log the error but continue with the execution
-      console.error("Failed to log execution start:", logError);
     }
     
     // Prepare params for the check_matches_and_notify function
