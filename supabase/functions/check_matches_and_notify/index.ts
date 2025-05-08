@@ -51,12 +51,35 @@ serve(async (req) => {
   try {
     console.log("Starting scheduled check for matched swaps");
     
+    // Get request parameters
+    let requestBody: any = {};
+    try {
+      requestBody = await req.json();
+    } catch (parseError) {
+      console.log("No request body or invalid JSON, using defaults");
+    }
+    
+    const debug = requestBody.debug === true;
+    const timestamp = requestBody.triggered_at || new Date().toISOString();
+    const isScheduled = requestBody.scheduled !== false;
+    const viewUrl = requestBody.view_url || "https://www.shiftflex.au/shifts";
+    
+    // Log execution context
+    console.log(`Check execution details: timestamp=${timestamp}, scheduled=${isScheduled}, debug=${debug}`);
+    
     // Create Supabase client using service role for admin access
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing required Supabase environment variables');
+    }
+    
+    console.log(`Creating admin client with URL: ${supabaseUrl.substring(0, 20)}...`);
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Get all pending matches
+    console.log("Fetching pending matches...");
     const { data: pendingMatches, error: matchesError } = await supabase
       .from('shift_swap_potential_matches')
       .select('*')
@@ -73,7 +96,9 @@ serve(async (req) => {
         JSON.stringify({ 
           success: true, 
           message: "No pending matches found", 
-          processed: 0 
+          processed: 0,
+          emails_sent: 0,
+          timestamp
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -87,6 +112,10 @@ serve(async (req) => {
     const userMatchMap: Record<string, SwapMatch[]> = {};
     
     for (const match of pendingMatches) {
+      if (debug) {
+        console.log(`Processing match: ${match.id}`);
+      }
+      
       // Get request details for both sides
       const { data: requesterRequest } = await supabase
         .from('shift_swap_requests')
@@ -153,6 +182,10 @@ serve(async (req) => {
       if (!requesterUser?.user || !acceptorUser?.user) {
         console.log(`Skipping match ${match.id} - missing user data`);
         continue;
+      }
+      
+      if (debug) {
+        console.log(`User emails: requester=${requesterUser.user.email}, acceptor=${acceptorUser.user.email}`);
       }
       
       // Format match data for each user
@@ -250,16 +283,25 @@ serve(async (req) => {
       if (email) {
         // Craft and send email
         try {
-          await sendMatchNotificationEmail(email, fullName, matches);
-          emailsSent++;
-          console.log(`Sent notification email to ${email} (${userId}) about ${matches.length} matches`);
-        } catch (emailError) {
-          console.error(`Failed to send email to ${email} (${userId}):`, emailError);
+          console.log(`Attempting to send notification email to ${email} (${userId}) about ${matches.length} matches`);
+          
+          const emailResult = await sendMatchNotificationEmail(email, fullName, matches, viewUrl);
+          
+          if (emailResult.success) {
+            emailsSent++;
+            console.log(`Successfully sent notification email to ${email} (${userId})`);
+            
+            if (debug) {
+              console.log(`Email result:`, emailResult);
+            }
+          } else {
+            console.error(`Failed to send email to ${email} (${userId}): ${emailResult.error}`);
+          }
+        } catch (emailError: any) {
+          console.error(`Error sending email to ${email} (${userId}):`, emailError);
         }
       }
     }
-    
-    const { triggered_at } = await req.json().catch(() => ({ triggered_at: new Date().toISOString() }));
     
     return new Response(
       JSON.stringify({ 
@@ -267,20 +309,21 @@ serve(async (req) => {
         message: "Match notification process completed", 
         processed: processedCount,
         emails_sent: emailsSent,
-        triggered_at
+        timestamp
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
       }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in check_matches_and_notify function:', error);
     
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || String(error) 
+        error: error.message || String(error),
+        timestamp: new Date().toISOString()
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -296,86 +339,101 @@ serve(async (req) => {
 async function sendMatchNotificationEmail(
   toEmail: string, 
   userName: string, 
-  matches: SwapMatch[]
-): Promise<void> {
-  // Create HTML content for the matches
-  let matchesHtml = '';
-  
-  matches.forEach((match, index) => {
-    matchesHtml += `
-      <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
-        <h3 style="color: #2563eb; margin-top: 0;">Potential Swap #${index + 1}</h3>
-        
-        <div style="display: flex; margin-bottom: 10px;">
-          <div style="flex: 1; padding-right: 10px;">
-            <h4 style="margin-top: 0; margin-bottom: 5px;">Your Shift</h4>
-            <p style="margin: 0;"><strong>Date:</strong> ${match.my_shift_date}</p>
-            <p style="margin: 0;"><strong>Time:</strong> ${match.my_shift_start_time} - ${match.my_shift_end_time}</p>
-            <p style="margin: 0;"><strong>Location:</strong> ${match.my_shift_truck}</p>
-            <p style="margin: 0;"><strong>Role:</strong> ${match.my_shift_colleague_type}</p>
-            <p style="margin: 0;"><strong>Employee ID:</strong> ${match.my_employee_id}</p>
+  matches: SwapMatch[],
+  viewUrl: string = "https://www.shiftflex.au/shifts"
+): Promise<{success: boolean, error?: string, id?: string}> {
+  try {
+    console.log(`Preparing email for ${userName} (${toEmail}) with ${matches.length} matches`);
+    
+    // Create HTML content for the matches
+    let matchesHtml = '';
+    
+    matches.forEach((match, index) => {
+      matchesHtml += `
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
+          <h3 style="color: #2563eb; margin-top: 0;">Potential Swap #${index + 1}</h3>
+          
+          <div style="display: flex; margin-bottom: 10px;">
+            <div style="flex: 1; padding-right: 10px;">
+              <h4 style="margin-top: 0; margin-bottom: 5px;">Your Shift</h4>
+              <p style="margin: 0;"><strong>Date:</strong> ${match.my_shift_date}</p>
+              <p style="margin: 0;"><strong>Time:</strong> ${match.my_shift_start_time} - ${match.my_shift_end_time}</p>
+              <p style="margin: 0;"><strong>Location:</strong> ${match.my_shift_truck}</p>
+              <p style="margin: 0;"><strong>Role:</strong> ${match.my_shift_colleague_type}</p>
+              <p style="margin: 0;"><strong>Employee ID:</strong> ${match.my_employee_id}</p>
+            </div>
+            
+            <div style="flex: 1; padding-left: 10px;">
+              <h4 style="margin-top: 0; margin-bottom: 5px;">Swap With</h4>
+              <p style="margin: 0;"><strong>Colleague:</strong> ${match.other_user_name}</p>
+              <p style="margin: 0;"><strong>Date:</strong> ${match.other_shift_date}</p>
+              <p style="margin: 0;"><strong>Time:</strong> ${match.other_shift_start_time} - ${match.other_shift_end_time}</p>
+              <p style="margin: 0;"><strong>Location:</strong> ${match.other_shift_truck}</p>
+              <p style="margin: 0;"><strong>Role:</strong> ${match.other_shift_colleague_type}</p>
+              <p style="margin: 0;"><strong>Employee ID:</strong> ${match.other_employee_id}</p>
+            </div>
           </div>
           
-          <div style="flex: 1; padding-left: 10px;">
-            <h4 style="margin-top: 0; margin-bottom: 5px;">Swap With</h4>
-            <p style="margin: 0;"><strong>Colleague:</strong> ${match.other_user_name}</p>
-            <p style="margin: 0;"><strong>Date:</strong> ${match.other_shift_date}</p>
-            <p style="margin: 0;"><strong>Time:</strong> ${match.other_shift_start_time} - ${match.other_shift_end_time}</p>
-            <p style="margin: 0;"><strong>Location:</strong> ${match.other_shift_truck}</p>
-            <p style="margin: 0;"><strong>Role:</strong> ${match.other_shift_colleague_type}</p>
-            <p style="margin: 0;"><strong>Employee ID:</strong> ${match.other_employee_id}</p>
+          <div style="text-align: center; margin-top: 15px;">
+            <a href="${viewUrl}" 
+               style="background-color: #2563eb; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              View Swap Details
+            </a>
           </div>
         </div>
+      `;
+    });
+    
+    // Build the full HTML email
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+        <h2 style="color: #2563eb; margin-bottom: 20px;">Shift Swap Matches Available</h2>
         
-        <div style="text-align: center; margin-top: 15px;">
-          <a href="https://www.shiftflex.au/shifts" 
-             style="background-color: #2563eb; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-            View Swap Details
-          </a>
+        <p>Hello ${userName},</p>
+        
+        <p>We've found ${matches.length} potential shift ${matches.length === 1 ? 'swap' : 'swaps'} that match your preferences. 
+        Please review these opportunities and take action in the app:</p>
+        
+        ${matchesHtml}
+        
+        <p>These matches will remain available until someone accepts them or they are canceled.</p>
+        
+        <p>Thank you for using the Shift Swap system!</p>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 14px; color: #666;">
+          <p>This is an automated message from the Shift Swap system.</p>
         </div>
       </div>
     `;
-  });
-  
-  // Build the full HTML email
-  const emailHtml = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-      <h2 style="color: #2563eb; margin-bottom: 20px;">Shift Swap Matches Available</h2>
-      
-      <p>Hello ${userName},</p>
-      
-      <p>We've found ${matches.length} potential shift ${matches.length === 1 ? 'swap' : 'swaps'} that match your preferences. 
-      Please review these opportunities and take action in the app:</p>
-      
-      ${matchesHtml}
-      
-      <p>These matches will remain available until someone accepts them or they are canceled.</p>
-      
-      <p>Thank you for using the Shift Swap system!</p>
-      
-      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 14px; color: #666;">
-        <p>This is an automated message from the Shift Swap system.</p>
-      </div>
-    </div>
-  `;
-  
-  // Send email using the existing sendEmail function
-  const emailData = {
-    to: toEmail,
-    subject: `You have ${matches.length} pending shift ${matches.length === 1 ? 'swap' : 'swaps'} available`,
-    html: emailHtml
-  };
-  
-  // Use service role client to call the send_email function
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  const supabase = createClient(supabaseUrl, supabaseKey);
-  
-  const { error } = await supabase.functions.invoke('send_email', {
-    body: emailData
-  });
-  
-  if (error) {
-    throw new Error(`Email sending failed: ${error.message}`);
+    
+    // Prepare email data
+    const emailData = {
+      to: toEmail,
+      subject: `You have ${matches.length} pending shift ${matches.length === 1 ? 'swap' : 'swaps'} available`,
+      html: emailHtml,
+      from: "admin@shiftflex.au"
+    };
+    
+    console.log(`Sending email to ${toEmail} with subject: "${emailData.subject}"`);
+    
+    // Use service role client to call the send_email function
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Call the send_email function
+    const { data, error } = await supabase.functions.invoke('send_email', {
+      body: emailData
+    });
+    
+    if (error) {
+      throw new Error(`Email sending failed: ${error.message}`);
+    }
+    
+    console.log(`Email sent successfully to ${toEmail}`);
+    return { success: true, id: data?.id };
+  } catch (error: any) {
+    console.error(`Error sending match notification email:`, error);
+    return { success: false, error: error.message || String(error) };
   }
 }
