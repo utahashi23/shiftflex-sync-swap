@@ -170,10 +170,55 @@ export const useEmailNotifications = () => {
     }
   };
 
+  /**
+   * Trigger a test run of the scheduled match notification for a specific user
+   */
+  const runMatchNotificationTest = async (userId: string): Promise<boolean> => {
+    setIsSending(true);
+    
+    try {
+      console.log(`Running test match notification for user: ${userId}`);
+      
+      const { data, error } = await fetch('https://ponhfgbpxehsdlxjpszg.supabase.co/functions/v1/check_matches_and_notify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvbmhmZ2JweGVoc2RseGpwc3pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5ODM0NDcsImV4cCI6MjA2MTU1OTQ0N30.-n7sUFjxDJUCpMMA0AGnXlQCkaVt31dER91ZQLO3jDs'}`
+        },
+        body: JSON.stringify({
+          triggered_at: new Date().toISOString(),
+          test_user_id: userId
+        })
+      }).then(res => res.json());
+      
+      if (error) {
+        throw new Error(error);
+      }
+      
+      toast({
+        title: "Match Notification Test Completed",
+        description: "A test email with your pending matches has been sent to your email address.",
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error running match notification test:', error);
+      toast({
+        title: "Test Failed",
+        description: "Could not complete the match notification test. Please check the console for details.",
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   return {
     sendSwapNotification,
     sendAcceptanceNotification,
     sendTestEmail,
+    runMatchNotificationTest,
     isSending
   };
 };
