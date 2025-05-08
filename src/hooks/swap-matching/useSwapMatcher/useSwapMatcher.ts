@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../useAuth';
 import { toast } from '../../use-toast';
@@ -91,21 +90,8 @@ export const useSwapMatcher = () => {
         description: "The shift swap has been accepted. Please check your email for confirmation.",
       });
       
-      // Use the same email notification method as resend button
-      try {
-        const emailResult = await resendSwapNotification(matchId);
-        
-        if (!emailResult.success) {
-          console.warn('Email notification issue:', emailResult.error);
-          toast({
-            title: "Email Notification Issue",
-            description: "The swap was accepted but there might be a delay in email notifications.",
-            variant: "destructive"
-          });
-        }
-      } catch (emailError: any) {
-        console.error('Email sending error:', emailError);
-      }
+      // Remove the client-side email sending to avoid duplication
+      // The edge function already handles sending emails
       
       return { success: true, data };
       
@@ -189,21 +175,8 @@ export const useSwapMatcher = () => {
         description: "The shift swap has been finalized. Calendars have been updated.",
       });
       
-      // Use the same email notification method as resend button
-      try {
-        const emailResult = await resendSwapNotification(matchId);
-        
-        if (!emailResult.success) {
-          console.warn('Email notification issue:', emailResult.error);
-          toast({
-            title: "Email Notification Issue",
-            description: "The swap was finalized but there might be a delay in email notifications.",
-            variant: "destructive"
-          });
-        }
-      } catch (emailError: any) {
-        console.error('Email sending error:', emailError);
-      }
+      // Remove the client-side email sending to avoid duplication
+      // The edge function already handles sending emails
       
       return { success: true, data };
       

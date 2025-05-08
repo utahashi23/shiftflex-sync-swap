@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -49,18 +48,8 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         description: "The shift swap has been successfully accepted.",
       });
       
-      // Send email notifications using the same method as resend button for consistency
-      try {
-        await resendSwapNotification(confirmDialog.matchId);
-      } catch (emailError) {
-        console.error('Error sending acceptance notification:', emailError);
-        // Don't fail the entire operation if just the email fails
-        toast({
-          title: "Email Notification Issue",
-          description: "The swap was accepted but there was a problem sending notifications.",
-          variant: "destructive"
-        });
-      }
+      // The edge function already handles email notifications, so we don't need to send them again here
+      // Removing the duplicate email sending
       
       if (onSuccessCallback) {
         onSuccessCallback();
@@ -101,17 +90,8 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         description: "The shift swap has been finalized and the calendar has been updated.",
       });
       
-      // Send email notifications using the same method as resend button for consistency
-      try {
-        await resendSwapNotification(finalizeDialog.matchId);
-      } catch (emailError) {
-        console.error('Error sending finalization notification:', emailError);
-        toast({
-          title: "Email Notification Issue",
-          description: "The swap was finalized but there was a problem sending notifications.",
-          variant: "destructive"
-        });
-      }
+      // The edge function already handles email notifications, so we don't need to send them again here
+      // Removing the duplicate email sending
       
       if (onSuccessCallback) {
         onSuccessCallback();
