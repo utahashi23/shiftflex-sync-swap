@@ -98,13 +98,23 @@ serve(async (req) => {
     
     console.log(`Users involved: Requester ID: ${requesterUserId}, Acceptor ID: ${acceptorUserId}`);
 
-    // Fetch users' email addresses
+    // Fetch users' email addresses and profile information
     const usersPromises = [
       supabaseAdmin.auth.admin.getUserById(requesterUserId),
-      supabaseAdmin.auth.admin.getUserById(acceptorUserId)
+      supabaseAdmin.auth.admin.getUserById(acceptorUserId),
+      supabaseAdmin
+        .from('profiles')
+        .select('first_name, last_name, employee_id')
+        .eq('id', requesterUserId)
+        .single(),
+      supabaseAdmin
+        .from('profiles')
+        .select('first_name, last_name, employee_id')
+        .eq('id', acceptorUserId)
+        .single()
     ];
 
-    const [requesterUser, acceptorUser] = await Promise.all(usersPromises);
+    const [requesterUser, acceptorUser, requesterProfile, acceptorProfile] = await Promise.all(usersPromises);
     
     if (requesterUser.error) {
       console.error(`Error fetching requester user: ${requesterUser.error.message}`);
@@ -119,6 +129,17 @@ serve(async (req) => {
     const requesterEmail = requesterUser.data?.user?.email;
     const acceptorEmail = acceptorUser.data?.user?.email;
     
+    const requesterName = requesterProfile.data ? 
+      `${requesterProfile.data.first_name || ''} ${requesterProfile.data.last_name || ''}`.trim() : 
+      "Colleague";
+      
+    const acceptorName = acceptorProfile.data ? 
+      `${acceptorProfile.data.first_name || ''} ${acceptorProfile.data.last_name || ''}`.trim() : 
+      "Colleague";
+      
+    const requesterEmployeeId = requesterProfile.data?.employee_id || 'Not specified';
+    const acceptorEmployeeId = acceptorProfile.data?.employee_id || 'Not specified';
+      
     console.log(`User emails: Requester: ${requesterEmail || 'unknown'}, Acceptor: ${acceptorEmail || 'unknown'}`);
 
     // Fetch shift details for email content
@@ -146,30 +167,6 @@ serve(async (req) => {
       console.error(`Error fetching acceptor shift: ${acceptorShift.error.message}`);
       // Continue even if we can't get shift details
     }
-
-    // Fetch profiles to get full names
-    const profilesPromises = [
-      supabaseAdmin
-        .from('profiles')
-        .select('first_name, last_name')
-        .eq('id', requesterUserId)
-        .single(),
-      supabaseAdmin
-        .from('profiles')
-        .select('first_name, last_name')
-        .eq('id', acceptorUserId)
-        .single()
-    ];
-
-    const [requesterProfile, acceptorProfile] = await Promise.all(profilesPromises);
-
-    const requesterName = requesterProfile.data ? 
-      `${requesterProfile.data.first_name || ''} ${requesterProfile.data.last_name || ''}`.trim() : 
-      "Colleague";
-      
-    const acceptorName = acceptorProfile.data ? 
-      `${acceptorProfile.data.first_name || ''} ${acceptorProfile.data.last_name || ''}`.trim() : 
-      "Colleague";
 
     // Update match status to "accepted"
     const { data: updateData, error: updateError } = await supabaseAdmin
@@ -322,6 +319,14 @@ serve(async (req) => {
                 <tr>
                   <th>Status</th>
                   <td>Accepted (Pending approval)</td>
+                </tr>
+                <tr>
+                  <th>Employee ID</th>
+                  <td>${requesterEmployeeId}</td>
+                </tr>
+                <tr>
+                  <th>Colleague Employee ID</th>
+                  <td>${acceptorEmployeeId}</td>
                 </tr>
                 <tr>
                   <th>Date Accepted</th>
@@ -479,6 +484,14 @@ serve(async (req) => {
                 <tr>
                   <th>Status</th>
                   <td>Accepted (Pending approval)</td>
+                </tr>
+                <tr>
+                  <th>Employee ID</th>
+                  <td>${acceptorEmployeeId}</td>
+                </tr>
+                <tr>
+                  <th>Colleague Employee ID</th>
+                  <td>${requesterEmployeeId}</td>
                 </tr>
                 <tr>
                   <th>Date Accepted</th>
