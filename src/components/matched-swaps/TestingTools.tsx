@@ -9,11 +9,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
 
 /**
  * Debug tools for testing email and notification functionality
+ * Only visible to admin users
  */
 export const TestingTools = () => {
+  const { isAdmin } = useAuth();
   const [isTriggering, setIsTriggering] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -96,6 +99,11 @@ export const TestingTools = () => {
         return 'bg-gray-50 text-gray-700';
     }
   };
+
+  // If user is not an admin, don't render the component
+  if (!isAdmin) {
+    return null;
+  }
 
   return (
     <div className="mb-4">

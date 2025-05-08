@@ -54,7 +54,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Show TestingTools to all users, not just admins */}
+      {/* Show TestingTools only to admin users (component internally checks isAdmin as well) */}
       <TestingTools />
 
       {/* Matched Swaps Tabs */}
