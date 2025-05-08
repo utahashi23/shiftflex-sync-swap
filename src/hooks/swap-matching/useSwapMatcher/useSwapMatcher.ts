@@ -10,19 +10,22 @@ import { resendSwapNotification } from '@/utils/emailService';
 export const useSwapMatcher = () => {
   const { user } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
-  const { findMatches, isLoading: isMatchesFinding } = useFindSwapMatches();
-  const { 
-    stage, 
-    message, 
-    error, 
-    matches: potentialMatches,
-    isProcessing,
-    setStage,
-    setMessage,
-    setError,
-    setMatches,
-    reset: resetState
-  } = useProcessState();
+  const { findSwapMatches, isLoading: isMatchesFinding } = useFindSwapMatches();
+  const { isProcessing, setIsProcessing } = useProcessState();
+  
+  // Add missing state values that were expected from useProcessState
+  const [stage, setStage] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [potentialMatches, setMatches] = useState<any[]>([]);
+  
+  // Reset function for state
+  const resetState = useCallback(() => {
+    setStage('');
+    setMessage('');
+    setError(null);
+    setMatches([]);
+  }, []);
   
   // Reset the process state when the component unmounts or when user changes
   useEffect(() => {
@@ -41,7 +44,7 @@ export const useSwapMatcher = () => {
     }
     
     try {
-      const result = await findMatches(userId || user?.id);
+      const result = await findSwapMatches(userId || user?.id);
       
       if (!result.success) {
         console.error('Failed to find matches:', result.error);
@@ -58,7 +61,7 @@ export const useSwapMatcher = () => {
       setError(err.message || 'Failed to process swap matches');
       return { success: false, error: err.message };
     }
-  }, [user, findMatches, setError, setMatches, setMessage]);
+  }, [user, findSwapMatches, setError, setMatches, setMessage]);
   
   // Accept a swap match
   const acceptSwapMatch = useCallback(async (matchId: string) => {

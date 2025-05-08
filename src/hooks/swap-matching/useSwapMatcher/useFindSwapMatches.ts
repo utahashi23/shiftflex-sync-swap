@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
  * Hook for finding potential swap matches between users
  * Enhanced to avoid RLS recursion issues with clearer error handling
  */
-export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => void) => {
+export const useFindSwapMatches = () => {
   const [matchResults, setMatchResults] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const requestInProgressRef = useRef<boolean>(false);
@@ -34,7 +34,6 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
       }
       
       setIsLoading(true);
-      setIsProcessing(true);
       requestInProgressRef.current = true;
       
       console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}, user initiator only: ${userInitiatorOnly})`);
@@ -65,7 +64,6 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
       throw error;
     } finally {
       setIsLoading(false);
-      setIsProcessing(false);
       requestInProgressRef.current = false;
     }
   };
