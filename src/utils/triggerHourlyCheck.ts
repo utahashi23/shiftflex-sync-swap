@@ -67,14 +67,37 @@ export const getHourlyMatchNotificationStatus = async (): Promise<any> => {
     
     if (error) {
       console.error('Error checking function status:', error);
-      return { success: false, error: error.message };
+      return { 
+        success: false, 
+        error: error.message,
+        fallback: {
+          function: {
+            name: 'hourly_match_notification',
+            exists: true,
+            scheduled: true,
+            schedule: '0 * * * *',
+            status: 'status check failed'
+          }
+        }
+      };
     }
     
     console.log('Function status:', data);
     return { success: true, data };
   } catch (err: any) {
     console.error('Error in getHourlyMatchNotificationStatus:', err);
-    return { success: false, error: err.message };
+    return { 
+      success: false, 
+      error: err.message,
+      fallback: {
+        function: {
+          name: 'hourly_match_notification',
+          exists: true,
+          scheduled: true,
+          schedule: '0 * * * *',
+          status: 'status check failed'
+        }
+      }
+    };
   }
 };
-
