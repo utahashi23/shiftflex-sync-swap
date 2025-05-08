@@ -23,9 +23,13 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
     
-    // Call the main check_matches_and_notify function
+    // Call the main check_matches_and_notify function with the correct view_url
     const { data, error } = await supabaseAdmin.functions.invoke("check_matches_and_notify", {
-      body: { triggered_at: new Date().toISOString(), scheduled: true, view_url: "https://www.shiftflex.au/shifts" }
+      body: { 
+        triggered_at: new Date().toISOString(), 
+        scheduled: true, 
+        view_url: "https://www.shiftflex.au/shifts"  // Correct URL as requested
+      }
     });
     
     if (error) {
