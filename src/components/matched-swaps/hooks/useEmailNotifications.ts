@@ -71,8 +71,7 @@ export const useEmailNotifications = () => {
     
     try {
       console.log(`Sending acceptance notification for match: ${matchId}`);
-      // Use the existing resendSwapNotification function which will
-      // handle retrieving user emails and shift details from the match ID
+      // Use the Mailgun-based notification function
       const result = await resendSwapNotification(matchId);
       
       if (!result.success) {
@@ -133,6 +132,7 @@ export const useEmailNotifications = () => {
             <p>This is a test email from the Shift Swap system.</p>
             <p>If you're seeing this, the email configuration is working correctly!</p>
             <p>Time sent: ${new Date().toLocaleString()}</p>
+            <p>Sent via: Mailgun API</p>
           </div>
         `
       });

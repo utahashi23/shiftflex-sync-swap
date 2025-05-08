@@ -13,7 +13,8 @@ interface EmailOptions {
 }
 
 /**
- * Send an email using the Loop.so API or Mailgun through a Supabase Edge Function
+ * Send an email using the Mailgun API through a Supabase Edge Function
+ * Loop.so is kept as a fallback option but not used by default
  */
 export const sendEmail = async (options: EmailOptions): Promise<{ success: boolean; error?: string; result?: any }> => {
   try {
@@ -27,28 +28,7 @@ export const sendEmail = async (options: EmailOptions): Promise<{ success: boole
       from: options.from || "admin@shiftflex.au"
     };
     
-    // Try Loop.so first
-    try {
-      const { data, error } = await supabase.functions.invoke('loop_send_email', {
-        body: emailOptions
-      });
-      
-      if (!error) {
-        console.log('Email sent via Loop.so:', data);
-        return data || { success: true };
-      }
-      
-      if (error.message?.includes('Missing') && error.message?.includes('API key')) {
-        console.warn('Loop.so API key not configured:', error.message);
-        return { success: false, error: `Email configuration missing: ${error.message}` };
-      }
-      
-      console.warn('Loop.so email failed, trying Mailgun fallback:', error);
-    } catch (loopError) {
-      console.warn('Error with Loop.so, trying Mailgun fallback:', loopError);
-    }
-    
-    // Fallback to Mailgun if Loop.so fails
+    // Use Mailgun API directly as the primary method
     const { data, error } = await supabase.functions.invoke('send_email', {
       body: emailOptions
     });
@@ -59,8 +39,29 @@ export const sendEmail = async (options: EmailOptions): Promise<{ success: boole
         return { success: false, error: `Email configuration missing: ${error.message}` };
       }
       
-      console.error('Error calling send_email function with Mailgun:', error);
-      return { success: false, error: error.message || String(error) };
+      // If Mailgun fails, try Loop.so as fallback
+      console.warn('Mailgun email failed, trying Loop.so fallback:', error);
+      
+      try {
+        const loopResponse = await supabase.functions.invoke('loop_send_email', {
+          body: emailOptions
+        });
+        
+        if (!loopResponse.error) {
+          console.log('Email sent via Loop.so fallback:', loopResponse.data);
+          return loopResponse.data || { success: true };
+        }
+        
+        // Both services failed
+        console.error('Both Mailgun and Loop.so failed to send email');
+        return { 
+          success: false, 
+          error: `Primary (Mailgun) error: ${error.message}, Fallback (Loop.so) error: ${loopResponse.error.message}` 
+        };
+      } catch (loopError) {
+        console.error('Both email services failed:', loopError);
+        return { success: false, error: `Multiple email services failed: ${error.message}` };
+      }
     }
     
     console.log('Email function response from Mailgun:', data);
@@ -186,7 +187,8 @@ export const resendSwapNotification = async (
   try {
     console.log(`Resending notification for swap match: ${matchId}`);
     
-    // Call our edge function to resend the email
+    // Use a dedicated edge function that's already set up to send the notifications
+    // This edge function internally uses Mailgun
     const { data, error } = await supabase.functions.invoke('resend_swap_notification', {
       body: { match_id: matchId }
     });
