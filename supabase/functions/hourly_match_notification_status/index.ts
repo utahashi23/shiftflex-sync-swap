@@ -45,9 +45,49 @@ serve(async (req) => {
       verify_jwt: false
     };
     
-    // Get recent invocation logs (we make a direct check since the _http_request_logs table may not exist)
-    let recentLogs = [];
+    // Get recent execution logs
+    let recentExecutions = [];
     let logsError = null;
+    
+    try {
+      // Try to query the function_execution_log table if it exists
+      const { data: executionLogs, error } = await supabaseAdmin
+        .from('function_execution_log')
+        .select('*')
+        .eq('function_name', 'hourly_match_notification')
+        .order('created_at', { ascending: false })
+        .limit(5);
+        
+      if (!error) {
+        recentExecutions = executionLogs || [];
+      } else {
+        // Table might not exist yet
+        if (error.message?.includes('does not exist')) {
+          console.log("function_execution_log table does not exist yet");
+          await createExecutionLogTable(supabaseAdmin);
+          recentExecutions = [];
+        } else {
+          logsError = error.message;
+          console.log("Error fetching logs from database:", logsError);
+        }
+      }
+    } catch (e) {
+      logsError = e.message;
+      console.log("Exception when fetching logs:", logsError);
+      
+      // Try to create the table if it doesn't exist
+      if (e.message?.includes('does not exist')) {
+        try {
+          await createExecutionLogTable(supabaseAdmin);
+        } catch (createError) {
+          console.error("Failed to create function_execution_log table:", createError);
+        }
+      }
+    }
+    
+    // Get information from _http_request_logs table (if it exists)
+    let recentLogs = [];
+    let httpLogsError = null;
     
     try {
       // Try to query the logs table if it exists
@@ -61,12 +101,12 @@ serve(async (req) => {
       if (!error) {
         recentLogs = logs || [];
       } else {
-        logsError = error.message;
-        console.log("Error fetching logs from database:", logsError);
+        httpLogsError = error.message;
+        console.log("Error fetching logs from database:", httpLogsError);
       }
     } catch (e) {
-      logsError = e.message;
-      console.log("Exception when fetching logs:", logsError);
+      httpLogsError = e.message;
+      console.log("Exception when fetching logs:", httpLogsError);
     }
     
     // Format logs to be more readable
@@ -76,6 +116,35 @@ serve(async (req) => {
       method: log.method,
       id: log.id
     }));
+    
+    // Check if we have any successful executions in the past 10 minutes
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const recentSuccessfulExecutions = recentExecutions.filter(
+      exec => exec.status === 'completed' && exec.created_at > tenMinutesAgo && exec.scheduled === true
+    );
+    
+    // Status evaluation based on execution history
+    let functionStatus = "unknown";
+    let lastScheduledRun = null;
+    
+    if (recentExecutions.length > 0) {
+      // Find the most recent scheduled execution
+      const scheduledExecutions = recentExecutions.filter(exec => exec.scheduled === true);
+      if (scheduledExecutions.length > 0) {
+        lastScheduledRun = scheduledExecutions[0].created_at;
+        
+        // Check if it completed successfully
+        if (scheduledExecutions[0].status === 'completed') {
+          functionStatus = "active";
+        } else {
+          functionStatus = "failing";
+        }
+      } else {
+        functionStatus = "not triggered automatically";
+      }
+    } else {
+      functionStatus = "no recent executions";
+    }
     
     // Check email configuration
     const checkEmailConfig = requestBody.check_email_config === true;
@@ -107,13 +176,16 @@ serve(async (req) => {
           scheduled: true,
           schedule: '*/5 * * * *', // Updated to show every 5 minutes
           verify_jwt: false,
-          status: 'active'
+          status: functionStatus,
+          last_scheduled_run: lastScheduledRun,
+          recent_successful_automatic_runs: recentSuccessfulExecutions.length
         },
         dependencies: {
           check_matches_and_notify_exists: checkMatchesExists
         },
-        recent_invocations: formattedLogs || [],
-        logs_error: logsError,
+        recent_executions: recentExecutions || [],
+        recent_http_logs: formattedLogs || [],
+        logs_error: logsError || httpLogsError,
         email_config: emailConfigStatus,
         timestamp
       }),
@@ -138,3 +210,31 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper function to create the execution log table if it doesn't exist
+async function createExecutionLogTable(supabase) {
+  try {
+    // SQL to create the table
+    const { error } = await supabase.rpc('create_function_execution_log_table');
+    
+    if (error) {
+      // Try with raw SQL query if the RPC doesn't exist
+      await supabase.sql(`
+        CREATE TABLE IF NOT EXISTS public.function_execution_log (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          function_name TEXT NOT NULL,
+          status TEXT NOT NULL,
+          scheduled BOOLEAN DEFAULT false,
+          error TEXT,
+          execution_details JSONB,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+        );
+      `);
+    }
+    
+    return true;
+  } catch (e) {
+    console.error("Error creating function_execution_log table:", e);
+    return false;
+  }
+}

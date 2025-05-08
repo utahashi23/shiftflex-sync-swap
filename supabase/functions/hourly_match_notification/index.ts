@@ -18,6 +18,10 @@ serve(async (req) => {
     const timestamp = new Date().toISOString();
     console.log(`Match notification check started at: ${timestamp} (runs every 5 minutes)`);
     
+    // Determine if this was a scheduled execution or manual trigger
+    // When run by the scheduler, req.headers contains specific headers
+    const isScheduledExecution = req.headers.get('user-agent')?.includes('supabase-edge-function-scheduler') || false;
+    
     let requestBody = {};
     try {
       requestBody = await req.json();
@@ -29,9 +33,9 @@ serve(async (req) => {
     
     // Add execution context to help with debugging
     console.log(`Execution context: ${req.headers.get('user-agent') || 'scheduler'}`);
-    console.log(`Scheduled: ${requestBody.manual_trigger ? 'No (manual trigger)' : 'Yes'}`);
+    console.log(`Scheduled execution: ${isScheduledExecution ? 'Yes' : 'No (manual trigger)'}`);
     
-    const includeDetailedLogging = requestBody.include_detailed_logging === true;
+    const includeDetailedLogging = requestBody.include_detailed_logging === true || isScheduledExecution;
     if (includeDetailedLogging) {
       console.log("Detailed logging enabled for this execution");
     }
@@ -61,6 +65,23 @@ serve(async (req) => {
         console.log(`MAILGUN_DOMAIN value: ${mailgunDomain || 'not set'}`);
       }
       
+      // Even if we're missing config, record the attempted execution in the database
+      try {
+        await supabaseAdmin.from('function_execution_log').insert({
+          function_name: 'hourly_match_notification',
+          status: 'failed',
+          error: 'Missing email configuration',
+          scheduled: isScheduledExecution,
+          execution_details: { 
+            missing_mailgun_key: !mailgunApiKey,
+            missing_mailgun_domain: !mailgunDomain
+          }
+        });
+      } catch (logError) {
+        // Just log the error but continue with the response
+        console.error("Failed to log execution:", logError);
+      }
+      
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -78,10 +99,23 @@ serve(async (req) => {
       console.log(`MAILGUN configuration: domain=${mailgunDomain}, API key length=${mailgunApiKey.length}`);
     }
     
+    // Log the execution attempt to the database for tracking
+    try {
+      await supabaseAdmin.from('function_execution_log').insert({
+        function_name: 'hourly_match_notification',
+        status: 'started',
+        scheduled: isScheduledExecution,
+        execution_details: { timestamp }
+      });
+    } catch (logError) {
+      // Just log the error but continue with the execution
+      console.error("Failed to log execution start:", logError);
+    }
+    
     // Prepare params for the check_matches_and_notify function
     const functionParams = { 
       triggered_at: timestamp, 
-      scheduled: !requestBody.manual_trigger,
+      scheduled: isScheduledExecution,
       view_url: "https://www.shiftflex.au/shifts",
       debug: true,
       detailed_logging: includeDetailedLogging,
@@ -98,10 +132,39 @@ serve(async (req) => {
     
     if (error) {
       console.error(`Error invoking check_matches_and_notify:`, error);
+      
+      // Log the failed execution
+      try {
+        await supabaseAdmin.from('function_execution_log').insert({
+          function_name: 'hourly_match_notification',
+          status: 'failed',
+          error: error.message,
+          scheduled: isScheduledExecution,
+          execution_details: { error: error.message }
+        });
+      } catch (logError) {
+        console.error("Failed to log execution failure:", logError);
+      }
+      
       throw new Error(`Error invoking check_matches_and_notify: ${error.message}`);
     }
     
     console.log("Check completed with result:", data);
+    
+    // Log the successful execution
+    try {
+      await supabaseAdmin.from('function_execution_log').insert({
+        function_name: 'hourly_match_notification',
+        status: 'completed',
+        scheduled: isScheduledExecution,
+        execution_details: { 
+          processed: data?.processed || 0,
+          emails_sent: data?.emails_sent || 0
+        }
+      });
+    } catch (logError) {
+      console.error("Failed to log execution completion:", logError);
+    }
     
     // Format the result data for better readability
     const resultSummary = {
@@ -109,6 +172,7 @@ serve(async (req) => {
       emails_sent: data?.emails_sent || 0,
       email_errors: data?.email_errors || [],
       timestamp: timestamp,
+      scheduled: isScheduledExecution,
       success: true
     };
     

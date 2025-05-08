@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { triggerHourlyMatchNotification, getHourlyMatchNotificationStatus, testEmailConfiguration } from "@/utils/triggerHourlyCheck";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Info, AlertCircle, Clock, ChevronDown, ChevronUp, Mail, RefreshCw } from "lucide-react";
+import { Info, AlertCircle, Clock, ChevronDown, ChevronUp, Mail, RefreshCw, CheckCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { format } from "date-fns";
 
 /**
  * Debug tools for testing email and notification functionality
@@ -68,6 +69,31 @@ export const TestingTools = () => {
     // If we're expanding and haven't checked status yet, do it now
     if (!isExpanded && !statusResult) {
       checkFunctionStatus();
+    }
+  };
+
+  // Function to format date from ISO string
+  const formatDate = (isoString: string) => {
+    if (!isoString) return 'Never';
+    try {
+      return format(new Date(isoString), 'MMM d, h:mm:ss a');
+    } catch (e) {
+      return isoString;
+    }
+  };
+
+  // Function to determine status color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-50 text-green-700';
+      case 'failing':
+        return 'bg-red-50 text-red-700';
+      case 'not triggered automatically':
+      case 'no recent executions':
+        return 'bg-amber-50 text-amber-700';
+      default:
+        return 'bg-gray-50 text-gray-700';
     }
   };
 
@@ -170,11 +196,31 @@ export const TestingTools = () => {
                               ? `Function is ${statusResult.data?.function?.status}` 
                               : "Function not found"}
                           </span>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-[10px] px-1 ${getStatusColor(statusResult.data?.function?.status)}`}
+                          >
+                            {statusResult.data?.function?.status || 'unknown'}
+                          </Badge>
                         </div>
                         
                         <AlertDescription className="mt-1">
-                          Schedule: {statusResult.data?.function?.schedule || "*/5 * * * *"}
-                          {lastChecked && <div className="text-xs mt-1 text-muted-foreground">Last checked: {lastChecked}</div>}
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-1">
+                            <span className="text-gray-500">Schedule:</span> 
+                            <span>{statusResult.data?.function?.schedule || "*/5 * * * *"}</span>
+                            
+                            <span className="text-gray-500">Last auto run:</span> 
+                            <span>{formatDate(statusResult.data?.function?.last_scheduled_run)}</span>
+                            
+                            <span className="text-gray-500">Recent auto successes:</span> 
+                            <span>{statusResult.data?.function?.recent_successful_automatic_runs || 0}</span>
+                          </div>
+                          
+                          {lastChecked && (
+                            <div className="text-xs mt-2 text-muted-foreground">
+                              Last checked: {lastChecked}
+                            </div>
+                          )}
                         </AlertDescription>
                       </div>
                     ) : (
@@ -189,6 +235,54 @@ export const TestingTools = () => {
                   </Alert>
                 ) : null}
               </div>
+              
+              {/* Recent executions */}
+              {statusResult?.data?.recent_executions && statusResult.data.recent_executions.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  <h4 className="text-sm font-medium">Recent Executions</h4>
+                  <div className="bg-white p-2 rounded-md border border-gray-200 text-xs">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="py-1">Time</th>
+                          <th className="py-1">Status</th>
+                          <th className="py-1">Type</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {statusResult.data.recent_executions.map((exec: any, i: number) => (
+                          <tr key={i} className="border-b border-gray-100 last:border-b-0">
+                            <td className="py-1">{formatDate(exec.created_at)}</td>
+                            <td className="py-1">
+                              <Badge 
+                                variant="outline" 
+                                className={`text-[10px] ${exec.status === 'completed' 
+                                  ? 'bg-green-50 text-green-700' 
+                                  : exec.status === 'started' 
+                                    ? 'bg-blue-50 text-blue-700'
+                                    : 'bg-red-50 text-red-700'
+                                }`}
+                              >
+                                {exec.status}
+                              </Badge>
+                            </td>
+                            <td className="py-1">
+                              <Badge 
+                                variant="outline" 
+                                className={`text-[10px] ${exec.scheduled 
+                                  ? 'bg-purple-50 text-purple-700' 
+                                  : 'bg-gray-50 text-gray-700'}`}
+                              >
+                                {exec.scheduled ? 'scheduled' : 'manual'}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
               
               {/* Email test input */}
               <div className="flex flex-col gap-2 pt-2 border-t border-gray-200 mt-4">
