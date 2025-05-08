@@ -48,6 +48,19 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         description: "The shift swap has been successfully accepted.",
       });
       
+      // Send email notifications
+      try {
+        await emailNotifications.sendAcceptanceNotification(confirmDialog.matchId);
+      } catch (emailError) {
+        console.error('Error sending acceptance notification:', emailError);
+        // Don't fail the entire operation if just the email fails
+        toast({
+          title: "Email Notification Issue",
+          description: "The swap was accepted but there was a problem sending notifications.",
+          variant: "destructive" // Changed from "warning" to "destructive"
+        });
+      }
+      
       if (onSuccessCallback) {
         onSuccessCallback();
       }
@@ -151,19 +164,8 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Use the available method from the emailNotifications hook
-      await emailNotifications.sendSwapNotification(
-        'recipient@example.com', // This will be overridden by the edge function
-        'Swap Confirmation',
-        'Your swap has been confirmed',
-        'View Swap',
-        '/shifts'
-      );
-      
-      toast({
-        title: "Email Sent",
-        description: "The swap confirmation email has been resent.",
-      });
+      // Use the new sendAcceptanceNotification method from the hook
+      await emailNotifications.sendAcceptanceNotification(matchId);
       
     } catch (error) {
       console.error('Error resending email:', error);
