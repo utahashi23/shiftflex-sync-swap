@@ -7,7 +7,6 @@ import { CalendarIntegration } from '@/components/settings/CalendarIntegration';
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { EmailTestPanel } from '@/components/EmailTestPanel';
 
 const Settings = () => {
   useAuthRedirect({ protectedRoute: true });
@@ -37,7 +36,6 @@ const Settings = () => {
         <ProfileSettings />
         <PasswordSettings />
         <CalendarIntegration />
-        <EmailTestPanel />
       </div>
     </AppLayout>
   );
