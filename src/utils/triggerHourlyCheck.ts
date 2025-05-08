@@ -16,7 +16,8 @@ export const triggerHourlyMatchNotification = async (): Promise<boolean> => {
       manual_trigger: true,
       timestamp: timestamp,
       client_info: navigator.userAgent,
-      trigger_source: window.location.pathname
+      trigger_source: window.location.pathname,
+      include_detailed_logging: true
     };
     
     console.log('Debug info for trigger:', debugInfo);
@@ -36,11 +37,21 @@ export const triggerHourlyMatchNotification = async (): Promise<boolean> => {
     }
     
     console.log('Hourly check triggered successfully with response:', data);
-    toast({
-      title: 'Success',
-      description: 'Hourly match notification check triggered successfully. Check console for details.',
-      variant: 'default'
-    });
+    
+    // Check if any emails were sent
+    if (data?.result?.emails_sent === 0) {
+      toast({
+        title: 'Function Executed Successfully',
+        description: 'No matches found to notify users about at this time.',
+        variant: 'default'
+      });
+    } else {
+      toast({
+        title: 'Success',
+        description: `Hourly check triggered successfully. ${data?.result?.emails_sent || 0} notification emails sent.`,
+        variant: 'default'
+      });
+    }
     
     return true;
   } catch (err: any) {
@@ -62,7 +73,7 @@ export const getHourlyMatchNotificationStatus = async (): Promise<any> => {
     console.log('Checking status of hourly match notification function...');
     
     const { data, error } = await supabase.functions.invoke('hourly_match_notification_status', {
-      body: { check_status: true }
+      body: { check_status: true, check_email_config: true }
     });
     
     if (error) {
@@ -98,6 +109,37 @@ export const getHourlyMatchNotificationStatus = async (): Promise<any> => {
           status: 'status check failed'
         }
       }
+    };
+  }
+};
+
+/**
+ * Test if email configuration is working
+ * This can help diagnose issues with the hourly notification emails
+ */
+export const testEmailConfiguration = async (): Promise<any> => {
+  try {
+    console.log('Testing email configuration...');
+    
+    const { data, error } = await supabase.functions.invoke('test_email_config', {
+      body: { timestamp: new Date().toISOString() }
+    });
+    
+    if (error) {
+      console.error('Error testing email configuration:', error);
+      return { 
+        success: false, 
+        error: error.message
+      };
+    }
+    
+    console.log('Email configuration test result:', data);
+    return { success: true, data };
+  } catch (err: any) {
+    console.error('Error in testEmailConfiguration:', err);
+    return { 
+      success: false, 
+      error: err.message
     };
   }
 };

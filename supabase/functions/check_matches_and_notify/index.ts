@@ -55,17 +55,34 @@ serve(async (req) => {
     let requestBody: any = {};
     try {
       requestBody = await req.json();
+      console.log("Request body received:", requestBody);
     } catch (parseError) {
       console.log("No request body or invalid JSON, using defaults");
     }
     
+    // If this is just a status check, return quickly
+    if (requestBody.status_check === true) {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          status: "Function exists and is operational",
+          timestamp: new Date().toISOString()
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      );
+    }
+    
     const debug = requestBody.debug === true;
+    const detailedLogging = requestBody.detailed_logging === true;
     const timestamp = requestBody.triggered_at || new Date().toISOString();
     const isScheduled = requestBody.scheduled !== false;
     const viewUrl = requestBody.view_url || "https://www.shiftflex.au/shifts";
     
     // Log execution context
-    console.log(`Check execution details: timestamp=${timestamp}, scheduled=${isScheduled}, debug=${debug}`);
+    console.log(`Check execution details: timestamp=${timestamp}, scheduled=${isScheduled}, debug=${debug}, detailed_logging=${detailedLogging}`);
     
     // Create Supabase client using service role for admin access
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
@@ -184,7 +201,7 @@ serve(async (req) => {
         continue;
       }
       
-      if (debug) {
+      if (detailedLogging || debug) {
         console.log(`User emails: requester=${requesterUser.user.email}, acceptor=${acceptorUser.user.email}`);
       }
       
@@ -252,8 +269,39 @@ serve(async (req) => {
       processedCount++;
     }
     
+    // Check Mailgun configuration
+    const mailgunApiKey = Deno.env.get('MAILGUN_API_KEY');
+    const mailgunDomain = Deno.env.get('MAILGUN_DOMAIN');
+    
+    if (!mailgunApiKey || !mailgunDomain) {
+      console.error("Missing Mailgun configuration (MAILGUN_API_KEY or MAILGUN_DOMAIN)");
+      
+      if (detailedLogging) {
+        console.log("Email configuration check:");
+        console.log(`MAILGUN_API_KEY exists: ${!!mailgunApiKey}`);
+        console.log(`MAILGUN_DOMAIN exists: ${!!mailgunDomain}`);
+        console.log(`MAILGUN_DOMAIN value: ${mailgunDomain || 'not set'}`);
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Missing email configuration. Please set MAILGUN_API_KEY and MAILGUN_DOMAIN in Edge Function secrets.",
+          processed: processedCount,
+          emails_sent: 0,
+          timestamp
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      );
+    }
+    
     // Send emails to users
     let emailsSent = 0;
+    const emailErrors = [];
+    
     for (const userId in userMatchMap) {
       const matches = userMatchMap[userId];
       
@@ -285,19 +333,37 @@ serve(async (req) => {
         try {
           console.log(`Attempting to send notification email to ${email} (${userId}) about ${matches.length} matches`);
           
-          const emailResult = await sendMatchNotificationEmail(email, fullName, matches, viewUrl);
+          const emailResult = await sendMatchNotificationEmail(
+            email, 
+            fullName, 
+            matches, 
+            viewUrl, 
+            { detailed_logging: detailedLogging }
+          );
           
           if (emailResult.success) {
             emailsSent++;
             console.log(`Successfully sent notification email to ${email} (${userId})`);
             
-            if (debug) {
+            if (detailedLogging) {
               console.log(`Email result:`, emailResult);
             }
           } else {
+            const errorDetail = {
+              user_id: userId,
+              email: email,
+              error: emailResult.error
+            };
+            emailErrors.push(errorDetail);
             console.error(`Failed to send email to ${email} (${userId}): ${emailResult.error}`);
           }
         } catch (emailError: any) {
+          const errorDetail = {
+            user_id: userId,
+            email: email,
+            error: emailError.message || String(emailError)
+          };
+          emailErrors.push(errorDetail);
           console.error(`Error sending email to ${email} (${userId}):`, emailError);
         }
       }
@@ -309,6 +375,7 @@ serve(async (req) => {
         message: "Match notification process completed", 
         processed: processedCount,
         emails_sent: emailsSent,
+        email_errors: emailErrors,
         timestamp
       }),
       { 
@@ -340,7 +407,8 @@ async function sendMatchNotificationEmail(
   toEmail: string, 
   userName: string, 
   matches: SwapMatch[],
-  viewUrl: string = "https://www.shiftflex.au/shifts"
+  viewUrl: string = "https://www.shiftflex.au/shifts",
+  options: { detailed_logging?: boolean } = {}
 ): Promise<{success: boolean, error?: string, id?: string}> {
   try {
     console.log(`Preparing email for ${userName} (${toEmail}) with ${matches.length} matches`);
@@ -406,15 +474,29 @@ async function sendMatchNotificationEmail(
       </div>
     `;
     
+    // Check email configuration
+    const mailgunApiKey = Deno.env.get('MAILGUN_API_KEY');
+    const mailgunDomain = Deno.env.get('MAILGUN_DOMAIN');
+    
+    if (!mailgunApiKey || !mailgunDomain) {
+      throw new Error('Missing Mailgun API key or domain configuration');
+    }
+    
     // Prepare email data
     const emailData = {
       to: toEmail,
       subject: `You have ${matches.length} pending shift ${matches.length === 1 ? 'swap' : 'swaps'} available`,
       html: emailHtml,
-      from: "admin@shiftflex.au"
+      from: `admin@${mailgunDomain}`,
+      verbose_logging: options.detailed_logging
     };
     
     console.log(`Sending email to ${toEmail} with subject: "${emailData.subject}"`);
+    
+    if (options.detailed_logging) {
+      console.log(`Using from address: admin@${mailgunDomain}`);
+      console.log(`Email data prepared, calling send_email function...`);
+    }
     
     // Use service role client to call the send_email function
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
@@ -428,6 +510,11 @@ async function sendMatchNotificationEmail(
     
     if (error) {
       throw new Error(`Email sending failed: ${error.message}`);
+    }
+    
+    // If detailed logging is enabled, log the full response
+    if (options.detailed_logging && data) {
+      console.log(`Full send_email response:`, JSON.stringify(data));
     }
     
     console.log(`Email sent successfully to ${toEmail}`);

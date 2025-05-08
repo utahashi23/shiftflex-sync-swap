@@ -31,6 +31,11 @@ serve(async (req) => {
     console.log(`Execution context: ${req.headers.get('user-agent') || 'scheduler'}`);
     console.log(`Scheduled: ${requestBody.manual_trigger ? 'No (manual trigger)' : 'Yes'}`);
     
+    const includeDetailedLogging = requestBody.include_detailed_logging === true;
+    if (includeDetailedLogging) {
+      console.log("Detailed logging enabled for this execution");
+    }
+    
     // Create Supabase client with admin role to bypass RLS
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -42,12 +47,44 @@ serve(async (req) => {
     console.log(`Creating admin client with URL: ${supabaseUrl.substring(0, 20)}...`);
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
     
+    // Verify email configuration before proceeding
+    const mailgunApiKey = Deno.env.get('MAILGUN_API_KEY');
+    const mailgunDomain = Deno.env.get('MAILGUN_DOMAIN');
+    
+    if (!mailgunApiKey || !mailgunDomain) {
+      console.warn("Missing email configuration (MAILGUN_API_KEY or MAILGUN_DOMAIN)");
+      
+      if (includeDetailedLogging) {
+        console.log("Environment variables check:");
+        console.log(`MAILGUN_API_KEY exists: ${!!mailgunApiKey}`);
+        console.log(`MAILGUN_DOMAIN exists: ${!!mailgunDomain}`);
+        console.log(`MAILGUN_DOMAIN value: ${mailgunDomain || 'not set'}`);
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Missing email configuration. Please set MAILGUN_API_KEY and MAILGUN_DOMAIN in Edge Function secrets.",
+          timestamp
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      );
+    }
+    
+    if (includeDetailedLogging) {
+      console.log(`MAILGUN configuration: domain=${mailgunDomain}, API key length=${mailgunApiKey.length}`);
+    }
+    
     // Prepare params for the check_matches_and_notify function
     const functionParams = { 
       triggered_at: timestamp, 
       scheduled: !requestBody.manual_trigger,
       view_url: "https://www.shiftflex.au/shifts",
-      debug: true
+      debug: true,
+      detailed_logging: includeDetailedLogging
     };
     
     console.log(`Calling check_matches_and_notify with params:`, functionParams);
@@ -68,6 +105,7 @@ serve(async (req) => {
     const resultSummary = {
       processed: data?.processed || 0,
       emails_sent: data?.emails_sent || 0,
+      email_errors: data?.email_errors || [],
       timestamp: timestamp,
       success: true
     };

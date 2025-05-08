@@ -1,11 +1,13 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { triggerHourlyMatchNotification, getHourlyMatchNotificationStatus } from "@/utils/triggerHourlyCheck";
+import { triggerHourlyMatchNotification, getHourlyMatchNotificationStatus, testEmailConfiguration } from "@/utils/triggerHourlyCheck";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Info, AlertCircle, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { Info, AlertCircle, Clock, ChevronDown, ChevronUp, Mail, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 /**
  * Debug tools for testing email and notification functionality
@@ -13,9 +15,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 export const TestingTools = () => {
   const [isTriggering, setIsTriggering] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
   const [statusResult, setStatusResult] = useState<any>(null);
   const [lastChecked, setLastChecked] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [testEmail, setTestEmail] = useState<string>("");
 
   const handleTriggerHourlyCheck = async () => {
     setIsTriggering(true);
@@ -38,6 +42,19 @@ export const TestingTools = () => {
       setLastChecked(new Date().toLocaleTimeString());
     } finally {
       setIsChecking(false);
+    }
+  };
+  
+  const handleTestEmail = async () => {
+    if (!testEmail) {
+      return;
+    }
+    
+    setIsTesting(true);
+    try {
+      await testEmailConfiguration();
+    } finally {
+      setIsTesting(false);
     }
   };
 
@@ -73,6 +90,44 @@ export const TestingTools = () => {
           
           <CardContent className="p-4 pt-0">
             <div className="space-y-4">
+              {/* Email Configuration Status */}
+              {statusResult?.data?.email_config && (
+                <div className="space-y-2 mb-4">
+                  <h4 className="text-sm font-medium">Email Configuration</h4>
+                  <Alert variant={statusResult.data.email_config.status === "configured" ? "default" : "destructive"} className="py-2">
+                    <div className="text-xs">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-3 w-3" />
+                        <span className="font-semibold">
+                          {statusResult.data.email_config.status === "configured" 
+                            ? "Email configuration is complete" 
+                            : "Email configuration is incomplete"}
+                        </span>
+                      </div>
+                      
+                      <AlertDescription className="mt-1">
+                        <div className="flex flex-col gap-1">
+                          <span>
+                            API Key: {statusResult.data.email_config.mailgun_api_key_set ? (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 text-[10px] px-1">Set</Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-red-50 text-red-700 text-[10px] px-1">Missing</Badge>
+                            )}
+                          </span>
+                          <span>
+                            Domain: {statusResult.data.email_config.mailgun_domain_set ? (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 text-[10px] px-1">{statusResult.data.email_config.mailgun_domain}</Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-red-50 text-red-700 text-[10px] px-1">Not Set</Badge>
+                            )}
+                          </span>
+                        </div>
+                      </AlertDescription>
+                    </div>
+                  </Alert>
+                </div>
+              )}
+              
               {/* Status section */}
               <div className="space-y-2 mb-4">
                 <div className="flex items-center justify-between">
@@ -84,7 +139,17 @@ export const TestingTools = () => {
                     disabled={isChecking}
                     className="h-7 text-xs"
                   >
-                    {isChecking ? "Checking..." : "Refresh"}
+                    {isChecking ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> 
+                        Checking...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1" /> 
+                        Refresh
+                      </>
+                    )}
                   </Button>
                 </div>
                 
@@ -130,10 +195,56 @@ export const TestingTools = () => {
                   disabled={isTriggering}
                   className="bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300"
                 >
-                  {isTriggering ? "Triggering..." : "Trigger Hourly Match Check"}
+                  {isTriggering ? (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-2 animate-spin" /> 
+                      Triggering...
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="h-3 w-3 mr-2" /> 
+                      Trigger Hourly Match Check
+                    </>
+                  )}
                 </Button>
                 <p className="text-xs text-gray-500">
                   Manually trigger the hourly match notification check process
+                </p>
+              </div>
+              
+              {/* Email test section */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-gray-200 mt-4">
+                <h4 className="text-sm font-medium">Test Email</h4>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="Enter email address"
+                    className="text-sm h-8"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    disabled={isTesting || !testEmail}
+                    onClick={handleTestEmail}
+                    className="h-8"
+                  >
+                    {isTesting ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-2 animate-spin" /> 
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="h-3 w-3 mr-2" /> 
+                        Test
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Send a test email to verify email configuration
                 </p>
               </div>
             </div>

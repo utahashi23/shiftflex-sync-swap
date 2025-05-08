@@ -18,6 +18,14 @@ serve(async (req) => {
     const timestamp = new Date().toISOString();
     console.log(`Status check requested at: ${timestamp}`);
     
+    let requestBody = {};
+    try {
+      requestBody = await req.json();
+      console.log("Received request body:", requestBody);
+    } catch (parseError) {
+      console.log("No request body or invalid JSON");
+    }
+    
     // Create Supabase client with admin role
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -28,8 +36,7 @@ serve(async (req) => {
     
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
     
-    // Instead of using pgMeta, we'll get the function info from the config directly
-    // We know the function exists because this code is running within it
+    // Function info (we know it exists since this code is running)
     const functionInfo = {
       name: 'hourly_match_notification',
       exists: true,
@@ -38,17 +45,28 @@ serve(async (req) => {
       verify_jwt: false
     };
     
-    // Get recent invocation logs using direct SQL query
-    // We'll limit this to the 5 most recent invocations of the hourly function
-    const { data: recentLogs, error: logsError } = await supabaseAdmin
-      .from('_http_request_logs')
-      .select('id, method, path, status, timestamp')
-      .like('path', '%/functions/v1/hourly_match_notification%')
-      .order('timestamp', { ascending: false })
-      .limit(5);
+    // Get recent invocation logs (we make a direct check since the _http_request_logs table may not exist)
+    let recentLogs = [];
+    let logsError = null;
     
-    if (logsError) {
-      console.warn(`Error fetching function logs: ${logsError.message}`);
+    try {
+      // Try to query the logs table if it exists
+      const { data: logs, error } = await supabaseAdmin
+        .from('_http_request_logs')
+        .select('id, method, path, status, timestamp')
+        .like('path', '%/functions/v1/hourly_match_notification%')
+        .order('timestamp', { ascending: false })
+        .limit(5);
+        
+      if (!error) {
+        recentLogs = logs || [];
+      } else {
+        logsError = error.message;
+        console.log("Error fetching logs from database:", logsError);
+      }
+    } catch (e) {
+      logsError = e.message;
+      console.log("Exception when fetching logs:", logsError);
     }
     
     // Format logs to be more readable
@@ -58,6 +76,27 @@ serve(async (req) => {
       method: log.method,
       id: log.id
     }));
+    
+    // Check email configuration
+    const checkEmailConfig = requestBody.check_email_config === true;
+    let emailConfigStatus = null;
+    
+    if (checkEmailConfig) {
+      const mailgunApiKey = Deno.env.get('MAILGUN_API_KEY');
+      const mailgunDomain = Deno.env.get('MAILGUN_DOMAIN');
+      
+      emailConfigStatus = {
+        mailgun_api_key_set: !!mailgunApiKey,
+        mailgun_domain_set: !!mailgunDomain,
+        mailgun_domain: mailgunDomain || "not set",
+        status: (!!mailgunApiKey && !!mailgunDomain) ? "configured" : "missing configuration"
+      };
+    }
+    
+    // Check if the check_matches_and_notify function exists
+    const checkMatchesExists = await supabaseAdmin.functions.invoke('check_matches_and_notify', {
+      body: { status_check: true }
+    }).then(response => !response.error).catch(() => false);
 
     return new Response(
       JSON.stringify({
@@ -70,7 +109,12 @@ serve(async (req) => {
           verify_jwt: false,
           status: 'active'
         },
+        dependencies: {
+          check_matches_and_notify_exists: checkMatchesExists
+        },
         recent_invocations: formattedLogs || [],
+        logs_error: logsError,
+        email_config: emailConfigStatus,
         timestamp
       }),
       { 
