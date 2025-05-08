@@ -34,8 +34,18 @@ export const createSwapHelpers = (state: SwapCalendarState) => {
     
     // Check if previous day has a night shift
     const prevShift = getShiftForDate(prevDateStr);
+    
     if (prevShift && prevShift.type === 'night') {
-      // If we're potentially selecting a day or afternoon shift
+      // EXCEPTION: If we're swapping the night shift itself
+      // Allow day and afternoon shifts on the next day
+      const selectedShiftDate = state.selectedShift?.date;
+      if (selectedShiftDate === prevDateStr && state.selectedShift?.type === 'night') {
+        // This is the exception case - allow selecting the next day for swap
+        return false;
+      }
+      
+      // Regular case: If we're potentially selecting a day or afternoon shift
+      // after a night shift that isn't the one being swapped
       if (acceptableShiftTypes.day || acceptableShiftTypes.afternoon) {
         return true;
       }
