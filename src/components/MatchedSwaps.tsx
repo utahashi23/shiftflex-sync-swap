@@ -3,8 +3,10 @@ import { useState, useCallback } from 'react';
 import { SwapConfirmDialog } from './matched-swaps/SwapConfirmDialog';
 import { FinalizeSwapDialog } from './matched-swaps/FinalizeSwapDialog';
 import { MatchedSwapsTabs } from './matched-swaps/MatchedSwapsTabs';
+import { TestingTools } from './matched-swaps/TestingTools';
 import { useMatchedSwapsData } from './matched-swaps/hooks/useMatchedSwapsData';
 import { useSwapConfirmation } from './matched-swaps/hooks/useSwapConfirmation';
+import { useAuth } from '@/hooks/useAuth';
 
 interface MatchedSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
@@ -21,6 +23,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     setActiveTab,
     fetchMatches
   } = useMatchedSwapsData(setRefreshTrigger);
+  
+  const { isAdmin } = useAuth();
   
   const {
     confirmDialog,
@@ -50,6 +54,11 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Add the TestingTools component for admins */}
+      {isAdmin && (
+        <TestingTools />
+      )}
+
       {/* Matched Swaps Tabs */}
       <MatchedSwapsTabs
         activeTab={activeTab}
