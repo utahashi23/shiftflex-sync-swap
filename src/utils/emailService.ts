@@ -167,6 +167,7 @@ export const sendSwapStatusNotification = async (
 
 /**
  * Function to resend notifications for accepted swaps
+ * This is now exported to be used by other components
  */
 export const resendSwapNotification = async (
   matchId: string
