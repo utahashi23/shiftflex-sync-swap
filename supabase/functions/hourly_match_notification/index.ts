@@ -1,5 +1,5 @@
 
-// Scheduled function that runs hourly to check for match notifications
+// Scheduled function that runs every 5 minutes to check for match notifications
 import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
@@ -16,7 +16,7 @@ serve(async (req) => {
 
   try {
     const timestamp = new Date().toISOString();
-    console.log(`Hourly match notification check started at: ${timestamp}`);
+    console.log(`Match notification check started at: ${timestamp} (runs every 5 minutes)`);
     
     let requestBody = {};
     try {
@@ -84,7 +84,9 @@ serve(async (req) => {
       scheduled: !requestBody.manual_trigger,
       view_url: "https://www.shiftflex.au/shifts",
       debug: true,
-      detailed_logging: includeDetailedLogging
+      detailed_logging: includeDetailedLogging,
+      recipient_email: requestBody.recipient_email, // Pass through any test email recipient
+      is_test: requestBody.is_test === true
     };
     
     console.log(`Calling check_matches_and_notify with params:`, functionParams);
@@ -99,7 +101,7 @@ serve(async (req) => {
       throw new Error(`Error invoking check_matches_and_notify: ${error.message}`);
     }
     
-    console.log("Hourly check completed with result:", data);
+    console.log("Check completed with result:", data);
     
     // Format the result data for better readability
     const resultSummary = {
@@ -113,7 +115,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Hourly match notification check completed", 
+        message: "Match notification check completed", 
         result: resultSummary
       }),
       { 
@@ -122,7 +124,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error in hourly_match_notification function:', error);
+    console.error('Error in match_notification function:', error);
     
     return new Response(
       JSON.stringify({ 

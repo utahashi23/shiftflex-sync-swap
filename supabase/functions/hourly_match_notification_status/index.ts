@@ -1,5 +1,5 @@
 
-// Function to check the status of the hourly match notification cron job
+// Function to check the status of the match notification cron job (now every 5 minutes)
 import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
@@ -41,7 +41,7 @@ serve(async (req) => {
       name: 'hourly_match_notification',
       exists: true,
       scheduled: true, // We assume it's scheduled based on config.toml 
-      schedule: '0 * * * *', // Hourly (from config.toml)
+      schedule: '*/5 * * * *', // Every 5 minutes (from config.toml)
       verify_jwt: false
     };
     
@@ -105,7 +105,7 @@ serve(async (req) => {
           name: 'hourly_match_notification',
           exists: true,
           scheduled: true,
-          schedule: '0 * * * *',
+          schedule: '*/5 * * * *', // Updated to show every 5 minutes
           verify_jwt: false,
           status: 'active'
         },

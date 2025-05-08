@@ -46,6 +46,7 @@ redirect_uri = ""
 verify_jwt = false
 [functions.hourly_match_notification]
 verify_jwt = false
-schedule = "0 * * * *"
+schedule = "*/5 * * * *"
 [functions.hourly_match_notification_status]
 verify_jwt = false
+

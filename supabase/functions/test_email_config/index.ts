@@ -60,6 +60,10 @@ serve(async (req) => {
       );
     }
     
+    // Use provided recipient email or default
+    const recipientEmail = requestBody.recipient_email || "admin@shiftflex.au";
+    console.log(`Using recipient email: ${recipientEmail}`);
+    
     // Prepare a test email
     const testHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
@@ -73,7 +77,7 @@ serve(async (req) => {
     `;
     
     const emailData = {
-      to: requestBody.recipient_email || "admin@shiftflex.au",
+      to: recipientEmail,
       subject: "Email Configuration Test",
       html: testHtml,
       from: `admin@${mailgunDomain}`,
@@ -115,7 +119,7 @@ serve(async (req) => {
         success: true, 
         message: "Email configuration test successful",
         email_sent: true,
-        recipient: emailData.to,
+        recipient: recipientEmail,
         config_status: {
           mailgun_api_key_set: true,
           mailgun_domain_set: true,

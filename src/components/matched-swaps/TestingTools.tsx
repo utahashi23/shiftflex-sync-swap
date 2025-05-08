@@ -24,7 +24,11 @@ export const TestingTools = () => {
   const handleTriggerHourlyCheck = async () => {
     setIsTriggering(true);
     try {
-      await triggerHourlyMatchNotification();
+      // Pass the test email if provided
+      await triggerHourlyMatchNotification({
+        recipient_email: testEmail || undefined,
+        is_test: true
+      });
       // Update the status after triggering
       setTimeout(() => {
         checkFunctionStatus();
@@ -52,7 +56,7 @@ export const TestingTools = () => {
     
     setIsTesting(true);
     try {
-      await testEmailConfiguration();
+      await testEmailConfiguration(testEmail);
     } finally {
       setIsTesting(false);
     }
@@ -84,7 +88,7 @@ export const TestingTools = () => {
           <CardHeader className="p-4 pb-0">
             <CardTitle className="text-sm font-medium">Testing & Debugging Tools</CardTitle>
             <CardDescription className="text-xs text-gray-500">
-              Tools for testing notification functionality
+              Tools for testing notification functionality (runs every 5 minutes)
             </CardDescription>
           </CardHeader>
           
@@ -131,7 +135,7 @@ export const TestingTools = () => {
               {/* Status section */}
               <div className="space-y-2 mb-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium">Hourly Check Status</h4>
+                  <h4 className="text-sm font-medium">Check Status (Every 5 min)</h4>
                   <Button 
                     variant="outline" 
                     size="sm"
@@ -169,7 +173,7 @@ export const TestingTools = () => {
                         </div>
                         
                         <AlertDescription className="mt-1">
-                          Schedule: {statusResult.data?.function?.schedule || "Not scheduled"}
+                          Schedule: {statusResult.data?.function?.schedule || "*/5 * * * *"}
                           {lastChecked && <div className="text-xs mt-1 text-muted-foreground">Last checked: {lastChecked}</div>}
                         </AlertDescription>
                       </div>
@@ -186,39 +190,13 @@ export const TestingTools = () => {
                 ) : null}
               </div>
               
-              {/* Manual trigger button */}
-              <div className="flex flex-col gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleTriggerHourlyCheck} 
-                  disabled={isTriggering}
-                  className="bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300"
-                >
-                  {isTriggering ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 mr-2 animate-spin" /> 
-                      Triggering...
-                    </>
-                  ) : (
-                    <>
-                      <Clock className="h-3 w-3 mr-2" /> 
-                      Trigger Hourly Match Check
-                    </>
-                  )}
-                </Button>
-                <p className="text-xs text-gray-500">
-                  Manually trigger the hourly match notification check process
-                </p>
-              </div>
-              
-              {/* Email test section */}
+              {/* Email test input */}
               <div className="flex flex-col gap-2 pt-2 border-t border-gray-200 mt-4">
-                <h4 className="text-sm font-medium">Test Email</h4>
+                <h4 className="text-sm font-medium">Email Address for Testing</h4>
                 <div className="flex gap-2">
                   <Input
                     type="email"
-                    placeholder="Enter email address"
+                    placeholder="Enter email address for testing"
                     className="text-sm h-8"
                     value={testEmail}
                     onChange={(e) => setTestEmail(e.target.value)}
@@ -238,13 +216,42 @@ export const TestingTools = () => {
                     ) : (
                       <>
                         <Mail className="h-3 w-3 mr-2" /> 
-                        Test
+                        Test Email
                       </>
                     )}
                   </Button>
                 </div>
                 <p className="text-xs text-gray-500">
-                  Send a test email to verify email configuration
+                  Enter an email address to send test emails to
+                </p>
+              </div>
+              
+              {/* Manual trigger button */}
+              <div className="flex flex-col gap-2 mt-4">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleTriggerHourlyCheck} 
+                  disabled={isTriggering}
+                  className="bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300"
+                >
+                  {isTriggering ? (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-2 animate-spin" /> 
+                      Triggering...
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="h-3 w-3 mr-2" /> 
+                      Trigger Match Check & Send Emails
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-gray-500">
+                  {testEmail ? 
+                    `Trigger check and send test emails to: ${testEmail}` : 
+                    "Manually trigger the notification check process"
+                  }
                 </p>
               </div>
             </div>
@@ -254,7 +261,7 @@ export const TestingTools = () => {
             <div className="flex items-start gap-2 text-xs text-gray-600">
               <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
               <div>
-                The hourly check should run automatically every hour according to the schedule in 
+                The notification check now runs automatically every 5 minutes according to the schedule in 
                 <code className="px-1 py-0.5 bg-gray-200 rounded text-xs ml-1">supabase/config.toml</code>. 
                 Use the button above to manually trigger it for testing.
               </div>
