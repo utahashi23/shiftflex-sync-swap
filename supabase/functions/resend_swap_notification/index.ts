@@ -2,32 +2,32 @@
 // Follow this setup guide to integrate the Supabase Edge Functions with your app:
 // https://supabase.com/docs/guides/functions/getting-started
 
-import { serve } from "https://deno.land/std@0.131.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
     // Get the request body
-    const { match_id } = await req.json()
+    const { match_id } = await req.json();
 
     if (!match_id) {
       return new Response(
         JSON.stringify({ error: 'Missing match_id parameter' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      )
+      );
     }
 
-    console.log(`Processing resend_swap_notification for match ID: ${match_id}`)
+    console.log(`Processing resend_swap_notification for match ID: ${match_id}`);
 
     // Create a Supabase client with the Auth context of the logged in user
     const supabaseClient = createClient(
@@ -37,13 +37,13 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       // Create client with Auth context of the user that called the function
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    )
+    );
 
     // Use service role for operations that might be restricted by RLS
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    )
+    );
 
     // First, get the match details to obtain user IDs and shift information
     const { data: matchData, error: matchError } = await supabaseAdmin
@@ -57,22 +57,22 @@ serve(async (req) => {
         acceptor_shift_id
       `)
       .eq('id', match_id)
-      .single()
+      .single();
     
     if (matchError) {
-      throw new Error(`Error fetching match: ${matchError.message}`)
+      throw new Error(`Error fetching match: ${matchError.message}`);
     }
 
     if (!matchData) {
-      throw new Error('Match not found')
+      throw new Error('Match not found');
     }
     
     // Verify match status is 'accepted'
     if (matchData.status !== 'accepted') {
-      throw new Error(`Cannot resend notification for match with status ${matchData.status}. Match must be accepted.`)
+      throw new Error(`Cannot resend notification for match with status ${matchData.status}. Match must be accepted.`);
     }
 
-    console.log(`Found match data:`, matchData)
+    console.log(`Found match data:`, matchData);
 
     // Fetch the request data to get user IDs
     const requestsPromises = [
@@ -86,22 +86,22 @@ serve(async (req) => {
         .select('requester_id, requester_shift_id')
         .eq('id', matchData.acceptor_request_id)
         .single()
-    ]
+    ];
 
-    const [requesterRequest, acceptorRequest] = await Promise.all(requestsPromises)
+    const [requesterRequest, acceptorRequest] = await Promise.all(requestsPromises);
     
     if (requesterRequest.error) {
-      throw new Error(`Error fetching requester request: ${requesterRequest.error.message}`)
+      throw new Error(`Error fetching requester request: ${requesterRequest.error.message}`);
     }
     
     if (acceptorRequest.error) {
-      throw new Error(`Error fetching acceptor request: ${acceptorRequest.error.message}`)
+      throw new Error(`Error fetching acceptor request: ${acceptorRequest.error.message}`);
     }
 
-    const requesterUserId = requesterRequest.data.requester_id
-    const acceptorUserId = acceptorRequest.data.requester_id
+    const requesterUserId = requesterRequest.data.requester_id;
+    const acceptorUserId = acceptorRequest.data.requester_id;
     
-    console.log(`Users involved: Requester ID: ${requesterUserId}, Acceptor ID: ${acceptorUserId}`)
+    console.log(`Users involved: Requester ID: ${requesterUserId}, Acceptor ID: ${acceptorUserId}`);
 
     // Fetch detailed user data including profile information 
     const usersPromises = [
@@ -117,36 +117,36 @@ serve(async (req) => {
         .select('first_name, last_name, employee_id')
         .eq('id', acceptorUserId)
         .single()
-    ]
+    ];
 
-    const [requesterUser, acceptorUser, requesterProfile, acceptorProfile] = await Promise.all(usersPromises)
+    const [requesterUser, acceptorUser, requesterProfile, acceptorProfile] = await Promise.all(usersPromises);
     
     if (requesterUser.error) {
-      console.error(`Error fetching requester user: ${requesterUser.error.message}`)
+      console.error(`Error fetching requester user: ${requesterUser.error.message}`);
       // Continue even if we can't get the user's email
     }
     
     if (acceptorUser.error) {
-      console.error(`Error fetching acceptor user: ${acceptorUser.error.message}`)
+      console.error(`Error fetching acceptor user: ${acceptorUser.error.message}`);
       // Continue even if we can't get the user's email
     }
 
-    const requesterEmail = requesterUser.data?.user?.email
-    const acceptorEmail = acceptorUser.data?.user?.email
+    const requesterEmail = requesterUser.data?.user?.email;
+    const acceptorEmail = acceptorUser.data?.user?.email;
     
     const requesterName = requesterProfile.data ? 
       `${requesterProfile.data.first_name || ''} ${requesterProfile.data.last_name || ''}`.trim() : 
-      'Unknown User'
+      'Unknown User';
     
     const acceptorName = acceptorProfile.data ? 
       `${acceptorProfile.data.first_name || ''} ${acceptorProfile.data.last_name || ''}`.trim() : 
-      'Unknown User'
+      'Unknown User';
     
-    const requesterEmployeeId = requesterProfile.data?.employee_id || 'Not specified'
-    const acceptorEmployeeId = acceptorProfile.data?.employee_id || 'Not specified'
+    const requesterEmployeeId = requesterProfile.data?.employee_id || 'Not specified';
+    const acceptorEmployeeId = acceptorProfile.data?.employee_id || 'Not specified';
     
-    console.log(`User emails: Requester: ${requesterEmail || 'unknown'}, Acceptor: ${acceptorEmail || 'unknown'}`)
-    console.log(`User names: Requester: ${requesterName}, Acceptor: ${acceptorName}`)
+    console.log(`User emails: Requester: ${requesterEmail || 'unknown'}, Acceptor: ${acceptorEmail || 'unknown'}`);
+    console.log(`User names: Requester: ${requesterName}, Acceptor: ${acceptorName}`);
 
     // Fetch detailed shift information including colleague types
     const shiftsPromises = [
@@ -160,17 +160,17 @@ serve(async (req) => {
         .select('*')
         .eq('id', matchData.acceptor_shift_id)
         .single()
-    ]
+    ];
 
-    const [requesterShift, acceptorShift] = await Promise.all(shiftsPromises)
+    const [requesterShift, acceptorShift] = await Promise.all(shiftsPromises);
     
     if (requesterShift.error) {
-      console.error(`Error fetching requester shift: ${requesterShift.error.message}`)
+      console.error(`Error fetching requester shift: ${requesterShift.error.message}`);
       // Continue even if we can't get shift details
     }
     
     if (acceptorShift.error) {
-      console.error(`Error fetching acceptor shift: ${acceptorShift.error.message}`)
+      console.error(`Error fetching acceptor shift: ${acceptorShift.error.message}`);
       // Continue even if we can't get shift details
     }
     
@@ -187,17 +187,17 @@ serve(async (req) => {
 
     // Format the shift dates and times for email content
     const formatDate = (dateStr) => {
-      return new Date(dateStr).toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-      })
-    }
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric'
+      });
+    };
 
     const formatTime = (timeStr) => {
-      return timeStr.substring(0, 5) // Format from "08:00:00" to "08:00"
-    }
+      return timeStr.substring(0, 5); // Format from "08:00:00" to "08:00"
+    };
 
     // Check for Mailgun API key (primary email service)
     const MAILGUN_API_KEY = Deno.env.get('MAILGUN_API_KEY');
@@ -213,116 +213,241 @@ serve(async (req) => {
 
     // Only attempt to send emails if we have email addresses
     if (requesterEmail) {
-      // Prepare detailed information matching the SwapDetailsDialog format
+      // Create Shift Swap Card styled email for requester that matches the UI in the image
       const requesterEmailContent = `
-        <h2>Shift Swap Accepted</h2>
-        <p>Your shift swap has been accepted by your colleague.</p>
-        
-        <div style="margin-top: 20px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 5px; background-color: #f8fafc;">
-          <h3 style="margin-top: 0; color: #4b5563; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Swap Status: <span style="color: #3b82f6; background-color: #dbeafe; padding: 3px 8px; border-radius: 20px; font-size: 14px;">Accepted</span></h3>
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Shift Swap Accepted</title>
+        <style>
+          body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px;
+            color: #334155;
+            background-color: #f8fafc;
+          }
+          .card {
+            max-width: 600px;
+            margin: 0 auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          }
+          .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            background-color: #f8fafc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .card-title {
+            display: flex;
+            align-items: center;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+          }
+          .status-badge {
+            padding: 5px 12px;
+            background-color: #dbeafe;
+            color: #1e40af;
+            border-radius: 9999px;
+            font-size: 14px;
+            font-weight: 500;
+          }
+          .card-content {
+            padding: 20px;
+          }
+          .shift-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+          }
+          .shift-section h3 {
+            color: #64748b;
+            font-size: 16px;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-weight: 500;
+          }
+          .shift-box {
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background-color: #f8fafc;
+          }
+          .shift-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: 500;
+          }
+          .day-badge {
+            background-color: #e0f2fe;
+            color: #0369a1;
+          }
+          .afternoon-badge {
+            background-color: #ffedd5;
+            color: #9a3412;
+          }
+          .night-badge {
+            background-color: #dbeafe;
+            color: #1e40af;
+          }
+          .shift-detail {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+          }
+          .shift-detail-icon {
+            margin-right: 8px;
+            color: #64748b;
+            width: 16px;
+            text-align: center;
+          }
+          .shift-location {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 500;
+          }
+          .card-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #e2e8f0;
+            background-color: #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+          }
+          .footer-content {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 14px;
+            color: #64748b;
+          }
+          .warning-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-left: 4px solid #f59e0b;
+            background-color: #fffbeb;
+          }
+          .warning-box p {
+            margin: 0;
+          }
+          .button {
+            display: inline-block;
+            background-color: #4f46e5;
+            color: white;
+            text-decoration: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span style="color:#3b82f6;margin-right:10px;">↔️</span>
+              Shift Swap
+            </div>
+            <div class="status-badge">Accepted</div>
+          </div>
           
-          <div style="margin-top: 20px;">
-            <h4 style="color: #4b5563; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">YOUR ORIGINAL SHIFT</h4>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Person</div>
-                <div style="font-weight: 500;">${requesterName}</div>
+          <div class="card-content">
+            <div class="shift-grid">
+              <div class="shift-section">
+                <h3>Your Shift</h3>
+                <div class="shift-box">
+                  <div class="${requesterShiftType === 'day' ? 'shift-badge day-badge' : requesterShiftType === 'afternoon' ? 'shift-badge afternoon-badge' : 'shift-badge night-badge'}">
+                    ${requesterShiftType.charAt(0).toUpperCase() + requesterShiftType.slice(1)} Shift
+                  </div>
+                  
+                  <div class="shift-detail">
+                    <span class="shift-detail-icon">📅</span>
+                    <span>${formatDate(requesterShift.data?.date)}</span>
+                  </div>
+                  
+                  <div class="shift-detail">
+                    <span class="shift-detail-icon">⏱️</span>
+                    <span>${formatTime(requesterShift.data?.start_time)} - ${formatTime(requesterShift.data?.end_time)}</span>
+                  </div>
+                  
+                  <div class="shift-detail">
+                    <span class="shift-detail-icon">👤</span>
+                    <span>${requesterShift.data?.colleague_type || 'Not specified'}</span>
+                  </div>
+                  
+                  <div class="shift-location">
+                    ${requesterShift.data?.truck_name || 'Not specified'}
+                  </div>
+                </div>
               </div>
               
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Date</div>
-                <div style="font-weight: 500;">${formatDate(requesterShift.data?.date)}</div>
+              <div class="shift-section">
+                <h3>Matched Shift</h3>
+                <div class="shift-box">
+                  <div class="${acceptorShiftType === 'day' ? 'shift-badge day-badge' : acceptorShiftType === 'afternoon' ? 'shift-badge afternoon-badge' : 'shift-badge night-badge'}">
+                    ${acceptorShiftType.charAt(0).toUpperCase() + acceptorShiftType.slice(1)} Shift
+                  </div>
+
+                  <div style="text-align:right; font-size:14px; color:#64748b; margin-top:-25px;">
+                    ${acceptorName}
+                  </div>
+                  
+                  <div class="shift-detail">
+                    <span class="shift-detail-icon">📅</span>
+                    <span>${formatDate(acceptorShift.data?.date)}</span>
+                  </div>
+                  
+                  <div class="shift-detail">
+                    <span class="shift-detail-icon">⏱️</span>
+                    <span>${formatTime(acceptorShift.data?.start_time)} - ${formatTime(acceptorShift.data?.end_time)}</span>
+                  </div>
+                  
+                  <div class="shift-detail">
+                    <span class="shift-detail-icon">👤</span>
+                    <span>${acceptorShift.data?.colleague_type || 'Not specified'}</span>
+                  </div>
+                  
+                  <div class="shift-location">
+                    ${acceptorShift.data?.truck_name || 'Not specified'}
+                  </div>
+                </div>
               </div>
-              
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Shift Type</div>
-                <div style="font-weight: 500; display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; ${
-                  requesterShiftType === 'day' ? "background-color: #fef3c7; color: #92400e;" :
-                  requesterShiftType === 'afternoon' ? "background-color: #ffedd5; color: #9a3412;" :
-                  "background-color: #dbeafe; color: #1e40af;"
-                }">${requesterShiftType.charAt(0).toUpperCase() + requesterShiftType.slice(1)}</div>
-              </div>
-              
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Time</div>
-                <div style="font-weight: 500;">${formatTime(requesterShift.data?.start_time)} - ${formatTime(requesterShift.data?.end_time)}</div>
-              </div>
-              
-              <div style="grid-column: span 2;">
-                <div style="font-size: 13px; color: #6b7280;">Colleague Type</div>
-                <div style="font-weight: 500;">${requesterShift.data?.colleague_type || 'Not specified'}</div>
-              </div>
-              
-              <div style="grid-column: span 2;">
-                <div style="font-size: 13px; color: #6b7280;">Service#</div>
-                <div style="font-weight: 500;">${requesterEmployeeId}</div>
-              </div>
-              
-              <div style="grid-column: span 2;">
-                <div style="font-size: 13px; color: #6b7280;">Location</div>
-                <div style="font-weight: 500;">${requesterShift.data?.truck_name || 'Not specified'}</div>
-              </div>
+            </div>
+
+            <div class="warning-box">
+              <p><strong>Important:</strong> This swap is pending approval from Rosters. Once approved, you'll be notified to finalize the swap.</p>
+              <p style="margin-top:10px;"><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
             </div>
           </div>
           
-          <div style="margin-top: 30px;">
-            <h4 style="color: #4b5563; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">YOUR NEW SHIFT</h4>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Person</div>
-                <div style="font-weight: 500;">${acceptorName}</div>
-              </div>
-              
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Date</div>
-                <div style="font-weight: 500;">${formatDate(acceptorShift.data?.date)}</div>
-              </div>
-              
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Shift Type</div>
-                <div style="font-weight: 500; display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; ${
-                  acceptorShiftType === 'day' ? "background-color: #fef3c7; color: #92400e;" :
-                  acceptorShiftType === 'afternoon' ? "background-color: #ffedd5; color: #9a3412;" :
-                  "background-color: #dbeafe; color: #1e40af;"
-                }">${acceptorShiftType.charAt(0).toUpperCase() + acceptorShiftType.slice(1)}</div>
-              </div>
-              
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Time</div>
-                <div style="font-weight: 500;">${formatTime(acceptorShift.data?.start_time)} - ${formatTime(acceptorShift.data?.end_time)}</div>
-              </div>
-              
-              <div style="grid-column: span 2;">
-                <div style="font-size: 13px; color: #6b7280;">Colleague Type</div>
-                <div style="font-weight: 500;">${acceptorShift.data?.colleague_type || 'Not specified'}</div>
-              </div>
-              
-              <div style="grid-column: span 2;">
-                <div style="font-size: 13px; color: #6b7280;">Service#</div>
-                <div style="font-weight: 500;">${acceptorEmployeeId}</div>
-              </div>
-              
-              <div style="grid-column: span 2;">
-                <div style="font-size: 13px; color: #6b7280;">Location</div>
-                <div style="font-weight: 500;">${acceptorShift.data?.truck_name || 'Not specified'}</div>
-              </div>
+          <div class="card-footer">
+            <div style="font-size:14px;">Status:</div>
+            <div style="padding:4px 12px;background-color:#dbeafe;color:#1e40af;border-radius:9999px;font-size:12px;font-weight:500;">
+              Accepted
             </div>
           </div>
         </div>
         
-        <div style="margin-top: 20px; padding: 15px; border-left: 4px solid #f59e0b; background-color: #fffbeb;">
-          <p style="margin: 0;"><strong>Important:</strong> This swap is pending approval from Rosters. Once approved, you'll be notified to finalize the swap.</p>
-          <p style="margin-top: 10px;"><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
-        </div>
-        
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #6b7280;">
+        <div class="footer-content">
           <p>Thank you for using the Shift Swap system!</p>
           <p>This is an automated notification. Please do not reply to this email.</p>
           <p>Swap Reference: ${match_id}</p>
         </div>
-      `
+      </body>
+      </html>
+      `;
       
       try {
         // Send email using Mailgun
@@ -364,116 +489,241 @@ serve(async (req) => {
     }
 
     if (acceptorEmail) {
-      // Prepare detailed information matching the SwapDetailsDialog format
+      // Create Shift Swap Card styled email for acceptor
       const acceptorEmailContent = `
-        <h2>Shift Swap Confirmation</h2>
-        <p>You have successfully accepted a shift swap.</p>
-        
-        <div style="margin-top: 20px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 5px; background-color: #f8fafc;">
-          <h3 style="margin-top: 0; color: #4b5563; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Swap Status: <span style="color: #3b82f6; background-color: #dbeafe; padding: 3px 8px; border-radius: 20px; font-size: 14px;">Accepted</span></h3>
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Shift Swap Confirmation</title>
+        <style>
+          body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px;
+            color: #334155;
+            background-color: #f8fafc;
+          }
+          .card {
+            max-width: 600px;
+            margin: 0 auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          }
+          .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            background-color: #f8fafc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .card-title {
+            display: flex;
+            align-items: center;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+          }
+          .status-badge {
+            padding: 5px 12px;
+            background-color: #dbeafe;
+            color: #1e40af;
+            border-radius: 9999px;
+            font-size: 14px;
+            font-weight: 500;
+          }
+          .card-content {
+            padding: 20px;
+          }
+          .shift-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+          }
+          .shift-section h3 {
+            color: #64748b;
+            font-size: 16px;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-weight: 500;
+          }
+          .shift-box {
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background-color: #f8fafc;
+          }
+          .shift-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: 500;
+          }
+          .day-badge {
+            background-color: #e0f2fe;
+            color: #0369a1;
+          }
+          .afternoon-badge {
+            background-color: #ffedd5;
+            color: #9a3412;
+          }
+          .night-badge {
+            background-color: #dbeafe;
+            color: #1e40af;
+          }
+          .shift-detail {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+          }
+          .shift-detail-icon {
+            margin-right: 8px;
+            color: #64748b;
+            width: 16px;
+            text-align: center;
+          }
+          .shift-location {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 500;
+          }
+          .card-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #e2e8f0;
+            background-color: #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+          }
+          .footer-content {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 14px;
+            color: #64748b;
+          }
+          .warning-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-left: 4px solid #f59e0b;
+            background-color: #fffbeb;
+          }
+          .warning-box p {
+            margin: 0;
+          }
+          .button {
+            display: inline-block;
+            background-color: #4f46e5;
+            color: white;
+            text-decoration: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span style="color:#3b82f6;margin-right:10px;">↔️</span>
+              Shift Swap
+            </div>
+            <div class="status-badge">Accepted</div>
+          </div>
           
-          <div style="margin-top: 20px;">
-            <h4 style="color: #4b5563; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">YOUR ORIGINAL SHIFT</h4>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Person</div>
-                <div style="font-weight: 500;">${acceptorName}</div>
+          <div class="card-content">
+            <div class="shift-grid">
+              <div class="shift-section">
+                <h3>Your Shift</h3>
+                <div class="shift-box">
+                  <div class="${acceptorShiftType === 'day' ? 'shift-badge day-badge' : acceptorShiftType === 'afternoon' ? 'shift-badge afternoon-badge' : 'shift-badge night-badge'}">
+                    ${acceptorShiftType.charAt(0).toUpperCase() + acceptorShiftType.slice(1)} Shift
+                  </div>
+                  
+                  <div class="shift-detail">
+                    <span class="shift-detail-icon">📅</span>
+                    <span>${formatDate(acceptorShift.data?.date)}</span>
+                  </div>
+                  
+                  <div class="shift-detail">
+                    <span class="shift-detail-icon">⏱️</span>
+                    <span>${formatTime(acceptorShift.data?.start_time)} - ${formatTime(acceptorShift.data?.end_time)}</span>
+                  </div>
+                  
+                  <div class="shift-detail">
+                    <span class="shift-detail-icon">👤</span>
+                    <span>${acceptorShift.data?.colleague_type || 'Not specified'}</span>
+                  </div>
+                  
+                  <div class="shift-location">
+                    ${acceptorShift.data?.truck_name || 'Not specified'}
+                  </div>
+                </div>
               </div>
               
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Date</div>
-                <div style="font-weight: 500;">${formatDate(acceptorShift.data?.date)}</div>
+              <div class="shift-section">
+                <h3>Matched Shift</h3>
+                <div class="shift-box">
+                  <div class="${requesterShiftType === 'day' ? 'shift-badge day-badge' : requesterShiftType === 'afternoon' ? 'shift-badge afternoon-badge' : 'shift-badge night-badge'}">
+                    ${requesterShiftType.charAt(0).toUpperCase() + requesterShiftType.slice(1)} Shift
+                  </div>
+
+                  <div style="text-align:right; font-size:14px; color:#64748b; margin-top:-25px;">
+                    ${requesterName}
+                  </div>
+                  
+                  <div class="shift-detail">
+                    <span class="shift-detail-icon">📅</span>
+                    <span>${formatDate(requesterShift.data?.date)}</span>
+                  </div>
+                  
+                  <div class="shift-detail">
+                    <span class="shift-detail-icon">⏱️</span>
+                    <span>${formatTime(requesterShift.data?.start_time)} - ${formatTime(requesterShift.data?.end_time)}</span>
+                  </div>
+                  
+                  <div class="shift-detail">
+                    <span class="shift-detail-icon">👤</span>
+                    <span>${requesterShift.data?.colleague_type || 'Not specified'}</span>
+                  </div>
+                  
+                  <div class="shift-location">
+                    ${requesterShift.data?.truck_name || 'Not specified'}
+                  </div>
+                </div>
               </div>
-              
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Shift Type</div>
-                <div style="font-weight: 500; display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; ${
-                  acceptorShiftType === 'day' ? "background-color: #fef3c7; color: #92400e;" :
-                  acceptorShiftType === 'afternoon' ? "background-color: #ffedd5; color: #9a3412;" :
-                  "background-color: #dbeafe; color: #1e40af;"
-                }">${acceptorShiftType.charAt(0).toUpperCase() + acceptorShiftType.slice(1)}</div>
-              </div>
-              
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Time</div>
-                <div style="font-weight: 500;">${formatTime(acceptorShift.data?.start_time)} - ${formatTime(acceptorShift.data?.end_time)}</div>
-              </div>
-              
-              <div style="grid-column: span 2;">
-                <div style="font-size: 13px; color: #6b7280;">Colleague Type</div>
-                <div style="font-weight: 500;">${acceptorShift.data?.colleague_type || 'Not specified'}</div>
-              </div>
-              
-              <div style="grid-column: span 2;">
-                <div style="font-size: 13px; color: #6b7280;">Service#</div>
-                <div style="font-weight: 500;">${acceptorEmployeeId}</div>
-              </div>
-              
-              <div style="grid-column: span 2;">
-                <div style="font-size: 13px; color: #6b7280;">Location</div>
-                <div style="font-weight: 500;">${acceptorShift.data?.truck_name || 'Not specified'}</div>
-              </div>
+            </div>
+
+            <div class="warning-box">
+              <p><strong>Important:</strong> This swap is pending approval from Rosters. Once approved, you'll be notified to finalize the swap.</p>
+              <p style="margin-top:10px;"><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
             </div>
           </div>
           
-          <div style="margin-top: 30px;">
-            <h4 style="color: #4b5563; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">YOUR NEW SHIFT</h4>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Person</div>
-                <div style="font-weight: 500;">${requesterName}</div>
-              </div>
-              
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Date</div>
-                <div style="font-weight: 500;">${formatDate(requesterShift.data?.date)}</div>
-              </div>
-              
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Shift Type</div>
-                <div style="font-weight: 500; display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; ${
-                  requesterShiftType === 'day' ? "background-color: #fef3c7; color: #92400e;" :
-                  requesterShiftType === 'afternoon' ? "background-color: #ffedd5; color: #9a3412;" :
-                  "background-color: #dbeafe; color: #1e40af;"
-                }">${requesterShiftType.charAt(0).toUpperCase() + requesterShiftType.slice(1)}</div>
-              </div>
-              
-              <div>
-                <div style="font-size: 13px; color: #6b7280;">Time</div>
-                <div style="font-weight: 500;">${formatTime(requesterShift.data?.start_time)} - ${formatTime(requesterShift.data?.end_time)}</div>
-              </div>
-              
-              <div style="grid-column: span 2;">
-                <div style="font-size: 13px; color: #6b7280;">Colleague Type</div>
-                <div style="font-weight: 500;">${requesterShift.data?.colleague_type || 'Not specified'}</div>
-              </div>
-              
-              <div style="grid-column: span 2;">
-                <div style="font-size: 13px; color: #6b7280;">Service#</div>
-                <div style="font-weight: 500;">${requesterEmployeeId}</div>
-              </div>
-              
-              <div style="grid-column: span 2;">
-                <div style="font-size: 13px; color: #6b7280;">Location</div>
-                <div style="font-weight: 500;">${requesterShift.data?.truck_name || 'Not specified'}</div>
-              </div>
+          <div class="card-footer">
+            <div style="font-size:14px;">Status:</div>
+            <div style="padding:4px 12px;background-color:#dbeafe;color:#1e40af;border-radius:9999px;font-size:12px;font-weight:500;">
+              Accepted
             </div>
           </div>
         </div>
         
-        <div style="margin-top: 20px; padding: 15px; border-left: 4px solid #f59e0b; background-color: #fffbeb;">
-          <p style="margin: 0;"><strong>Important:</strong> This swap is pending approval from Rosters. Once approved, you'll be notified to finalize the swap.</p>
-          <p style="margin-top: 10px;"><strong>Note:</strong> Please do not make any personal arrangements based on this swap until it has been finalized.</p>
-        </div>
-        
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #6b7280;">
+        <div class="footer-content">
           <p>Thank you for using the Shift Swap system!</p>
           <p>This is an automated notification. Please do not reply to this email.</p>
           <p>Swap Reference: ${match_id}</p>
         </div>
-      `
+      </body>
+      </html>
+      `;
       
       try {
         // Send email using Mailgun
@@ -517,12 +767,12 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ success: true, emailResults }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    )
+    );
   } catch (error) {
-    console.error('Error in resend_swap_notification:', error)
+    console.error('Error in resend_swap_notification:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-    )
+    );
   }
-})
+});
