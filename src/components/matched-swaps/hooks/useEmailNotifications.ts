@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { sendEmail, sendSwapEmail, resendSwapNotification } from '@/utils/emailService';
+import { sendEmail, sendSwapEmail } from '@/utils/emailService';
 import { toast } from '@/hooks/use-toast';
 import { SwapMatch } from '../types';
 
@@ -46,50 +46,6 @@ export const useEmailNotifications = () => {
       toast({
         title: "Notification Failed",
         description: "Could not send the email notification. The system will continue to process the swap.",
-        variant: "destructive"
-      });
-      return false;
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  /**
-   * Send an acceptance notification email for a swap match
-   */
-  const sendAcceptanceNotification = async (matchId: string): Promise<boolean> => {
-    if (!matchId) {
-      toast({
-        title: "Missing Information",
-        description: "Cannot send notification without match details.",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    setIsSending(true);
-    
-    try {
-      console.log(`Sending acceptance notification for match: ${matchId}`);
-      // Use the existing resendSwapNotification function which will
-      // handle retrieving user emails and shift details from the match ID
-      const result = await resendSwapNotification(matchId);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to send acceptance notification');
-      }
-      
-      toast({
-        title: "Notification Sent",
-        description: "Acceptance notification emails have been sent to all parties.",
-      });
-      
-      return true;
-    } catch (error) {
-      console.error('Error sending acceptance notification:', error);
-      toast({
-        title: "Notification Failed",
-        description: "Could not send the acceptance notifications. Please try again.",
         variant: "destructive"
       });
       return false;
@@ -152,7 +108,6 @@ export const useEmailNotifications = () => {
 
   return {
     sendSwapNotification,
-    sendAcceptanceNotification,
     sendTestEmail,
     isSending
   };
