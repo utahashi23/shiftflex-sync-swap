@@ -57,7 +57,7 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         toast({
           title: "Email Notification Issue",
           description: "The swap was accepted but there was a problem sending notifications.",
-          variant: "destructive" // Changed from "warning" to "destructive"
+          variant: "destructive"
         });
       }
       

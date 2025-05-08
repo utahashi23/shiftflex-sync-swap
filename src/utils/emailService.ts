@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 interface EmailOptions {
@@ -37,6 +38,11 @@ export const sendEmail = async (options: EmailOptions): Promise<{ success: boole
         return data || { success: true };
       }
       
+      if (error.message?.includes('Missing') && error.message?.includes('API key')) {
+        console.warn('Loop.so API key not configured:', error.message);
+        return { success: false, error: `Email configuration missing: ${error.message}` };
+      }
+      
       console.warn('Loop.so email failed, trying Mailgun fallback:', error);
     } catch (loopError) {
       console.warn('Error with Loop.so, trying Mailgun fallback:', loopError);
@@ -48,6 +54,11 @@ export const sendEmail = async (options: EmailOptions): Promise<{ success: boole
     });
     
     if (error) {
+      if (error.message?.includes('Missing') && error.message?.includes('API key')) {
+        console.warn('Mailgun API key not configured:', error.message);
+        return { success: false, error: `Email configuration missing: ${error.message}` };
+      }
+      
       console.error('Error calling send_email function with Mailgun:', error);
       return { success: false, error: error.message || String(error) };
     }
@@ -181,6 +192,12 @@ export const resendSwapNotification = async (
     });
     
     if (error) {
+      // Check for API key configuration issues
+      if (error.message?.includes('Missing') && error.message?.includes('API key')) {
+        console.warn('Email API key not configured:', error.message);
+        return { success: false, error: `Email configuration missing: ${error.message}` };
+      }
+      
       console.error('Error resending notification:', error);
       return { success: false, error: error.message || String(error) };
     }

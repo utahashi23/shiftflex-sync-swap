@@ -76,20 +76,30 @@ export const useEmailNotifications = () => {
       const result = await resendSwapNotification(matchId);
       
       if (!result.success) {
-        throw new Error(result.error || 'Failed to send acceptance notification');
+        // Check if it's an API key error
+        if (result.error?.includes('Missing') && result.error?.includes('API key')) {
+          console.warn('Email notification failed due to missing API key:', result.error);
+          toast({
+            title: "Email Configuration Issue",
+            description: "The swap was processed but email notification could not be sent due to missing configuration.",
+            variant: "destructive"
+          });
+        } else {
+          throw new Error(result.error || 'Failed to send acceptance notification');
+        }
+      } else {
+        toast({
+          title: "Notification Sent",
+          description: "Acceptance notification emails have been sent to all parties.",
+        });
       }
-      
-      toast({
-        title: "Notification Sent",
-        description: "Acceptance notification emails have been sent to all parties.",
-      });
       
       return true;
     } catch (error) {
       console.error('Error sending acceptance notification:', error);
       toast({
         title: "Notification Failed",
-        description: "Could not send the acceptance notifications. Please try again.",
+        description: "Could not send the acceptance notifications. Please check if email is configured correctly.",
         variant: "destructive"
       });
       return false;
@@ -128,13 +138,23 @@ export const useEmailNotifications = () => {
       });
       
       if (!result.success) {
-        throw new Error(result.error || 'Failed to send test email');
+        // Check if it's an API key error
+        if (result.error?.includes('Missing') && result.error?.includes('API key')) {
+          console.warn('Test email failed due to missing API key:', result.error);
+          toast({
+            title: "Email Configuration Issue",
+            description: "Email could not be sent due to missing API key configuration in the server.",
+            variant: "destructive"
+          });
+        } else {
+          throw new Error(result.error || 'Failed to send test email');
+        }
+      } else {
+        toast({
+          title: "Test Email Sent",
+          description: `A test email has been sent to ${recipientEmail}. Please check your inbox.`,
+        });
       }
-      
-      toast({
-        title: "Test Email Sent",
-        description: `A test email has been sent to ${recipientEmail}. Please check your inbox.`,
-      });
       
       return true;
     } catch (error) {
