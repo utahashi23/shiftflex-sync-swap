@@ -11,7 +11,6 @@ import DashboardStats from '@/components/dashboard/DashboardStats';
 import DashboardDebug from '@/components/dashboard/DashboardDebug';
 import UpcomingShifts from '@/components/dashboard/UpcomingShifts';
 import RecentActivity from '@/components/dashboard/RecentActivity';
-import { TestMatchButton } from '@/components/testing/TestMatchButton';
 
 const Dashboard = () => {
   useAuthRedirect({ protectedRoute: true });
@@ -24,13 +23,10 @@ const Dashboard = () => {
 
   return (
     <AppLayout>
-      <div className="flex justify-between items-center mb-4">
-        <DashboardHeader 
-          totalUsers={totalUsers}
-          isLoadingUsers={isLoadingUsers}
-        />
-        <TestMatchButton />
-      </div>
+      <DashboardHeader 
+        totalUsers={totalUsers}
+        isLoadingUsers={isLoadingUsers}
+      />
 
       <DashboardStats 
         stats={stats} 
