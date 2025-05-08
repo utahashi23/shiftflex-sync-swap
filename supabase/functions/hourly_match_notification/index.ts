@@ -25,11 +25,7 @@ serve(async (req) => {
     
     // Call the main check_matches_and_notify function
     const { data, error } = await supabaseAdmin.functions.invoke("check_matches_and_notify", {
-      body: { 
-        triggered_at: new Date().toISOString(), 
-        scheduled: true,
-        view_details_url: "https://www.shiftflex.au/shifts" // Set the correct URL
-      }
+      body: { triggered_at: new Date().toISOString(), scheduled: true }
     });
     
     if (error) {
