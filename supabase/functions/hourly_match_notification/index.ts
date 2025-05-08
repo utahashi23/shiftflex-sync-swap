@@ -15,7 +15,8 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Hourly match notification check started at:", new Date().toISOString());
+    const timestamp = new Date().toISOString();
+    console.log(`Hourly match notification check started at: ${timestamp}`);
     
     // Create Supabase client with admin role to bypass RLS
     const supabaseAdmin = createClient(
@@ -26,9 +27,9 @@ serve(async (req) => {
     // Call the main check_matches_and_notify function with the correct view_url
     const { data, error } = await supabaseAdmin.functions.invoke("check_matches_and_notify", {
       body: { 
-        triggered_at: new Date().toISOString(), 
+        triggered_at: timestamp, 
         scheduled: true, 
-        view_url: "https://www.shiftflex.au/shifts"  // Correct URL as requested
+        view_url: "https://www.shiftflex.au/shifts"
       }
     });
     
@@ -43,7 +44,7 @@ serve(async (req) => {
         success: true, 
         message: "Hourly match notification check completed", 
         result: data,
-        timestamp: new Date().toISOString()
+        timestamp: timestamp
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
