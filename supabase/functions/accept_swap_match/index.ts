@@ -27,6 +27,12 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
 
+    // Create a Supabase admin client that bypasses RLS
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     // Get the request body
     const { match_id, user_id } = await req.json();
 
@@ -37,20 +43,25 @@ serve(async (req) => {
       );
     }
 
-    // Get all data needed
-    const { data: match, error: matchError } = await supabaseClient
+    console.log(`Processing accept_swap_match for match ID: ${match_id}`);
+
+    // Get the match using the admin client to bypass RLS
+    const { data: match, error: matchError } = await supabaseAdmin
       .from('shift_swap_potential_matches')
       .select('*')
       .eq('id', match_id)
       .single();
     
     if (matchError) {
+      console.error(`Error fetching match: ${matchError.message}`);
       throw new Error(`Error fetching match: ${matchError.message}`);
     }
     
     if (!match) {
       throw new Error('Match not found');
     }
+
+    console.log(`Found match data:`, match);
 
     // Check if match is already accepted
     if (match.status !== 'pending') {
@@ -63,8 +74,8 @@ serve(async (req) => {
       );
     }
 
-    // Accept the match
-    const { data: acceptedMatch, error: acceptError } = await supabaseClient
+    // Accept the match using the admin client
+    const { data: acceptedMatch, error: acceptError } = await supabaseAdmin
       .from('shift_swap_potential_matches')
       .update({ status: 'accepted' })
       .eq('id', match_id)
@@ -72,11 +83,15 @@ serve(async (req) => {
       .single();
     
     if (acceptError) {
+      console.error(`Error accepting match: ${acceptError.message}`);
       throw new Error(`Error accepting match: ${acceptError.message}`);
     }
 
+    console.log(`Successfully updated match status to 'accepted'`);
+
     // Update other matches with the same requester_shift_id or acceptor_shift_id to 'other_accepted'
-    const { error: updateOtherMatchesError } = await supabaseClient
+    // Also use the admin client here
+    const { error: updateOtherMatchesError } = await supabaseAdmin
       .from('shift_swap_potential_matches')
       .update({ status: 'other_accepted' })
       .neq('id', match_id)
@@ -86,31 +101,33 @@ serve(async (req) => {
     if (updateOtherMatchesError) {
       console.warn(`Warning: Error updating other matches: ${updateOtherMatchesError.message}`);
       // Continue anyway - this is not critical
+    } else {
+      console.log(`Successfully updated other matches to 'other_accepted'`);
     }
 
     // Get both shifts involved in this match
-    const { data: shifts, error: shiftsError } = await supabaseClient
+    const { data: shifts, error: shiftsError } = await supabaseAdmin
       .from('shifts')
       .select('*, users:user_id(email)')
       .or(`id.eq.${match.requester_shift_id},id.eq.${match.acceptor_shift_id}`);
     
-    if (shiftsError || !shifts || shifts.length !== 2) {
-      console.error(`Error fetching shift details: ${shiftsError?.message || 'Invalid number of shifts'}`);
+    if (shiftsError) {
+      console.error(`Error fetching shift details: ${shiftsError.message}`);
       // Continue anyway, we'll just have less info in the email
     }
 
     // Get requests data
-    const { data: requests, error: requestsError } = await supabaseClient
+    const { data: requests, error: requestsError } = await supabaseAdmin
       .from('shift_swap_requests')
       .select('*, users:requester_id(email, profiles:profiles(first_name, last_name))')
       .or(`id.eq.${match.requester_request_id},id.eq.${match.acceptor_request_id}`);
     
-    if (requestsError || !requests || requests.length !== 2) {
-      console.error(`Error fetching request details: ${requestsError?.message || 'Invalid number of requests'}`);
+    if (requestsError) {
+      console.error(`Error fetching request details: ${requestsError.message}`);
       // Continue anyway, we'll just have less info in the email
     }
 
-    // Send email notifications
+    // Send email notifications in the background
     try {
       if (shifts && shifts.length === 2 && requests && requests.length === 2) {
         // Find requester and acceptor information
@@ -118,67 +135,51 @@ serve(async (req) => {
         const acceptorRequest = requests.find(r => r.id === match.acceptor_request_id);
         
         if (requesterRequest && acceptorRequest) {
-          // Format date to a readable string
-          const formatDate = (dateStr) => {
-            return new Date(dateStr).toLocaleDateString('en-US', {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric'
-            });
-          };
-
-          // Format time from HH:MM:SS to HH:MM
-          const formatTime = (timeStr) => {
-            return timeStr.substring(0, 5);
-          };
-
-          // Determine shift type based on start time
-          const getShiftType = (startTime) => {
-            const hour = parseInt(startTime.split(':')[0], 10);
-            if (hour <= 8) return 'day';
-            if (hour > 8 && hour < 16) return 'afternoon';
-            return 'night';
-          };
-
-          // Create HTML for shift details section
-          const createShiftDetailHtml = (shift, label) => {
-            const shiftType = getShiftType(shift.start_time);
-            let bgColor, textColor;
+          // Generate email HTML for shift cards similar to the UI
+          const formatShiftCard = (shift, label, userName) => {
+            // Determine shift type based on start time
+            const getShiftType = (startTime) => {
+              const hour = parseInt(startTime.split(':')[0], 10);
+              if (hour <= 8) return { type: 'day', bg: '#FEFCE8', color: '#CA8A04' };
+              if (hour > 8 && hour < 16) return { type: 'afternoon', bg: '#FFEDD5', color: '#C2410C' };
+              return { type: 'night', bg: '#EFF6FF', color: '#1D4ED8' };
+            };
             
-            // Match the ShiftTypeBadge styling
-            switch (shiftType) {
-              case 'day':
-                bgColor = '#FEFCE8';
-                textColor = '#CA8A04';
-                break;
-              case 'afternoon':
-                bgColor = '#FFEDD5';
-                textColor = '#C2410C';
-                break;
-              default: // night
-                bgColor = '#EFF6FF';
-                textColor = '#1D4ED8';
-                break;
-            }
-
+            // Format date to readable string
+            const formatDate = (dateStr) => {
+              return new Date(dateStr).toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric'
+              });
+            };
+            
+            // Format time from HH:MM:SS to HH:MM
+            const formatTime = (timeStr) => {
+              return timeStr.substring(0, 5);
+            };
+            
+            const shiftTypeInfo = getShiftType(shift.start_time);
+            
             return `
               <div style="margin-bottom: 16px;">
                 <p style="font-size: 14px; color: #666; margin-bottom: 8px;">${label}</p>
-                <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; background-color: #fff;">
+                <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; background-color: #fff;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="display: inline-block; background-color: ${bgColor}; color: ${textColor}; font-size: 12px; font-weight: 500; padding: 4px 8px; border-radius: 9999px;">
-                      ${shiftType.charAt(0).toUpperCase() + shiftType.slice(1)} Shift
+                    <span style="display: inline-block; background-color: ${shiftTypeInfo.bg}; color: ${shiftTypeInfo.color}; font-size: 12px; font-weight: 500; padding: 4px 8px; border-radius: 9999px;">
+                      ${shiftTypeInfo.type.charAt(0).toUpperCase() + shiftTypeInfo.type.slice(1)} Shift
                     </span>
+                    ${userName ? `<span style="font-size: 12px; color: #666;">${userName}</span>` : ''}
                   </div>
-                  <div style="margin-top: 8px; display: flex; align-items: center;">
+                  <div style="margin-top: 8px;">
                     <span style="width: 16px; height: 16px; margin-right: 8px;">📅</span>
                     <span style="font-size: 14px;">${formatDate(shift.date)}</span>
                   </div>
-                  <div style="margin-top: 6px; display: flex; align-items: center;">
+                  <div style="margin-top: 6px;">
                     <span style="width: 16px; height: 16px; margin-right: 8px;">⏰</span>
                     <span style="font-size: 14px;">${formatTime(shift.start_time)} - ${formatTime(shift.end_time)}</span>
                   </div>
-                  <div style="margin-top: 6px; display: flex; align-items: center;">
+                  <div style="margin-top: 6px;">
                     <span style="width: 16px; height: 16px; margin-right: 8px;">👤</span>
                     <span style="font-size: 14px;">${shift.colleague_type || 'Unknown type'}</span>
                   </div>
@@ -191,7 +192,7 @@ serve(async (req) => {
               </div>
             `;
           };
-
+          
           // Find the shifts
           const requesterShift = shifts.find(s => s.id === match.requester_shift_id);
           const acceptorShift = shifts.find(s => s.id === match.acceptor_shift_id);
@@ -214,8 +215,8 @@ serve(async (req) => {
                     <h3 style="font-size: 16px; margin-top: 0;">Swap Details</h3>
                     
                     <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
-                      ${createShiftDetailHtml(requesterShift, 'Your Original Shift')}
-                      ${createShiftDetailHtml(acceptorShift, 'Your New Shift')}
+                      ${formatShiftCard(requesterShift, 'Your Original Shift', null)}
+                      ${formatShiftCard(acceptorShift, 'Your New Shift', acceptorRequest.users.profiles?.first_name + ' ' + acceptorRequest.users.profiles?.last_name)}
                     </div>
                     
                     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
@@ -268,8 +269,8 @@ serve(async (req) => {
                     <h3 style="font-size: 16px; margin-top: 0;">Swap Details</h3>
                     
                     <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
-                      ${createShiftDetailHtml(acceptorShift, 'Your Original Shift')}
-                      ${createShiftDetailHtml(requesterShift, 'Your New Shift')}
+                      ${formatShiftCard(acceptorShift, 'Your Original Shift', null)}
+                      ${formatShiftCard(requesterShift, 'Your New Shift', requesterRequest.users.profiles?.first_name + ' ' + requesterRequest.users.profiles?.last_name)}
                     </div>
                     
                     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
@@ -314,12 +315,6 @@ serve(async (req) => {
 
     // Create scheduled cron job for hourly checks
     try {
-      // Create a SQL client with admin privileges to create the cron job
-      const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      );
-      
       // Check if the pg_cron and pg_net extensions are available
       const { data: extensions, error: extensionsError } = await supabaseAdmin.rpc('get_available_extensions');
       
