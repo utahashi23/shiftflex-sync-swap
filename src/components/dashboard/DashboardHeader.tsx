@@ -19,7 +19,7 @@ const DashboardHeader = ({
         </p>
       </div>
       <div className="flex items-center gap-4">
-        <div className="flex items-right gap-2 bg-secondary/60 px-4 py-2 rounded-lg">
+        <div className="flex items-center gap-2 bg-secondary/60 px-4 py-2 rounded-lg">
           <Users className="h-5 w-5 text-primary" />
           <div>
             <span className="text-sm text-gray-500">Total Users</span>
