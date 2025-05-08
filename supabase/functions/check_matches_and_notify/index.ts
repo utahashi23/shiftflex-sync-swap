@@ -259,12 +259,7 @@ serve(async (req) => {
       }
     }
     
-    // For testing purposes - send to specific user if requested
-    const { triggered_at, test_user_id } = await req.json().catch(() => ({ triggered_at: new Date().toISOString() }));
-    if (test_user_id) {
-      console.log(`Running test email for user ID: ${test_user_id}`);
-      await sendTestMatchEmail(test_user_id);
-    }
+    const { triggered_at } = await req.json().catch(() => ({ triggered_at: new Date().toISOString() }));
     
     return new Response(
       JSON.stringify({ 
@@ -318,6 +313,7 @@ async function sendMatchNotificationEmail(
             <p style="margin: 0;"><strong>Time:</strong> ${match.my_shift_start_time} - ${match.my_shift_end_time}</p>
             <p style="margin: 0;"><strong>Location:</strong> ${match.my_shift_truck}</p>
             <p style="margin: 0;"><strong>Role:</strong> ${match.my_shift_colleague_type}</p>
+            <p style="margin: 0;"><strong>Employee ID:</strong> ${match.my_employee_id}</p>
           </div>
           
           <div style="flex: 1; padding-left: 10px;">
@@ -327,11 +323,12 @@ async function sendMatchNotificationEmail(
             <p style="margin: 0;"><strong>Time:</strong> ${match.other_shift_start_time} - ${match.other_shift_end_time}</p>
             <p style="margin: 0;"><strong>Location:</strong> ${match.other_shift_truck}</p>
             <p style="margin: 0;"><strong>Role:</strong> ${match.other_shift_colleague_type}</p>
+            <p style="margin: 0;"><strong>Employee ID:</strong> ${match.other_employee_id}</p>
           </div>
         </div>
         
         <div style="text-align: center; margin-top: 15px;">
-          <a href="${Deno.env.get('APP_URL') || 'https://shiftflex-web.vercel.app'}/swaps/matched" 
+          <a href="https://www.shiftflex.au/shifts" 
              style="background-color: #2563eb; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
             View Swap Details
           </a>
@@ -380,271 +377,5 @@ async function sendMatchNotificationEmail(
   
   if (error) {
     throw new Error(`Email sending failed: ${error.message}`);
-  }
-}
-
-/**
- * Send a test email to a specific user with their matches
- */
-async function sendTestMatchEmail(userId: string): Promise<void> {
-  console.log(`Sending test email for user: ${userId}`);
-  
-  // Create Supabase client
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  const supabase = createClient(supabaseUrl, supabaseKey);
-  
-  // Get the user's information
-  const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
-  
-  if (userError || !userData?.user) {
-    throw new Error(`Error fetching user data for test: ${userError?.message || "User not found"}`);
-  }
-  
-  const email = userData.user.email;
-  
-  if (!email) {
-    throw new Error("Test user has no email address");
-  }
-  
-  // Get user profile data
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
-    
-  if (profileError || !profile) {
-    throw new Error(`Error fetching profile data for test: ${profileError?.message || "Profile not found"}`);
-  }
-  
-  const userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "User";
-  
-  // Get all pending matches for this user
-  const { data: userRequests } = await supabase
-    .from('shift_swap_requests')
-    .select('id')
-    .eq('requester_id', userId);
-    
-  if (!userRequests || userRequests.length === 0) {
-    // No requests found, send a test email anyway
-    console.log("No requests found for test user, sending sample match email");
-    
-    // Create a sample match for testing
-    const testMatch: SwapMatch = {
-      match_id: "test-match-id",
-      match_status: "pending",
-      created_at: new Date().toISOString(),
-      match_date: new Date().toISOString().split('T')[0],
-      my_request_id: "test-request-id",
-      other_request_id: "test-other-request-id",
-      my_shift_id: "test-shift-id",
-      my_shift_date: "2025-05-15",
-      my_shift_start_time: "08:00:00",
-      my_shift_end_time: "16:00:00",
-      my_shift_truck: "Example Location",
-      my_shift_colleague_type: "Qualified",
-      my_employee_id: profile.employee_id || "12345",
-      other_shift_id: "test-other-shift-id",
-      other_shift_date: "2025-05-20",
-      other_shift_start_time: "08:00:00",
-      other_shift_end_time: "16:00:00",
-      other_shift_truck: "Other Location",
-      other_shift_colleague_type: "Qualified",
-      other_employee_id: "67890",
-      other_user_id: "test-other-user-id",
-      other_user_name: "Test Colleague",
-      user_id: userId
-    };
-    
-    await sendMatchNotificationEmail(email, userName, [testMatch]);
-    console.log(`Sent test email to ${email} with sample match data`);
-    return;
-  }
-  
-  const requestIds = userRequests.map(req => req.id);
-  
-  // Find matches for these requests
-  const { data: matches, error: matchesError } = await supabase
-    .from('shift_swap_potential_matches')
-    .select('*')
-    .or(`requester_request_id.in.(${requestIds.join(',')}),acceptor_request_id.in.(${requestIds.join(',')})`)
-    .eq('status', 'pending');
-    
-  if (matchesError) {
-    throw new Error(`Error fetching matches for test: ${matchesError.message}`);
-  }
-  
-  if (!matches || matches.length === 0) {
-    // No matches found, send a test email with sample data
-    console.log("No matches found for test user, sending sample match email");
-    
-    // Create a sample match for testing
-    const testMatch: SwapMatch = {
-      match_id: "test-match-id",
-      match_status: "pending",
-      created_at: new Date().toISOString(),
-      match_date: new Date().toISOString().split('T')[0],
-      my_request_id: "test-request-id",
-      other_request_id: "test-other-request-id",
-      my_shift_id: "test-shift-id",
-      my_shift_date: "2025-05-15",
-      my_shift_start_time: "08:00:00",
-      my_shift_end_time: "16:00:00",
-      my_shift_truck: "Example Location",
-      my_shift_colleague_type: "Qualified",
-      my_employee_id: profile.employee_id || "12345",
-      other_shift_id: "test-other-shift-id",
-      other_shift_date: "2025-05-20",
-      other_shift_start_time: "08:00:00",
-      other_shift_end_time: "16:00:00",
-      other_shift_truck: "Other Location",
-      other_shift_colleague_type: "Qualified",
-      other_employee_id: "67890",
-      other_user_id: "test-other-user-id",
-      other_user_name: "Test Colleague",
-      user_id: userId
-    };
-    
-    await sendMatchNotificationEmail(email, userName, [testMatch]);
-    console.log(`Sent test email to ${email} with sample match data`);
-    return;
-  }
-  
-  console.log(`Found ${matches.length} matches for test user, preparing real match data`);
-  
-  // Process each match to collect data
-  const formattedMatches: SwapMatch[] = [];
-  
-  for (const match of matches) {
-    try {
-      // Get request details for both sides
-      const { data: requesterRequest } = await supabase
-        .from('shift_swap_requests')
-        .select('*')
-        .eq('id', match.requester_request_id)
-        .single();
-        
-      const { data: acceptorRequest } = await supabase
-        .from('shift_swap_requests')
-        .select('*')
-        .eq('id', match.acceptor_request_id)
-        .single();
-      
-      if (!requesterRequest || !acceptorRequest) {
-        console.log(`Skipping test match ${match.id} - missing request data`);
-        continue;
-      }
-      
-      // Get shift details
-      const { data: requesterShift } = await supabase
-        .from('shifts')
-        .select('*')
-        .eq('id', match.requester_shift_id)
-        .single();
-        
-      const { data: acceptorShift } = await supabase
-        .from('shifts')
-        .select('*')
-        .eq('id', match.acceptor_shift_id)
-        .single();
-      
-      if (!requesterShift || !acceptorShift) {
-        console.log(`Skipping test match ${match.id} - missing shift data`);
-        continue;
-      }
-      
-      // Get user profiles
-      const { data: requesterProfile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', requesterRequest.requester_id)
-        .single();
-        
-      const { data: acceptorProfile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', acceptorRequest.requester_id)
-        .single();
-      
-      if (!requesterProfile || !acceptorProfile) {
-        console.log(`Skipping test match ${match.id} - missing profile data`);
-        continue;
-      }
-      
-      // Format the match based on whether the test user is the requester or acceptor
-      const isRequester = requesterRequest.requester_id === userId;
-      
-      const formattedMatch: SwapMatch = {
-        match_id: match.id,
-        match_status: match.status,
-        created_at: match.created_at,
-        match_date: match.match_date,
-        my_request_id: isRequester ? requesterRequest.id : acceptorRequest.id,
-        other_request_id: isRequester ? acceptorRequest.id : requesterRequest.id,
-        my_shift_id: isRequester ? requesterShift.id : acceptorShift.id,
-        my_shift_date: isRequester ? requesterShift.date : acceptorShift.date,
-        my_shift_start_time: isRequester ? requesterShift.start_time : acceptorShift.start_time,
-        my_shift_end_time: isRequester ? requesterShift.end_time : acceptorShift.end_time,
-        my_shift_truck: isRequester ? (requesterShift.truck_name || "No truck assigned") : (acceptorShift.truck_name || "No truck assigned"),
-        my_shift_colleague_type: isRequester ? (requesterShift.colleague_type || "Unknown") : (acceptorShift.colleague_type || "Unknown"),
-        my_employee_id: isRequester ? (requesterProfile.employee_id || "Not specified") : (acceptorProfile.employee_id || "Not specified"),
-        other_shift_id: isRequester ? acceptorShift.id : requesterShift.id,
-        other_shift_date: isRequester ? acceptorShift.date : requesterShift.date,
-        other_shift_start_time: isRequester ? acceptorShift.start_time : requesterShift.start_time,
-        other_shift_end_time: isRequester ? acceptorShift.end_time : requesterShift.end_time,
-        other_shift_truck: isRequester ? (acceptorShift.truck_name || "No truck assigned") : (requesterShift.truck_name || "No truck assigned"),
-        other_shift_colleague_type: isRequester ? (acceptorShift.colleague_type || "Unknown") : (requesterShift.colleague_type || "Unknown"),
-        other_employee_id: isRequester ? (acceptorProfile.employee_id || "Not specified") : (requesterProfile.employee_id || "Not specified"),
-        other_user_id: isRequester ? acceptorProfile.id : requesterProfile.id,
-        other_user_name: isRequester 
-          ? `${acceptorProfile.first_name || ''} ${acceptorProfile.last_name || ''}`.trim() || "Unknown User" 
-          : `${requesterProfile.first_name || ''} ${requesterProfile.last_name || ''}`.trim() || "Unknown User",
-        user_id: userId
-      };
-      
-      formattedMatches.push(formattedMatch);
-    } catch (error) {
-      console.error(`Error processing test match ${match.id}:`, error);
-      // Continue to next match
-    }
-  }
-  
-  if (formattedMatches.length > 0) {
-    await sendMatchNotificationEmail(email, userName, formattedMatches);
-    console.log(`Sent test email to ${email} with ${formattedMatches.length} real matches`);
-  } else {
-    // No matches could be processed, send test email with sample data
-    console.log("No valid matches could be processed for test user, sending sample match email");
-    
-    // Create a sample match for testing
-    const testMatch: SwapMatch = {
-      match_id: "test-match-id",
-      match_status: "pending",
-      created_at: new Date().toISOString(),
-      match_date: new Date().toISOString().split('T')[0],
-      my_request_id: "test-request-id",
-      other_request_id: "test-other-request-id",
-      my_shift_id: "test-shift-id",
-      my_shift_date: "2025-05-15",
-      my_shift_start_time: "08:00:00",
-      my_shift_end_time: "16:00:00",
-      my_shift_truck: "Example Location",
-      my_shift_colleague_type: "Qualified",
-      my_employee_id: profile.employee_id || "12345",
-      other_shift_id: "test-other-shift-id",
-      other_shift_date: "2025-05-20",
-      other_shift_start_time: "08:00:00",
-      other_shift_end_time: "16:00:00",
-      other_shift_truck: "Other Location",
-      other_shift_colleague_type: "Qualified",
-      other_employee_id: "67890",
-      other_user_id: "test-other-user-id",
-      other_user_name: "Test Colleague",
-      user_id: userId
-    };
-    
-    await sendMatchNotificationEmail(email, userName, [testMatch]);
-    console.log(`Sent test email to ${email} with sample match data`);
   }
 }
