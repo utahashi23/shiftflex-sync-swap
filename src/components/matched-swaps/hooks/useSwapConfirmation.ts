@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useSwapDialogs } from './useSwapDialogs';
 import { useEmailNotifications } from './useEmailNotifications';
+import { resendSwapNotification } from '@/utils/emailService';
 
 /**
  * Hook for managing swap confirmation dialogs and actions
@@ -48,9 +49,9 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         description: "The shift swap has been successfully accepted.",
       });
       
-      // Send email notifications
+      // Send email notifications using the same method as resend button for consistency
       try {
-        await emailNotifications.sendAcceptanceNotification(confirmDialog.matchId);
+        await resendSwapNotification(confirmDialog.matchId);
       } catch (emailError) {
         console.error('Error sending acceptance notification:', emailError);
         // Don't fail the entire operation if just the email fails
@@ -99,6 +100,18 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         title: "Swap Finalized",
         description: "The shift swap has been finalized and the calendar has been updated.",
       });
+      
+      // Send email notifications using the same method as resend button for consistency
+      try {
+        await resendSwapNotification(finalizeDialog.matchId);
+      } catch (emailError) {
+        console.error('Error sending finalization notification:', emailError);
+        toast({
+          title: "Email Notification Issue",
+          description: "The swap was finalized but there was a problem sending notifications.",
+          variant: "destructive"
+        });
+      }
       
       if (onSuccessCallback) {
         onSuccessCallback();
@@ -164,8 +177,17 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Use the new sendAcceptanceNotification method from the hook
-      await emailNotifications.sendAcceptanceNotification(matchId);
+      // Use the resendSwapNotification directly for consistency
+      const result = await resendSwapNotification(matchId);
+      
+      if (!result.success) {
+        throw new Error(result.error || "Failed to send email");
+      }
+      
+      toast({
+        title: "Email Sent",
+        description: "Notification emails have been resent successfully.",
+      });
       
     } catch (error) {
       console.error('Error resending email:', error);

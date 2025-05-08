@@ -1,132 +1,232 @@
 
-import { useState, useRef, useCallback } from 'react';
-import { toast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/auth';
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../../useAuth';
+import { toast } from '../../use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useProcessState } from './useProcessState';
 import { useFindSwapMatches } from './useFindSwapMatches';
-import { useProcessingState } from './useProcessingState';
+import { resendSwapNotification } from '@/utils/emailService';
 
-/**
- * Hook for finding and processing swap matches
- */
 export const useSwapMatcher = () => {
   const { user } = useAuth();
-  const { isProcessing, setIsProcessing } = useProcessingState();
-  const [isFindingMatches, setIsFindingMatches] = useState(false);
-  const [matchesCache, setMatchesCache] = useState<Record<string, any[]>>({});
-  const { findSwapMatches: executeFindMatches } = useFindSwapMatches(setIsProcessing);
-  const requestInProgressRef = useRef<boolean>(false);
-  const [initialFetchCompleted, setInitialFetchCompleted] = useState<boolean>(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const { findMatches, isLoading: isMatchesFinding } = useFindSwapMatches();
+  const { 
+    stage, 
+    message, 
+    error, 
+    matches: potentialMatches,
+    isProcessing,
+    setStage,
+    setMessage,
+    setError,
+    setMatches,
+    reset: resetState
+  } = useProcessState();
   
-  /**
-   * Find potential matches for a user's swap requests
-   * @param userId - The ID of the current user (optional for admins)
-   * @param forceCheck - Force checking for matches even if already matched
-   * @param verbose - Whether to enable verbose logging
-   * @param userPerspectiveOnly - Whether to only show matches from the user's perspective
-   * @param userInitiatorOnly - Whether to only show matches where the user is the initiator
-   */
-  const findSwapMatches = useCallback(async (
-    userId?: string, 
-    forceCheck: boolean = false, 
-    verbose: boolean = false,
-    userPerspectiveOnly: boolean = true,
-    userInitiatorOnly: boolean = true
-  ) => {
+  // Reset the process state when the component unmounts or when user changes
+  useEffect(() => {
+    setIsInitialized(true);
+    return () => {
+      resetState();
+    };
+  }, [user?.id, resetState]);
+
+  // Function to find swap matches
+  const processSwapMatches = useCallback(async (userId?: string) => {
     if (!user && !userId) {
-      toast({
-        title: "Authentication required",
-        description: "You must be logged in to find swap matches.",
-        variant: "destructive"
-      });
-      return [];
-    }
-    
-    // Use the user ID that was passed in or fall back to the current user's ID
-    const targetUserId = userId || user?.id;
-    
-    // For explicitly requested checks, don't use cache
-    if (!forceCheck && isFindingMatches) {
-      console.log('Already finding matches, returning cached results');
-      return matchesCache[targetUserId] || [];
-    }
-    
-    // Prevent concurrent requests
-    if (requestInProgressRef.current) {
-      console.log('Request already in progress, returning cached results');
-      return matchesCache[targetUserId] || [];
+      console.error('User not logged in');
+      setError('User not logged in');
+      return { success: false, error: 'User not logged in' };
     }
     
     try {
-      setIsFindingMatches(true);
-      requestInProgressRef.current = true;
+      const result = await findMatches(userId || user?.id);
       
-      console.log(`Finding swap matches for user: ${targetUserId}, force check: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}, user initiator only: ${userInitiatorOnly}`);
-      
-      // Use service-role based approach to bypass RLS issues
-      console.log("Using modified approach to avoid RLS recursion...");
-      try {
-        // Always force userInitiatorOnly to true to ensure consistent behavior
-        const result = await executeFindMatches(
-          targetUserId, 
-          forceCheck, 
-          verbose, 
-          userPerspectiveOnly,
-          true // Always use true for userInitiatorOnly
-        );
-        console.log("Edge function result:", result);
-        
-        // Cache the results if we have valid data
-        if (result && Array.isArray(result)) {
-          // Always update the cache with the latest data
-          setMatchesCache(prev => ({
-            ...prev,
-            [targetUserId]: result
-          }));
-          
-          // Mark initial fetch as completed
-          setInitialFetchCompleted(true);
-          
-          // Show a toast if explicitly requested (via forceCheck)
-          if (forceCheck) {
-            if (result.length > 0) {
-              toast({
-                title: "Matches found!",
-                description: `Found ${result.length} potential swap matches.`,
-              });
-            } else {
-              toast({
-                title: "No matches found",
-                description: "No potential swap matches were found at this time.",
-              });
-            }
-          }
-        } else {
-          console.warn("Received invalid result from edge function:", result);
-        }
-        
+      if (!result.success) {
+        console.error('Failed to find matches:', result.error);
+        setError(result.error || 'Failed to find matches');
         return result;
-      } catch (error) {
-        console.error("Error in edge function call:", error);
-        throw error;
       }
-    } catch (error) {
-      console.error('Error in findSwapMatches:', error);
+      
+      setMatches(result.matches || []);
+      setMessage(`Found ${result.matches?.length || 0} potential swap matches`);
+      return { success: true, matches: result.matches };
+      
+    } catch (err: any) {
+      console.error('Error in processSwapMatches:', err);
+      setError(err.message || 'Failed to process swap matches');
+      return { success: false, error: err.message };
+    }
+  }, [user, findMatches, setError, setMatches, setMessage]);
+  
+  // Accept a swap match
+  const acceptSwapMatch = useCallback(async (matchId: string) => {
+    if (!user) {
+      console.error('User not logged in');
+      return { success: false, error: 'User not logged in' };
+    }
+    
+    try {
+      // Call the edge function to accept the swap match
+      const { data, error } = await supabase.functions.invoke('accept_swap_match', {
+        body: { match_id: matchId }
+      });
+      
+      if (error) {
+        console.error('Failed to accept swap match:', error);
+        toast({
+          title: "Failed to Accept Swap",
+          description: error.message || 'An error occurred while accepting the swap',
+          variant: "destructive"
+        });
+        return { success: false, error: error.message };
+      }
+      
       toast({
-        title: "Failed to find matches",
-        description: "An unexpected error occurred. Please try again.",
+        title: "Swap Accepted",
+        description: "The shift swap has been accepted. Please check your email for confirmation.",
+      });
+      
+      // Use the same email notification method as resend button
+      try {
+        const emailResult = await resendSwapNotification(matchId);
+        
+        if (!emailResult.success) {
+          console.warn('Email notification issue:', emailResult.error);
+          toast({
+            title: "Email Notification Issue",
+            description: "The swap was accepted but there might be a delay in email notifications.",
+            variant: "destructive"
+          });
+        }
+      } catch (emailError: any) {
+        console.error('Email sending error:', emailError);
+      }
+      
+      return { success: true, data };
+      
+    } catch (err: any) {
+      console.error('Error in acceptSwapMatch:', err);
+      toast({
+        title: "Error",
+        description: err.message || 'An error occurred',
         variant: "destructive"
       });
-      return [];
-    } finally {
-      setIsFindingMatches(false);
-      requestInProgressRef.current = false;
+      return { success: false, error: err.message };
     }
-  }, [user, executeFindMatches, isFindingMatches, matchesCache]);
+  }, [user]);
+  
+  // Cancel a swap match
+  const cancelSwapMatch = useCallback(async (matchId: string) => {
+    if (!user) {
+      console.error('User not logged in');
+      return { success: false, error: 'User not logged in' };
+    }
+    
+    try {
+      // Call the edge function to cancel the swap match
+      const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
+        body: { match_id: matchId }
+      });
+      
+      if (error) {
+        console.error('Failed to cancel swap match:', error);
+        toast({
+          title: "Failed to Cancel Swap",
+          description: error.message || 'An error occurred while canceling the swap',
+          variant: "destructive"
+        });
+        return { success: false, error: error.message };
+      }
+      
+      toast({
+        title: "Swap Canceled",
+        description: "The shift swap has been successfully canceled",
+      });
+      
+      return { success: true, data };
+      
+    } catch (err: any) {
+      console.error('Error in cancelSwapMatch:', err);
+      toast({
+        title: "Error",
+        description: err.message || 'An error occurred',
+        variant: "destructive"
+      });
+      return { success: false, error: err.message };
+    }
+  }, [user]);
+  
+  // Finalize a swap match
+  const finalizeSwapMatch = useCallback(async (matchId: string) => {
+    if (!user) {
+      console.error('User not logged in');
+      return { success: false, error: 'User not logged in' };
+    }
+    
+    try {
+      // Call the edge function to finalize the swap match
+      const { data, error } = await supabase.functions.invoke('finalize_swap_match', {
+        body: { match_id: matchId }
+      });
+      
+      if (error) {
+        console.error('Failed to finalize swap match:', error);
+        toast({
+          title: "Failed to Finalize Swap",
+          description: error.message || 'An error occurred while finalizing the swap',
+          variant: "destructive"
+        });
+        return { success: false, error: error.message };
+      }
+      
+      toast({
+        title: "Swap Finalized",
+        description: "The shift swap has been finalized. Calendars have been updated.",
+      });
+      
+      // Use the same email notification method as resend button
+      try {
+        const emailResult = await resendSwapNotification(matchId);
+        
+        if (!emailResult.success) {
+          console.warn('Email notification issue:', emailResult.error);
+          toast({
+            title: "Email Notification Issue",
+            description: "The swap was finalized but there might be a delay in email notifications.",
+            variant: "destructive"
+          });
+        }
+      } catch (emailError: any) {
+        console.error('Email sending error:', emailError);
+      }
+      
+      return { success: true, data };
+      
+    } catch (err: any) {
+      console.error('Error in finalizeSwapMatch:', err);
+      toast({
+        title: "Error",
+        description: err.message || 'An error occurred',
+        variant: "destructive"
+      });
+      return { success: false, error: err.message };
+    }
+  }, [user]);
 
   return {
-    findSwapMatches,
+    isInitialized,
+    isLoading: isMatchesFinding,
     isProcessing,
-    isFindingMatches,
-    initialFetchCompleted
+    stage,
+    message,
+    error,
+    potentialMatches,
+    processSwapMatches,
+    acceptSwapMatch,
+    cancelSwapMatch,
+    finalizeSwapMatch,
+    resetState,
   };
 };
