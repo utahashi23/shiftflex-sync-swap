@@ -58,6 +58,15 @@ export const useEmailNotifications = () => {
    * Send a test email
    */
   const sendTestEmail = async (recipientEmail: string): Promise<boolean> => {
+    if (!recipientEmail) {
+      toast({
+        title: "Email Required",
+        description: "Please enter a recipient email address to send a test email.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
     setIsSending(true);
     
     try {
@@ -80,7 +89,7 @@ export const useEmailNotifications = () => {
       
       toast({
         title: "Test Email Sent",
-        description: "A test email has been sent to your address. Please check your inbox.",
+        description: `A test email has been sent to ${recipientEmail}. Please check your inbox.`,
       });
       
       return true;

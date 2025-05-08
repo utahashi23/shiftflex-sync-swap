@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export function EmailTestPanel() {
-  const [recipientEmail, setRecipientEmail] = useState("njalasankhulani@gmail.com");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   return (
