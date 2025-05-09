@@ -173,7 +173,7 @@ export function ManualNotificationTrigger() {
             />
             <label 
               htmlFor="advancedOptions" 
-              className="text-xs text-gray-400"
+              className="text-xs text-gray-400 cursor-pointer"
             >
               Debug options
             </label>
@@ -200,4 +200,3 @@ export function ManualNotificationTrigger() {
     </Card>
   );
 }
-
