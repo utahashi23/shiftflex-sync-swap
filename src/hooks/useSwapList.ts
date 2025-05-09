@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -114,16 +113,13 @@ export const useSwapList = () => {
         })
       );
       
-      // Filter out the user's own requests unless they're an admin
-      const filteredRequests = isAdmin 
-        ? requestsWithProfiles 
-        : requestsWithProfiles.filter(req => req.requesterId !== user.id);
-      
-      setAllSwapRequests(filteredRequests);
+      // FIXED: Show all requests for all users, not filtering out the user's own requests
+      // This is the key fix for the permissions issue
+      setAllSwapRequests(requestsWithProfiles);
       
       // Reset pagination
       setPage(1);
-      setHasMore(filteredRequests.length > itemsPerPage);
+      setHasMore(requestsWithProfiles.length > itemsPerPage);
       
     } catch (error) {
       console.error('Error fetching swap requests:', error);
