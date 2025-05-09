@@ -1,12 +1,14 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Calendar, Filter, LayoutList } from "lucide-react";
+import { Calendar, Filter, LayoutList, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import AppLayout from '@/layouts/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { toast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/useAuth';
 import { useSwapList } from '@/hooks/useSwapList';
 import SwapRequestFilters from '@/components/swaps-list/SwapRequestFilters';
@@ -14,8 +16,9 @@ import SwapListCard from '@/components/swaps-list/SwapListCard';
 import SwapListTable from '@/components/swaps-list/SwapListTable';
 
 const SwapsList = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [view, setView] = useState<'card' | 'list'>('card');
+  const [showDebug, setShowDebug] = useState(false);
   const { 
     swapRequests, 
     isLoading, 
@@ -26,7 +29,9 @@ const SwapsList = () => {
     setFilters,
     handleOfferSwap,
     loadMore,
-    hasMore
+    hasMore,
+    refreshRequests,
+    error
   } = useSwapList();
 
   // Implementation of infinite scrolling
@@ -49,6 +54,13 @@ const SwapsList = () => {
     }
   }, [isLoadingMore, hasMore, loadMore]);
 
+  // Force refresh on mount
+  useEffect(() => {
+    if (user) {
+      refreshRequests();
+    }
+  }, [user]);
+
   return (
     <AppLayout>
       <div className="mb-8">
@@ -58,6 +70,53 @@ const SwapsList = () => {
           {isAdmin && <span className="ml-2 text-blue-500">(Admin View)</span>}
         </p>
       </div>
+
+      {/* Debug panel */}
+      <div className="mb-4">
+        <Button 
+          variant="outline" 
+          onClick={() => setShowDebug(!showDebug)}
+          size="sm"
+        >
+          {showDebug ? 'Hide Debug Info' : 'Show Debug Info'}
+        </Button>
+        
+        {showDebug && (
+          <div className="mt-2 p-4 bg-slate-50 text-xs font-mono rounded border">
+            <p>User ID: {user?.id || 'Not logged in'}</p>
+            <p>Admin Status: {isAdmin ? 'Yes' : 'No'}</p>
+            <p>Total Swap Requests: {swapRequests.length}</p>
+            <p>Filtered Requests: {filteredRequests.length}</p>
+            <p>API Error: {error ? error.message : 'None'}</p>
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              onClick={refreshRequests} 
+              className="mt-2"
+            >
+              Force Refresh
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            There was a problem loading swap requests: {error.message}
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-2"
+              onClick={refreshRequests}
+            >
+              Try Again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="flex flex-col md:flex-row gap-4 justify-between mb-6">
         <SwapRequestFilters filters={filters} setFilters={setFilters} />

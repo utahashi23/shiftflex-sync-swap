@@ -31,6 +31,7 @@ export const useSwapList = () => {
   const [displayedRequests, setDisplayedRequests] = useState<SwapListItem[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const itemsPerPage = 10;
   const [filters, setFilters] = useState<SwapFilters>({
     day: null,
@@ -40,18 +41,20 @@ export const useSwapList = () => {
     colleagueType: null
   });
 
-  // Fetch all pending swap requests - COMPLETELY REBUILT
+  // Fetch all pending swap requests
   const fetchAllRequests = async () => {
     setIsLoading(true);
+    setError(null);
+    
     try {
       if (!user) return;
 
-      // Using the rebuilt RLS bypass function to get ALL requests regardless of user role
-      console.log('Fetching ALL swap requests for ALL users');
+      console.log('NEW IMPLEMENTATION: Fetching all swap requests for display');
       const { data, error } = await fetchAllSwapRequests();
       
       if (error) {
         console.error('Error fetching swap requests:', error);
+        setError(error instanceof Error ? error : new Error(String(error)));
         throw error;
       }
       
@@ -152,6 +155,7 @@ export const useSwapList = () => {
       
     } catch (error) {
       console.error('Error fetching swap requests:', error);
+      setError(error instanceof Error ? error : new Error('Unknown error fetching swap requests'));
       toast({
         title: "Failed to load swap requests",
         description: "There was a problem loading the swap requests. Please try again.",
@@ -262,6 +266,7 @@ export const useSwapList = () => {
     refreshRequests: fetchAllRequests,
     handleOfferSwap,
     loadMore,
-    hasMore
+    hasMore,
+    error
   };
 };
