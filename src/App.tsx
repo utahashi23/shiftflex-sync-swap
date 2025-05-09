@@ -13,6 +13,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import ShiftSwaps from "./pages/ShiftSwaps";
+import SwapsList from "./pages/SwapsList"; // Add import for new page
 import CalendarManagement from "./pages/CalendarManagement";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
@@ -42,6 +43,7 @@ const App = () => (
             {/* App Routes */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/shifts" element={<ShiftSwaps />} />
+            <Route path="/swaps-list" element={<SwapsList />} /> {/* Add route for new page */}
             <Route path="/calendar" element={<CalendarManagement />} /> {/* Roster page */}
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="/faq" element={<FAQ />} />
