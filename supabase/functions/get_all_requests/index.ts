@@ -27,28 +27,51 @@ serve(async (req) => {
     
     console.log(`Fetching all swap requests with status: ${type}`);
     
-    // Query with service role bypasses all RLS (guaranteed to work)
-    const { data, error } = await supabaseAdmin
+    // Using full join to get complete shift data including colleague_type
+    const { data: requests, error: requestsError } = await supabaseAdmin
       .from('shift_swap_requests')
       .select(`
         *,
-        requester_shift:requester_shift_id (*),
-        preferred_dates:shift_swap_preferred_dates (*)
+        requester_shift:requester_shift_id (*)
       `)
       .eq('status', type);
       
-    if (error) {
-      console.error('Error fetching swap requests:', error);
-      throw error;
+    if (requestsError) {
+      console.error('Error fetching swap requests:', requestsError);
+      throw requestsError;
     }
     
-    console.log(`Successfully fetched ${data?.length || 0} swap requests with status ${type}`);
+    // Get all preferred dates for the requests
+    const requestIds = requests.map(r => r.id);
+    const { data: preferredDates, error: datesError } = await supabaseAdmin
+      .from('shift_swap_preferred_dates')
+      .select('*')
+      .in('request_id', requestIds);
+      
+    if (datesError) {
+      console.error('Error fetching preferred dates:', datesError);
+      // Continue anyway, just log the error
+    }
     
-    // Format the data to include embedded shift data
-    const formattedData = data?.map(item => ({
+    // Group preferred dates by request ID
+    const datesByRequestId = {};
+    if (preferredDates) {
+      preferredDates.forEach(date => {
+        if (!datesByRequestId[date.request_id]) {
+          datesByRequestId[date.request_id] = [];
+        }
+        datesByRequestId[date.request_id].push(date);
+      });
+    }
+    
+    // Format the data to include embedded shift data and preferred dates
+    const formattedData = requests.map(item => ({
       ...item,
-      _embedded_shift: item.requester_shift
+      _embedded_shift: item.requester_shift,
+      preferred_dates: datesByRequestId[item.id] || []
     })) || [];
+    
+    console.log(`Successfully fetched ${formattedData.length} swap requests with status ${type}`);
     
     return new Response(
       JSON.stringify(formattedData),

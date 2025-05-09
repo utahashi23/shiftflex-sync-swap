@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { format, isValid } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 import ShiftTypeIcon from '@/components/swaps/ShiftTypeIcon';
 import ShiftTypeBadge from '@/components/swaps/ShiftTypeBadge';
 import { SwapListItem } from '@/hooks/useSwapList';
@@ -23,8 +23,12 @@ const SwapListCard = ({ request, onOffer }: SwapListCardProps) => {
   
   // Safely format the date, handling potential invalid date values
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'No date available';
+    
     try {
-      const date = new Date(dateString);
+      // Try to parse the date string (handles both ISO and YYYY-MM-DD formats)
+      const date = parseISO(dateString);
+      
       // Check if the date is valid before formatting
       if (isValid(date)) {
         return format(date, 'EEE, d MMM yyyy');
@@ -35,6 +39,18 @@ const SwapListCard = ({ request, onOffer }: SwapListCardProps) => {
       return 'Invalid date';
     }
   };
+
+  // Check if shift data is available
+  if (!originalShift) {
+    console.error('Missing originalShift data in request:', request);
+    return (
+      <Card className="overflow-hidden">
+        <CardContent className="pt-4">
+          <p className="text-sm text-red-500">Error: Missing shift data</p>
+        </CardContent>
+      </Card>
+    );
+  }
   
   return (
     <Card className="overflow-hidden">
@@ -42,17 +58,17 @@ const SwapListCard = ({ request, onOffer }: SwapListCardProps) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <div className="mr-2">
-              <ShiftTypeIcon type={originalShift.type} className="h-5 w-5" />
+              <ShiftTypeIcon type={originalShift.type || 'day'} className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-semibold">{originalShift.title}</h3>
+              <h3 className="font-semibold">{originalShift.title || 'Unnamed Shift'}</h3>
               <p className="text-xs text-muted-foreground">
                 {preferrer?.name || 'Unknown user'} 
                 {preferrer?.employeeId && ` (${preferrer.employeeId})`}
               </p>
             </div>
           </div>
-          <ShiftTypeBadge type={originalShift.type} size="sm" />
+          <ShiftTypeBadge type={originalShift.type || 'day'} size="sm" />
         </div>
       </CardHeader>
       
@@ -66,13 +82,15 @@ const SwapListCard = ({ request, onOffer }: SwapListCardProps) => {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Time</p>
-            <p className="font-medium">{originalShift.startTime} - {originalShift.endTime}</p>
+            <p className="font-medium">
+              {originalShift.startTime || 'N/A'} - {originalShift.endTime || 'N/A'}
+            </p>
           </div>
         </div>
         
         <div>
           <p className="text-xs text-muted-foreground mb-1">Colleague Type</p>
-          <Badge variant="outline">{originalShift.colleagueType}</Badge>
+          <Badge variant="outline">{originalShift.colleagueType || 'Not specified'}</Badge>
         </div>
       </CardContent>
       

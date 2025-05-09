@@ -4,7 +4,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { fetchAllSwapRequests } from '@/utils/rls-bypass';
-import { format, isMatch, isValid } from 'date-fns';
+import { format, isMatch, isValid, parseISO } from 'date-fns';
 import { createSwapMatchSafe } from '@/utils/rls-helpers';
 import { SwapRequest, PreferredDate } from '@/hooks/swap-requests/types';
 
@@ -49,7 +49,7 @@ export const useSwapList = () => {
     try {
       if (!user) return;
 
-      console.log('NEW IMPLEMENTATION: Fetching all swap requests for display');
+      console.log('Fetching all swap requests for display');
       const { data, error } = await fetchAllSwapRequests();
       
       if (error) {
@@ -87,37 +87,45 @@ export const useSwapList = () => {
       }
       
       console.log(`Found ${data.length} raw swap requests, processing...`);
+      console.log('Sample data:', data[0]);
       
       // Validate date format before proceeding
       const isValidDateString = (dateStr: string) => {
         if (!dateStr) return false;
         
-        // Check if it's a valid ISO date format
-        return /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && isValid(new Date(dateStr));
+        // Accept ISO format (YYYY-MM-DDTHH:mm:ss.sssZ) or simple date format (YYYY-MM-DD)
+        return /^\d{4}-\d{2}-\d{2}(T[0-9:.]+Z?)?$/.test(dateStr) && isValid(parseISO(dateStr));
       };
       
-      // Map raw data to our SwapRequest format
+      // Map raw data to our SwapRequest format with better error handling
       const formattedRequests = data
-        .filter((req: any) => req.status === 'pending')
+        .filter((req: any) => req && req.status === 'pending')
         .map((req: any) => {
           try {
-            // Get the embedded shift data
-            const shift = req._embedded_shift || {};
+            // Get the embedded shift data with fallbacks
+            const shift = req._embedded_shift || req.requester_shift || {};
+            console.log(`Processing request ${req.id}, shift data:`, shift);
+            
+            // Ensure we have a valid shift date or provide fallback
+            let shiftDate = shift.date;
+            // Check if date is valid
+            if (!isValidDateString(shiftDate)) {
+              console.warn(`Invalid shift date in request ${req.id}:`, shiftDate);
+              shiftDate = new Date().toISOString().split('T')[0]; // Fallback to today
+            }
             
             // Format preferred dates, validate them first
             const preferredDates = (req.preferred_dates || [])
-              .filter((date: any) => isValidDateString(date.date)) // Filter out invalid dates
+              .filter((date: any) => date && isValidDateString(date.date))
               .map((date: any) => ({
                 id: date.id,
                 date: date.date,
                 acceptedTypes: date.accepted_types || []
               }));
               
-            // Validate the shift date
-            const shiftDate = isValidDateString(shift.date) ? shift.date : new Date().toISOString().split('T')[0];
-            
             // Determine shift type from start time
-            const startHour = shift.start_time ? parseInt(shift.start_time.split(':')[0]) : 8;
+            const startTime = shift.start_time || '';
+            const startHour = startTime ? parseInt(startTime.split(':')[0]) : 8;
             let shiftType = 'day';
             if (startHour >= 16) shiftType = 'night';
             else if (startHour >= 12) shiftType = 'afternoon';
@@ -138,7 +146,7 @@ export const useSwapList = () => {
               preferredDates: preferredDates
             };
           } catch (err) {
-            console.error('Error processing request:', err);
+            console.error('Error processing request:', err, req);
             // Return a default/fallback structure for malformed requests
             return {
               id: req.id || 'unknown',
