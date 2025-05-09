@@ -5,7 +5,6 @@ import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useTruckNames } from '@/hooks/useTruckNames';
@@ -36,18 +35,16 @@ export const TruckNameField = ({
     <div>
       <div className="flex justify-between items-center mb-1.5">
         <Label htmlFor="truck-name">Truck Name</Label>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span>
-                <AlertCircle className="h-4 w-4 text-gray-400" />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Enter the truck name or identifier</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <AlertCircle className="h-4 w-4 text-gray-400" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Enter the truck name or identifier</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
       {isLoadingTrucks ? (
         <div className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm flex items-center">

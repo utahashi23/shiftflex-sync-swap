@@ -6,7 +6,6 @@ import AppLayout from '@/layouts/AppLayout';
 import ShiftSwapCalendar from '@/components/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
 
 const ShiftSwaps = () => {
@@ -37,42 +36,40 @@ const ShiftSwaps = () => {
         </p>
       </div>
 
-      <TooltipProvider>
-        <Tabs 
-          defaultValue="calendar" 
-          value={activeTab}
-          onValueChange={(value) => {
-            // Simply set the tab without the reset/timeout to avoid unnecessary renders
-            setActiveTab(value);
-          }}
-          className="w-full"
-        >
-          <TabsList className="grid grid-cols-3 mb-8">
-            <TabsTrigger value="calendar">Calendar</TabsTrigger>
-            <TabsTrigger value="requested">Requested Swaps</TabsTrigger>
-            <TabsTrigger value="matched">Matched Swaps</TabsTrigger>
-          </TabsList>
-          
-          {/* Use React.lazy/suspense pattern to lazily load tab content only when active */}
-          {activeTab === 'calendar' && (
-            <TabsContent value="calendar">
-              <ShiftSwapCalendar key={`calendar-${refreshTrigger}`} />
-            </TabsContent>
-          )}
-          
-          {activeTab === 'requested' && (
-            <TabsContent value="requested">
-              <RequestedSwaps key={`requested-${refreshTrigger}`} />
-            </TabsContent>
-          )}
-          
-          {activeTab === 'matched' && (
-            <TabsContent value="matched">
-              <MatchedSwaps key={`matched-${refreshTrigger}`} setRefreshTrigger={setRefreshTrigger} />
-            </TabsContent>
-          )}
-        </Tabs>
-      </TooltipProvider>
+      <Tabs 
+        defaultValue="calendar" 
+        value={activeTab}
+        onValueChange={(value) => {
+          // Simply set the tab without the reset/timeout to avoid unnecessary renders
+          setActiveTab(value);
+        }}
+        className="w-full"
+      >
+        <TabsList className="grid grid-cols-3 mb-8">
+          <TabsTrigger value="calendar">Calendar</TabsTrigger>
+          <TabsTrigger value="requested">Requested Swaps</TabsTrigger>
+          <TabsTrigger value="matched">Matched Swaps</TabsTrigger>
+        </TabsList>
+        
+        {/* Use React.lazy/suspense pattern to lazily load tab content only when active */}
+        {activeTab === 'calendar' && (
+          <TabsContent value="calendar">
+            <ShiftSwapCalendar key={`calendar-${refreshTrigger}`} />
+          </TabsContent>
+        )}
+        
+        {activeTab === 'requested' && (
+          <TabsContent value="requested">
+            <RequestedSwaps key={`requested-${refreshTrigger}`} />
+          </TabsContent>
+        )}
+        
+        {activeTab === 'matched' && (
+          <TabsContent value="matched">
+            <MatchedSwaps key={`matched-${refreshTrigger}`} setRefreshTrigger={setRefreshTrigger} />
+          </TabsContent>
+        )}
+      </Tabs>
     </AppLayout>
   );
 };
