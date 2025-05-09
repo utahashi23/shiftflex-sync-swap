@@ -20,7 +20,7 @@ export const fetchAllShifts = async () => {
     // Try with our RPC function (most reliable method)
     const { data: shiftsData, error: shiftsError } = await supabase.rpc('get_all_shifts');
     
-    if (!shiftsError && shiftsData && shiftsData.length > 0) {
+    if (!shiftsError && shiftsData && Array.isArray(shiftsData) && shiftsData.length > 0) {
       console.log(`RPC Successfully fetched ${shiftsData.length} shifts from all users`);
       return { data: shiftsData, error: null };
     }
@@ -74,7 +74,7 @@ export const fetchAllPreferredDates = async () => {
     // Try with our RPC function first
     const { data: datesData, error: datesError } = await supabase.rpc('get_all_preferred_dates');
     
-    if (!datesError && datesData && datesData.length > 0) {
+    if (!datesError && datesData && Array.isArray(datesData) && datesData.length > 0) {
       console.log(`RPC Successfully fetched ${datesData.length} preferred dates from all users`);
       return { data: datesData, error: null };
     }
@@ -123,7 +123,7 @@ export const fetchAllSwapRequests = async () => {
       body: { type: 'pending' }
     });
     
-    if (!publicError && publicData && publicData.length > 0) {
+    if (!publicError && publicData && Array.isArray(publicData) && publicData.length > 0) {
       console.log(`PUBLIC FUNCTION: Successfully fetched ${publicData.length} swap requests`);
       
       // Get the shifts data to merge with requests
@@ -146,41 +146,9 @@ export const fetchAllSwapRequests = async () => {
       return { data: processedData, error: null };
     }
     
-    console.log('Public function failed or returned no data, trying RPC function...');
+    console.log('Public function failed or returned no data, trying standard query...');
     
-    // APPROACH 2: Try with RPC function
-    const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_swap_requests_public');
-    
-    if (!rpcError && rpcData && rpcData.length > 0) {
-      console.log(`RPC Successfully fetched ${rpcData.length} swap requests from all users`);
-      
-      // Get the shifts data to merge with requests
-      const { data: shiftsData } = await fetchAllShifts();
-      
-      // Create a map of shifts by ID
-      const shiftMap = new Map();
-      if (shiftsData && shiftsData.length > 0) {
-        shiftsData.forEach(shift => {
-          shiftMap.set(shift.id, shift);
-        });
-      }
-      
-      // Add the embedded shift data to each request
-      const processedData = rpcData.map(request => ({
-        ...request,
-        _embedded_shift: shiftMap.get(request.requester_shift_id) || null
-      }));
-      
-      return { data: processedData, error: null };
-    }
-    
-    if (rpcError) {
-      console.error('RPC function failed:', rpcError);
-    }
-    
-    console.log('RPC function failed or returned no data, trying standard query...');
-    
-    // APPROACH 3: Try with standard anonymous access query (should work for anyone)
+    // APPROACH 2: Try with standard anonymous access query (should work for anyone)
     const { data: standardData, error: standardError } = await supabase
       .from('shift_swap_requests')
       .select('*')
@@ -218,7 +186,7 @@ export const fetchAllSwapRequests = async () => {
       }
     });
     
-    if (rawRequest && rawRequest.length > 0) {
+    if (rawRequest && Array.isArray(rawRequest) && rawRequest.length > 0) {
       console.log(`Raw SQL query fetched ${rawRequest.length} swap requests`);
       
       // Get the shifts data separately
@@ -226,14 +194,14 @@ export const fetchAllSwapRequests = async () => {
       
       // Create a map of shifts by ID
       const shiftMap = new Map();
-      if (shiftsData && shiftsData.length > 0) {
+      if (shiftsData && Array.isArray(shiftsData) && shiftsData.length > 0) {
         shiftsData.forEach(shift => {
           shiftMap.set(shift.id, shift);
         });
       }
       
       // Add the embedded shift data to each request
-      const processedData = rawRequest.map(request => ({
+      const processedData = rawRequest.map((request: any) => ({
         ...request,
         _embedded_shift: shiftMap.get(request.requester_shift_id) || null
       }));
@@ -248,3 +216,4 @@ export const fetchAllSwapRequests = async () => {
     return { data: [], error };
   }
 };
+

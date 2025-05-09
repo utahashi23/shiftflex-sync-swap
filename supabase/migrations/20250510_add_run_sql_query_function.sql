@@ -28,3 +28,4 @@ BEGIN
   RETURN QUERY SELECT * FROM public.shift_swap_requests WHERE status = 'pending';
 END;
 $$;
+
