@@ -112,10 +112,11 @@ export const fetchAllPreferredDates = async () => {
 
 /**
  * Fetches all swap requests from all users, bypassing RLS
+ * IMPORTANT UPDATE: Using RPC function that explicitly ignores RLS permissions
  */
 export const fetchAllSwapRequests = async () => {
   try {
-    // Start with RPC function
+    // First try to get data from our get_all_swap_requests function
     console.log('Fetching all swap requests with RPC method...');
     const { data: requestsData, error: requestsError } = await supabase.rpc('get_all_swap_requests');
     

@@ -47,24 +47,36 @@ export const useSwapList = () => {
       if (!user) return;
 
       // Important: For all users, use the RLS bypass function to get all requests
-      // Do NOT filter out any requests server-side or client-side
+      // This should return ALL pending requests regardless of user permissions
       const { data, error } = await fetchAllSwapRequests();
       
       if (error) throw error;
       
       // Helper function for getting requester profile
       const getRequesterProfile = async (userId: string) => {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('first_name, last_name, employee_id')
-          .eq('id', userId)
-          .maybeSingle(); // Using maybeSingle() to prevent errors if profile not found
-          
-        return profile ? {
-          name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User',
-          employeeId: profile.employee_id
-        } : { name: 'Unknown User' };
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, employee_id')
+            .eq('id', userId)
+            .maybeSingle(); // Using maybeSingle() to prevent errors if profile not found
+            
+          return profile ? {
+            name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User',
+            employeeId: profile.employee_id
+          } : { name: 'Unknown User' };
+        } catch (error) {
+          console.error('Error fetching profile:', error);
+          return { name: 'Unknown User' };
+        }
       };
+      
+      if (!data || data.length === 0) {
+        console.log('No swap requests found');
+        setAllSwapRequests([]);
+        setIsLoading(false);
+        return;
+      }
       
       // Map raw data to our SwapRequest format
       const formattedRequests = data
@@ -106,11 +118,19 @@ export const useSwapList = () => {
       // Get requester profiles for each request
       const requestsWithProfiles = await Promise.all(
         formattedRequests.map(async (req) => {
-          const profile = await getRequesterProfile(req.requesterId);
-          return {
-            ...req,
-            preferrer: profile
-          };
+          try {
+            const profile = await getRequesterProfile(req.requesterId);
+            return {
+              ...req,
+              preferrer: profile
+            };
+          } catch (error) {
+            console.error(`Error fetching profile for request ${req.id}:`, error);
+            return {
+              ...req,
+              preferrer: { name: 'Unknown User' }
+            };
+          }
         })
       );
       

@@ -1,3 +1,4 @@
+
 /**
  * Helper functions for safely working with database entities 
  * This works around possible RLS recursion issues by using explicit permissions checks
