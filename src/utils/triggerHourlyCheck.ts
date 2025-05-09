@@ -1,176 +1,103 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { sendEmail } from './emailService';
 
 /**
- * Utility function to manually trigger the hourly match notification check
- * This is useful for testing and debugging
+ * Function to trigger the hourly match notification process
+ * @param recipient_email - Optional email address to send the notification to (for testing)
+ * @param is_test - Flag to indicate if this is a test run
  */
-export const triggerHourlyMatchNotification = async (
-  options?: { 
-    recipient_email?: string, 
-    is_test?: boolean 
-  }
-): Promise<boolean> => {
+export const triggerHourlyMatchNotification = async ({ recipient_email, is_test }: { recipient_email?: string, is_test?: boolean }): Promise<void> => {
   try {
-    console.log('Manually triggering match notification check...');
-    
-    // Add timestamp and debug info to help track function execution
-    const timestamp = new Date().toISOString();
-    const debugInfo = {
-      manual_trigger: true,
-      timestamp: timestamp,
-      client_info: navigator.userAgent,
-      trigger_source: window.location.pathname,
-      include_detailed_logging: true,
-      recipient_email: options?.recipient_email,
-      is_test: options?.is_test
-    };
-    
-    console.log('Debug info for trigger:', debugInfo);
-    
+    console.log("Triggering hourly match notification process...");
+
+    // Call the Supabase function
     const { data, error } = await supabase.functions.invoke('hourly_match_notification', {
-      body: debugInfo
+      body: { recipient_email, is_test }
     });
-    
+
     if (error) {
-      console.error('Error triggering notification check:', error);
-      toast({
-        title: 'Error',
-        description: `Failed to trigger check: ${error.message}`,
-        variant: 'destructive'
-      });
-      return false;
+      console.error("Error invoking hourly_match_notification function:", error);
+      throw error;
     }
-    
-    console.log('Check triggered successfully with response:', data);
-    
-    // Check if any emails were sent
-    if (data?.result?.emails_sent === 0) {
-      toast({
-        title: 'Function Executed Successfully',
-        description: 'No matches found to notify users about at this time.',
-        variant: 'default'
-      });
-    } else {
-      toast({
-        title: 'Success',
-        description: `Notification check completed. ${data?.result?.emails_sent || 0} notification emails sent.`,
-        variant: 'default'
-      });
-    }
-    
-    return true;
-  } catch (err: any) {
-    console.error('Error in triggerHourlyMatchNotification:', err);
-    toast({
-      title: 'Error',
-      description: `Unexpected error: ${err.message}`,
-      variant: 'destructive'
-    });
-    return false;
+
+    console.log("Successfully triggered hourly match notification:", data);
+  } catch (error) {
+    console.error("Failed to trigger hourly match notification:", error);
+    throw error;
   }
 };
 
 /**
- * Get the status of the hourly match notification function
+ * Test the email configuration by sending a test email
+ * @param recipientEmail - Email address to send the test email to
  */
-export const getHourlyMatchNotificationStatus = async (): Promise<any> => {
+export const testEmailConfiguration = async (recipientEmail: string): Promise<void> => {
   try {
-    console.log('Checking status of match notification function...');
+    console.log(`Testing email configuration for ${recipientEmail}...`);
+
+    // Send a test email
+    const result = await sendEmail({
+      to: recipientEmail,
+      subject: "Test Email from Shift Swap System",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+          <h2 style="color: #2563eb; margin-bottom: 20px;">Test Email</h2>
+          <p>This is a test email from the Shift Swap system.</p>
+          <p>If you're seeing this, the email configuration is working correctly!</p>
+          <p>Time sent: ${new Date().toLocaleString()}</p>
+          <p>Sent via: Mailgun API</p>
+        </div>
+      `
+    });
+
+    if (!result.success) {
+      console.error("Failed to send test email:", result.error);
+      throw new Error(result.error || "Failed to send test email");
+    }
+
+    console.log("Successfully sent test email:", result);
+  } catch (error) {
+    console.error("Failed to test email configuration:", error);
+    throw error;
+  }
+};
+
+/**
+ * Notify all users with pending swap matches
+ * This function sends emails to all users who have swap matches in the "pending" state
+ */
+export const notifyAllPendingMatches = async (): Promise<{
+  success: boolean;
+  error?: string;
+  emailCount?: number;
+}> => {
+  try {
+    console.log("Starting notification process for all pending matches");
     
-    const { data, error } = await supabase.functions.invoke('hourly_match_notification_status', {
-      body: { check_status: true, check_email_config: true }
+    // Call the Supabase edge function to handle the notification process
+    const { data, error } = await supabase.functions.invoke('notify_pending_matches', {
+      body: {}
     });
     
     if (error) {
-      console.error('Error checking function status:', error);
-      return { 
-        success: false, 
-        error: error.message,
-        fallback: {
-          function: {
-            name: 'hourly_match_notification',
-            exists: true,
-            scheduled: true,
-            schedule: '*/5 * * * *', // Updated to reflect the new 5-minute schedule
-            status: 'status check failed'
-          }
-        }
+      console.error("Error invoking notify_pending_matches function:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to notify users with pending matches"
       };
     }
     
-    console.log('Function status:', data);
-    return { success: true, data };
-  } catch (err: any) {
-    console.error('Error in getHourlyMatchNotificationStatus:', err);
-    return { 
-      success: false, 
-      error: err.message,
-      fallback: {
-        function: {
-          name: 'hourly_match_notification',
-          exists: true,
-          scheduled: true,
-          schedule: '*/5 * * * *', // Updated to reflect the new 5-minute schedule
-          status: 'status check failed'
-        }
-      }
+    console.log("Successfully notified users with pending matches:", data);
+    
+    return {
+      success: true,
+      emailCount: data?.emailsSent || 0
     };
-  }
-};
-
-/**
- * Test if email configuration is working
- * This can help diagnose issues with the hourly notification emails
- */
-export const testEmailConfiguration = async (email?: string): Promise<any> => {
-  try {
-    console.log('Testing email configuration...');
-    
-    const recipientEmail = email || "admin@shiftflex.au";
-    console.log(`Using recipient email: ${recipientEmail}`);
-    
-    const { data, error } = await supabase.functions.invoke('test_email_config', {
-      body: { 
-        timestamp: new Date().toISOString(),
-        recipient_email: recipientEmail
-      }
-    });
-    
-    if (error) {
-      console.error('Error testing email configuration:', error);
-      toast({
-        title: 'Email Test Failed',
-        description: `Could not send test email: ${error.message}`,
-        variant: 'destructive'
-      });
-      return { 
-        success: false, 
-        error: error.message
-      };
-    }
-    
-    console.log('Email configuration test result:', data);
-    
-    // Show success toast
-    toast({
-      title: 'Email Test Successful',
-      description: `Test email sent to ${data?.recipient || recipientEmail}`,
-      variant: 'default'
-    });
-    
-    return { success: true, data };
-  } catch (err: any) {
-    console.error('Error in testEmailConfiguration:', err);
-    toast({
-      title: 'Email Test Error',
-      description: `Unexpected error: ${err.message}`,
-      variant: 'destructive'
-    });
-    return { 
-      success: false, 
-      error: err.message
+  } catch (error: any) {
+    console.error("Exception in notifyAllPendingMatches:", error);
+    return {
+      success: false,
+      error: error.message || "An unexpected error occurred"
     };
   }
 };

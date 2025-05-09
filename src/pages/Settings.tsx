@@ -22,6 +22,16 @@ const Settings = () => {
         variant: "destructive",
       });
     }
+    
+    // Debug logging for admin identification
+    if (user) {
+      console.log('Settings page - User auth state:', { 
+        userId: user.id, 
+        userEmail: user.email,
+        isAdmin,
+        isSpecificAdmin: user.id === '2e8fce25-0d63-4148-abd9-2653c31d9b0c'
+      });
+    }
   }, [user, isLoading]);
   
   return (
