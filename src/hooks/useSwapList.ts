@@ -40,26 +40,31 @@ export const useSwapList = () => {
     colleagueType: null
   });
 
-  // Fetch all pending swap requests
+  // Fetch all pending swap requests - COMPLETELY REBUILT
   const fetchAllRequests = async () => {
     setIsLoading(true);
     try {
       if (!user) return;
 
-      // Important: For all users, use the RLS bypass function to get all requests
-      // This should return ALL pending requests regardless of user permissions
+      // Using the rebuilt RLS bypass function to get ALL requests regardless of user role
+      console.log('Fetching ALL swap requests for ALL users');
       const { data, error } = await fetchAllSwapRequests();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching swap requests:', error);
+        throw error;
+      }
       
-      // Helper function for getting requester profile
+      // Helper function for getting requester profile with improved error handling
       const getRequesterProfile = async (userId: string) => {
         try {
+          if (!userId) return { name: 'Unknown User' };
+          
           const { data: profile } = await supabase
             .from('profiles')
             .select('first_name, last_name, employee_id')
             .eq('id', userId)
-            .maybeSingle(); // Using maybeSingle() to prevent errors if profile not found
+            .maybeSingle();
             
           return profile ? {
             name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User',
@@ -77,6 +82,8 @@ export const useSwapList = () => {
         setIsLoading(false);
         return;
       }
+      
+      console.log(`Found ${data.length} raw swap requests, processing...`);
       
       // Map raw data to our SwapRequest format
       const formattedRequests = data
@@ -115,7 +122,9 @@ export const useSwapList = () => {
           };
         });
         
-      // Get requester profiles for each request
+      console.log(`Processed ${formattedRequests.length} formatted requests`);
+      
+      // Get requester profiles for each request with better error handling
       const requestsWithProfiles = await Promise.all(
         formattedRequests.map(async (req) => {
           try {
@@ -134,7 +143,7 @@ export const useSwapList = () => {
         })
       );
       
-      console.log('Total swap requests fetched:', requestsWithProfiles.length);
+      console.log(`Successfully prepared ${requestsWithProfiles.length} swap requests with profiles`);
       setAllSwapRequests(requestsWithProfiles);
       
       // Reset pagination
@@ -215,6 +224,7 @@ export const useSwapList = () => {
     setIsLoadingMore(false);
   }, [filteredRequests, page, isLoadingMore, hasMore, itemsPerPage]);
 
+  // Fetch requests whenever user changes or on component mount
   useEffect(() => {
     if (user) {
       fetchAllRequests();

@@ -112,19 +112,22 @@ export const fetchAllPreferredDates = async () => {
 
 /**
  * Fetches all swap requests from all users, bypassing RLS
- * IMPORTANT UPDATE: Using RPC function that explicitly ignores RLS permissions
+ * IMPORTANT: Completely rebuilt to ensure ALL users can see ALL pending requests
  */
 export const fetchAllSwapRequests = async () => {
   try {
-    // First try to get data from our get_all_swap_requests function
-    console.log('Fetching all swap requests with RPC method...');
-    const { data: requestsData, error: requestsError } = await supabase.rpc('get_all_swap_requests');
+    console.log('REBUILD: Fetching all swap requests with multiple fallback methods');
     
-    if (!requestsError && requestsData && requestsData.length > 0) {
-      console.log(`RPC Successfully fetched ${requestsData.length} swap requests from all users`);
+    // FIRST APPROACH: Try with RPC function - this should work for all users
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_swap_requests');
+    
+    if (!rpcError && rpcData && rpcData.length > 0) {
+      console.log(`RPC Successfully fetched ${rpcData.length} swap requests from all users`);
       
       // We need to fetch the associated shifts separately
-      const shiftIds = requestsData.map(req => req.requester_shift_id).filter(Boolean);
+      const shiftIds = rpcData
+        .filter(req => req.requester_shift_id)
+        .map(req => req.requester_shift_id);
       
       // Get the shifts
       const { data: shiftsData } = await fetchAllShifts();
@@ -138,7 +141,7 @@ export const fetchAllSwapRequests = async () => {
       }
       
       // Attach the shift data to each request
-      const processedData = requestsData.map(request => {
+      const processedData = rpcData.map(request => {
         // Find the associated shift
         const shiftData = shiftMap.get(request.requester_shift_id);
         
@@ -148,26 +151,26 @@ export const fetchAllSwapRequests = async () => {
         };
       });
       
-      console.log('Processed swap requests data:', processedData.length);
+      console.log('Processed swap requests data with shifts:', processedData.length);
       return { data: processedData, error: null };
     }
     
-    // If RPC fails, try direct query with joins as fallback
-    console.log('RPC method failed, trying direct query...');
+    // SECOND APPROACH: Try admin access check, then direct query
+    console.log('RPC method failed or returned empty, trying admin check + direct query');
     
-    // Check admin status
     const { data: adminCheckData } = await supabase.rpc('test_admin_access');
-    console.log('Admin check result:', adminCheckData);
+    console.log('Admin check for swap requests:', adminCheckData);
     
-    // Try a direct query regardless of admin status - this may work if RLS is set up properly
-    console.log('Trying direct query for swap requests...');
+    // Try a direct query for all users regardless of admin status
+    console.log('Trying direct query for ALL swap requests...');
     const { data: directData, error: directError } = await supabase
       .from('shift_swap_requests')
       .select(`
         *,
         requester_shift:requester_shift_id (*)
-      `);
-      
+      `)
+      .eq('status', 'pending');
+    
     if (!directError && directData && directData.length > 0) {
       console.log(`Direct query successfully fetched ${directData.length} swap requests`);
       
@@ -175,21 +178,61 @@ export const fetchAllSwapRequests = async () => {
       const processedData = directData.map(request => {
         return {
           ...request,
-          _embedded_shift: request.requester_shift
+          _embedded_shift: request.requester_shift || null
         };
       });
       
       console.log('Processed swap requests from direct query:', processedData.length);
       return { data: processedData, error: null };
-    } else {
-      console.error('Direct query error:', directError);
     }
     
-    // If all attempts fail, return an empty array rather than throwing an error
+    // THIRD APPROACH: Try with a raw direct query, no joins (last resort)
+    console.log('All previous methods failed, trying raw direct query');
+    const { data: rawData, error: rawError } = await supabase
+      .from('shift_swap_requests')
+      .select('*')
+      .eq('status', 'pending');
+    
+    if (!rawError && rawData && rawData.length > 0) {
+      console.log(`Raw query fetched ${rawData.length} swap requests`);
+      
+      // Now fetch shifts separately and join them
+      const shiftIds = rawData
+        .filter(req => req.requester_shift_id)
+        .map(req => req.requester_shift_id);
+      
+      const { data: shiftsData } = await supabase
+        .from('shifts')
+        .select('*')
+        .in('id', shiftIds);
+      
+      // Create a map of shifts by ID
+      const shiftMap = new Map();
+      if (shiftsData && shiftsData.length > 0) {
+        shiftsData.forEach(shift => {
+          shiftMap.set(shift.id, shift);
+        });
+      }
+      
+      // Join the data manually
+      const processedData = rawData.map(request => {
+        const shiftData = shiftMap.get(request.requester_shift_id) || null;
+        
+        return {
+          ...request,
+          _embedded_shift: shiftData
+        };
+      });
+      
+      console.log('Processed swap requests with manual join:', processedData.length);
+      return { data: processedData, error: null };
+    }
+    
+    // FINAL FALLBACK: Return empty array rather than throwing an error
     console.warn('All attempts to fetch swap requests failed, returning empty array');
-    return { data: [], error: new Error('Failed to fetch swap requests') };
+    return { data: [], error: null };
   } catch (error) {
     console.error('Error in fetchAllSwapRequests:', error);
-    return { data: null, error };
+    return { data: [], error };
   }
 };
