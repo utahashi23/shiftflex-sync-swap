@@ -30,14 +30,14 @@ const SwapRequestFilters = ({ filters, setFilters }: SwapRequestFiltersProps) =>
   const handleDayChange = (day: string) => {
     setFilters(prev => ({
       ...prev,
-      day: day ? parseInt(day) : null
+      day: day === 'any-day' ? null : parseInt(day)
     }));
   };
   
   const handleMonthChange = (month: string) => {
     setFilters(prev => ({
       ...prev,
-      month: month ? parseInt(month) : null
+      month: month === 'any-month' ? null : parseInt(month)
     }));
   };
   
@@ -51,14 +51,14 @@ const SwapRequestFilters = ({ filters, setFilters }: SwapRequestFiltersProps) =>
   const handleShiftTypeChange = (type: string) => {
     setFilters(prev => ({
       ...prev,
-      shiftType: type || null
+      shiftType: type === 'any-shift-type' ? null : type
     }));
   };
   
   const handleColleagueTypeChange = (type: string) => {
     setFilters(prev => ({
       ...prev,
-      colleagueType: type || null
+      colleagueType: type === 'any-colleague-type' ? null : type
     }));
   };
   
@@ -102,14 +102,14 @@ const SwapRequestFilters = ({ filters, setFilters }: SwapRequestFiltersProps) =>
               <div>
                 <Label htmlFor="day" className="text-xs">Day</Label>
                 <Select 
-                  value={filters.day?.toString() || ''} 
+                  value={filters.day?.toString() || 'any-day'} 
                   onValueChange={handleDayChange}
                 >
                   <SelectTrigger id="day">
                     <SelectValue placeholder="Any day" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any day</SelectItem>
+                    <SelectItem value="any-day">Any day</SelectItem>
                     {Array.from({ length: 31 }, (_, i) => (
                       <SelectItem key={i + 1} value={(i + 1).toString()}>
                         {i + 1}
@@ -122,14 +122,14 @@ const SwapRequestFilters = ({ filters, setFilters }: SwapRequestFiltersProps) =>
               <div>
                 <Label htmlFor="month" className="text-xs">Month</Label>
                 <Select 
-                  value={filters.month?.toString() || ''} 
+                  value={filters.month?.toString() || 'any-month'} 
                   onValueChange={handleMonthChange}
                 >
                   <SelectTrigger id="month">
                     <SelectValue placeholder="Any month" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any month</SelectItem>
+                    <SelectItem value="any-month">Any month</SelectItem>
                     {[
                       'January', 'February', 'March', 'April',
                       'May', 'June', 'July', 'August',
@@ -157,14 +157,14 @@ const SwapRequestFilters = ({ filters, setFilters }: SwapRequestFiltersProps) =>
             <div>
               <Label htmlFor="shift-type" className="text-xs">Shift Type</Label>
               <Select 
-                value={filters.shiftType || ''} 
+                value={filters.shiftType || 'any-shift-type'} 
                 onValueChange={handleShiftTypeChange}
               >
                 <SelectTrigger id="shift-type">
                   <SelectValue placeholder="Any type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Any type</SelectItem>
+                  <SelectItem value="any-shift-type">Any type</SelectItem>
                   <SelectItem value="day">Day</SelectItem>
                   <SelectItem value="afternoon">Afternoon</SelectItem>
                   <SelectItem value="night">Night</SelectItem>
@@ -175,14 +175,14 @@ const SwapRequestFilters = ({ filters, setFilters }: SwapRequestFiltersProps) =>
             <div>
               <Label htmlFor="colleague-type" className="text-xs">Colleague Type</Label>
               <Select 
-                value={filters.colleagueType || ''} 
+                value={filters.colleagueType || 'any-colleague-type'} 
                 onValueChange={handleColleagueTypeChange}
               >
                 <SelectTrigger id="colleague-type">
                   <SelectValue placeholder="Any colleague" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Any colleague</SelectItem>
+                  <SelectItem value="any-colleague-type">Any colleague</SelectItem>
                   <SelectItem value="Qualified">Qualified</SelectItem>
                   <SelectItem value="Graduate">Graduate</SelectItem>
                   <SelectItem value="ACO">ACO</SelectItem>
