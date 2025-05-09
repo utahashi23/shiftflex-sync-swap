@@ -32,7 +32,7 @@ export function ManualNotificationTrigger() {
     });
   }, [isAdmin, user, isSpecificAdmin]);
 
-  if (!isAdmin) return null;
+  if (!isAdmin && !isSpecificAdmin) return null;
 
   const handleTriggerCheck = async () => {
     setIsTriggering(true);
@@ -163,21 +163,18 @@ export function ManualNotificationTrigger() {
         
         <Separator className="my-4" />
         
-        <div className="text-right">
-          <div className="inline-flex items-center space-x-2">
-            <Checkbox 
-              id="advancedOptions"
-              checked={showAdvancedOptions} 
-              onCheckedChange={(checked) => setShowAdvancedOptions(!!checked)} 
-              className="opacity-50 h-3 w-3"
-            />
-            <label 
-              htmlFor="advancedOptions" 
-              className="text-xs text-gray-400 cursor-pointer"
-            >
-              Debug options
-            </label>
-          </div>
+        <div className="flex items-center justify-end space-x-2">
+          <Checkbox 
+            id="advancedOptions"
+            checked={showAdvancedOptions} 
+            onCheckedChange={(checked) => setShowAdvancedOptions(!!checked)}
+          />
+          <label 
+            htmlFor="advancedOptions" 
+            className="text-xs text-gray-600 cursor-pointer"
+          >
+            Advanced options
+          </label>
         </div>
         
         {showAdvancedOptions && (
