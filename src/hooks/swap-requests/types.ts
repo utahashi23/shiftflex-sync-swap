@@ -2,12 +2,13 @@
 export interface PreferredDate {
   id: string;
   date: string;
-  acceptedTypes: ("day" | "afternoon" | "night")[];
+  acceptedTypes: string[];
 }
 
 export interface SwapRequest {
   id: string;
   status: string;
+  requesterId: string;
   originalShift: {
     id: string;
     date: string;
@@ -15,15 +16,7 @@ export interface SwapRequest {
     startTime: string;
     endTime: string;
     type: string;
+    colleagueType: string; // Add this field to fix the type error
   };
   preferredDates: PreferredDate[];
-  requesterId: string;
-}
-
-export interface UseSwapRequestsReturn {
-  swapRequests: SwapRequest[];
-  isLoading: boolean;
-  fetchSwapRequests: () => Promise<void>;
-  deleteSwapRequest: (requestId: string) => Promise<boolean>;
-  deletePreferredDay: (dayId: string, requestId: string) => Promise<boolean>;
 }
