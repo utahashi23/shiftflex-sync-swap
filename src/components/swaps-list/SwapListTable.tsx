@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import ShiftTypeBadge from '@/components/swaps/ShiftTypeBadge';
 import { SwapListItem } from '@/hooks/useSwapList';
 
@@ -20,6 +20,21 @@ interface SwapListTableProps {
 }
 
 const SwapListTable = ({ requests, onOffer }: SwapListTableProps) => {
+  // Safely format the date, handling potential invalid date values
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      // Check if the date is valid before formatting
+      if (isValid(date)) {
+        return format(date, 'EEE, d MMM');
+      }
+      return 'Invalid date';
+    } catch (error) {
+      console.error('Error formatting date:', dateString, error);
+      return 'Invalid date';
+    }
+  };
+  
   if (requests.length === 0) {
     return (
       <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -54,7 +69,7 @@ const SwapListTable = ({ requests, onOffer }: SwapListTableProps) => {
                 )}
               </TableCell>
               <TableCell>
-                {format(new Date(request.originalShift.date), 'EEE, d MMM')}
+                {formatDate(request.originalShift.date)}
               </TableCell>
               <TableCell>
                 {request.originalShift.startTime} - {request.originalShift.endTime}

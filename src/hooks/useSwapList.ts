@@ -4,7 +4,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { fetchAllSwapRequests } from '@/utils/rls-bypass';
-import { format, isMatch } from 'date-fns';
+import { format, isMatch, isValid } from 'date-fns';
 import { createSwapMatchSafe } from '@/utils/rls-helpers';
 import { SwapRequest, PreferredDate } from '@/hooks/swap-requests/types';
 
@@ -88,41 +88,74 @@ export const useSwapList = () => {
       
       console.log(`Found ${data.length} raw swap requests, processing...`);
       
+      // Validate date format before proceeding
+      const isValidDateString = (dateStr: string) => {
+        if (!dateStr) return false;
+        
+        // Check if it's a valid ISO date format
+        return /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && isValid(new Date(dateStr));
+      };
+      
       // Map raw data to our SwapRequest format
       const formattedRequests = data
         .filter((req: any) => req.status === 'pending')
         .map((req: any) => {
-          // Get the embedded shift data
-          const shift = req._embedded_shift || {};
-          
-          // Format preferred dates
-          const preferredDates = (req.preferred_dates || []).map((date: any) => ({
-            id: date.id,
-            date: date.date,
-            acceptedTypes: date.accepted_types || []
-          }));
-          
-          // Determine shift type from start time
-          const startHour = shift.start_time ? parseInt(shift.start_time.split(':')[0]) : 8;
-          let shiftType = 'day';
-          if (startHour >= 16) shiftType = 'night';
-          else if (startHour >= 12) shiftType = 'afternoon';
-          
-          return {
-            id: req.id,
-            status: req.status,
-            requesterId: req.requester_id,
-            originalShift: {
-              id: shift.id || '',
-              date: shift.date || '',
-              title: shift.truck_name || `Shift-${(shift.id || '').substring(0, 5)}`,
-              startTime: shift.start_time ? shift.start_time.substring(0, 5) : '',
-              endTime: shift.end_time ? shift.end_time.substring(0, 5) : '',
-              type: shiftType,
-              colleagueType: shift.colleague_type || 'Unknown'
-            },
-            preferredDates: preferredDates
-          };
+          try {
+            // Get the embedded shift data
+            const shift = req._embedded_shift || {};
+            
+            // Format preferred dates, validate them first
+            const preferredDates = (req.preferred_dates || [])
+              .filter((date: any) => isValidDateString(date.date)) // Filter out invalid dates
+              .map((date: any) => ({
+                id: date.id,
+                date: date.date,
+                acceptedTypes: date.accepted_types || []
+              }));
+              
+            // Validate the shift date
+            const shiftDate = isValidDateString(shift.date) ? shift.date : new Date().toISOString().split('T')[0];
+            
+            // Determine shift type from start time
+            const startHour = shift.start_time ? parseInt(shift.start_time.split(':')[0]) : 8;
+            let shiftType = 'day';
+            if (startHour >= 16) shiftType = 'night';
+            else if (startHour >= 12) shiftType = 'afternoon';
+            
+            return {
+              id: req.id,
+              status: req.status,
+              requesterId: req.requester_id,
+              originalShift: {
+                id: shift.id || '',
+                date: shiftDate,
+                title: shift.truck_name || `Shift-${(shift.id || '').substring(0, 5)}`,
+                startTime: shift.start_time ? shift.start_time.substring(0, 5) : '',
+                endTime: shift.end_time ? shift.end_time.substring(0, 5) : '',
+                type: shiftType,
+                colleagueType: shift.colleague_type || 'Unknown'
+              },
+              preferredDates: preferredDates
+            };
+          } catch (err) {
+            console.error('Error processing request:', err);
+            // Return a default/fallback structure for malformed requests
+            return {
+              id: req.id || 'unknown',
+              status: req.status || 'pending',
+              requesterId: req.requester_id || '',
+              originalShift: {
+                id: '',
+                date: new Date().toISOString().split('T')[0],
+                title: 'Unknown Shift',
+                startTime: '',
+                endTime: '',
+                type: 'day',
+                colleagueType: 'Unknown'
+              },
+              preferredDates: []
+            };
+          }
         });
         
       console.log(`Processed ${formattedRequests.length} formatted requests`);
@@ -169,34 +202,45 @@ export const useSwapList = () => {
   // Filter requests based on user's filter selection
   const filteredRequests = useMemo(() => {
     return allSwapRequests.filter(request => {
-      const originalDate = new Date(request.originalShift.date);
-      
-      // Filter by day
-      if (filters.day !== null && originalDate.getDate() !== filters.day) {
-        return false;
+      try {
+        const originalDate = new Date(request.originalShift.date);
+        
+        // Skip filtering if date is invalid
+        if (!isValid(originalDate)) {
+          console.warn(`Invalid date detected: ${request.originalShift.date} for request ${request.id}`);
+          return false; // Exclude invalid dates from display
+        }
+        
+        // Filter by day
+        if (filters.day !== null && originalDate.getDate() !== filters.day) {
+          return false;
+        }
+        
+        // Filter by month
+        if (filters.month !== null && originalDate.getMonth() !== filters.month - 1) { // JS months are 0-indexed
+          return false;
+        }
+        
+        // Filter by specific date
+        if (filters.specificDate && request.originalShift.date !== filters.specificDate) {
+          return false;
+        }
+        
+        // Filter by shift type
+        if (filters.shiftType && request.originalShift.type !== filters.shiftType) {
+          return false;
+        }
+        
+        // Filter by colleague type
+        if (filters.colleagueType && request.originalShift.colleagueType !== filters.colleagueType) {
+          return false;
+        }
+        
+        return true;
+      } catch (err) {
+        console.error('Error filtering request:', err);
+        return false; // Exclude items that cause errors during filtering
       }
-      
-      // Filter by month
-      if (filters.month !== null && originalDate.getMonth() !== filters.month - 1) { // JS months are 0-indexed
-        return false;
-      }
-      
-      // Filter by specific date
-      if (filters.specificDate && request.originalShift.date !== filters.specificDate) {
-        return false;
-      }
-      
-      // Filter by shift type
-      if (filters.shiftType && request.originalShift.type !== filters.shiftType) {
-        return false;
-      }
-      
-      // Filter by colleague type
-      if (filters.colleagueType && request.originalShift.colleagueType !== filters.colleagueType) {
-        return false;
-      }
-      
-      return true;
     });
   }, [allSwapRequests, filters]);
   
