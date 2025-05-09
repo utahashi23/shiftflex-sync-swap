@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Calendar, Filter, LayoutList, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
@@ -18,7 +17,6 @@ import SwapListTable from '@/components/swaps-list/SwapListTable';
 const SwapsList = () => {
   const { isAdmin, user } = useAuth();
   const [view, setView] = useState<'card' | 'list'>('card');
-  const [showDebug, setShowDebug] = useState(false);
   const { 
     swapRequests, 
     isLoading, 
@@ -69,35 +67,6 @@ const SwapsList = () => {
           View and filter all available shift swap requests
           {isAdmin && <span className="ml-2 text-blue-500">(Admin View)</span>}
         </p>
-      </div>
-
-      {/* Debug panel */}
-      <div className="mb-4">
-        <Button 
-          variant="outline" 
-          onClick={() => setShowDebug(!showDebug)}
-          size="sm"
-        >
-          {showDebug ? 'Hide Debug Info' : 'Show Debug Info'}
-        </Button>
-        
-        {showDebug && (
-          <div className="mt-2 p-4 bg-slate-50 text-xs font-mono rounded border">
-            <p>User ID: {user?.id || 'Not logged in'}</p>
-            <p>Admin Status: {isAdmin ? 'Yes' : 'No'}</p>
-            <p>Total Swap Requests: {swapRequests.length}</p>
-            <p>Filtered Requests: {filteredRequests.length}</p>
-            <p>API Error: {error ? error.message : 'None'}</p>
-            <Button 
-              variant="secondary" 
-              size="sm" 
-              onClick={refreshRequests} 
-              className="mt-2"
-            >
-              Force Refresh
-            </Button>
-          </div>
-        )}
       </div>
 
       {error && (

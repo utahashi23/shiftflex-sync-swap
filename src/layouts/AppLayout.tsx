@@ -1,3 +1,4 @@
+
 import { Fragment, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Dialog, Transition } from '@headlessui/react';
@@ -20,7 +21,7 @@ import { Button } from '@/components/ui/button';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, requiresAuth: true },
   { name: 'My Shift Swaps', href: '/shifts', icon: Calendar, requiresAuth: true },
-  { name: 'Browse Swaps', href: '/swaps-list', icon: LayoutList, requiresAuth: true }, // New navigation item
+  { name: 'Browse Swaps', href: '/swaps-list', icon: LayoutList, requiresAuth: true }, 
   { name: 'Calendar', href: '/calendar', icon: CalendarDays, requiresAuth: true },
   { name: 'Roadmap', href: '/roadmap', icon: Clock, requiresAuth: false },
   { name: 'FAQ', href: '/faq', icon: FileQuestion, requiresAuth: false },
@@ -93,11 +94,10 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                   <div className="h-0 flex-1 overflow-y-auto pt-5 pb-4">
                     <div className="flex flex-shrink-0 items-center px-4">
                       <Link to="/">
-                        <img
-                          className="h-8 w-auto"
-                          src="https://tailwindui.com/img/logos/mark.svg?color=indigo&shade=600"
-                          alt="Your Company"
-                        />
+                        <div className="flex items-center">
+                          <div className="h-8 w-8 bg-indigo-600 rounded-md flex items-center justify-center text-white font-bold mr-2">SF</div>
+                          <span className="text-lg font-semibold text-gray-900">ShiftFlex</span>
+                        </div>
                       </Link>
                     </div>
                     <nav className="mt-5 space-y-1">
@@ -142,11 +142,9 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                       <Link to="/settings" className="group block flex-shrink-0">
                         <div className="flex items-center">
                           <div>
-                            <img
-                              className="inline-block h-10 w-10 rounded-full"
-                              src="https://images.unsplash.com/photo-1472099173936-520389198872?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-                              alt=""
-                            />
+                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold">
+                              {user?.email?.substring(0, 2).toUpperCase() || 'U'}
+                            </div>
                           </div>
                           <div className="ml-3">
                             <p className="text-base font-medium text-gray-700 group-hover:text-gray-900">{user.email}</p>
@@ -184,11 +182,10 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           <div className="flex flex-grow flex-col overflow-y-auto bg-white border-r border-gray-200">
             <div className="flex flex-shrink-0 items-center h-16 px-4">
               <Link to="/">
-                <img
-                  className="h-8 w-auto"
-                  src="https://tailwindui.com/img/logos/mark.svg?color=indigo&shade=600"
-                  alt="Your Company"
-                />
+                <div className="flex items-center">
+                  <div className="h-8 w-8 bg-indigo-600 rounded-md flex items-center justify-center text-white font-bold mr-2">SF</div>
+                  <span className="text-lg font-semibold text-gray-900">ShiftFlex</span>
+                </div>
               </Link>
             </div>
             <div className="flex flex-grow flex-col">
