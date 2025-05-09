@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,8 +46,8 @@ export const useSwapList = () => {
     try {
       if (!user) return;
 
-      // For admins, use the RLS bypass function to get all requests
-      // For regular users, filter out their own requests later
+      // Important: For all users, use the RLS bypass function to get all requests
+      // Do NOT filter out any requests server-side or client-side
       const { data, error } = await fetchAllSwapRequests();
       
       if (error) throw error;
@@ -57,7 +58,7 @@ export const useSwapList = () => {
           .from('profiles')
           .select('first_name, last_name, employee_id')
           .eq('id', userId)
-          .single();
+          .maybeSingle(); // Using maybeSingle() to prevent errors if profile not found
           
         return profile ? {
           name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User',
@@ -113,8 +114,7 @@ export const useSwapList = () => {
         })
       );
       
-      // FIXED: Show all requests for all users, not filtering out the user's own requests
-      // This is the key fix for the permissions issue
+      console.log('Total swap requests fetched:', requestsWithProfiles.length);
       setAllSwapRequests(requestsWithProfiles);
       
       // Reset pagination

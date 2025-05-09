@@ -147,6 +147,7 @@ export const fetchAllSwapRequests = async () => {
         };
       });
       
+      console.log('Processed swap requests data:', processedData.length);
       return { data: processedData, error: null };
     }
     
@@ -155,34 +156,36 @@ export const fetchAllSwapRequests = async () => {
     
     // Check admin status
     const { data: adminCheckData } = await supabase.rpc('test_admin_access');
-    const isAdmin = adminCheckData && typeof adminCheckData === 'object' && 'is_admin' in adminCheckData 
-      ? Boolean(adminCheckData.is_admin) 
-      : false;
+    console.log('Admin check result:', adminCheckData);
     
-    if (isAdmin) {
-      const { data: directData, error: directError } = await supabase
-        .from('shift_swap_requests')
-        .select(`
-          *,
-          requester_shift:requester_shift_id (*)
-        `);
-        
-      if (!directError && directData) {
-        console.log(`Direct query successfully fetched ${directData.length} swap requests`);
-        
-        // Process the data to include embedded shift
-        const processedData = directData.map(request => {
-          return {
-            ...request,
-            _embedded_shift: request.requester_shift
-          };
-        });
-        
-        return { data: processedData, error: null };
-      }
+    // Try a direct query regardless of admin status - this may work if RLS is set up properly
+    console.log('Trying direct query for swap requests...');
+    const { data: directData, error: directError } = await supabase
+      .from('shift_swap_requests')
+      .select(`
+        *,
+        requester_shift:requester_shift_id (*)
+      `);
+      
+    if (!directError && directData && directData.length > 0) {
+      console.log(`Direct query successfully fetched ${directData.length} swap requests`);
+      
+      // Process the data to include embedded shift
+      const processedData = directData.map(request => {
+        return {
+          ...request,
+          _embedded_shift: request.requester_shift
+        };
+      });
+      
+      console.log('Processed swap requests from direct query:', processedData.length);
+      return { data: processedData, error: null };
+    } else {
+      console.error('Direct query error:', directError);
     }
     
-    console.error('All attempts to fetch swap requests failed');
+    // If all attempts fail, return an empty array rather than throwing an error
+    console.warn('All attempts to fetch swap requests failed, returning empty array');
     return { data: [], error: new Error('Failed to fetch swap requests') };
   } catch (error) {
     console.error('Error in fetchAllSwapRequests:', error);
