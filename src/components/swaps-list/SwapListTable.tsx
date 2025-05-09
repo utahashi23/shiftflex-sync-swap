@@ -49,7 +49,7 @@ const SwapListTable = ({ requests, onOffer }: SwapListTableProps) => {
                 {request.preferrer?.name || 'Unknown user'}
                 {request.preferrer?.employeeId && (
                   <div className="text-xs text-muted-foreground">
-                    ID: {request.preferrer.employeeId}
+                    {request.preferrer.employeeId}
                   </div>
                 )}
               </TableCell>
