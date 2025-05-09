@@ -14,49 +14,6 @@ export const useAuthState = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
 
-  // Function to check if a user is an admin
-  const checkIsAdmin = async (userId: string) => {
-    console.log('Checking admin status for user:', userId);
-    
-    try {
-      // First, check app_metadata
-      if (user?.app_metadata?.role === 'admin') {
-        console.log('User is admin via app_metadata');
-        return true;
-      }
-      
-      // Then check if the special admin user ID matches
-      if (userId === '2e8fce25-0d63-4148-abd9-2653c31d9b0c') {
-        console.log('User is admin via hardcoded ID match');
-        return true;
-      }
-      
-      // Check njalasankhulani@gmail.com - an admin email
-      if (user?.email === 'njalasankhulani@gmail.com' || 
-          user?.email === 'sfadmin') {
-        console.log('User is admin via email match');
-        return true;
-      }
-
-      // Finally, check user_roles table
-      const { data, error } = await supabase.rpc('has_role', { 
-        _user_id: userId,
-        _role: 'admin'
-      });
-      
-      if (error) {
-        console.error('Error checking admin role:', error);
-        return false;
-      }
-      
-      console.log('Admin check via user_roles:', data);
-      return !!data;
-    } catch (error) {
-      console.error('Error in checkIsAdmin:', error);
-      return false;
-    }
-  };
-
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -72,16 +29,12 @@ export const useAuthState = () => {
           setIsEmailVerified(extendedUser.email_confirmed_at !== null);
           
           // Check if user is admin
-          const adminStatus = await checkIsAdmin(extendedUser.id);
-          setIsAdmin(adminStatus);
-          console.log(`User ${extendedUser.id} admin status set to:`, adminStatus);
+          setIsAdmin(extendedUser.app_metadata?.role === 'admin');
 
           // Handle authentication events
           if (event === 'SIGNED_IN') {
             // For admin user (sfadmin), check if they're in the user_roles table
-            if (extendedUser.email === 'sfadmin' || 
-                extendedUser.email === 'njalasankhulani@gmail.com' || 
-                extendedUser.id === '2e8fce25-0d63-4148-abd9-2653c31d9b0c') {
+            if (extendedUser.email === 'sfadmin') {
               try {
                 // Use type assertions to work around TypeScript errors with Supabase client
                 const { data, error } = await supabase.rpc('has_role', { 
@@ -91,7 +44,6 @@ export const useAuthState = () => {
                 
                 if (!error && !data) {
                   // Add admin role if not already present
-                  console.log('Adding admin role for user', extendedUser.id);
                   await supabase.from('user_roles')
                     .insert({
                       user_id: extendedUser.id,
@@ -117,7 +69,7 @@ export const useAuthState = () => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession);
       
       if (currentSession?.user) {
@@ -125,11 +77,7 @@ export const useAuthState = () => {
         const extendedUser = currentSession.user as unknown as ExtendedUser;
         setUser(extendedUser);
         setIsEmailVerified(extendedUser.email_confirmed_at !== null);
-        
-        // Check if user is admin
-        const adminStatus = await checkIsAdmin(extendedUser.id);
-        setIsAdmin(adminStatus);
-        console.log(`Initial: User ${extendedUser.id} admin status set to:`, adminStatus);
+        setIsAdmin(extendedUser.app_metadata?.role === 'admin');
       }
       
       setIsLoading(false);
