@@ -39,7 +39,6 @@ const SwapListTable = ({ requests, onOffer }: SwapListTableProps) => {
             <TableHead>Shift Type</TableHead>
             <TableHead>Colleague Type</TableHead>
             <TableHead>Truck</TableHead>
-            <TableHead>Preferred Dates</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -68,24 +67,6 @@ const SwapListTable = ({ requests, onOffer }: SwapListTableProps) => {
               </TableCell>
               <TableCell>
                 {request.originalShift.title}
-              </TableCell>
-              <TableCell>
-                {request.preferredDates.length > 0 ? (
-                  <>
-                    {request.preferredDates.slice(0, 2).map(date => (
-                      <div key={date.id} className="text-xs">
-                        {format(new Date(date.date), 'dd/MM/yyyy')}
-                      </div>
-                    ))}
-                    {request.preferredDates.length > 2 && (
-                      <div className="text-xs text-muted-foreground">
-                        +{request.preferredDates.length - 2} more
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <span className="text-xs text-muted-foreground">None</span>
-                )}
               </TableCell>
               <TableCell>
                 <Button

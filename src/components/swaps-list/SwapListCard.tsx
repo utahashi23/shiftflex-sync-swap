@@ -55,25 +55,9 @@ const SwapListCard = ({ request, onOffer }: SwapListCardProps) => {
           </div>
         </div>
         
-        <div className="mb-2">
+        <div>
           <p className="text-xs text-muted-foreground mb-1">Colleague Type</p>
           <Badge variant="outline">{originalShift.colleagueType}</Badge>
-        </div>
-        
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Preferred Dates</p>
-          <div className="flex flex-wrap gap-1">
-            {request.preferredDates.slice(0, 3).map(date => (
-              <Badge key={date.id} variant="secondary" className="text-xs">
-                {format(new Date(date.date), 'dd/MM/yyyy')}
-              </Badge>
-            ))}
-            {request.preferredDates.length > 3 && (
-              <Badge variant="secondary" className="text-xs">
-                +{request.preferredDates.length - 3} more
-              </Badge>
-            )}
-          </div>
         </div>
       </CardContent>
       
