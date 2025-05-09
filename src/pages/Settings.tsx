@@ -1,4 +1,5 @@
 
+import { useEffect } from 'react';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
@@ -6,7 +7,6 @@ import { PasswordSettings } from '@/components/settings/PasswordSettings';
 import { CalendarIntegration } from '@/components/settings/CalendarIntegration';
 import { ManualNotificationTrigger } from '@/components/settings/ManualNotificationTrigger';
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 
 const Settings = () => {
@@ -22,7 +22,20 @@ const Settings = () => {
         variant: "destructive",
       });
     }
-  }, [user, isLoading]);
+    
+    // Log admin status for debugging
+    console.log('Settings page: isAdmin =', isAdmin);
+    console.log('Settings page: user =', user?.id);
+  }, [user, isLoading, isAdmin]);
+  
+  // We need to ensure isAdmin is properly loaded before rendering
+  const renderAdminControls = () => {
+    if (isAdmin) {
+      console.log('Rendering admin controls');
+      return <ManualNotificationTrigger />;
+    }
+    return null;
+  };
   
   return (
     <AppLayout>
@@ -35,7 +48,7 @@ const Settings = () => {
       </div>
 
       <div className="space-y-8">
-        {isAdmin && <ManualNotificationTrigger />}
+        {renderAdminControls()}
         <ProfileSettings />
         <PasswordSettings />
         <CalendarIntegration />

@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -7,14 +7,27 @@ import { Input } from '@/components/ui/input';
 import { Clock, AlertTriangle, Mail } from 'lucide-react';
 import { triggerHourlyMatchNotification, testEmailConfiguration } from '@/utils/triggerHourlyCheck';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 export function ManualNotificationTrigger() {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const { toast } = useToast();
   const [isTriggering, setIsTriggering] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testEmail, setTestEmail] = useState('');
+  
+  // Log admin status for debugging
+  useEffect(() => {
+    console.log('ManualNotificationTrigger: isAdmin status =', isAdmin);
+    console.log('ManualNotificationTrigger: user =', user?.id, user?.email);
+    console.log('ManualNotificationTrigger: user app_metadata =', user?.app_metadata);
+  }, [isAdmin, user]);
 
-  if (!isAdmin) return null;
+  // Early return if not admin
+  if (!isAdmin) {
+    console.log('ManualNotificationTrigger: Not showing component because isAdmin is false');
+    return null;
+  }
 
   const handleTriggerCheck = async () => {
     setIsTriggering(true);
@@ -22,6 +35,18 @@ export function ManualNotificationTrigger() {
       await triggerHourlyMatchNotification({
         recipient_email: testEmail || undefined,
         is_test: true
+      });
+      toast({
+        title: 'Success',
+        description: 'Notification check triggered successfully.',
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error('Error triggering check:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to trigger notification check.',
+        variant: 'destructive',
       });
     } finally {
       setIsTriggering(false);
