@@ -47,6 +47,20 @@ export const useSwapList = () => {
       
       if (error) throw error;
       
+      // Helper function for getting requester profile
+      const getRequesterProfile = async (userId: string) => {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, employee_id')
+          .eq('id', userId)
+          .single();
+          
+        return profile ? {
+          name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User',
+          employeeId: profile.employee_id
+        } : { name: 'Unknown User' };
+      };
+      
       // Map raw data to our SwapRequest format
       const formattedRequests = data
         .filter((req: any) => req.status === 'pending')
@@ -60,20 +74,6 @@ export const useSwapList = () => {
             date: date.date,
             acceptedTypes: date.accepted_types || []
           }));
-          
-          // Get requester profile info
-          const getRequesterProfile = async (userId: string) => {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('first_name, last_name, employee_id')
-              .eq('id', userId)
-              .single();
-              
-            return profile ? {
-              name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User',
-              employeeId: profile.employee_id
-            } : { name: 'Unknown User' };
-          };
           
           // Determine shift type from start time
           const startHour = shift.start_time ? parseInt(shift.start_time.split(':')[0]) : 8;
