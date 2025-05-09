@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,7 +26,12 @@ export interface SwapListItem extends SwapRequest {
 export const useSwapList = () => {
   const { user, isAdmin } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
-  const [swapRequests, setSwapRequests] = useState<SwapListItem[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [allSwapRequests, setAllSwapRequests] = useState<SwapListItem[]>([]);
+  const [displayedRequests, setDisplayedRequests] = useState<SwapListItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const itemsPerPage = 10;
   const [filters, setFilters] = useState<SwapFilters>({
     day: null,
     month: null,
@@ -114,7 +119,12 @@ export const useSwapList = () => {
         ? requestsWithProfiles 
         : requestsWithProfiles.filter(req => req.requesterId !== user.id);
       
-      setSwapRequests(filteredRequests);
+      setAllSwapRequests(filteredRequests);
+      
+      // Reset pagination
+      setPage(1);
+      setHasMore(filteredRequests.length > itemsPerPage);
+      
     } catch (error) {
       console.error('Error fetching swap requests:', error);
       toast({
@@ -127,15 +137,9 @@ export const useSwapList = () => {
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchAllRequests();
-    }
-  }, [user]);
-
   // Filter requests based on user's filter selection
   const filteredRequests = useMemo(() => {
-    return swapRequests.filter(request => {
+    return allSwapRequests.filter(request => {
       const originalDate = new Date(request.originalShift.date);
       
       // Filter by day
@@ -165,7 +169,41 @@ export const useSwapList = () => {
       
       return true;
     });
-  }, [swapRequests, filters]);
+  }, [allSwapRequests, filters]);
+  
+  // Update displayed items when filters change or on initial load
+  useEffect(() => {
+    const initialItems = filteredRequests.slice(0, itemsPerPage);
+    setDisplayedRequests(initialItems);
+    setHasMore(filteredRequests.length > itemsPerPage);
+    setPage(1);
+  }, [filteredRequests]);
+
+  // Function to load more items when scrolling
+  const loadMore = useCallback(() => {
+    if (isLoadingMore || !hasMore) return;
+    
+    setIsLoadingMore(true);
+    
+    // Calculate next page of items
+    const nextPage = page + 1;
+    const startIndex = (nextPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const nextItems = filteredRequests.slice(startIndex, endIndex);
+    
+    // Add new items to displayed items
+    setDisplayedRequests(prev => [...prev, ...nextItems]);
+    setPage(nextPage);
+    setHasMore(endIndex < filteredRequests.length);
+    
+    setIsLoadingMore(false);
+  }, [filteredRequests, page, isLoadingMore, hasMore, itemsPerPage]);
+
+  useEffect(() => {
+    if (user) {
+      fetchAllRequests();
+    }
+  }, [user]);
 
   // Handle offering a swap
   const handleOfferSwap = async (requestId: string) => {
@@ -188,12 +226,16 @@ export const useSwapList = () => {
   };
 
   return {
-    swapRequests,
+    swapRequests: allSwapRequests,
     isLoading,
-    filteredRequests,
+    isLoadingMore,
+    filteredRequests: displayedRequests,
+    totalFilteredCount: filteredRequests.length,
     filters,
     setFilters,
     refreshRequests: fetchAllRequests,
-    handleOfferSwap
+    handleOfferSwap,
+    loadMore,
+    hasMore
   };
 };
