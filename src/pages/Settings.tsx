@@ -4,6 +4,7 @@ import AppLayout from '@/layouts/AppLayout';
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { PasswordSettings } from '@/components/settings/PasswordSettings';
 import { CalendarIntegration } from '@/components/settings/CalendarIntegration';
+import { ManualNotificationTrigger } from '@/components/settings/ManualNotificationTrigger';
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 const Settings = () => {
   useAuthRedirect({ protectedRoute: true });
   const { toast } = useToast();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isAdmin } = useAuth();
   
   useEffect(() => {
     if (!isLoading && !user) {
@@ -29,10 +30,12 @@ const Settings = () => {
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-gray-500 mt-1">
           Manage your account preferences
+          {isAdmin && <span className="ml-2 text-blue-500">(Admin View)</span>}
         </p>
       </div>
 
       <div className="space-y-8">
+        {isAdmin && <ManualNotificationTrigger />}
         <ProfileSettings />
         <PasswordSettings />
         <CalendarIntegration />

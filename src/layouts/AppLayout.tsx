@@ -240,7 +240,13 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
             </button>
             <div className="flex flex-1 justify-between px-4 sm:px-6 lg:px-8">
               <div className="flex items-center">
-                {/* Breadcrumbs or page title can go here */}
+                {/* Add ShiftFlex logo in mobile header */}
+                <div className="flex lg:hidden items-center">
+                  <div className="h-8 w-8 bg-indigo-600 rounded-md flex items-center justify-center text-white font-bold mr-2">
+                    SF
+                  </div>
+                  <span className="text-lg font-semibold text-gray-900">ShiftFlex</span>
+                </div>
               </div>
               <div className="flex items-center ml-4 md:ml-6">
                 {/* Profile dropdown or user info can go here */}

@@ -1,14 +1,11 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { triggerHourlyMatchNotification, getHourlyMatchNotificationStatus, testEmailConfiguration } from "@/utils/triggerHourlyCheck";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { triggerHourlyMatchNotification, testEmailConfiguration } from "@/utils/triggerHourlyCheck";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Info, AlertCircle, Clock, ChevronDown, ChevronUp, Mail, RefreshCw, CheckCircle2 } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Info, Mail, RefreshCw, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 
 /**
@@ -18,10 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 export const TestingTools = () => {
   const { isAdmin } = useAuth();
   const [isTriggering, setIsTriggering] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
-  const [statusResult, setStatusResult] = useState<any>(null);
-  const [lastChecked, setLastChecked] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [testEmail, setTestEmail] = useState<string>("");
 
@@ -33,23 +27,8 @@ export const TestingTools = () => {
         recipient_email: testEmail || undefined,
         is_test: true
       });
-      // Update the status after triggering
-      setTimeout(() => {
-        checkFunctionStatus();
-      }, 2000);
     } finally {
       setIsTriggering(false);
-    }
-  };
-
-  const checkFunctionStatus = async () => {
-    setIsChecking(true);
-    try {
-      const result = await getHourlyMatchNotificationStatus();
-      setStatusResult(result);
-      setLastChecked(new Date().toLocaleTimeString());
-    } finally {
-      setIsChecking(false);
     }
   };
   
@@ -68,36 +47,6 @@ export const TestingTools = () => {
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
-    
-    // If we're expanding and haven't checked status yet, do it now
-    if (!isExpanded && !statusResult) {
-      checkFunctionStatus();
-    }
-  };
-
-  // Function to format date from ISO string
-  const formatDate = (isoString: string) => {
-    if (!isoString) return 'Never';
-    try {
-      return format(new Date(isoString), 'MMM d, h:mm:ss a');
-    } catch (e) {
-      return isoString;
-    }
-  };
-
-  // Function to determine status color
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-50 text-green-700';
-      case 'failing':
-        return 'bg-red-50 text-red-700';
-      case 'not triggered automatically':
-      case 'no recent executions':
-        return 'bg-amber-50 text-amber-700';
-      default:
-        return 'bg-gray-50 text-gray-700';
-    }
   };
 
   // If user is not an admin, don't render the component
@@ -113,259 +62,90 @@ export const TestingTools = () => {
         size="sm"
         className="w-full flex justify-between items-center text-sm font-medium mb-2 bg-gray-50 hover:bg-gray-100 border-gray-200"
       >
-        Testing & Debugging Tools
-        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        Email Notification Testing Tools
       </Button>
 
       {isExpanded && (
         <Card className="space-y-4 bg-gray-50 p-4 rounded-lg">
           <CardHeader className="p-4 pb-0">
-            <CardTitle className="text-sm font-medium">Testing & Debugging Tools</CardTitle>
+            <CardTitle className="text-sm font-medium">Manual Notification Testing</CardTitle>
             <CardDescription className="text-xs text-gray-500">
-              Tools for testing notification functionality (runs every 5 minutes)
+              Tools for manually sending test notifications
             </CardDescription>
           </CardHeader>
           
-          <CardContent className="p-4 pt-0">
-            <div className="space-y-4">
-              {/* Email Configuration Status */}
-              {statusResult?.data?.email_config && (
-                <div className="space-y-2 mb-4">
-                  <h4 className="text-sm font-medium">Email Configuration</h4>
-                  <Alert variant={statusResult.data.email_config.status === "configured" ? "default" : "destructive"} className="py-2">
-                    <div className="text-xs">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-3 w-3" />
-                        <span className="font-semibold">
-                          {statusResult.data.email_config.status === "configured" 
-                            ? "Email configuration is complete" 
-                            : "Email configuration is incomplete"}
-                        </span>
-                      </div>
-                      
-                      <AlertDescription className="mt-1">
-                        <div className="flex flex-col gap-1">
-                          <span>
-                            API Key: {statusResult.data.email_config.mailgun_api_key_set ? (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 text-[10px] px-1">Set</Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-red-50 text-red-700 text-[10px] px-1">Missing</Badge>
-                            )}
-                          </span>
-                          <span>
-                            Domain: {statusResult.data.email_config.mailgun_domain_set ? (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 text-[10px] px-1">{statusResult.data.email_config.mailgun_domain}</Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-red-50 text-red-700 text-[10px] px-1">Not Set</Badge>
-                            )}
-                          </span>
-                        </div>
-                      </AlertDescription>
-                    </div>
-                  </Alert>
-                </div>
-              )}
-              
-              {/* Status section */}
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium">Check Status (Every 5 min)</h4>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={checkFunctionStatus} 
-                    disabled={isChecking}
-                    className="h-7 text-xs"
-                  >
-                    {isChecking ? (
-                      <>
-                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> 
-                        Checking...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-3 w-3 mr-1" /> 
-                        Refresh
-                      </>
-                    )}
-                  </Button>
-                </div>
-                
-                {isChecking ? (
-                  <Skeleton className="h-12 w-full" />
-                ) : statusResult ? (
-                  <Alert variant={statusResult.success ? "default" : "destructive"} className="py-2">
-                    {statusResult.success ? (
-                      <div className="text-xs">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-3 w-3" />
-                          <span className="font-semibold">
-                            {statusResult.data?.function?.exists 
-                              ? `Function is ${statusResult.data?.function?.status}` 
-                              : "Function not found"}
-                          </span>
-                          <Badge 
-                            variant="outline" 
-                            className={`text-[10px] px-1 ${getStatusColor(statusResult.data?.function?.status)}`}
-                          >
-                            {statusResult.data?.function?.status || 'unknown'}
-                          </Badge>
-                        </div>
-                        
-                        <AlertDescription className="mt-1">
-                          <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-1">
-                            <span className="text-gray-500">Schedule:</span> 
-                            <span>{statusResult.data?.function?.schedule || "*/5 * * * *"}</span>
-                            
-                            <span className="text-gray-500">Last auto run:</span> 
-                            <span>{formatDate(statusResult.data?.function?.last_scheduled_run)}</span>
-                            
-                            <span className="text-gray-500">Recent auto successes:</span> 
-                            <span>{statusResult.data?.function?.recent_successful_automatic_runs || 0}</span>
-                          </div>
-                          
-                          {lastChecked && (
-                            <div className="text-xs mt-2 text-muted-foreground">
-                              Last checked: {lastChecked}
-                            </div>
-                          )}
-                        </AlertDescription>
-                      </div>
-                    ) : (
-                      <div className="text-xs">
-                        <div className="flex items-center gap-2">
-                          <AlertCircle className="h-3 w-3" />
-                          <span className="font-semibold">Error checking status</span>
-                        </div>
-                        <AlertDescription className="mt-1">{statusResult.error}</AlertDescription>
-                      </div>
-                    )}
-                  </Alert>
-                ) : null}
-              </div>
-              
-              {/* Recent executions */}
-              {statusResult?.data?.recent_executions && statusResult.data.recent_executions.length > 0 && (
-                <div className="space-y-2 mb-4">
-                  <h4 className="text-sm font-medium">Recent Executions</h4>
-                  <div className="bg-white p-2 rounded-md border border-gray-200 text-xs">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="py-1">Time</th>
-                          <th className="py-1">Status</th>
-                          <th className="py-1">Type</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {statusResult.data.recent_executions.map((exec: any, i: number) => (
-                          <tr key={i} className="border-b border-gray-100 last:border-b-0">
-                            <td className="py-1">{formatDate(exec.created_at)}</td>
-                            <td className="py-1">
-                              <Badge 
-                                variant="outline" 
-                                className={`text-[10px] ${exec.status === 'completed' 
-                                  ? 'bg-green-50 text-green-700' 
-                                  : exec.status === 'started' 
-                                    ? 'bg-blue-50 text-blue-700'
-                                    : 'bg-red-50 text-red-700'
-                                }`}
-                              >
-                                {exec.status}
-                              </Badge>
-                            </td>
-                            <td className="py-1">
-                              <Badge 
-                                variant="outline" 
-                                className={`text-[10px] ${exec.scheduled 
-                                  ? 'bg-purple-50 text-purple-700' 
-                                  : 'bg-gray-50 text-gray-700'}`}
-                              >
-                                {exec.scheduled ? 'scheduled' : 'manual'}
-                              </Badge>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-              
-              {/* Email test input */}
-              <div className="flex flex-col gap-2 pt-2 border-t border-gray-200 mt-4">
-                <h4 className="text-sm font-medium">Email Address for Testing</h4>
-                <div className="flex gap-2">
-                  <Input
-                    type="email"
-                    placeholder="Enter email address for testing"
-                    className="text-sm h-8"
-                    value={testEmail}
-                    onChange={(e) => setTestEmail(e.target.value)}
-                  />
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    disabled={isTesting || !testEmail}
-                    onClick={handleTestEmail}
-                    className="h-8"
-                  >
-                    {isTesting ? (
-                      <>
-                        <RefreshCw className="h-3 w-3 mr-2 animate-spin" /> 
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Mail className="h-3 w-3 mr-2" /> 
-                        Test Email
-                      </>
-                    )}
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-500">
-                  Enter an email address to send test emails to
-                </p>
-              </div>
-              
-              {/* Manual trigger button */}
-              <div className="flex flex-col gap-2 mt-4">
+          <div className="p-4">
+            {/* Email test input */}
+            <div className="flex flex-col gap-2 mt-2">
+              <label className="text-sm font-medium">Email Address for Testing</label>
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="Enter email address for testing"
+                  className="text-sm h-8 flex-1"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                />
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={handleTriggerHourlyCheck} 
-                  disabled={isTriggering}
-                  className="bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300"
+                  disabled={isTesting || !testEmail}
+                  onClick={handleTestEmail}
+                  className="h-8 whitespace-nowrap"
                 >
-                  {isTriggering ? (
+                  {isTesting ? (
                     <>
                       <RefreshCw className="h-3 w-3 mr-2 animate-spin" /> 
-                      Triggering...
+                      Sending...
                     </>
                   ) : (
                     <>
-                      <Clock className="h-3 w-3 mr-2" /> 
-                      Trigger Match Check & Send Emails
+                      <Mail className="h-3 w-3 mr-2" /> 
+                      Test Email
                     </>
                   )}
                 </Button>
-                <p className="text-xs text-gray-500">
-                  {testEmail ? 
-                    `Trigger check and send test emails to: ${testEmail}` : 
-                    "Manually trigger the notification check process"
-                  }
-                </p>
               </div>
+              <p className="text-xs text-gray-500">
+                Enter an email address to send test emails to
+              </p>
             </div>
-          </CardContent>
+            
+            {/* Manual trigger button */}
+            <div className="flex flex-col gap-2 mt-4">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleTriggerHourlyCheck} 
+                disabled={isTriggering}
+                className="bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300"
+              >
+                {isTriggering ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-2 animate-spin" /> 
+                    Triggering...
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-3 w-3 mr-2" /> 
+                    Trigger Match Check & Send Emails
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-gray-500">
+                {testEmail ? 
+                  `Trigger check and send test emails to: ${testEmail}` : 
+                  "Manually trigger the notification check process"
+                }
+              </p>
+            </div>
+          </div>
           
           <CardFooter className="p-4 pt-0 bg-gray-100 rounded-b-lg -m-4 mt-4 border-t border-gray-200">
             <div className="flex items-start gap-2 text-xs text-gray-600">
               <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
               <div>
-                The notification check now runs automatically every 5 minutes according to the schedule in 
-                <code className="px-1 py-0.5 bg-gray-200 rounded text-xs ml-1">supabase/config.toml</code>. 
-                Use the button above to manually trigger it for testing.
+                Automatic scheduling has been disabled. Use the Settings page to manually trigger notifications.
               </div>
             </div>
           </CardFooter>
