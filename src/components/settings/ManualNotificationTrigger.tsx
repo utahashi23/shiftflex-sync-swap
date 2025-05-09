@@ -9,6 +9,7 @@ import { triggerHourlyMatchNotification, testEmailConfiguration, notifyAllPendin
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export function ManualNotificationTrigger() {
   const { isAdmin, user } = useAuth();
@@ -16,6 +17,7 @@ export function ManualNotificationTrigger() {
   const [isNotifying, setIsNotifying] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testEmail, setTestEmail] = useState('');
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const { toast } = useToast();
   
   const isSpecificAdmin = user?.id === '2e8fce25-0d63-4148-abd9-2653c31d9b0c';
@@ -159,28 +161,43 @@ export function ManualNotificationTrigger() {
           <Clock className="ml-2 h-4 w-4" />
         </Button>
         
-        {isSpecificAdmin && (
-          <>
-            <Separator className="my-4" />
-            
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">Special Admin Actions</h3>
-              <Button 
-                onClick={handleNotifyAllPendingMatches} 
-                disabled={isNotifying}
-                variant="secondary"
-                className="w-full"
-              >
-                {isNotifying ? "Sending Notifications..." : "Notify All Users with Pending Matches"}
-                <SendHorizonal className="ml-2 h-4 w-4" />
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Sends notifications to all users with pending swap matches
-              </p>
-            </div>
-          </>
+        <Separator className="my-4" />
+        
+        <div className="text-right">
+          <div className="inline-flex items-center space-x-2">
+            <Checkbox 
+              id="advancedOptions"
+              checked={showAdvancedOptions} 
+              onCheckedChange={(checked) => setShowAdvancedOptions(!!checked)} 
+              className="opacity-50 h-3 w-3"
+            />
+            <label 
+              htmlFor="advancedOptions" 
+              className="text-xs text-gray-400"
+            >
+              Debug options
+            </label>
+          </div>
+        </div>
+        
+        {showAdvancedOptions && (
+          <div className="space-y-2 pt-2">
+            <Button 
+              onClick={handleNotifyAllPendingMatches} 
+              disabled={isNotifying}
+              variant="secondary"
+              className="w-full"
+            >
+              {isNotifying ? "Sending Notifications..." : "Notify All Users with Pending Matches"}
+              <SendHorizonal className="ml-2 h-4 w-4" />
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Sends notifications to all users with pending swap matches
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>
   );
 }
+
