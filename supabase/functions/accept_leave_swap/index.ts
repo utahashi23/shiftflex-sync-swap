@@ -63,11 +63,14 @@ serve(async (req) => {
     }
     
     // Find associated leave swap requests SPECIFIC to this match only
+    // Fixed query syntax by using an array for .or() instead of a string
     const { data: requests, error: requestsError } = await supabaseAdmin
       .from('leave_swap_requests')
       .select('id, requester_id, requester_leave_block_id, requested_leave_block_id, status')
-      .or(`(requester_id.eq.${matchData.requester_id} AND requested_leave_block_id.eq.${matchData.acceptor_leave_block_id}),
-           (requester_id.eq.${matchData.acceptor_id} AND requested_leave_block_id.eq.${matchData.requester_leave_block_id})`)
+      .or([
+        `requester_id.eq.${matchData.requester_id},requested_leave_block_id.eq.${matchData.acceptor_leave_block_id}`,
+        `requester_id.eq.${matchData.acceptor_id},requested_leave_block_id.eq.${matchData.requester_leave_block_id}`
+      ])
       .in('status', ['pending', 'matched']);
     
     if (requestsError) {
