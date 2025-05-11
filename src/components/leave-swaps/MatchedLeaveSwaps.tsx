@@ -24,7 +24,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
 import { Calendar, RefreshCw, Check, X, Copy, Search, FileText } from 'lucide-react';
@@ -34,6 +33,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
+import { LeaveSwapMatch } from '@/types/leave-blocks';
 
 interface MatchedLeaveSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
@@ -46,8 +46,9 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
   const { toast } = useToast();
   
   const {
-    activeMatches,
-    pastMatches,
+    leaveSwapMatches,
+    activeMatches: rawActiveMatches,
+    pastMatches: rawPastMatches,
     isLoadingMatches,
     matchesError,
     findMatches,
@@ -60,6 +61,25 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
     isCancellingMatch,
     refetchMatches
   } = useLeaveSwapMatches();
+
+  // Deduplicate matches at the UI level
+  const deduplicateMatches = (matches: LeaveSwapMatch[]): LeaveSwapMatch[] => {
+    // Use a map with match_id as key to deduplicate
+    const uniqueMatchesMap = new Map<string, LeaveSwapMatch>();
+    
+    matches.forEach(match => {
+      // Only add if not already in the map
+      if (!uniqueMatchesMap.has(match.match_id)) {
+        uniqueMatchesMap.set(match.match_id, match);
+      }
+    });
+    
+    return Array.from(uniqueMatchesMap.values());
+  };
+  
+  // Apply deduplication to active and past matches
+  const activeMatches = deduplicateMatches(rawActiveMatches);
+  const pastMatches = deduplicateMatches(rawPastMatches);
   
   const handleRefresh = () => {
     refetchMatches();
