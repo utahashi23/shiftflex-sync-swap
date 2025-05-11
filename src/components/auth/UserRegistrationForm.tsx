@@ -18,7 +18,11 @@ import { Link } from 'react-router-dom';
 export const userRegistrationSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  email: z.string().email('Invalid email address'),
+  email: z.string()
+    .email('Invalid email address')
+    .refine(email => !email.endsWith('@ambulance.vic.gov.au'), {
+      message: "Registration with this email domain is not allowed"
+    }),
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')

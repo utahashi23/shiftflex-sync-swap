@@ -18,6 +18,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const profileSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -26,11 +34,18 @@ const profileSchema = z.object({
   employeeId: z.string().min(1, 'Employee service number is required')
 });
 
+const emailChangeSchema = z.object({
+  newEmail: z.string().email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
 export const ProfileSettings = () => {
   const { user, updateUser } = useAuth();
   const [isProfileLoading, setProfileLoading] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [profileData, setProfileData] = useState<any>(null);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [isEmailChangeLoading, setIsEmailChangeLoading] = useState(false);
   
   const profileForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -40,6 +55,15 @@ export const ProfileSettings = () => {
       email: user?.email || '',
       employeeId: ''
     },
+  });
+
+  const emailChangeForm = useForm<z.infer<typeof emailChangeSchema>>({
+    resolver: zodResolver(emailChangeSchema),
+    defaultValues: {
+      newEmail: '',
+      password: '',
+    },
+    mode: 'onChange',
   });
 
   // Load profile data from the database
@@ -123,6 +147,39 @@ export const ProfileSettings = () => {
     }
   };
 
+  const onEmailChangeSubmit = async (data: z.infer<typeof emailChangeSchema>) => {
+    setIsEmailChangeLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.updateUser(
+        { 
+          email: data.newEmail 
+        }, 
+        { 
+          emailRedirectTo: `${window.location.origin}/settings` 
+        }
+      );
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Verification Email Sent",
+        description: "Please check your new email inbox and click the link to verify your new address.",
+      });
+      
+      setEmailDialogOpen(false);
+      emailChangeForm.reset();
+    } catch (error: any) {
+      toast({
+        title: "Email Change Failed",
+        description: error.message || "There was a problem changing your email.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEmailChangeLoading(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -137,15 +194,68 @@ export const ProfileSettings = () => {
             <div className="animate-pulse">Loading profile...</div>
           </div>
         ) : (
-          <Form {...profileForm}>
-            <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <>
+            <Form {...profileForm}>
+              <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={profileForm.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={profileForm.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="flex items-end gap-4">
+                  <FormField
+                    control={profileForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input {...field} disabled />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEmailDialogOpen(true)}
+                  >
+                    Change Email
+                  </Button>
+                </div>
+                
                 <FormField
                   control={profileForm.control}
-                  name="firstName"
+                  name="employeeId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
+                      <FormLabel>Employee Service Number</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -154,57 +264,86 @@ export const ProfileSettings = () => {
                   )}
                 />
                 
-                <FormField
-                  control={profileForm.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <FormField
-                control={profileForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input {...field} disabled />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={profileForm.control}
-                name="employeeId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Employee Service Number</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <Button 
-                type="submit" 
-                disabled={isProfileLoading}
-              >
-                {isProfileLoading ? "Saving..." : "Save Changes"}
-              </Button>
-            </form>
-          </Form>
+                <Button 
+                  type="submit" 
+                  disabled={isProfileLoading}
+                >
+                  {isProfileLoading ? "Saving..." : "Save Changes"}
+                </Button>
+              </form>
+            </Form>
+
+            {/* Email change dialog */}
+            <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Change your email address</DialogTitle>
+                  <DialogDescription>
+                    Enter your new email address and password to confirm the change.
+                    You'll need to verify your new email address.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <Form {...emailChangeForm}>
+                  <form onSubmit={emailChangeForm.handleSubmit(onEmailChangeSubmit)} className="space-y-4 py-4">
+                    <FormField
+                      control={emailChangeForm.control}
+                      name="newEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>New Email</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Enter your new email address" 
+                              type="email" 
+                              autoComplete="email"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={emailChangeForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Enter your password" 
+                              type="password" 
+                              autoComplete="current-password"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <DialogFooter className="pt-4">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => setEmailDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        disabled={isEmailChangeLoading}
+                      >
+                        {isEmailChangeLoading ? "Processing..." : "Change Email"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          </>
         )}
       </CardContent>
     </Card>
