@@ -1,5 +1,4 @@
 
-
 export interface LeaveBlock {
   id: string;
   block_number: number;
