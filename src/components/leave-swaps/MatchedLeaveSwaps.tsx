@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { 
   Card, 
@@ -27,7 +26,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Calendar, RefreshCw, Check, X, Copy, Search } from 'lucide-react';
+import { Calendar, RefreshCw, Check, X, Copy, FileText, Search } from 'lucide-react';
 import { useLeaveSwapMatches } from '@/hooks/leave-blocks/useLeaveSwapMatches';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -235,183 +234,95 @@ Status: ${match.match_status.toUpperCase()}
                           <TableCell>{getStatusBadge(match.match_status)}</TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
+                              {/* Swap Details Button - Always shown */}
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => setSelectedMatchId(match.match_id)}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <FileText className="h-4 w-4 mr-1" />
+                                    Swap Details
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Leave Swap Details</DialogTitle>
+                                    <DialogDescription>
+                                      View the details of this leave swap match
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="py-4 space-y-4">
+                                    <div className="space-y-2 border-b pb-2">
+                                      <h3 className="text-sm font-semibold">Your Details</h3>
+                                      <p><strong>Name:</strong> {match.my_user_name} <span className="text-xs text-gray-500">({match.my_employee_id || 'N/A'})</span></p>
+                                      <p><strong>Block:</strong> {match.my_block_number} ({formatDate(match.my_start_date)} - {formatDate(match.my_end_date)})</p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <div className="flex justify-between items-center">
+                                        <h3 className="text-sm font-semibold">Other User Details</h3>
+                                        <Button 
+                                          variant="secondary" 
+                                          size="sm"
+                                          className="flex items-center gap-1"
+                                          onClick={() => copyToClipboard(match)}
+                                        >
+                                          <Copy className="h-4 w-4" />
+                                          Copy All Details
+                                        </Button>
+                                      </div>
+                                      <p><strong>Name:</strong> {match.other_user_name} <span className="text-xs text-gray-500">({match.other_employee_id || 'N/A'})</span></p>
+                                      <p><strong>Block:</strong> {match.other_block_number} ({formatDate(match.other_start_date)} - {formatDate(match.other_end_date)})</p>
+                                    </div>
+                                  </div>
+                                  <DialogFooter>
+                                    <DialogClose asChild>
+                                      <Button variant="outline">Close</Button>
+                                    </DialogClose>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                              
+                              {/* Accept Button - Only shown for pending matches */}
                               {match.match_status === 'pending' && (
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => setSelectedMatchId(match.match_id)}
-                                    >
-                                      <Check className="h-4 w-4 mr-1" />
-                                      Accept
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent>
-                                    <DialogHeader>
-                                      <DialogTitle>Accept Leave Swap</DialogTitle>
-                                      <DialogDescription>
-                                        Are you sure you want to accept this leave swap match?
-                                      </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="py-4 space-y-4">
-                                      <div className="space-y-2 border-b pb-2">
-                                        <h3 className="text-sm font-semibold">Your Details</h3>
-                                        <p><strong>Name:</strong> {match.my_user_name} <span className="text-xs text-gray-500">({match.my_employee_id || 'N/A'})</span></p>
-                                        <p><strong>Block:</strong> {match.my_block_number} ({formatDate(match.my_start_date)} - {formatDate(match.my_end_date)})</p>
-                                      </div>
-
-                                      <div className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                          <h3 className="text-sm font-semibold">Other User Details</h3>
-                                          <Button 
-                                            variant="secondary" 
-                                            size="sm"
-                                            className="flex items-center gap-1"
-                                            onClick={() => copyToClipboard(match)}
-                                          >
-                                            <Copy className="h-4 w-4" />
-                                            Copy All Details
-                                          </Button>
-                                        </div>
-                                        <p><strong>Name:</strong> {match.other_user_name} <span className="text-xs text-gray-500">({match.other_employee_id || 'N/A'})</span></p>
-                                        <p><strong>Block:</strong> {match.other_block_number} ({formatDate(match.other_start_date)} - {formatDate(match.other_end_date)})</p>
-                                      </div>
-                                    </div>
-                                    <DialogFooter>
-                                      <DialogClose asChild>
-                                        <Button variant="outline">Cancel</Button>
-                                      </DialogClose>
-                                      <Button 
-                                        onClick={() => handleAcceptMatch(match.match_id)}
-                                        disabled={isAcceptingMatch}
-                                        className="bg-blue-500 hover:bg-blue-600"
-                                      >
-                                        Accept Swap
-                                      </Button>
-                                    </DialogFooter>
-                                  </DialogContent>
-                                </Dialog>
+                                <Button 
+                                  variant="default"
+                                  size="sm"
+                                  className="bg-blue-600 hover:bg-blue-700" 
+                                  onClick={() => handleAcceptMatch(match.match_id)}
+                                  disabled={isAcceptingMatch}
+                                >
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Accept
+                                </Button>
                               )}
                               
+                              {/* Finalize Button - Only shown for accepted matches */}
                               {match.match_status === 'accepted' && (
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button 
-                                      variant="default" 
-                                      size="sm"
-                                      onClick={() => setSelectedMatchId(match.match_id)}
-                                    >
-                                      <Check className="h-4 w-4 mr-1" />
-                                      Finalize
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent>
-                                    <DialogHeader>
-                                      <DialogTitle>Finalize Leave Swap</DialogTitle>
-                                      <DialogDescription>
-                                        Are you sure you want to finalize this leave swap? This action cannot be undone.
-                                      </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="py-4 space-y-4">
-                                      <div className="space-y-2 border-b pb-2">
-                                        <h3 className="text-sm font-semibold">Your Details</h3>
-                                        <p><strong>Name:</strong> {match.my_user_name} <span className="text-xs text-gray-500">({match.my_employee_id || 'N/A'})</span></p>
-                                        <p><strong>Block:</strong> {match.my_block_number} ({formatDate(match.my_start_date)} - {formatDate(match.my_end_date)})</p>
-                                      </div>
-
-                                      <div className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                          <h3 className="text-sm font-semibold">Other User Details</h3>
-                                          <Button 
-                                            variant="secondary" 
-                                            size="sm"
-                                            className="flex items-center gap-1"
-                                            onClick={() => copyToClipboard(match)}
-                                          >
-                                            <Copy className="h-4 w-4" />
-                                            Copy All Details
-                                          </Button>
-                                        </div>
-                                        <p><strong>Name:</strong> {match.other_user_name} <span className="text-xs text-gray-500">({match.other_employee_id || 'N/A'})</span></p>
-                                        <p><strong>Block:</strong> {match.other_block_number} ({formatDate(match.other_start_date)} - {formatDate(match.other_end_date)})</p>
-                                      </div>
-                                      
-                                      <p className="mt-2 text-sm text-muted-foreground">
-                                        Make sure you have received management approval before finalizing this swap.
-                                      </p>
-                                    </div>
-                                    <DialogFooter>
-                                      <DialogClose asChild>
-                                        <Button variant="outline">Cancel</Button>
-                                      </DialogClose>
-                                      <Button 
-                                        onClick={() => handleFinalizeMatch(match.match_id)}
-                                        disabled={isFinalizingMatch}
-                                      >
-                                        Finalize Swap
-                                      </Button>
-                                    </DialogFooter>
-                                  </DialogContent>
-                                </Dialog>
+                                <Button 
+                                  variant="default" 
+                                  size="sm"
+                                  onClick={() => handleFinalizeMatch(match.match_id)}
+                                  disabled={isFinalizingMatch}
+                                >
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Finalize
+                                </Button>
                               )}
                               
+                              {/* Cancel Button - Shown for all active matches */}
                               {match.match_status !== 'completed' && (
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon"
-                                      onClick={() => setSelectedMatchId(match.match_id)}
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent>
-                                    <DialogHeader>
-                                      <DialogTitle>Cancel Leave Swap</DialogTitle>
-                                      <DialogDescription>
-                                        Are you sure you want to cancel this leave swap match?
-                                      </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="py-4 space-y-4">
-                                      <div className="space-y-2 border-b pb-2">
-                                        <h3 className="text-sm font-semibold">Your Details</h3>
-                                        <p><strong>Name:</strong> {match.my_user_name} <span className="text-xs text-gray-500">({match.my_employee_id || 'N/A'})</span></p>
-                                        <p><strong>Block:</strong> {match.my_block_number} ({formatDate(match.my_start_date)} - {formatDate(match.my_end_date)})</p>
-                                      </div>
-
-                                      <div className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                          <h3 className="text-sm font-semibold">Other User Details</h3>
-                                          <Button 
-                                            variant="secondary" 
-                                            size="sm"
-                                            className="flex items-center gap-1"
-                                            onClick={() => copyToClipboard(match)}
-                                          >
-                                            <Copy className="h-4 w-4" />
-                                            Copy All Details
-                                          </Button>
-                                        </div>
-                                        <p><strong>Name:</strong> {match.other_user_name} <span className="text-xs text-gray-500">({match.other_employee_id || 'N/A'})</span></p>
-                                        <p><strong>Block:</strong> {match.other_block_number} ({formatDate(match.other_start_date)} - {formatDate(match.other_end_date)})</p>
-                                      </div>
-                                    </div>
-                                    <DialogFooter>
-                                      <DialogClose asChild>
-                                        <Button variant="outline">Keep Match</Button>
-                                      </DialogClose>
-                                      <Button 
-                                        variant="destructive"
-                                        onClick={() => handleCancelMatch(match.match_id)}
-                                        disabled={isCancellingMatch}
-                                      >
-                                        Cancel Match
-                                      </Button>
-                                    </DialogFooter>
-                                  </DialogContent>
-                                </Dialog>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleCancelMatch(match.match_id)}
+                                  disabled={isCancellingMatch}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
                               )}
                             </div>
                           </TableCell>
