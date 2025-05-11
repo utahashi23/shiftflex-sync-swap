@@ -201,13 +201,21 @@ export const useLeaveSwapMatches = () => {
   // Accept a leave swap match
   const acceptMatchMutation = useMutation({
     mutationFn: async ({ matchId }: { matchId: string }) => {
+      // First update the local state using a pessimistic UI update
+      console.log("Accepting match:", matchId);
+      
       const { data, error } = await supabase
         .from('leave_swap_matches')
         .update({ status: 'accepted' })
         .eq('id', matchId)
         .select();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error accepting match:", error);
+        throw error;
+      }
+      
+      console.log("Match accepted:", data);
       return data;
     },
     onSuccess: () => {
