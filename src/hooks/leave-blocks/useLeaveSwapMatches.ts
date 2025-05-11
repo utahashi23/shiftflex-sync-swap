@@ -34,7 +34,7 @@ export const useLeaveSwapMatches = () => {
       const myUserName = `${profileData.first_name} ${profileData.last_name}`;
       const myEmployeeId = profileData.employee_id;
       
-      // First, get all matches where this user is directly involved
+      // Fetch matches using a simpler query approach
       const { data, error } = await supabase
         .from('leave_swap_matches')
         .select(`
@@ -54,6 +54,13 @@ export const useLeaveSwapMatches = () => {
       }
 
       console.log("Raw matches from API:", data);
+      
+      // Create a map to identify unique match combinations by participant IDs
+      const matchCombinations = new Map();
+      
+      if (!Array.isArray(data) || data.length === 0) {
+        return [];
+      }
       
       // Now we'll fetch the related data separately for better type safety
       // Get all the leave block IDs we need
@@ -83,7 +90,7 @@ export const useLeaveSwapMatches = () => {
       
       if (otherUserProfilesError) throw otherUserProfilesError;
       
-      // Create maps for quick lookup
+      // Create a map for quick lookup
       const leaveBlocksMap = new Map(
         leaveBlocks.map(block => [block.id, block])
       );
@@ -92,12 +99,21 @@ export const useLeaveSwapMatches = () => {
         otherUserProfiles.map(profile => [profile.id, profile])
       );
       
-      // Transform the data - Don't filter for uniqueness by participants anymore,
-      // as we want to show all matches for a user
-      const matchesArray = [];
+      // Transform the data and ensure uniqueness by participants
+      const matchesMap = new Map();
       
-      // Process all matches
+      // Process matches and use a consistent key based on user IDs
       data.forEach(match => {
+        // Always make sure the match key has users in a consistent order
+        // so we can detect duplicates regardless of who is requester/acceptor
+        const participants = [match.requester_id, match.acceptor_id].sort().join('-');
+        
+        // If we've already processed a match with these participants, skip it
+        if (matchesMap.has(participants)) {
+          console.log(`Skipping duplicate match for participants: ${participants}`);
+          return;
+        }
+        
         // Determine if this user is the requester
         const isRequester = match.requester_id === userId;
         
@@ -120,7 +136,7 @@ export const useLeaveSwapMatches = () => {
           : 'Unknown User';
           
         // Store the formatted match data
-        matchesArray.push({
+        matchesMap.set(participants, {
           match_id: match.id,
           match_status: match.status,
           created_at: match.created_at,
@@ -141,9 +157,11 @@ export const useLeaveSwapMatches = () => {
         });
       });
       
-      console.log(`Processed ${matchesArray.length} matches without deduplication`);
+      // Convert Map to array
+      const uniqueMatches = Array.from(matchesMap.values()) as LeaveSwapMatch[];
+      console.log(`Processed ${uniqueMatches.length} unique matches after deduplication`);
       
-      return matchesArray as LeaveSwapMatch[];
+      return uniqueMatches;
     }
   });
   
