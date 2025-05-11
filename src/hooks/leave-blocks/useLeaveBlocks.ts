@@ -38,9 +38,13 @@ export const useLeaveBlocks = () => {
   } = useQuery({
     queryKey: ['user-leave-blocks'],
     queryFn: async () => {
+      // Get current user's ID first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+      
       // Use the RLS-bypassing function to get user leave blocks
       const { data, error } = await supabase.rpc('get_user_leave_blocks', {
-        p_user_id: supabase.auth.getUser().then(res => res.data.user?.id),
+        p_user_id: user.id,
       });
         
       if (error) throw error;
@@ -51,10 +55,13 @@ export const useLeaveBlocks = () => {
   // Add a leave block for the current user
   const addLeaveBlockMutation = useMutation({
     mutationFn: async ({ leaveBlockId }: { leaveBlockId: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+      
       const { data, error } = await supabase
         .from('user_leave_blocks')
         .insert({
-          user_id: (await supabase.auth.getUser()).data.user?.id,
+          user_id: user.id,
           leave_block_id: leaveBlockId,
         })
         .select();
