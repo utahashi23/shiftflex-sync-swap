@@ -1,415 +1,311 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../useAuth';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '../use-toast';
 import { LeaveSwapMatch } from '@/types/leave-blocks';
+import { useToast } from '@/hooks/use-toast';
 
 export const useLeaveSwapMatches = () => {
-  // Data states
-  const [activeMatches, setActiveMatches] = useState<LeaveSwapMatch[]>([]);
-  const [pastMatches, setPastMatches] = useState<LeaveSwapMatch[]>([]);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
-  // Loading states
-  const [isLoadingMatches, setIsLoadingMatches] = useState<boolean>(false);
-  const [isFindingMatches, setIsFindingMatches] = useState<boolean>(false);
-  const [isAcceptingMatch, setIsAcceptingMatch] = useState<boolean>(false);
-  const [isFinalizingMatch, setIsFinalizingMatch] = useState<boolean>(false);
-  const [isCancellingMatch, setIsCancellingMatch] = useState<boolean>(false);
-  
-  // Error and connection states
-  const [matchesError, setMatchesError] = useState<Error | null>(null);
-  const [connectionError, setConnectionError] = useState<boolean>(false);
-  const [retryCount, setRetryCount] = useState<number>(0);
-  const [retryTimeout, setRetryTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+  // Fetch user's leave swap matches
+  const {
+    data: leaveSwapMatches,
+    isLoading: isLoadingMatches,
+    error: matchesError,
+    refetch: refetchMatches
+  } = useQuery({
+    queryKey: ['leave-swap-matches'],
+    queryFn: async () => {
+      const currentUser = await supabase.auth.getUser();
+      const userId = currentUser.data.user?.id;
+      
+      if (!userId) throw new Error('User not authenticated');
+      
+      // Get the user's profile info first
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, employee_id')
+        .eq('id', userId)
+        .single();
+      
+      if (profileError) throw profileError;
+      
+      const myUserName = `${profileData.first_name} ${profileData.last_name}`;
+      const myEmployeeId = profileData.employee_id;
+      
+      // Fetch matches using a simpler query approach
+      const { data, error } = await supabase
+        .from('leave_swap_matches')
+        .select(`
+          id,
+          status,
+          created_at,
+          requester_id,
+          acceptor_id,
+          requester_leave_block_id,
+          acceptor_leave_block_id
+        `)
+        .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`);
+      
+      if (error) {
+        console.error("Error fetching leave swap matches:", error);
+        throw error;
+      }
 
-  const { user } = useAuth();
-  
-  // Fetch matches with retry mechanism
-  const fetchMatches = useCallback(async () => {
-    if (!user) return;
-    
-    // Clear any existing timeout to avoid overlapping retries
-    if (retryTimeout) {
-      clearTimeout(retryTimeout);
-      setRetryTimeout(null);
+      console.log("Raw matches from API:", data);
+      
+      // Create a map to identify unique match combinations by participant IDs
+      const matchCombinations = new Map();
+      
+      if (!Array.isArray(data) || data.length === 0) {
+        return [];
+      }
+      
+      // Now we'll fetch the related data separately for better type safety
+      // Get all the leave block IDs we need
+      const leaveBlockIds = data.flatMap(match => [
+        match.requester_leave_block_id, 
+        match.acceptor_leave_block_id
+      ]);
+      
+      // Get all the user IDs we need
+      const otherUserIds = data.map(match => 
+        match.requester_id === userId ? match.acceptor_id : match.requester_id
+      );
+      
+      // Fetch leave blocks
+      const { data: leaveBlocks, error: leaveBlocksError } = await supabase
+        .from('leave_blocks')
+        .select('id, block_number, start_date, end_date')
+        .in('id', leaveBlockIds);
+      
+      if (leaveBlocksError) throw leaveBlocksError;
+      
+      // Fetch other users' profiles
+      const { data: otherUserProfiles, error: otherUserProfilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, employee_id')
+        .in('id', otherUserIds);
+      
+      if (otherUserProfilesError) throw otherUserProfilesError;
+      
+      // Create a map for quick lookup
+      const leaveBlocksMap = new Map(
+        leaveBlocks.map(block => [block.id, block])
+      );
+      
+      const userProfilesMap = new Map(
+        otherUserProfiles.map(profile => [profile.id, profile])
+      );
+      
+      // Transform the data and ensure uniqueness by participants
+      const matchesMap = new Map();
+      
+      // Process matches and use a consistent key based on user IDs
+      data.forEach(match => {
+        // Always make sure the match key has users in a consistent order
+        // so we can detect duplicates regardless of who is requester/acceptor
+        const participants = [match.requester_id, match.acceptor_id].sort().join('-');
+        
+        // If we've already processed a match with these participants, skip it
+        if (matchesMap.has(participants)) {
+          console.log(`Skipping duplicate match for participants: ${participants}`);
+          return;
+        }
+        
+        // Determine if this user is the requester
+        const isRequester = match.requester_id === userId;
+        
+        const myLeaveBlockId = isRequester 
+          ? match.requester_leave_block_id 
+          : match.acceptor_leave_block_id;
+          
+        const otherLeaveBlockId = isRequester 
+          ? match.acceptor_leave_block_id 
+          : match.requester_leave_block_id;
+          
+        const myLeaveBlock = leaveBlocksMap.get(myLeaveBlockId);
+        const otherLeaveBlock = leaveBlocksMap.get(otherLeaveBlockId);
+        
+        const otherUserId = isRequester ? match.acceptor_id : match.requester_id;
+        const otherUserProfile = userProfilesMap.get(otherUserId);
+        
+        const otherUserName = otherUserProfile 
+          ? `${otherUserProfile.first_name || ''} ${otherUserProfile.last_name || ''}`.trim() 
+          : 'Unknown User';
+          
+        // Store the formatted match data
+        matchesMap.set(participants, {
+          match_id: match.id,
+          match_status: match.status,
+          created_at: match.created_at,
+          my_leave_block_id: myLeaveBlockId,
+          my_block_number: myLeaveBlock?.block_number || 0,
+          my_start_date: myLeaveBlock?.start_date || '',
+          my_end_date: myLeaveBlock?.end_date || '',
+          other_leave_block_id: otherLeaveBlockId,
+          other_block_number: otherLeaveBlock?.block_number || 0,
+          other_start_date: otherLeaveBlock?.start_date || '',
+          other_end_date: otherLeaveBlock?.end_date || '',
+          other_user_id: otherUserId,
+          other_user_name: otherUserName,
+          other_employee_id: otherUserProfile?.employee_id || 'N/A',
+          is_requester: isRequester,
+          my_user_name: myUserName,
+          my_employee_id: myEmployeeId || 'N/A'
+        });
+      });
+      
+      // Convert Map to array
+      const uniqueMatches = Array.from(matchesMap.values()) as LeaveSwapMatch[];
+      console.log(`Processed ${uniqueMatches.length} unique matches after deduplication`);
+      
+      return uniqueMatches;
     }
+  });
+  
+  // Find potential leave block swap matches
+  const findMatchesMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('find_leave_swap_matches', {
+        body: { admin_secret: true }
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.matches_created > 0) {
+        toast({
+          title: 'Matches found!',
+          description: `Found ${data.matches_created} potential leave block swap matches.`,
+        });
+        queryClient.invalidateQueries({ queryKey: ['leave-swap-matches'] });
+      } else {
+        toast({
+          title: 'No matches found',
+          description: 'No potential leave block swap matches were found at this time.',
+        });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error finding matches',
+        description: error.message || 'An error occurred while finding matches.',
+        variant: 'destructive',
+      });
+    }
+  });
+  
+  // Accept a leave swap match
+  const acceptMatchMutation = useMutation({
+    mutationFn: async ({ matchId }: { matchId: string }) => {
+      const { data, error } = await supabase
+        .from('leave_swap_matches')
+        .update({ status: 'accepted' })
+        .eq('id', matchId)
+        .select();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Match accepted',
+        description: 'The leave block swap match has been accepted successfully.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['leave-swap-matches'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error accepting match',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  });
 
-    try {
-      setIsLoadingMatches(true);
-      setMatchesError(null);
-      setConnectionError(false);
+  // Finalize a leave swap match
+  const finalizeMatchMutation = useMutation({
+    mutationFn: async ({ matchId }: { matchId: string }) => {
+      const { data, error } = await supabase
+        .from('leave_swap_matches')
+        .update({ status: 'completed' })
+        .eq('id', matchId)
+        .select();
       
-      console.log(`Fetching leave swap matches for user ${user.id}...`);
-      
-      try {
-        // Create a promise that will reject after the timeout
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("Request timed out")), 8000);
-        });
-        
-        // Race the actual request against the timeout
-        const response = await Promise.race([
-          supabase.functions.invoke('get_user_leave_swap_matches', {
-            body: { user_id: user.id }
-          }),
-          timeoutPromise
-        ]);
-        
-        // @ts-ignore: Type check on response
-        const { data, error } = response;
-        
-        if (error) throw error;
-        
-        if (data && Array.isArray(data)) {
-          // Process active vs past matches
-          const active = data.filter(match => 
-            match.match_status === 'pending' || match.match_status === 'accepted');
-          
-          const past = data.filter(match => 
-            match.match_status === 'completed' || match.match_status === 'cancelled');
-          
-          setActiveMatches(active);
-          setPastMatches(past);
-          setRetryCount(0); // Reset retry count on successful fetch
-        } else {
-          setActiveMatches([]);
-          setPastMatches([]);
-        }
-      } catch (fetchError: any) {
-        // Check if it's a connection/timeout issue
-        if (fetchError.message?.includes('Failed to fetch') || 
-            fetchError.message?.includes('AbortError') ||
-            fetchError.message?.includes('Failed to send') ||
-            fetchError.message?.includes('Request timed out')) {
-          console.warn('Connection issue detected:', fetchError.message);
-          setConnectionError(true);
-          
-          // Implement exponential backoff for retries, but only if we're not at max retries
-          if (retryCount < 3) {
-            const nextRetryDelay = Math.min(2000 * Math.pow(2, retryCount), 10000);
-            console.log(`Will retry in ${nextRetryDelay}ms (attempt ${retryCount + 1}/3)`);
-            
-            const timeout = setTimeout(() => {
-              setRetryCount(prevCount => prevCount + 1);
-              fetchMatches();
-            }, nextRetryDelay);
-            
-            setRetryTimeout(timeout);
-          } else {
-            toast({
-              title: "Connection Error",
-              description: "Could not connect to the server after multiple attempts. Please try again later.",
-              variant: "destructive",
-            });
-          }
-        } else {
-          // For other errors, just throw to be caught by the outer catch
-          throw fetchError;
-        }
-      }
-    } catch (error: any) {
-      console.error("Error fetching matches:", error);
-      setMatchesError(error);
-      
-      if (!connectionError) {
-        toast({
-          title: "Error loading matches",
-          description: error.message || "Failed to load leave swap matches",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setIsLoadingMatches(false);
-    }
-  }, [user, retryCount, connectionError, retryTimeout]);
-  
-  // Auto-fetch matches when component mounts or user changes
-  useEffect(() => {
-    if (user) {
-      fetchMatches();
-    }
-    
-    // Clean up any pending retry timeouts on unmount
-    return () => {
-      if (retryTimeout) {
-        clearTimeout(retryTimeout);
-      }
-    };
-  }, [user]);
-  
-  // Find matches function
-  const findMatches = async () => {
-    if (!user) return;
-    
-    try {
-      setIsFindingMatches(true);
-      setConnectionError(false);
-      
-      try {
-        // Create a promise that will reject after the timeout
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("Request timed out")), 8000);
-        });
-        
-        const response = await Promise.race([
-          supabase.functions.invoke('find_leave_swap_matches', {
-            body: { user_id: user.id, force_check: true }
-          }),
-          timeoutPromise
-        ]);
-        
-        // @ts-ignore: Type check on response
-        const { data, error } = response;
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Match finding complete",
-          description: data.message || "Potential matches have been processed.",
-        });
-        
-        // Refresh the matches to see new ones
-        await fetchMatches();
-      } catch (fetchError: any) {
-        if (fetchError.message?.includes('Failed to fetch') || 
-            fetchError.message?.includes('AbortError') ||
-            fetchError.message?.includes('Failed to send') ||
-            fetchError.message?.includes('Request timed out')) {
-          setConnectionError(true);
-          throw new Error("Connection error: Could not connect to the server.");
-        } else {
-          throw fetchError;
-        }
-      }
-    } catch (error: any) {
-      console.error("Error finding matches:", error);
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
       toast({
-        title: "Error finding matches",
-        description: error.message || "Failed to find potential matches",
-        variant: "destructive",
+        title: 'Match finalized',
+        description: 'The leave block swap has been finalized successfully.',
       });
-    } finally {
-      setIsFindingMatches(false);
-    }
-  };
-  
-  // Accept match function
-  const acceptMatch = async ({ matchId }: { matchId: string }) => {
-    if (!user || !matchId) return;
-    
-    try {
-      setIsAcceptingMatch(true);
-      setConnectionError(false);
-      console.log(`Accepting match: ${matchId}`);
-      
-      try {
-        // Create a promise that will reject after the timeout
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("Request timed out")), 8000);
-        });
-        
-        const response = await Promise.race([
-          supabase.functions.invoke('accept_swap_match', {
-            body: { match_id: matchId }
-          }),
-          timeoutPromise
-        ]);
-        
-        // @ts-ignore: Type check on response
-        const { data, error } = response;
-        
-        if (error) throw error;
-        
-        console.log("Match accepted:", data);
-        
-        toast({
-          title: "Match Accepted",
-          description: data.message || "You have successfully accepted this leave swap.",
-        });
-        
-        // Update local state to reflect the change immediately
-        setActiveMatches(prevMatches => 
-          prevMatches.map(match => 
-            match.match_id === matchId 
-              ? { ...match, match_status: 'accepted' } 
-              : match
-          )
-        );
-        
-        // Refresh matches to get the latest data
-        await fetchMatches();
-      } catch (fetchError: any) {
-        if (fetchError.message?.includes('Failed to fetch') || 
-            fetchError.message?.includes('AbortError') ||
-            fetchError.message?.includes('Failed to send') ||
-            fetchError.message?.includes('Request timed out')) {
-          setConnectionError(true);
-          throw new Error("Connection error: Could not connect to the server.");
-        } else {
-          throw fetchError;
-        }
-      }
-    } catch (error: any) {
-      console.error("Error accepting match:", error);
+      queryClient.invalidateQueries({ queryKey: ['leave-swap-matches'] });
+      queryClient.invalidateQueries({ queryKey: ['user-leave-blocks'] });
+    },
+    onError: (error) => {
       toast({
-        title: "Error accepting match",
-        description: error.message || "Failed to accept leave swap",
-        variant: "destructive",
+        title: 'Error finalizing match',
+        description: error.message,
+        variant: 'destructive',
       });
-    } finally {
-      setIsAcceptingMatch(false);
     }
-  };
-  
-  // Finalize match function
-  const finalizeMatch = async ({ matchId }: { matchId: string }) => {
-    if (!user || !matchId) return;
-    
-    try {
-      setIsFinalizingMatch(true);
-      setConnectionError(false);
+  });
+
+  // Cancel a leave swap match
+  const cancelMatchMutation = useMutation({
+    mutationFn: async ({ matchId }: { matchId: string }) => {
+      const { data, error } = await supabase
+        .from('leave_swap_matches')
+        .update({ status: 'cancelled' })
+        .eq('id', matchId)
+        .select();
       
-      try {
-        // Create a promise that will reject after the timeout
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("Request timed out")), 8000);
-        });
-        
-        const response = await Promise.race([
-          supabase.functions.invoke('finalize_swap_match', {
-            body: { match_id: matchId }
-          }),
-          timeoutPromise
-        ]);
-        
-        // @ts-ignore: Type check on response
-        const { data, error } = response;
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Match Finalized",
-          description: "The leave swap has been finalized and calendars updated.",
-        });
-        
-        // Update local state
-        setActiveMatches(prevMatches => prevMatches.filter(match => match.match_id !== matchId));
-        setPastMatches(prevMatches => [
-          ...prevMatches,
-          ...activeMatches.filter(match => match.match_id === matchId)
-            .map(match => ({ ...match, match_status: 'completed' }))
-        ]);
-        
-        // Refresh matches
-        await fetchMatches();
-      } catch (fetchError: any) {
-        if (fetchError.message?.includes('Failed to fetch') || 
-            fetchError.message?.includes('AbortError') ||
-            fetchError.message?.includes('Failed to send') ||
-            fetchError.message?.includes('Request timed out')) {
-          setConnectionError(true);
-          throw new Error("Connection error: Could not connect to the server.");
-        } else {
-          throw fetchError;
-        }
-      }
-    } catch (error: any) {
-      console.error("Error finalizing match:", error);
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
       toast({
-        title: "Error finalizing match",
-        description: error.message || "Failed to finalize leave swap",
-        variant: "destructive",
+        title: 'Match cancelled',
+        description: 'The leave block swap match has been cancelled.',
       });
-    } finally {
-      setIsFinalizingMatch(false);
-    }
-  };
-  
-  // Cancel match function
-  const cancelMatch = async ({ matchId }: { matchId: string }) => {
-    if (!user || !matchId) return;
-    
-    try {
-      setIsCancellingMatch(true);
-      setConnectionError(false);
-      
-      try {
-        // Create a promise that will reject after the timeout
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("Request timed out")), 8000);
-        });
-        
-        const response = await Promise.race([
-          supabase.functions.invoke('cancel_swap_match', {
-            body: { match_id: matchId }
-          }),
-          timeoutPromise
-        ]);
-        
-        // @ts-ignore: Type check on response
-        const { data, error } = response;
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Match Cancelled",
-          description: "The leave swap has been cancelled.",
-        });
-        
-        // Update local state
-        setActiveMatches(prevMatches => prevMatches.filter(match => match.match_id !== matchId));
-        setPastMatches(prevMatches => [
-          ...prevMatches,
-          ...activeMatches.filter(match => match.match_id === matchId)
-            .map(match => ({ ...match, match_status: 'cancelled' }))
-        ]);
-        
-        // Refresh matches
-        await fetchMatches();
-      } catch (fetchError: any) {
-        if (fetchError.message?.includes('Failed to fetch') || 
-            fetchError.message?.includes('AbortError') ||
-            fetchError.message?.includes('Failed to send') ||
-            fetchError.message?.includes('Request timed out')) {
-          setConnectionError(true);
-          throw new Error("Connection error: Could not connect to the server.");
-        } else {
-          throw fetchError;
-        }
-      }
-    } catch (error: any) {
-      console.error("Error cancelling match:", error);
+      queryClient.invalidateQueries({ queryKey: ['leave-swap-matches'] });
+    },
+    onError: (error) => {
       toast({
-        title: "Error cancelling match",
-        description: error.message || "Failed to cancel leave swap",
-        variant: "destructive",
+        title: 'Error cancelling match',
+        description: error.message,
+        variant: 'destructive',
       });
-    } finally {
-      setIsCancellingMatch(false);
     }
-  };
+  });
+
+  // Separate active and past matches based on status
+  const activeMatches = leaveSwapMatches?.filter(
+    match => ['pending', 'accepted'].includes(match.match_status)
+  ) || [];
   
-  // Manual function to refresh matches with retry reset
-  const refetchMatches = useCallback(async () => {
-    setRetryCount(0); // Reset retry count on manual refresh
-    await fetchMatches();
-  }, [fetchMatches]);
-  
+  const pastMatches = leaveSwapMatches?.filter(
+    match => ['completed', 'cancelled'].includes(match.match_status)
+  ) || [];
+
   return {
+    leaveSwapMatches,
     activeMatches,
     pastMatches,
     isLoadingMatches,
     matchesError,
-    connectionError,
-    findMatches,
-    isFindingMatches,
-    acceptMatch,
-    isAcceptingMatch,
-    finalizeMatch,
-    isFinalizingMatch,
-    cancelMatch,
-    isCancellingMatch,
-    refetchMatches,
+    findMatches: findMatchesMutation.mutate,
+    isFindingMatches: findMatchesMutation.isPending,
+    acceptMatch: acceptMatchMutation.mutate,
+    isAcceptingMatch: acceptMatchMutation.isPending,
+    finalizeMatch: finalizeMatchMutation.mutate,
+    isFinalizingMatch: finalizeMatchMutation.isPending,
+    cancelMatch: cancelMatchMutation.mutate,
+    isCancellingMatch: cancelMatchMutation.isPending,
+    refetchMatches
   };
 };

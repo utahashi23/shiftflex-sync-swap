@@ -1,20 +1,19 @@
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+// Follow this setup guide to integrate the Supabase Edge Functions with your app:
+// https://supabase.com/docs/guides/functions/getting-started
+
+import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      headers: corsHeaders,
-      status: 204
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -46,88 +45,124 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Check if the match exists first
+    // First, get the match details to obtain user IDs and shift information
     const { data: matchData, error: matchError } = await supabaseAdmin
-      .from('leave_swap_matches')
-      .select('id, status')
+      .from('shift_swap_potential_matches')
+      .select(`
+        id,
+        status,
+        requester_request_id,
+        acceptor_request_id,
+        requester_shift_id,
+        acceptor_shift_id
+      `)
       .eq('id', match_id)
       .single();
-
+    
     if (matchError) {
-      console.error(`Error fetching match: ${matchError.message}`);
-      return new Response(
-        JSON.stringify({ error: `Error fetching match: ${matchError.message}` }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      throw new Error(`Error fetching match: ${matchError.message}`);
     }
 
     if (!matchData) {
-      console.error(`Match with ID ${match_id} not found`);
-      return new Response(
-        JSON.stringify({ error: `Match with ID ${match_id} not found` }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-      );
+      throw new Error('Match not found');
     }
 
-    // Don't attempt to update if already accepted
-    if (matchData.status === 'accepted') {
-      return new Response(
-        JSON.stringify({ success: true, message: "Match already accepted", data: matchData }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
+    console.log(`Found match data:`, matchData);
+
+    // Fetch the request data to get user IDs
+    const requestsPromises = [
+      supabaseAdmin
+        .from('shift_swap_requests')
+        .select('requester_id, requester_shift_id')
+        .eq('id', matchData.requester_request_id)
+        .single(),
+      supabaseAdmin
+        .from('shift_swap_requests')
+        .select('requester_id, requester_shift_id')
+        .eq('id', matchData.acceptor_request_id)
+        .single()
+    ];
+
+    const [requesterRequest, acceptorRequest] = await Promise.all(requestsPromises);
+    
+    if (requesterRequest.error) {
+      throw new Error(`Error fetching requester request: ${requesterRequest.error.message}`);
+    }
+    
+    if (acceptorRequest.error) {
+      throw new Error(`Error fetching acceptor request: ${acceptorRequest.error.message}`);
     }
 
-    console.log(`Found match with status: ${matchData.status}`);
-    console.log(`Updating match status to 'accepted' for match ID: ${match_id}`);
+    const requesterUserId = requesterRequest.data.requester_id;
+    const acceptorUserId = acceptorRequest.data.requester_id;
+    
+    console.log(`Users involved: Requester ID: ${requesterUserId}, Acceptor ID: ${acceptorUserId}`);
+
+    // Fetch users' email addresses
+    const usersPromises = [
+      supabaseAdmin.auth.admin.getUserById(requesterUserId),
+      supabaseAdmin.auth.admin.getUserById(acceptorUserId)
+    ];
+
+    const [requesterUser, acceptorUser] = await Promise.all(usersPromises);
+    
+    if (requesterUser.error) {
+      console.error(`Error fetching requester user: ${requesterUser.error.message}`);
+      // Continue even if we can't get the user's email
+    }
+    
+    if (acceptorUser.error) {
+      console.error(`Error fetching acceptor user: ${acceptorUser.error.message}`);
+      // Continue even if we can't get the user's email
+    }
+
+    const requesterEmail = requesterUser.data?.user?.email;
+    const acceptorEmail = acceptorUser.data?.user?.email;
+    
+    console.log(`User emails: Requester: ${requesterEmail || 'unknown'}, Acceptor: ${acceptorEmail || 'unknown'}`);
 
     // Update match status to "accepted"
     const { data: updateData, error: updateError } = await supabaseAdmin
-      .from('leave_swap_matches')
+      .from('shift_swap_potential_matches')
       .update({ status: 'accepted' })
       .eq('id', match_id)
       .select();
     
     if (updateError) {
-      console.error(`Error updating match: ${updateError.message}`);
-      return new Response(
-        JSON.stringify({ error: `Error updating match: ${updateError.message}` }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      throw new Error(`Error updating match: ${updateError.message}`);
     }
 
-    console.log(`Successfully updated match status to accepted:`, updateData);
+    console.log(`Successfully updated match status to accepted`);
 
-    // Log the update in the function execution log
+    // Send emails using the same format as resend_swap_notification
+    // We'll call the resend_swap_notification function instead of duplicating the email creation logic
     try {
-      await supabaseAdmin
-        .from('function_execution_log')
-        .insert({
-          function_name: 'accept_swap_match',
-          status: 'success',
-          details: `Match ID: ${match_id} status updated to 'accepted'`,
-          user_id: req.headers.get('Authorization')?.split(' ')[1] || null
-        });
-    } catch (logError) {
-      console.error('Error logging function execution:', logError);
-      // Don't throw here, we don't want to fail the whole function if just the logging fails
+      // Call the resend_swap_notification edge function to handle the email sending
+      // This will use the exact same email template and logic
+      const emailResponse = await supabaseAdmin.functions.invoke('resend_swap_notification', {
+        body: { match_id }
+      });
+      
+      if (emailResponse.error) {
+        console.error(`Error sending notification emails: ${emailResponse.error.message}`);
+        // We don't throw here since the primary operation (updating the match) succeeded
+      } else {
+        console.log('Successfully sent notification emails');
+      }
+    } catch (emailError) {
+      console.error('Error sending emails:', emailError);
+      // We don't throw here since the primary operation (updating the match) succeeded
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        data: updateData,
-        message: "Match successfully accepted" 
-      }),
+      JSON.stringify({ success: true, data: updateData }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error) {
     console.error('Error in accept_swap_match:', error);
     return new Response(
-      JSON.stringify({ 
-        success: false,
-        error: error.message || "An unexpected error occurred" 
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      JSON.stringify({ error: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
     );
   }
 });
