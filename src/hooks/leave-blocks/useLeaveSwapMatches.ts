@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { LeaveSwapMatch } from '@/types/leave-blocks';
@@ -52,17 +53,23 @@ export const useLeaveSwapMatches = () => {
         throw error;
       }
       
+      // Add debug output to see what's coming from the database
+      console.log(`Fetched ${data?.length || 0} raw matches from database`);
+      data?.forEach((match, index) => {
+        console.log(`Match ${index+1} (ID: ${match.id}): requester=${match.requester_id}, acceptor=${match.acceptor_id}`);
+      });
+      
       // Now we'll fetch the related data separately for better type safety
       // Get all the leave block IDs we need
-      const leaveBlockIds = data.flatMap(match => [
+      const leaveBlockIds = data?.flatMap(match => [
         match.requester_leave_block_id, 
         match.acceptor_leave_block_id
-      ]);
+      ]) || [];
       
       // Get all the user IDs we need
-      const otherUserIds = data.map(match => 
+      const otherUserIds = data?.map(match => 
         match.requester_id === userId ? match.acceptor_id : match.requester_id
-      );
+      ) || [];
       
       // Fetch leave blocks
       const { data: leaveBlocks, error: leaveBlocksError } = await supabase
@@ -82,19 +89,25 @@ export const useLeaveSwapMatches = () => {
       
       // Create a map for quick lookup
       const leaveBlocksMap = new Map(
-        leaveBlocks.map(block => [block.id, block])
+        leaveBlocks?.map(block => [block.id, block]) || []
       );
       
       const userProfilesMap = new Map(
-        otherUserProfiles.map(profile => [profile.id, profile])
+        otherUserProfiles?.map(profile => [profile.id, profile]) || []
       );
       
       // Transform the data and ensure uniqueness by match_id
+      // This is where we need to improve the deduplication logic
       const matchesMap = new Map();
       
-      data.forEach(match => {
-        // Skip if we've already processed this match
-        if (matchesMap.has(match.id)) return;
+      data?.forEach(match => {
+        const matchId = match.id;
+        
+        // Skip if we've already processed this match ID
+        if (matchesMap.has(matchId)) {
+          console.log(`Skipping duplicate match ID: ${matchId}`);
+          return;
+        }
         
         const isRequester = match.requester_id === userId;
         
@@ -116,8 +129,8 @@ export const useLeaveSwapMatches = () => {
           ? `${otherUserProfile.first_name || ''} ${otherUserProfile.last_name || ''}`.trim() 
           : 'Unknown User';
           
-        matchesMap.set(match.id, {
-          match_id: match.id,
+        const formattedMatch = {
+          match_id: matchId,
           match_status: match.status,
           created_at: match.created_at,
           my_leave_block_id: myLeaveBlockId,
@@ -134,10 +147,18 @@ export const useLeaveSwapMatches = () => {
           is_requester: isRequester,
           my_user_name: myUserName,
           my_employee_id: myEmployeeId || 'N/A'
-        });
+        };
+        
+        console.log(`Adding match to results: ID=${matchId}, Block=${formattedMatch.my_block_number}->${formattedMatch.other_block_number}`);
+        
+        // Add the match to our map using the match ID as the key
+        matchesMap.set(matchId, formattedMatch);
       });
       
-      return Array.from(matchesMap.values()) as LeaveSwapMatch[];
+      const result = Array.from(matchesMap.values()) as LeaveSwapMatch[];
+      console.log(`Returning ${result.length} unique matches after deduplication`);
+      
+      return result;
     }
   });
   

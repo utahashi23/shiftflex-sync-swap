@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { 
   Card, 
@@ -33,6 +34,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
+import { LeaveSwapMatch } from '@/types/leave-blocks';
 
 interface MatchedLeaveSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
@@ -115,7 +117,7 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
     return [...activeMatches, ...pastMatches].find(match => match.match_id === matchId);
   };
   
-  const copyToClipboard = (match) => {
+  const copyToClipboard = (match: LeaveSwapMatch) => {
     // Create a comprehensive formatted text with all swap details
     const swapDetails = `
 LEAVE BLOCK SWAP DETAILS
@@ -147,6 +149,30 @@ Status: ${match.match_status.toUpperCase()}
       });
     });
   };
+
+  // Debug logging to help track down duplicates
+  console.log("Active matches count:", activeMatches?.length || 0);
+  console.log("Active match IDs:", activeMatches?.map(m => m.match_id).join(", "));
+  
+  // Create a Map to prevent duplicate display of matches
+  const uniqueActiveMatches = new Map<string, LeaveSwapMatch>();
+  activeMatches?.forEach(match => {
+    if (!uniqueActiveMatches.has(match.match_id)) {
+      uniqueActiveMatches.set(match.match_id, match);
+    }
+  });
+  
+  const uniquePastMatches = new Map<string, LeaveSwapMatch>();
+  pastMatches?.forEach(match => {
+    if (!uniquePastMatches.has(match.match_id)) {
+      uniquePastMatches.set(match.match_id, match);
+    }
+  });
+  
+  const displayActiveMatches = Array.from(uniqueActiveMatches.values());
+  const displayPastMatches = Array.from(uniquePastMatches.values());
+  
+  console.log("Unique active matches to display:", displayActiveMatches.length);
 
   return (
     <div className="space-y-6">
@@ -203,7 +229,7 @@ Status: ${match.match_status.toUpperCase()}
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />
                   </div>
-                ) : activeMatches.length === 0 ? (
+                ) : displayActiveMatches.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
                     You don't have any active matches. Check back later.
                   </p>
@@ -221,7 +247,7 @@ Status: ${match.match_status.toUpperCase()}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {activeMatches.map(match => (
+                      {displayActiveMatches.map(match => (
                         <TableRow key={match.match_id}>
                           <TableCell className="font-medium">{match.my_block_number}</TableCell>
                           <TableCell>
@@ -322,9 +348,9 @@ Status: ${match.match_status.toUpperCase()}
                                         <div className="flex justify-between items-center">
                                           <h3 className="text-sm font-semibold">Other User Details</h3>
                                           <Button 
-                                            variant="secondary" 
+                                            variant="primary" 
                                             size="sm"
-                                            className="flex items-center gap-1"
+                                            className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white"
                                             onClick={() => copyToClipboard(match)}
                                           >
                                             <Copy className="h-4 w-4" />
@@ -427,7 +453,7 @@ Status: ${match.match_status.toUpperCase()}
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />
                   </div>
-                ) : pastMatches.length === 0 ? (
+                ) : displayPastMatches.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
                     You don't have any past matches.
                   </p>
@@ -445,7 +471,7 @@ Status: ${match.match_status.toUpperCase()}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pastMatches.map(match => (
+                      {displayPastMatches.map(match => (
                         <TableRow key={match.match_id}>
                           <TableCell className="font-medium">{match.my_block_number}</TableCell>
                           <TableCell>
