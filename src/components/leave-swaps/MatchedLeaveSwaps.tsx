@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { 
   Card, 
@@ -284,6 +285,7 @@ Status: ${match.match_status.toUpperCase()}
                                       <Button 
                                         onClick={() => handleAcceptMatch(match.match_id)}
                                         disabled={isAcceptingMatch}
+                                        className="bg-blue-500 hover:bg-blue-600"
                                       >
                                         Accept Swap
                                       </Button>
