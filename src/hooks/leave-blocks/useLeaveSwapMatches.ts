@@ -239,6 +239,42 @@ export const useLeaveSwapMatches = () => {
     }
   });
 
+  // Cancel a leave swap match
+  const cancelMatchMutation = useMutation({
+    mutationFn: async ({ matchId }: { matchId: string }) => {
+      try {
+        // Call our new edge function for canceling swaps
+        const { data, error } = await supabase.functions.invoke('cancel_leave_swap', {
+          body: { match_id: matchId }
+        });
+        
+        if (error || !data.success) {
+          throw new Error(error?.message || data?.error || 'Failed to cancel match');
+        }
+        
+        return data;
+      } catch (err) {
+        console.error("Error cancelling match:", err);
+        throw new Error(err.message || "Failed to cancel match");
+      }
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Match cancelled',
+        description: 'The leave block swap has been returned to pending status.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['leave-swap-matches'] });
+      queryClient.invalidateQueries({ queryKey: ['leave-swap-requests'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error cancelling match',
+        description: error.message || 'Failed to cancel match',
+        variant: 'destructive',
+      });
+    }
+  });
+
   // Finalize a leave swap match
   const finalizeMatchMutation = useMutation({
     mutationFn: async ({ matchId }: { matchId: string }) => {
@@ -286,52 +322,6 @@ export const useLeaveSwapMatches = () => {
     }
   });
 
-  // Cancel a leave swap match
-  const cancelMatchMutation = useMutation({
-    mutationFn: async ({ matchId }: { matchId: string }) => {
-      const { data, error } = await supabase
-        .from('leave_swap_matches')
-        .update({ status: 'cancelled' })
-        .eq('id', matchId)
-        .select();
-      
-      if (error) throw error;
-      
-      // Update related requests back to pending
-      const { data: matchData } = await supabase
-        .from('leave_swap_matches')
-        .select('requester_id, acceptor_id')
-        .eq('id', matchId)
-        .single();
-      
-      if (matchData) {
-        // Update all related requests back to pending
-        await supabase
-          .from('leave_swap_requests')
-          .update({ status: 'pending' })
-          .or(`requester_id.eq.${matchData.requester_id},requester_id.eq.${matchData.acceptor_id}`)
-          .in('status', ['accepted', 'matched']);
-      }
-      
-      return data;
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Match cancelled',
-        description: 'The leave block swap match has been cancelled.',
-      });
-      queryClient.invalidateQueries({ queryKey: ['leave-swap-matches'] });
-      queryClient.invalidateQueries({ queryKey: ['leave-swap-requests'] });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error cancelling match',
-        description: error.message || 'Failed to cancel match',
-        variant: 'destructive',
-      });
-    }
-  });
-
   // Separate active and past matches based on status
   const activeMatches = leaveSwapMatches?.filter(
     match => ['pending', 'accepted'].includes(match.match_status)
@@ -351,10 +341,10 @@ export const useLeaveSwapMatches = () => {
     isFindingMatches: findMatchesMutation.isPending,
     acceptMatch: acceptMatchMutation.mutate,
     isAcceptingMatch: acceptMatchMutation.isPending,
-    finalizeMatch: finalizeMatchMutation.mutate,
-    isFinalizingMatch: finalizeMatchMutation.isPending,
     cancelMatch: cancelMatchMutation.mutate,
     isCancellingMatch: cancelMatchMutation.isPending,
+    finalizeMatch: finalizeMatchMutation.mutate,
+    isFinalizingMatch: finalizeMatchMutation.isPending,
     refetchMatches
   };
 };

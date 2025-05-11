@@ -84,3 +84,9 @@ gcp_jwt_path = "supabase/gcloud.json"
 # Log levels include: debug, info, notice, warning, error, log, fatal, panic.
 # When enabled, logs are directed to stderr and RUST_LOG.
 pgaudit = "debug"
+
+[functions.accept_leave_swap]
+verify_jwt = true
+
+[functions.cancel_leave_swap]
+verify_jwt = true
