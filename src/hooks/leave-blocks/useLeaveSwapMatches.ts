@@ -42,22 +42,19 @@ export const useLeaveSwapMatches = () => {
       
       console.log(`Fetching leave swap matches for user ${user.id}...`);
       
-      // Attempt to call the edge function with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-
       try {
+        // Create a promise that will reject after the timeout
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Request timed out")), 8000);
+        });
+        
+        // Race the actual request against the timeout
         const response = await Promise.race([
           supabase.functions.invoke('get_user_leave_swap_matches', {
-            body: { user_id: user.id },
-            signal: controller.signal
+            body: { user_id: user.id }
           }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Request timed out")), 8000)
-          )
+          timeoutPromise
         ]);
-        
-        clearTimeout(timeoutId);
         
         // @ts-ignore: Type check on response
         const { data, error } = response;
@@ -80,8 +77,6 @@ export const useLeaveSwapMatches = () => {
           setPastMatches([]);
         }
       } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        
         // Check if it's a connection/timeout issue
         if (fetchError.message?.includes('Failed to fetch') || 
             fetchError.message?.includes('AbortError') ||
@@ -151,21 +146,18 @@ export const useLeaveSwapMatches = () => {
       setIsFindingMatches(true);
       setConnectionError(false);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      
       try {
+        // Create a promise that will reject after the timeout
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Request timed out")), 8000);
+        });
+        
         const response = await Promise.race([
           supabase.functions.invoke('find_leave_swap_matches', {
-            body: { user_id: user.id, force_check: true },
-            signal: controller.signal
+            body: { user_id: user.id, force_check: true }
           }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Request timed out")), 8000)
-          )
+          timeoutPromise
         ]);
-        
-        clearTimeout(timeoutId);
         
         // @ts-ignore: Type check on response
         const { data, error } = response;
@@ -180,8 +172,6 @@ export const useLeaveSwapMatches = () => {
         // Refresh the matches to see new ones
         await fetchMatches();
       } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        
         if (fetchError.message?.includes('Failed to fetch') || 
             fetchError.message?.includes('AbortError') ||
             fetchError.message?.includes('Failed to send') ||
@@ -213,21 +203,18 @@ export const useLeaveSwapMatches = () => {
       setConnectionError(false);
       console.log(`Accepting match: ${matchId}`);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      
       try {
+        // Create a promise that will reject after the timeout
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Request timed out")), 8000);
+        });
+        
         const response = await Promise.race([
           supabase.functions.invoke('accept_swap_match', {
-            body: { match_id: matchId },
-            signal: controller.signal
+            body: { match_id: matchId }
           }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Request timed out")), 8000)
-          )
+          timeoutPromise
         ]);
-        
-        clearTimeout(timeoutId);
         
         // @ts-ignore: Type check on response
         const { data, error } = response;
@@ -253,8 +240,6 @@ export const useLeaveSwapMatches = () => {
         // Refresh matches to get the latest data
         await fetchMatches();
       } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        
         if (fetchError.message?.includes('Failed to fetch') || 
             fetchError.message?.includes('AbortError') ||
             fetchError.message?.includes('Failed to send') ||
@@ -285,21 +270,18 @@ export const useLeaveSwapMatches = () => {
       setIsFinalizingMatch(true);
       setConnectionError(false);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      
       try {
+        // Create a promise that will reject after the timeout
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Request timed out")), 8000);
+        });
+        
         const response = await Promise.race([
           supabase.functions.invoke('finalize_swap_match', {
-            body: { match_id: matchId },
-            signal: controller.signal
+            body: { match_id: matchId }
           }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Request timed out")), 8000)
-          )
+          timeoutPromise
         ]);
-        
-        clearTimeout(timeoutId);
         
         // @ts-ignore: Type check on response
         const { data, error } = response;
@@ -322,8 +304,6 @@ export const useLeaveSwapMatches = () => {
         // Refresh matches
         await fetchMatches();
       } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        
         if (fetchError.message?.includes('Failed to fetch') || 
             fetchError.message?.includes('AbortError') ||
             fetchError.message?.includes('Failed to send') ||
@@ -354,21 +334,18 @@ export const useLeaveSwapMatches = () => {
       setIsCancellingMatch(true);
       setConnectionError(false);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      
       try {
+        // Create a promise that will reject after the timeout
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Request timed out")), 8000);
+        });
+        
         const response = await Promise.race([
           supabase.functions.invoke('cancel_swap_match', {
-            body: { match_id: matchId },
-            signal: controller.signal
+            body: { match_id: matchId }
           }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Request timed out")), 8000)
-          )
+          timeoutPromise
         ]);
-        
-        clearTimeout(timeoutId);
         
         // @ts-ignore: Type check on response
         const { data, error } = response;
@@ -391,8 +368,6 @@ export const useLeaveSwapMatches = () => {
         // Refresh matches
         await fetchMatches();
       } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        
         if (fetchError.message?.includes('Failed to fetch') || 
             fetchError.message?.includes('AbortError') ||
             fetchError.message?.includes('Failed to send') ||
