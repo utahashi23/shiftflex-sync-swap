@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -31,10 +31,22 @@ import { useLeaveSwapRequests } from '@/hooks/leave-blocks/useLeaveSwapRequests'
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const RequestSwap = () => {
   const [myLeaveBlockId, setMyLeaveBlockId] = useState<string>('');
   const [requestedLeaveBlockId, setRequestedLeaveBlockId] = useState<string>('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
   
   const {
     allLeaveBlocks,
@@ -47,7 +59,6 @@ const RequestSwap = () => {
   const {
     pendingRequests,
     matchedRequests,
-    completedRequests,
     isLoadingRequests,
     requestsError,
     createRequest,
@@ -70,20 +81,26 @@ const RequestSwap = () => {
   };
   
   const handleDeleteRequest = (requestId: string) => {
-    deleteRequest({ requestId });
+    setRequestToDelete(requestId);
+    setDeleteDialogOpen(true);
   };
   
-  // Filter out leave blocks that are already in pending requests
+  const confirmDeleteRequest = () => {
+    if (requestToDelete) {
+      deleteRequest({ requestId: requestToDelete });
+    }
+    setDeleteDialogOpen(false);
+    setRequestToDelete(null);
+  };
+  
+  // Filter out leave blocks that are already in pending or matched requests
   const availableMyLeaveBlocks = userLeaveBlocks?.filter(block => 
     !pendingRequests?.some(request => 
       request.requester_leave_block_id === block.leave_block_id
+    ) && !matchedRequests?.some(request => 
+      request.requester_leave_block_id === block.leave_block_id
     )
   );
-  
-  // Get requested leave block details for display
-  const getLeaveBlockDetails = (blockId: string) => {
-    return allLeaveBlocks?.find(block => block.id === blockId);
-  };
   
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -133,7 +150,7 @@ const RequestSwap = () => {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : pendingRequests?.length === 0 && matchedRequests?.length === 0 ? (
+          ) : [...pendingRequests, ...matchedRequests].length === 0 ? (
             <p className="text-center text-muted-foreground py-4">
               You don't have any active swap requests. Create a new request below.
             </p>
@@ -153,26 +170,26 @@ const RequestSwap = () => {
               <TableBody>
                 {[...pendingRequests, ...matchedRequests].map(request => (
                   <TableRow key={request.id}>
-                    <TableCell className="font-medium">{request.requester_block_number}</TableCell>
-                    <TableCell>
-                      {formatDate(request.requester_start_date)} - {formatDate(request.requester_end_date)}
+                    <TableCell className="font-medium">
+                      {request.requester_leave_block?.block_number}
                     </TableCell>
-                    <TableCell>{request.requested_block_number}</TableCell>
                     <TableCell>
-                      {formatDate(request.requested_start_date)} - {formatDate(request.requested_end_date)}
+                      {formatDate(request.requester_leave_block?.start_date)} - {formatDate(request.requester_leave_block?.end_date)}
+                    </TableCell>
+                    <TableCell>{request.requested_leave_block?.block_number}</TableCell>
+                    <TableCell>
+                      {formatDate(request.requested_leave_block?.start_date)} - {formatDate(request.requested_leave_block?.end_date)}
                     </TableCell>
                     <TableCell>{getStatusBadge(request.status)}</TableCell>
                     <TableCell>
-                      {request.status === 'pending' && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleDeleteRequest(request.id)}
-                          disabled={isDeletingRequest}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleDeleteRequest(request.id)}
+                        disabled={isDeletingRequest}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -253,6 +270,29 @@ const RequestSwap = () => {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Swap Request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this swap request? 
+              {matchedRequests?.some(request => request.id === requestToDelete) && 
+                " This will also cancel any associated match."
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteRequest}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -22,12 +22,36 @@ export const useLeaveSwapMatches = () => {
       
       if (!userId) throw new Error('User not authenticated');
       
-      const { data, error } = await supabase.rpc('get_user_leave_swap_matches', {
+      // Get the user's profile info first
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, employee_id')
+        .eq('id', userId)
+        .single();
+      
+      if (profileError) throw profileError;
+      
+      const myUserName = `${profileData.first_name} ${profileData.last_name}`;
+      const myEmployeeId = profileData.employee_id;
+      
+      // Now get the matches with extended profile information
+      const { data, error } = await supabase.rpc('get_user_leave_swap_matches_with_employee_id', {
         p_user_id: userId
       });
       
-      if (error) throw error;
-      return data as LeaveSwapMatch[];
+      if (error) {
+        console.error("Error fetching leave swap matches:", error);
+        throw error;
+      }
+      
+      // Add the user's own info to each match
+      const matchesWithMyInfo = (data || []).map(match => ({
+        ...match,
+        my_user_name: myUserName,
+        my_employee_id: myEmployeeId,
+      }));
+      
+      return matchesWithMyInfo as LeaveSwapMatch[];
     }
   });
   

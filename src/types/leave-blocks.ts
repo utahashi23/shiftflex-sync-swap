@@ -24,14 +24,10 @@ export interface LeaveSwapRequest {
   requester_id: string;
   requester_leave_block_id: string;
   requested_leave_block_id: string;
-  requester_block_number: number;
-  requester_start_date: string;
-  requester_end_date: string;
-  requested_block_number: number;
-  requested_start_date: string;
-  requested_end_date: string;
   status: string;
   created_at: string;
+  requester_leave_block?: LeaveBlock;
+  requested_leave_block?: LeaveBlock;
 }
 
 export interface LeaveSwapMatch {
@@ -48,5 +44,8 @@ export interface LeaveSwapMatch {
   other_end_date: string;
   other_user_id: string;
   other_user_name: string;
+  other_employee_id: string;
   is_requester: boolean;
+  my_user_name: string;
+  my_employee_id: string;
 }

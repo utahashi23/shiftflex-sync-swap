@@ -27,12 +27,13 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Calendar, RefreshCw, Check, X, Mail, Search } from 'lucide-react';
+import { Calendar, RefreshCw, Check, X, Copy, Search } from 'lucide-react';
 import { useLeaveSwapMatches } from '@/hooks/leave-blocks/useLeaveSwapMatches';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from '@/hooks/use-toast';
 
 interface MatchedLeaveSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
@@ -41,6 +42,7 @@ interface MatchedLeaveSwapsProps {
 const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
   const [activeTab, setActiveTab] = useState('active');
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
+  const { toast } = useToast();
   
   const {
     activeMatches,
@@ -113,6 +115,22 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
   const getMatchedSwapDetails = (matchId: string) => {
     return [...activeMatches, ...pastMatches].find(match => match.match_id === matchId);
   };
+  
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({
+        title: "Copied to clipboard",
+        description: "The information has been copied to your clipboard.",
+      });
+    }).catch(err => {
+      console.error('Could not copy text: ', err);
+      toast({
+        title: "Copy failed",
+        description: "Failed to copy text to clipboard.",
+        variant: "destructive",
+      });
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -179,9 +197,9 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>My Block</TableHead>
-                        <TableHead>My Period</TableHead>
-                        <TableHead>Their Block</TableHead>
-                        <TableHead>Their Period</TableHead>
+                        <TableHead>Period</TableHead>
+                        <TableHead>Other Block</TableHead>
+                        <TableHead>Other User</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -195,7 +213,7 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
                           </TableCell>
                           <TableCell>{match.other_block_number}</TableCell>
                           <TableCell>
-                            {formatDate(match.other_start_date)} - {formatDate(match.other_end_date)}
+                            {match.other_user_name} <span className="text-xs text-gray-500">({match.other_employee_id || 'N/A'})</span>
                           </TableCell>
                           <TableCell>{getStatusBadge(match.match_status)}</TableCell>
                           <TableCell>
@@ -219,10 +237,27 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
                                         Are you sure you want to accept this leave swap match?
                                       </DialogDescription>
                                     </DialogHeader>
-                                    <div className="py-4">
-                                      <p><strong>Your block:</strong> {match.my_block_number} ({formatDate(match.my_start_date)} - {formatDate(match.my_end_date)})</p>
-                                      <p><strong>Their block:</strong> {match.other_block_number} ({formatDate(match.other_start_date)} - {formatDate(match.other_end_date)})</p>
-                                      <p><strong>Other user:</strong> {match.other_user_name}</p>
+                                    <div className="py-4 space-y-4">
+                                      <div className="space-y-2 border-b pb-2">
+                                        <h3 className="text-sm font-semibold">Your Details</h3>
+                                        <p><strong>Name:</strong> {match.my_user_name} <span className="text-xs text-gray-500">({match.my_employee_id || 'N/A'})</span></p>
+                                        <p><strong>Block:</strong> {match.my_block_number} ({formatDate(match.my_start_date)} - {formatDate(match.my_end_date)})</p>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <div className="flex justify-between">
+                                          <h3 className="text-sm font-semibold">Other User Details</h3>
+                                          <Button 
+                                            variant="ghost" 
+                                            size="icon"
+                                            onClick={() => copyToClipboard(`${match.other_user_name} (${match.other_employee_id || 'N/A'}) - Block ${match.other_block_number}`)}
+                                          >
+                                            <Copy className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                        <p><strong>Name:</strong> {match.other_user_name} <span className="text-xs text-gray-500">({match.other_employee_id || 'N/A'})</span></p>
+                                        <p><strong>Block:</strong> {match.other_block_number} ({formatDate(match.other_start_date)} - {formatDate(match.other_end_date)})</p>
+                                      </div>
                                     </div>
                                     <DialogFooter>
                                       <DialogClose asChild>
@@ -258,10 +293,28 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
                                         Are you sure you want to finalize this leave swap? This action cannot be undone.
                                       </DialogDescription>
                                     </DialogHeader>
-                                    <div className="py-4">
-                                      <p><strong>Your block:</strong> {match.my_block_number} ({formatDate(match.my_start_date)} - {formatDate(match.my_end_date)})</p>
-                                      <p><strong>Their block:</strong> {match.other_block_number} ({formatDate(match.other_start_date)} - {formatDate(match.other_end_date)})</p>
-                                      <p><strong>Other user:</strong> {match.other_user_name}</p>
+                                    <div className="py-4 space-y-4">
+                                      <div className="space-y-2 border-b pb-2">
+                                        <h3 className="text-sm font-semibold">Your Details</h3>
+                                        <p><strong>Name:</strong> {match.my_user_name} <span className="text-xs text-gray-500">({match.my_employee_id || 'N/A'})</span></p>
+                                        <p><strong>Block:</strong> {match.my_block_number} ({formatDate(match.my_start_date)} - {formatDate(match.my_end_date)})</p>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <div className="flex justify-between">
+                                          <h3 className="text-sm font-semibold">Other User Details</h3>
+                                          <Button 
+                                            variant="ghost" 
+                                            size="icon"
+                                            onClick={() => copyToClipboard(`${match.other_user_name} (${match.other_employee_id || 'N/A'}) - Block ${match.other_block_number}`)}
+                                          >
+                                            <Copy className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                        <p><strong>Name:</strong> {match.other_user_name} <span className="text-xs text-gray-500">({match.other_employee_id || 'N/A'})</span></p>
+                                        <p><strong>Block:</strong> {match.other_block_number} ({formatDate(match.other_start_date)} - {formatDate(match.other_end_date)})</p>
+                                      </div>
+                                      
                                       <p className="mt-2 text-sm text-muted-foreground">
                                         Make sure you have received management approval before finalizing this swap.
                                       </p>
@@ -281,42 +334,52 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
                                 </Dialog>
                               )}
                               
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon"
-                                    onClick={() => setSelectedMatchId(match.match_id)}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Cancel Leave Swap</DialogTitle>
-                                    <DialogDescription>
-                                      Are you sure you want to cancel this leave swap match?
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <div className="py-4">
-                                    <p><strong>Your block:</strong> {match.my_block_number} ({formatDate(match.my_start_date)} - {formatDate(match.my_end_date)})</p>
-                                    <p><strong>Their block:</strong> {match.other_block_number} ({formatDate(match.other_start_date)} - {formatDate(match.other_end_date)})</p>
-                                    <p><strong>Other user:</strong> {match.other_user_name}</p>
-                                  </div>
-                                  <DialogFooter>
-                                    <DialogClose asChild>
-                                      <Button variant="outline">Keep Match</Button>
-                                    </DialogClose>
+                              {match.match_status !== 'completed' && (
+                                <Dialog>
+                                  <DialogTrigger asChild>
                                     <Button 
-                                      variant="destructive"
-                                      onClick={() => handleCancelMatch(match.match_id)}
-                                      disabled={isCancellingMatch}
+                                      variant="ghost" 
+                                      size="icon"
+                                      onClick={() => setSelectedMatchId(match.match_id)}
                                     >
-                                      Cancel Match
+                                      <X className="h-4 w-4" />
                                     </Button>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Cancel Leave Swap</DialogTitle>
+                                      <DialogDescription>
+                                        Are you sure you want to cancel this leave swap match?
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="py-4 space-y-4">
+                                      <div className="space-y-2 border-b pb-2">
+                                        <h3 className="text-sm font-semibold">Your Details</h3>
+                                        <p><strong>Name:</strong> {match.my_user_name} <span className="text-xs text-gray-500">({match.my_employee_id || 'N/A'})</span></p>
+                                        <p><strong>Block:</strong> {match.my_block_number} ({formatDate(match.my_start_date)} - {formatDate(match.my_end_date)})</p>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <h3 className="text-sm font-semibold">Other User Details</h3>
+                                        <p><strong>Name:</strong> {match.other_user_name} <span className="text-xs text-gray-500">({match.other_employee_id || 'N/A'})</span></p>
+                                        <p><strong>Block:</strong> {match.other_block_number} ({formatDate(match.other_start_date)} - {formatDate(match.other_end_date)})</p>
+                                      </div>
+                                    </div>
+                                    <DialogFooter>
+                                      <DialogClose asChild>
+                                        <Button variant="outline">Keep Match</Button>
+                                      </DialogClose>
+                                      <Button 
+                                        variant="destructive"
+                                        onClick={() => handleCancelMatch(match.match_id)}
+                                        disabled={isCancellingMatch}
+                                      >
+                                        Cancel Match
+                                      </Button>
+                                    </DialogFooter>
+                                  </DialogContent>
+                                </Dialog>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -343,9 +406,9 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>My Block</TableHead>
-                        <TableHead>My Period</TableHead>
+                        <TableHead>Period</TableHead>
                         <TableHead>Their Block</TableHead>
-                        <TableHead>Their Period</TableHead>
+                        <TableHead>Other User</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Completed On</TableHead>
                       </TableRow>
@@ -359,7 +422,7 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
                           </TableCell>
                           <TableCell>{match.other_block_number}</TableCell>
                           <TableCell>
-                            {formatDate(match.other_start_date)} - {formatDate(match.other_end_date)}
+                            {match.other_user_name} <span className="text-xs text-gray-500">({match.other_employee_id || 'N/A'})</span>
                           </TableCell>
                           <TableCell>{getStatusBadge(match.match_status)}</TableCell>
                           <TableCell>{formatDate(match.created_at)}</TableCell>
