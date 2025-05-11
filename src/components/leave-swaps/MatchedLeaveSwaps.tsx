@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { 
   Card, 
@@ -70,8 +69,8 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
     if (!user) return matches;
     
     // Filter to just show matches where the current user is the requester
-    // Using the correct property from LeaveSwapMatch type
-    return matches.filter(match => match.requester_id === user.id);
+    // Looking at the LeaveSwapMatch type, we should use the is_requester property
+    return matches.filter(match => match.is_requester);
   };
   
   // Apply user filtering first, then deduplicate
