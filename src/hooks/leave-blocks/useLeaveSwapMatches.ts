@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '../use-toast';
@@ -40,7 +40,7 @@ export const useLeaveSwapMatches = () => {
     }
   }, [matchesError, retryCount]);
   
-  const fetchMatches = async () => {
+  const fetchMatches = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -50,58 +50,64 @@ export const useLeaveSwapMatches = () => {
       
       console.log(`Fetching leave swap matches for user ${user.id}...`);
       
-      // Try to simulate data when the connection fails (for development/testing)
-      let data;
-      let error;
-      
       try {
         // Call the edge function to get matches
         const response = await supabase.functions.invoke('get_user_leave_swap_matches', {
-          body: { user_id: user.id }
+          body: { user_id: user.id },
+          headers: {
+            "Content-Type": "application/json"
+          }
         });
         
-        data = response.data;
-        error = response.error;
+        const { data, error } = response;
+        
+        if (error) {
+          console.error("Error from Supabase function:", error);
+          throw error;
+        }
+        
+        if (data) {
+          console.log("Received matches data:", data);
+          
+          // Process active vs past matches
+          const active = data.filter((match: LeaveSwapMatch) => 
+            match.match_status === 'pending' || match.match_status === 'accepted');
+          
+          const past = data.filter((match: LeaveSwapMatch) => 
+            match.match_status === 'completed' || match.match_status === 'cancelled');
+          
+          console.log(`Processed ${active.length} active matches and ${past.length} past matches`);
+          
+          setActiveMatches(active);
+          setPastMatches(past);
+          // Reset retry count on successful fetch
+          setRetryCount(0);
+        } else {
+          console.log("No match data returned from function");
+          setActiveMatches([]);
+          setPastMatches([]);
+        }
       } catch (fetchError: any) {
         // Check if it's a connection issue
-        if (fetchError.message?.includes('Failed to send a request to the Edge Function')) {
+        if (fetchError.message?.includes('Failed to send a request') || 
+            fetchError.message?.includes('Failed to fetch')) {
           setConnectionError(true);
           console.warn('Connection to Supabase edge functions failed. Using demo data instead.');
           
           // Mock empty data for now - we could add demo data here if needed
-          data = [];
-          error = null;
+          setActiveMatches([]);
+          setPastMatches([]);
+          
+          // Show toast for connection error
+          toast({
+            title: "Connection Error",
+            description: "Could not connect to the server. Please check your internet connection and try again.",
+            variant: "destructive",
+          });
         } else {
           // Re-throw other errors
           throw fetchError;
         }
-      }
-      
-      if (error) {
-        console.error("Error from Supabase function:", error);
-        throw error;
-      }
-      
-      if (data) {
-        console.log("Received matches data:", data);
-        
-        // Process active vs past matches
-        const active = data.filter((match: LeaveSwapMatch) => 
-          match.match_status === 'pending' || match.match_status === 'accepted');
-        
-        const past = data.filter((match: LeaveSwapMatch) => 
-          match.match_status === 'completed' || match.match_status === 'cancelled');
-        
-        console.log(`Processed ${active.length} active matches and ${past.length} past matches`);
-        
-        setActiveMatches(active);
-        setPastMatches(past);
-        // Reset retry count on successful fetch
-        setRetryCount(0);
-      } else {
-        console.log("No match data returned from function");
-        setActiveMatches([]);
-        setPastMatches([]);
       }
     } catch (error: any) {
       console.error("Error fetching matches:", error);
@@ -118,7 +124,7 @@ export const useLeaveSwapMatches = () => {
     } finally {
       setIsLoadingMatches(false);
     }
-  };
+  }, [user, connectionError]);
   
   const findMatches = async () => {
     if (!user) return;
@@ -130,7 +136,10 @@ export const useLeaveSwapMatches = () => {
       
       try {
         const { data, error } = await supabase.functions.invoke('find_leave_swap_matches', {
-          body: { user_id: user.id, force_check: true }
+          body: { user_id: user.id, force_check: true },
+          headers: {
+            "Content-Type": "application/json"
+          }
         });
         
         if (error) {
@@ -146,7 +155,8 @@ export const useLeaveSwapMatches = () => {
         });
       } catch (fetchError: any) {
         // Handle connection errors specially
-        if (fetchError.message?.includes('Failed to send a request to the Edge Function')) {
+        if (fetchError.message?.includes('Failed to send a request') || 
+            fetchError.message?.includes('Failed to fetch')) {
           setConnectionError(true);
           toast({
             title: "Connection Error",
@@ -182,7 +192,10 @@ export const useLeaveSwapMatches = () => {
       
       try {
         const { data, error } = await supabase.functions.invoke('accept_swap_match', {
-          body: { match_id: matchId }
+          body: { match_id: matchId },
+          headers: {
+            "Content-Type": "application/json"
+          }
         });
         
         if (error) {
@@ -207,7 +220,8 @@ export const useLeaveSwapMatches = () => {
         );
       } catch (fetchError: any) {
         // Handle connection errors specially
-        if (fetchError.message?.includes('Failed to send a request to the Edge Function')) {
+        if (fetchError.message?.includes('Failed to send a request') || 
+            fetchError.message?.includes('Failed to fetch')) {
           setConnectionError(true);
           toast({
             title: "Connection Error",
@@ -353,10 +367,10 @@ export const useLeaveSwapMatches = () => {
   };
   
   // Manual function to refresh matches
-  const refetchMatches = async () => {
+  const refetchMatches = useCallback(async () => {
     setRetryCount(0); // Reset retry count on manual refresh
     await fetchMatches();
-  };
+  }, [fetchMatches]);
   
   return {
     activeMatches,
@@ -368,10 +382,11 @@ export const useLeaveSwapMatches = () => {
     isFindingMatches,
     acceptMatch,
     isAcceptingMatch,
-    finalizeMatch,
+    finalizeMatch: finalizeMatch,
     isFinalizingMatch,
-    cancelMatch,
+    cancelMatch: cancelMatch,
     isCancellingMatch,
     refetchMatches,
   };
 };
+

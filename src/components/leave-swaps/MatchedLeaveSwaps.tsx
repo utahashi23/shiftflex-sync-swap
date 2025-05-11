@@ -163,7 +163,7 @@ Status: ${match.match_status.toUpperCase()}
                 variant="outline" 
                 size="sm" 
                 onClick={handleFindMatches}
-                disabled={isFindingMatches || connectionError}
+                disabled={isFindingMatches || connectionError || isLoadingMatches}
               >
                 <Search className={`h-4 w-4 mr-2 ${isFindingMatches ? 'animate-spin' : ''}`} />
                 Find Matches
@@ -182,11 +182,16 @@ Status: ${match.match_status.toUpperCase()}
         </CardHeader>
         <CardContent>
           {connectionError ? (
-            <Alert variant="destructive">
-              <WifiOff className="h-4 w-4" />
+            <Alert variant="destructive" className="mb-4">
+              <WifiOff className="h-4 w-4 mr-2" />
               <AlertTitle>Connection Error</AlertTitle>
-              <AlertDescription className="space-y-2">
-                <p>Unable to connect to the server. Please check your internet connection and try again.</p>
+              <AlertDescription className="space-y-4">
+                <p>Unable to connect to the server. This could be due to:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Internet connection issues</li>
+                  <li>Server maintenance</li>
+                  <li>Temporary service disruption</li>
+                </ul>
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -200,8 +205,16 @@ Status: ${match.match_status.toUpperCase()}
           ) : matchesError ? (
             <Alert variant="destructive">
               <AlertTitle>Error loading matches</AlertTitle>
-              <AlertDescription>
-                {matchesError.message}
+              <AlertDescription className="space-y-2">
+                <p>{matchesError.message}</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRefresh}
+                  className="mt-2"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" /> Try Again
+                </Button>
               </AlertDescription>
             </Alert>
           ) : (

@@ -1,16 +1,26 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
+    });
   }
 
   try {
-    const { admin_secret } = await req.json();
+    const { user_id, force_check } = await req.json();
+    
+    console.log(`Processing find_leave_swap_matches for user ID: ${user_id}, force check: ${force_check}`);
     
     // Create a Supabase client with the admin key for RLS bypass
     const supabase = createClient(
@@ -25,7 +35,16 @@ serve(async (req) => {
 
     if (matchesError) {
       console.error("Error finding matches:", matchesError);
-      throw matchesError;
+      return new Response(
+        JSON.stringify({ success: false, error: matchesError.message }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
     }
 
     console.log(`Found ${matches.length} potential matches`);
@@ -65,6 +84,7 @@ serve(async (req) => {
         matches_found: matches.length,
         matches_created: createdMatches.length,
         created_matches: createdMatches,
+        message: `Found ${matches.length} potential matches, created ${createdMatches.length} new matches.`
       }),
       {
         headers: {

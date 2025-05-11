@@ -1,19 +1,20 @@
 
-// Follow this setup guide to integrate the Supabase Edge Functions with your app:
-// https://supabase.com/docs/guides/functions/getting-started
-
 import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
+    });
   }
 
   try {
@@ -54,12 +55,18 @@ serve(async (req) => {
 
     if (matchError) {
       console.error(`Error fetching match: ${matchError.message}`);
-      throw new Error(`Error fetching match: ${matchError.message}`);
+      return new Response(
+        JSON.stringify({ error: `Error fetching match: ${matchError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
 
     if (!matchData) {
       console.error(`Match with ID ${match_id} not found`);
-      throw new Error(`Match with ID ${match_id} not found`);
+      return new Response(
+        JSON.stringify({ error: `Match with ID ${match_id} not found` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      );
     }
 
     console.log(`Found match with status: ${matchData.status}`);
@@ -74,7 +81,10 @@ serve(async (req) => {
     
     if (updateError) {
       console.error(`Error updating match: ${updateError.message}`);
-      throw new Error(`Error updating match: ${updateError.message}`);
+      return new Response(
+        JSON.stringify({ error: `Error updating match: ${updateError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
 
     console.log(`Successfully updated match status to accepted:`, updateData);
@@ -102,7 +112,7 @@ serve(async (req) => {
     console.error('Error in accept_swap_match:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
