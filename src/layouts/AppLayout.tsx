@@ -23,6 +23,7 @@ const navigation = [
   { name: 'Roster', href: '/calendar', icon: CalendarDays, requiresAuth: true },
   { name: 'My Shift Swaps', href: '/shifts', icon: Calendar, requiresAuth: true },
   { name: 'Browse Swaps', href: '/swaps-list', icon: LayoutList, requiresAuth: true }, 
+  { name: 'Leave Swaps', href: '/leave-swaps', icon: Calendar, requiresAuth: true },
   { name: 'Roadmap', href: '/roadmap', icon: Clock, requiresAuth: false },
   { name: 'FAQ', href: '/faq', icon: FileQuestion, requiresAuth: false },
   { name: 'Settings', href: '/settings', icon: Settings, requiresAuth: true },

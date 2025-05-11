@@ -9,6 +9,126 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      leave_blocks: {
+        Row: {
+          block_number: number
+          created_at: string
+          end_date: string
+          id: string
+          start_date: string
+          status: string
+        }
+        Insert: {
+          block_number: number
+          created_at?: string
+          end_date: string
+          id?: string
+          start_date: string
+          status?: string
+        }
+        Update: {
+          block_number?: number
+          created_at?: string
+          end_date?: string
+          id?: string
+          start_date?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      leave_swap_matches: {
+        Row: {
+          acceptor_id: string
+          acceptor_leave_block_id: string
+          created_at: string
+          id: string
+          requester_id: string
+          requester_leave_block_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          acceptor_id: string
+          acceptor_leave_block_id: string
+          created_at?: string
+          id?: string
+          requester_id: string
+          requester_leave_block_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          acceptor_id?: string
+          acceptor_leave_block_id?: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          requester_leave_block_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_swap_matches_acceptor_leave_block_id_fkey"
+            columns: ["acceptor_leave_block_id"]
+            isOneToOne: false
+            referencedRelation: "leave_blocks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_swap_matches_requester_leave_block_id_fkey"
+            columns: ["requester_leave_block_id"]
+            isOneToOne: false
+            referencedRelation: "leave_blocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_swap_requests: {
+        Row: {
+          created_at: string
+          id: string
+          requested_leave_block_id: string
+          requester_id: string
+          requester_leave_block_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          requested_leave_block_id: string
+          requester_id: string
+          requester_leave_block_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          requested_leave_block_id?: string
+          requester_id?: string
+          requester_leave_block_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_swap_requests_requested_leave_block_id_fkey"
+            columns: ["requested_leave_block_id"]
+            isOneToOne: false
+            referencedRelation: "leave_blocks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_swap_requests_requester_leave_block_id_fkey"
+            columns: ["requester_leave_block_id"]
+            isOneToOne: false
+            referencedRelation: "leave_blocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -299,6 +419,41 @@ export type Database = {
         }
         Relationships: []
       }
+      user_leave_blocks: {
+        Row: {
+          created_at: string
+          id: string
+          leave_block_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          leave_block_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          leave_block_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_leave_blocks_leave_block_id_fkey"
+            columns: ["leave_block_id"]
+            isOneToOne: false
+            referencedRelation: "leave_blocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -335,6 +490,15 @@ export type Database = {
           acceptor_request_id: string
         }[]
       }
+      create_leave_swap_match: {
+        Args: {
+          p_requester_id: string
+          p_acceptor_id: string
+          p_requester_leave_block_id: string
+          p_acceptor_leave_block_id: string
+        }
+        Returns: string
+      }
       create_swap_request_safe: {
         Args: { p_requester_shift_id: string; p_status?: string }
         Returns: string
@@ -350,6 +514,45 @@ export type Database = {
       delete_swap_request_safe: {
         Args: { p_request_id: string; p_user_id: string }
         Returns: Json
+      }
+      find_leave_swap_matches: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          requester1_id: string
+          requester2_id: string
+          requester1_leave_block_id: string
+          requester2_leave_block_id: string
+          requester1_block_number: number
+          requester2_block_number: number
+        }[]
+      }
+      get_all_leave_blocks: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          block_number: number
+          created_at: string
+          end_date: string
+          id: string
+          start_date: string
+          status: string
+        }[]
+      }
+      get_all_leave_swap_requests: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          requester_id: string
+          requester_leave_block_id: string
+          requested_leave_block_id: string
+          requester_block_number: number
+          requester_start_date: string
+          requester_end_date: string
+          requested_block_number: number
+          requested_start_date: string
+          requested_end_date: string
+          status: string
+          created_at: string
+        }[]
       }
       get_all_preferred_dates: {
         Args: Record<PropertyKey, never>
@@ -435,6 +638,38 @@ export type Database = {
           requester_first_name: string
           requester_last_name: string
           requester_employee_id: string
+        }[]
+      }
+      get_user_leave_blocks: {
+        Args: { p_user_id: string }
+        Returns: {
+          id: string
+          user_id: string
+          leave_block_id: string
+          block_number: number
+          start_date: string
+          end_date: string
+          status: string
+          created_at: string
+        }[]
+      }
+      get_user_leave_swap_matches: {
+        Args: { p_user_id: string }
+        Returns: {
+          match_id: string
+          match_status: string
+          created_at: string
+          my_leave_block_id: string
+          my_block_number: number
+          my_start_date: string
+          my_end_date: string
+          other_leave_block_id: string
+          other_block_number: number
+          other_start_date: string
+          other_end_date: string
+          other_user_id: string
+          other_user_name: string
+          is_requester: boolean
         }[]
       }
       get_user_matches_with_rls: {

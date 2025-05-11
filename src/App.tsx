@@ -14,6 +14,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import ShiftSwaps from "./pages/ShiftSwaps";
 import SwapsList from "./pages/SwapsList";
+import LeaveSwaps from "./pages/LeaveSwaps";
 import CalendarManagement from "./pages/CalendarManagement";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/shifts" element={<ShiftSwaps />} />
             <Route path="/swaps-list" element={<SwapsList />} />
+            <Route path="/leave-swaps" element={<LeaveSwaps />} />
             <Route path="/calendar" element={<CalendarManagement />} /> {/* Roster page */}
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="/faq" element={<FAQ />} />
