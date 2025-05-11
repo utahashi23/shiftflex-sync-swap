@@ -34,7 +34,8 @@ export const useLeaveSwapMatches = () => {
       const myUserName = `${profileData.first_name} ${profileData.last_name}`;
       const myEmployeeId = profileData.employee_id;
       
-      // Fetch matches using a simpler query approach
+      // Use a more precise query to avoid duplicates
+      // Only fetch matches where the current user is either requester OR acceptor, but not both sides of the same match
       const { data, error } = await supabase
         .from('leave_swap_matches')
         .select(`
@@ -46,7 +47,8 @@ export const useLeaveSwapMatches = () => {
           requester_leave_block_id,
           acceptor_leave_block_id
         `)
-        .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`);
+        .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`)
+        .order('created_at', { ascending: false });
       
       if (error) {
         console.error("Error fetching leave swap matches:", error);
@@ -96,8 +98,18 @@ export const useLeaveSwapMatches = () => {
         otherUserProfiles.map(profile => [profile.id, profile])
       );
       
+      // Track processed match IDs to avoid duplicates
+      const processedMatchIds = new Set();
+      const processedMatches = [];
+      
       // Process each match
-      const processedMatches = data.map(match => {
+      for (const match of data) {
+        // Skip if we've already processed this match
+        if (processedMatchIds.has(match.id)) continue;
+        
+        // Mark this match as processed
+        processedMatchIds.add(match.id);
+        
         // Determine if this user is the requester
         const isRequester = match.requester_id === userId;
         
@@ -119,8 +131,8 @@ export const useLeaveSwapMatches = () => {
           ? `${otherUserProfile.first_name || ''} ${otherUserProfile.last_name || ''}`.trim() 
           : 'Unknown User';
           
-        // Return the formatted match data
-        return {
+        // Add the formatted match data
+        processedMatches.push({
           match_id: match.id,
           match_status: match.status,
           created_at: match.created_at,
@@ -138,19 +150,11 @@ export const useLeaveSwapMatches = () => {
           is_requester: isRequester,
           my_user_name: myUserName,
           my_employee_id: myEmployeeId || 'N/A'
-        };
-      });
-
-      // Use a Map to deduplicate matches by ID
-      const uniqueMatchesMap = new Map();
-      processedMatches.forEach(match => {
-        uniqueMatchesMap.set(match.match_id, match);
-      });
+        });
+      }
       
-      const uniqueMatches = Array.from(uniqueMatchesMap.values());
-      
-      console.log(`Processed ${uniqueMatches.length} unique matches (deduplicated from ${processedMatches.length})`);
-      return uniqueMatches as LeaveSwapMatch[];
+      console.log(`Processed ${processedMatches.length} unique matches`);
+      return processedMatches as LeaveSwapMatch[];
     }
   });
   
