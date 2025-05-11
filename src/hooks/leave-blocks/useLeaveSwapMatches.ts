@@ -31,6 +31,39 @@ export const useLeaveSwapMatches = () => {
     }
   });
   
+  // Find potential leave block swap matches
+  const findMatchesMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('find_leave_swap_matches', {
+        body: { admin_secret: true }
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.matches_created > 0) {
+        toast({
+          title: 'Matches found!',
+          description: `Found ${data.matches_created} potential leave block swap matches.`,
+        });
+        queryClient.invalidateQueries({ queryKey: ['leave-swap-matches'] });
+      } else {
+        toast({
+          title: 'No matches found',
+          description: 'No potential leave block swap matches were found at this time.',
+        });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error finding matches',
+        description: error.message || 'An error occurred while finding matches.',
+        variant: 'destructive',
+      });
+    }
+  });
+  
   // Accept a leave swap match
   const acceptMatchMutation = useMutation({
     mutationFn: async ({ matchId }: { matchId: string }) => {
@@ -131,6 +164,8 @@ export const useLeaveSwapMatches = () => {
     pastMatches,
     isLoadingMatches,
     matchesError,
+    findMatches: findMatchesMutation.mutate,
+    isFindingMatches: findMatchesMutation.isPending,
     acceptMatch: acceptMatchMutation.mutate,
     isAcceptingMatch: acceptMatchMutation.isPending,
     finalizeMatch: finalizeMatchMutation.mutate,

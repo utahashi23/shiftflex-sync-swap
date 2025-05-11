@@ -27,7 +27,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Calendar, RefreshCw, Check, X, Mail } from 'lucide-react';
+import { Calendar, RefreshCw, Check, X, Mail, Search } from 'lucide-react';
 import { useLeaveSwapMatches } from '@/hooks/leave-blocks/useLeaveSwapMatches';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -47,6 +47,8 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
     pastMatches,
     isLoadingMatches,
     matchesError,
+    findMatches,
+    isFindingMatches,
     acceptMatch,
     isAcceptingMatch,
     finalizeMatch,
@@ -58,6 +60,13 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
   
   const handleRefresh = () => {
     refetchMatches();
+    if (setRefreshTrigger) {
+      setRefreshTrigger(prev => prev + 1);
+    }
+  };
+  
+  const handleFindMatches = () => {
+    findMatches();
     if (setRefreshTrigger) {
       setRefreshTrigger(prev => prev + 1);
     }
@@ -116,15 +125,26 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
                 View and manage your matched leave block swaps
               </CardDescription>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRefresh}
-              disabled={isLoadingMatches}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingMatches ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleFindMatches}
+                disabled={isFindingMatches}
+              >
+                <Search className={`h-4 w-4 mr-2 ${isFindingMatches ? 'animate-spin' : ''}`} />
+                Find Matches
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefresh}
+                disabled={isLoadingMatches}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingMatches ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
