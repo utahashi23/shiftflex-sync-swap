@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { 
   Card, 
@@ -265,7 +266,6 @@ Status: ${match.match_status.toUpperCase()}
                                     onClick={() => handleCancelMatch(match.match_id)}
                                     disabled={isCancellingMatch}
                                   >
-                                    <X className="h-4 w-4 mr-1" />
                                     Cancel
                                   </Button>
                                   
@@ -281,7 +281,7 @@ Status: ${match.match_status.toUpperCase()}
                                 </>
                               )}
                               
-                              {match.match_status === 'pending' && (
+                              {match.match_status !== 'completed' && match.match_status !== 'accepted' && (
                                 <Button 
                                   variant="ghost" 
                                   size="icon"
