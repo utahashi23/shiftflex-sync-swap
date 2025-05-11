@@ -35,23 +35,88 @@ export const useLeaveSwapMatches = () => {
       const myEmployeeId = profileData.employee_id;
       
       // Now get the matches with extended profile information
-      const { data, error } = await supabase.rpc('get_user_leave_swap_matches_with_employee_id', {
-        p_user_id: userId
-      });
+      // Use a regular select instead of RPC to avoid type errors
+      const { data, error } = await supabase
+        .from('leave_swap_matches')
+        .select(`
+          id as match_id,
+          status as match_status,
+          created_at,
+          requester_id,
+          acceptor_id,
+          requester_leave_block_id as my_leave_block_id,
+          acceptor_leave_block_id as other_leave_block_id,
+          requesterBlock:leave_blocks!requester_leave_block_id (block_number, start_date, end_date),
+          acceptorBlock:leave_blocks!acceptor_leave_block_id (block_number, start_date, end_date),
+          acceptorProfile:profiles!acceptor_id (first_name, last_name, employee_id),
+          requesterProfile:profiles!requester_id (first_name, last_name, employee_id)
+        `)
+        .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`);
       
       if (error) {
         console.error("Error fetching leave swap matches:", error);
         throw error;
       }
       
-      // Add the user's own info to each match
-      const matchesWithMyInfo = (data || []).map(match => ({
-        ...match,
-        my_user_name: myUserName,
-        my_employee_id: myEmployeeId,
-      }));
+      // Transform the data into the expected format
+      const transformedData = data.map(match => {
+        const isRequester = match.requester_id === userId;
+        
+        // Determine which fields to use based on whether the user is the requester or acceptor
+        const myBlockNumber = isRequester 
+          ? match.requesterBlock.block_number 
+          : match.acceptorBlock.block_number;
+          
+        const myStartDate = isRequester 
+          ? match.requesterBlock.start_date 
+          : match.acceptorBlock.start_date;
+          
+        const myEndDate = isRequester 
+          ? match.requesterBlock.end_date 
+          : match.acceptorBlock.end_date;
+          
+        const otherBlockNumber = isRequester 
+          ? match.acceptorBlock.block_number 
+          : match.requesterBlock.block_number;
+          
+        const otherStartDate = isRequester 
+          ? match.acceptorBlock.start_date 
+          : match.requesterBlock.start_date;
+          
+        const otherEndDate = isRequester 
+          ? match.acceptorBlock.end_date 
+          : match.requesterBlock.end_date;
+          
+        const otherUserId = isRequester 
+          ? match.acceptor_id 
+          : match.requester_id;
+          
+        const otherUserProfile = isRequester 
+          ? match.acceptorProfile 
+          : match.requesterProfile;
+          
+        return {
+          match_id: match.match_id,
+          match_status: match.match_status,
+          created_at: match.created_at,
+          my_block_number: myBlockNumber,
+          my_start_date: myStartDate,
+          my_end_date: myEndDate,
+          other_block_number: otherBlockNumber,
+          other_start_date: otherStartDate,
+          other_end_date: otherEndDate,
+          other_user_id: otherUserId,
+          other_user_name: `${otherUserProfile?.first_name || ''} ${otherUserProfile?.last_name || ''}`.trim() || 'Unknown User',
+          other_employee_id: otherUserProfile?.employee_id || 'N/A',
+          is_requester: isRequester,
+          my_user_name: myUserName,
+          my_employee_id: myEmployeeId || 'N/A',
+          my_leave_block_id: isRequester ? match.my_leave_block_id : match.other_leave_block_id,
+          other_leave_block_id: isRequester ? match.other_leave_block_id : match.my_leave_block_id
+        };
+      });
       
-      return matchesWithMyInfo as LeaveSwapMatch[];
+      return transformedData as LeaveSwapMatch[];
     }
   });
   
