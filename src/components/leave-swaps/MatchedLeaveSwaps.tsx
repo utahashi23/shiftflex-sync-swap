@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { 
   Card, 
@@ -34,6 +33,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { LeaveSwapMatch } from '@/types/leave-blocks';
+import { useAuth } from '@/hooks/useAuth';
 
 interface MatchedLeaveSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
@@ -44,6 +44,7 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const [viewDetailsMatchId, setViewDetailsMatchId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const {
     leaveSwapMatches,
@@ -62,24 +63,18 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
     refetchMatches
   } = useLeaveSwapMatches();
 
-  // Deduplicate matches at the UI level
-  const deduplicateMatches = (matches: LeaveSwapMatch[]): LeaveSwapMatch[] => {
-    // Use a map with match_id as key to deduplicate
-    const uniqueMatchesMap = new Map<string, LeaveSwapMatch>();
+  // Filter matches where the current user is the requester
+  const filterUserMatches = (matches: LeaveSwapMatch[]): LeaveSwapMatch[] => {
+    // If we don't have a logged in user, return all matches
+    if (!user) return matches;
     
-    matches.forEach(match => {
-      // Only add if not already in the map
-      if (!uniqueMatchesMap.has(match.match_id)) {
-        uniqueMatchesMap.set(match.match_id, match);
-      }
-    });
-    
-    return Array.from(uniqueMatchesMap.values());
+    // Filter to just show matches where the current user is the requester
+    return matches.filter(match => match.my_user_id === user.id);
   };
   
-  // Apply deduplication to active and past matches
-  const activeMatches = deduplicateMatches(rawActiveMatches);
-  const pastMatches = deduplicateMatches(rawPastMatches);
+  // Apply user filtering first, then deduplicate
+  const activeMatches = filterUserMatches(rawActiveMatches);
+  const pastMatches = filterUserMatches(rawPastMatches);
   
   const handleRefresh = () => {
     refetchMatches();
