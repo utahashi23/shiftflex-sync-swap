@@ -34,7 +34,7 @@ export const useLeaveSwapMatches = () => {
       const myUserName = `${profileData.first_name} ${profileData.last_name}`;
       const myEmployeeId = profileData.employee_id;
       
-      // Get matches where the user is involved - needs simplification
+      // Fetch matches using a simpler query approach
       const { data, error } = await supabase
         .from('leave_swap_matches')
         .select(`
@@ -44,11 +44,7 @@ export const useLeaveSwapMatches = () => {
           requester_id,
           acceptor_id,
           requester_leave_block_id,
-          acceptor_leave_block_id,
-          requesterBlock:leave_blocks!requester_leave_block_id(block_number, start_date, end_date),
-          acceptorBlock:leave_blocks!acceptor_leave_block_id(block_number, start_date, end_date),
-          requesterProfile:profiles!requester_id(first_name, last_name, employee_id),
-          acceptorProfile:profiles!acceptor_id(first_name, last_name, employee_id)
+          acceptor_leave_block_id
         `)
         .or(`requester_id.eq.${userId},acceptor_id.eq.${userId}`);
       
@@ -57,43 +53,47 @@ export const useLeaveSwapMatches = () => {
         throw error;
       }
       
-      // Transform the data into the expected format
+      // Now we'll fetch the related data separately for better type safety
+      // Get all the leave block IDs we need
+      const leaveBlockIds = data.flatMap(match => [
+        match.requester_leave_block_id, 
+        match.acceptor_leave_block_id
+      ]);
+      
+      // Get all the user IDs we need
+      const otherUserIds = data.map(match => 
+        match.requester_id === userId ? match.acceptor_id : match.requester_id
+      );
+      
+      // Fetch leave blocks
+      const { data: leaveBlocks, error: leaveBlocksError } = await supabase
+        .from('leave_blocks')
+        .select('id, block_number, start_date, end_date')
+        .in('id', leaveBlockIds);
+      
+      if (leaveBlocksError) throw leaveBlocksError;
+      
+      // Fetch other users' profiles
+      const { data: otherUserProfiles, error: otherUserProfilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, employee_id')
+        .in('id', otherUserIds);
+      
+      if (otherUserProfilesError) throw otherUserProfilesError;
+      
+      // Create a map for quick lookup
+      const leaveBlocksMap = new Map(
+        leaveBlocks.map(block => [block.id, block])
+      );
+      
+      const userProfilesMap = new Map(
+        otherUserProfiles.map(profile => [profile.id, profile])
+      );
+      
+      // Transform the data
       const transformedData = data.map(match => {
         const isRequester = match.requester_id === userId;
         
-        // Determine which fields to use based on whether the user is the requester or acceptor
-        const myBlockNumber = isRequester 
-          ? match.requesterBlock?.block_number 
-          : match.acceptorBlock?.block_number;
-          
-        const myStartDate = isRequester 
-          ? match.requesterBlock?.start_date 
-          : match.acceptorBlock?.start_date;
-          
-        const myEndDate = isRequester 
-          ? match.requesterBlock?.end_date 
-          : match.acceptorBlock?.end_date;
-          
-        const otherBlockNumber = isRequester 
-          ? match.acceptorBlock?.block_number 
-          : match.requesterBlock?.block_number;
-          
-        const otherStartDate = isRequester 
-          ? match.acceptorBlock?.start_date 
-          : match.requesterBlock?.start_date;
-          
-        const otherEndDate = isRequester 
-          ? match.acceptorBlock?.end_date 
-          : match.requesterBlock?.end_date;
-          
-        const otherUserId = isRequester 
-          ? match.acceptor_id 
-          : match.requester_id;
-          
-        const otherUserProfile = isRequester 
-          ? match.acceptorProfile 
-          : match.requesterProfile;
-          
         const myLeaveBlockId = isRequester 
           ? match.requester_leave_block_id 
           : match.acceptor_leave_block_id;
@@ -102,24 +102,34 @@ export const useLeaveSwapMatches = () => {
           ? match.acceptor_leave_block_id 
           : match.requester_leave_block_id;
           
+        const myLeaveBlock = leaveBlocksMap.get(myLeaveBlockId);
+        const otherLeaveBlock = leaveBlocksMap.get(otherLeaveBlockId);
+        
+        const otherUserId = isRequester ? match.acceptor_id : match.requester_id;
+        const otherUserProfile = userProfilesMap.get(otherUserId);
+        
+        const otherUserName = otherUserProfile 
+          ? `${otherUserProfile.first_name || ''} ${otherUserProfile.last_name || ''}`.trim() 
+          : 'Unknown User';
+          
         return {
           match_id: match.id,
           match_status: match.status,
           created_at: match.created_at,
-          my_block_number: myBlockNumber || 0,
-          my_start_date: myStartDate || '',
-          my_end_date: myEndDate || '',
-          other_block_number: otherBlockNumber || 0,
-          other_start_date: otherStartDate || '',
-          other_end_date: otherEndDate || '',
+          my_leave_block_id: myLeaveBlockId,
+          my_block_number: myLeaveBlock?.block_number || 0,
+          my_start_date: myLeaveBlock?.start_date || '',
+          my_end_date: myLeaveBlock?.end_date || '',
+          other_leave_block_id: otherLeaveBlockId,
+          other_block_number: otherLeaveBlock?.block_number || 0,
+          other_start_date: otherLeaveBlock?.start_date || '',
+          other_end_date: otherLeaveBlock?.end_date || '',
           other_user_id: otherUserId,
-          other_user_name: `${otherUserProfile?.first_name || ''} ${otherUserProfile?.last_name || ''}`.trim() || 'Unknown User',
+          other_user_name: otherUserName,
           other_employee_id: otherUserProfile?.employee_id || 'N/A',
           is_requester: isRequester,
           my_user_name: myUserName,
-          my_employee_id: myEmployeeId || 'N/A',
-          my_leave_block_id: myLeaveBlockId,
-          other_leave_block_id: otherLeaveBlockId
+          my_employee_id: myEmployeeId || 'N/A'
         };
       });
       
