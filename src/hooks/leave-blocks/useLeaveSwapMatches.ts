@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { LeaveSwapMatch } from '@/types/leave-blocks';
@@ -90,8 +89,13 @@ export const useLeaveSwapMatches = () => {
         otherUserProfiles.map(profile => [profile.id, profile])
       );
       
-      // Transform the data
-      const transformedData = data.map(match => {
+      // Transform the data and ensure uniqueness by match_id
+      const matchesMap = new Map();
+      
+      data.forEach(match => {
+        // Skip if we've already processed this match
+        if (matchesMap.has(match.id)) return;
+        
         const isRequester = match.requester_id === userId;
         
         const myLeaveBlockId = isRequester 
@@ -112,7 +116,7 @@ export const useLeaveSwapMatches = () => {
           ? `${otherUserProfile.first_name || ''} ${otherUserProfile.last_name || ''}`.trim() 
           : 'Unknown User';
           
-        return {
+        matchesMap.set(match.id, {
           match_id: match.id,
           match_status: match.status,
           created_at: match.created_at,
@@ -130,10 +134,10 @@ export const useLeaveSwapMatches = () => {
           is_requester: isRequester,
           my_user_name: myUserName,
           my_employee_id: myEmployeeId || 'N/A'
-        };
+        });
       });
       
-      return transformedData as LeaveSwapMatch[];
+      return Array.from(matchesMap.values()) as LeaveSwapMatch[];
     }
   });
   

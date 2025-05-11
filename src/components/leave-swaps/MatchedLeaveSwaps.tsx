@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { 
   Card, 
@@ -116,11 +115,28 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
     return [...activeMatches, ...pastMatches].find(match => match.match_id === matchId);
   };
   
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
+  const copyToClipboard = (match) => {
+    // Create a comprehensive formatted text with all swap details
+    const swapDetails = `
+LEAVE BLOCK SWAP DETAILS
+
+MY DETAILS
+Name: ${match.my_user_name}
+Service Number: ${match.my_employee_id || 'N/A'}
+Leave Block: ${match.my_block_number} (${formatDate(match.my_start_date)} - ${formatDate(match.my_end_date)})
+
+OTHER USER DETAILS
+Name: ${match.other_user_name}
+Service Number: ${match.other_employee_id || 'N/A'}
+Leave Block: ${match.other_block_number} (${formatDate(match.other_start_date)} - ${formatDate(match.other_end_date)})
+
+Status: ${match.match_status.toUpperCase()}
+`;
+
+    navigator.clipboard.writeText(swapDetails).then(() => {
       toast({
         title: "Copied to clipboard",
-        description: "The information has been copied to your clipboard.",
+        description: "All leave swap details have been copied to your clipboard.",
       });
     }).catch(err => {
       console.error('Could not copy text: ', err);
@@ -245,14 +261,16 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
                                       </div>
 
                                       <div className="space-y-2">
-                                        <div className="flex justify-between">
+                                        <div className="flex justify-between items-center">
                                           <h3 className="text-sm font-semibold">Other User Details</h3>
                                           <Button 
-                                            variant="ghost" 
-                                            size="icon"
-                                            onClick={() => copyToClipboard(`${match.other_user_name} (${match.other_employee_id || 'N/A'}) - Block ${match.other_block_number}`)}
+                                            variant="secondary" 
+                                            size="sm"
+                                            className="flex items-center gap-1"
+                                            onClick={() => copyToClipboard(match)}
                                           >
                                             <Copy className="h-4 w-4" />
+                                            Copy All Details
                                           </Button>
                                         </div>
                                         <p><strong>Name:</strong> {match.other_user_name} <span className="text-xs text-gray-500">({match.other_employee_id || 'N/A'})</span></p>
@@ -301,14 +319,16 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
                                       </div>
 
                                       <div className="space-y-2">
-                                        <div className="flex justify-between">
+                                        <div className="flex justify-between items-center">
                                           <h3 className="text-sm font-semibold">Other User Details</h3>
                                           <Button 
-                                            variant="ghost" 
-                                            size="icon"
-                                            onClick={() => copyToClipboard(`${match.other_user_name} (${match.other_employee_id || 'N/A'}) - Block ${match.other_block_number}`)}
+                                            variant="secondary" 
+                                            size="sm"
+                                            className="flex items-center gap-1"
+                                            onClick={() => copyToClipboard(match)}
                                           >
                                             <Copy className="h-4 w-4" />
+                                            Copy All Details
                                           </Button>
                                         </div>
                                         <p><strong>Name:</strong> {match.other_user_name} <span className="text-xs text-gray-500">({match.other_employee_id || 'N/A'})</span></p>
@@ -360,7 +380,18 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
                                       </div>
 
                                       <div className="space-y-2">
-                                        <h3 className="text-sm font-semibold">Other User Details</h3>
+                                        <div className="flex justify-between items-center">
+                                          <h3 className="text-sm font-semibold">Other User Details</h3>
+                                          <Button 
+                                            variant="secondary" 
+                                            size="sm"
+                                            className="flex items-center gap-1"
+                                            onClick={() => copyToClipboard(match)}
+                                          >
+                                            <Copy className="h-4 w-4" />
+                                            Copy All Details
+                                          </Button>
+                                        </div>
                                         <p><strong>Name:</strong> {match.other_user_name} <span className="text-xs text-gray-500">({match.other_employee_id || 'N/A'})</span></p>
                                         <p><strong>Block:</strong> {match.other_block_number} ({formatDate(match.other_start_date)} - {formatDate(match.other_end_date)})</p>
                                       </div>
