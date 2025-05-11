@@ -45,114 +45,23 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // First, get the match details to obtain user IDs and shift information
-    const { data: matchData, error: matchError } = await supabaseAdmin
-      .from('shift_swap_potential_matches')
-      .select(`
-        id,
-        status,
-        requester_request_id,
-        acceptor_request_id,
-        requester_shift_id,
-        acceptor_shift_id
-      `)
-      .eq('id', match_id)
-      .single();
-    
-    if (matchError) {
-      throw new Error(`Error fetching match: ${matchError.message}`);
-    }
-
-    if (!matchData) {
-      throw new Error('Match not found');
-    }
-
-    console.log(`Found match data:`, matchData);
-
-    // Fetch the request data to get user IDs
-    const requestsPromises = [
-      supabaseAdmin
-        .from('shift_swap_requests')
-        .select('requester_id, requester_shift_id')
-        .eq('id', matchData.requester_request_id)
-        .single(),
-      supabaseAdmin
-        .from('shift_swap_requests')
-        .select('requester_id, requester_shift_id')
-        .eq('id', matchData.acceptor_request_id)
-        .single()
-    ];
-
-    const [requesterRequest, acceptorRequest] = await Promise.all(requestsPromises);
-    
-    if (requesterRequest.error) {
-      throw new Error(`Error fetching requester request: ${requesterRequest.error.message}`);
-    }
-    
-    if (acceptorRequest.error) {
-      throw new Error(`Error fetching acceptor request: ${acceptorRequest.error.message}`);
-    }
-
-    const requesterUserId = requesterRequest.data.requester_id;
-    const acceptorUserId = acceptorRequest.data.requester_id;
-    
-    console.log(`Users involved: Requester ID: ${requesterUserId}, Acceptor ID: ${acceptorUserId}`);
-
-    // Fetch users' email addresses
-    const usersPromises = [
-      supabaseAdmin.auth.admin.getUserById(requesterUserId),
-      supabaseAdmin.auth.admin.getUserById(acceptorUserId)
-    ];
-
-    const [requesterUser, acceptorUser] = await Promise.all(usersPromises);
-    
-    if (requesterUser.error) {
-      console.error(`Error fetching requester user: ${requesterUser.error.message}`);
-      // Continue even if we can't get the user's email
-    }
-    
-    if (acceptorUser.error) {
-      console.error(`Error fetching acceptor user: ${acceptorUser.error.message}`);
-      // Continue even if we can't get the user's email
-    }
-
-    const requesterEmail = requesterUser.data?.user?.email;
-    const acceptorEmail = acceptorUser.data?.user?.email;
-    
-    console.log(`User emails: Requester: ${requesterEmail || 'unknown'}, Acceptor: ${acceptorEmail || 'unknown'}`);
+    console.log(`Updating match status to 'accepted' for match ID: ${match_id}`);
 
     // Update match status to "accepted"
     const { data: updateData, error: updateError } = await supabaseAdmin
-      .from('shift_swap_potential_matches')
+      .from('leave_swap_matches')
       .update({ status: 'accepted' })
       .eq('id', match_id)
       .select();
     
     if (updateError) {
+      console.error(`Error updating match: ${updateError.message}`);
       throw new Error(`Error updating match: ${updateError.message}`);
     }
 
-    console.log(`Successfully updated match status to accepted`);
+    console.log(`Successfully updated match status to accepted:`, updateData);
 
-    // Send emails using the same format as resend_swap_notification
-    // We'll call the resend_swap_notification function instead of duplicating the email creation logic
-    try {
-      // Call the resend_swap_notification edge function to handle the email sending
-      // This will use the exact same email template and logic
-      const emailResponse = await supabaseAdmin.functions.invoke('resend_swap_notification', {
-        body: { match_id }
-      });
-      
-      if (emailResponse.error) {
-        console.error(`Error sending notification emails: ${emailResponse.error.message}`);
-        // We don't throw here since the primary operation (updating the match) succeeded
-      } else {
-        console.log('Successfully sent notification emails');
-      }
-    } catch (emailError) {
-      console.error('Error sending emails:', emailError);
-      // We don't throw here since the primary operation (updating the match) succeeded
-    }
+    // If we want to send email notifications, we could add that here
 
     return new Response(
       JSON.stringify({ success: true, data: updateData }),

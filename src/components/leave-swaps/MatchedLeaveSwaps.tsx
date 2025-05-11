@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { 
   Card, 
@@ -74,18 +75,16 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
   };
   
   const handleAcceptMatch = (matchId: string) => {
+    console.log(`Handling acceptance for match: ${matchId}`);
     acceptMatch({ matchId });
-    setSelectedMatchId(null);
   };
   
   const handleFinalizeMatch = (matchId: string) => {
     finalizeMatch({ matchId });
-    setSelectedMatchId(null);
   };
   
   const handleCancelMatch = (matchId: string) => {
     cancelMatch({ matchId });
-    setSelectedMatchId(null);
   };
   
   const formatDate = (dateString: string) => {
