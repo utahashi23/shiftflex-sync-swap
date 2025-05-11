@@ -55,9 +55,6 @@ export const useLeaveSwapMatches = () => {
 
       console.log("Raw matches from API:", data);
       
-      // Create a map to identify unique match combinations by participant IDs
-      const matchCombinations = new Map();
-      
       if (!Array.isArray(data) || data.length === 0) {
         return [];
       }
@@ -99,21 +96,8 @@ export const useLeaveSwapMatches = () => {
         otherUserProfiles.map(profile => [profile.id, profile])
       );
       
-      // Transform the data and ensure uniqueness by participants
-      const matchesMap = new Map();
-      
-      // Process matches and use a consistent key based on user IDs
-      data.forEach(match => {
-        // Always make sure the match key has users in a consistent order
-        // so we can detect duplicates regardless of who is requester/acceptor
-        const participants = [match.requester_id, match.acceptor_id].sort().join('-');
-        
-        // If we've already processed a match with these participants, skip it
-        if (matchesMap.has(participants)) {
-          console.log(`Skipping duplicate match for participants: ${participants}`);
-          return;
-        }
-        
+      // Process each match
+      const processedMatches = data.map(match => {
         // Determine if this user is the requester
         const isRequester = match.requester_id === userId;
         
@@ -135,8 +119,8 @@ export const useLeaveSwapMatches = () => {
           ? `${otherUserProfile.first_name || ''} ${otherUserProfile.last_name || ''}`.trim() 
           : 'Unknown User';
           
-        // Store the formatted match data
-        matchesMap.set(participants, {
+        // Return the formatted match data
+        return {
           match_id: match.id,
           match_status: match.status,
           created_at: match.created_at,
@@ -154,14 +138,11 @@ export const useLeaveSwapMatches = () => {
           is_requester: isRequester,
           my_user_name: myUserName,
           my_employee_id: myEmployeeId || 'N/A'
-        });
+        };
       });
       
-      // Convert Map to array
-      const uniqueMatches = Array.from(matchesMap.values()) as LeaveSwapMatch[];
-      console.log(`Processed ${uniqueMatches.length} unique matches after deduplication`);
-      
-      return uniqueMatches;
+      console.log(`Processed ${processedMatches.length} matches`);
+      return processedMatches as LeaveSwapMatch[];
     }
   });
   
@@ -207,7 +188,7 @@ export const useLeaveSwapMatches = () => {
   const acceptMatchMutation = useMutation({
     mutationFn: async ({ matchId }: { matchId: string }) => {
       try {
-        // Call our new edge function for accepting swaps
+        // Call our edge function for accepting swaps
         const { data, error } = await supabase.functions.invoke('accept_leave_swap', {
           body: { match_id: matchId }
         });
@@ -222,11 +203,12 @@ export const useLeaveSwapMatches = () => {
         throw new Error(err.message || "Failed to accept match");
       }
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({
         title: 'Match accepted',
         description: 'The leave block swap match has been accepted successfully.',
       });
+      // Immediately refetch to update the UI
       queryClient.invalidateQueries({ queryKey: ['leave-swap-matches'] });
       queryClient.invalidateQueries({ queryKey: ['leave-swap-requests'] });
     },
@@ -234,6 +216,43 @@ export const useLeaveSwapMatches = () => {
       toast({
         title: 'Error accepting match',
         description: error.message || 'Failed to accept match',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  // Cancel an accepted leave swap match
+  const cancelMatchMutation = useMutation({
+    mutationFn: async ({ matchId }: { matchId: string }) => {
+      try {
+        // Call the edge function for cancelling swaps
+        const { data, error } = await supabase.functions.invoke('cancel_leave_swap', {
+          body: { match_id: matchId }
+        });
+        
+        if (error || !data.success) {
+          throw new Error(error?.message || data?.error || 'Failed to cancel match');
+        }
+        
+        return data;
+      } catch (err) {
+        console.error("Error cancelling match:", err);
+        throw new Error(err.message || "Failed to cancel match");
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Match cancelled',
+        description: 'The leave block swap has been cancelled and returned to pending status.',
+      });
+      // Immediately refetch to update the UI
+      queryClient.invalidateQueries({ queryKey: ['leave-swap-matches'] });
+      queryClient.invalidateQueries({ queryKey: ['leave-swap-requests'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error cancelling match',
+        description: error.message || 'Failed to cancel match',
         variant: 'destructive',
       });
     }
@@ -281,52 +300,6 @@ export const useLeaveSwapMatches = () => {
       toast({
         title: 'Error finalizing match',
         description: error.message || 'Failed to finalize match',
-        variant: 'destructive',
-      });
-    }
-  });
-
-  // Cancel a leave swap match
-  const cancelMatchMutation = useMutation({
-    mutationFn: async ({ matchId }: { matchId: string }) => {
-      const { data, error } = await supabase
-        .from('leave_swap_matches')
-        .update({ status: 'cancelled' })
-        .eq('id', matchId)
-        .select();
-      
-      if (error) throw error;
-      
-      // Update related requests back to pending
-      const { data: matchData } = await supabase
-        .from('leave_swap_matches')
-        .select('requester_id, acceptor_id')
-        .eq('id', matchId)
-        .single();
-      
-      if (matchData) {
-        // Update all related requests back to pending
-        await supabase
-          .from('leave_swap_requests')
-          .update({ status: 'pending' })
-          .or(`requester_id.eq.${matchData.requester_id},requester_id.eq.${matchData.acceptor_id}`)
-          .in('status', ['accepted', 'matched']);
-      }
-      
-      return data;
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Match cancelled',
-        description: 'The leave block swap match has been cancelled.',
-      });
-      queryClient.invalidateQueries({ queryKey: ['leave-swap-matches'] });
-      queryClient.invalidateQueries({ queryKey: ['leave-swap-requests'] });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error cancelling match',
-        description: error.message || 'Failed to cancel match',
         variant: 'destructive',
       });
     }

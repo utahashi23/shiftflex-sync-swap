@@ -265,7 +265,9 @@ Status: ${match.match_status.toUpperCase()}
                                     size="sm"
                                     onClick={() => handleCancelMatch(match.match_id)}
                                     disabled={isCancellingMatch}
+                                    className="text-red-600 hover:bg-red-50 border-red-200"
                                   >
+                                    <X className="h-4 w-4 mr-1" />
                                     Cancel
                                   </Button>
                                   
@@ -279,17 +281,6 @@ Status: ${match.match_status.toUpperCase()}
                                     Finalize
                                   </Button>
                                 </>
-                              )}
-                              
-                              {match.match_status !== 'completed' && match.match_status !== 'accepted' && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  onClick={() => handleCancelMatch(match.match_id)}
-                                  disabled={isCancellingMatch}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
                               )}
                             </div>
                           </TableCell>
