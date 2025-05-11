@@ -6,43 +6,35 @@ import { toast } from '../use-toast';
 import { LeaveSwapMatch } from '@/types/leave-blocks';
 
 export const useLeaveSwapMatches = () => {
+  // Data states
   const [activeMatches, setActiveMatches] = useState<LeaveSwapMatch[]>([]);
   const [pastMatches, setPastMatches] = useState<LeaveSwapMatch[]>([]);
-  const [isLoadingMatches, setIsLoadingMatches] = useState<boolean>(true);
-  const [matchesError, setMatchesError] = useState<Error | null>(null);
+  
+  // Loading states
+  const [isLoadingMatches, setIsLoadingMatches] = useState<boolean>(false);
   const [isFindingMatches, setIsFindingMatches] = useState<boolean>(false);
   const [isAcceptingMatch, setIsAcceptingMatch] = useState<boolean>(false);
   const [isFinalizingMatch, setIsFinalizingMatch] = useState<boolean>(false);
   const [isCancellingMatch, setIsCancellingMatch] = useState<boolean>(false);
-  const [retryCount, setRetryCount] = useState<number>(0);
-  const [connectionError, setConnectionError] = useState<boolean>(false);
   
+  // Error and connection states
+  const [matchesError, setMatchesError] = useState<Error | null>(null);
+  const [connectionError, setConnectionError] = useState<boolean>(false);
+  const [retryCount, setRetryCount] = useState<number>(0);
+  const [retryTimeout, setRetryTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+
   const { user } = useAuth();
   
-  // Use effect to automatically fetch matches when component mounts or user changes
-  useEffect(() => {
-    if (user) {
-      fetchMatches();
-    }
-  }, [user]);
-  
-  // Use effect for retry logic
-  useEffect(() => {
-    // If there was an error and we haven't exceeded retry attempts
-    if (matchesError && retryCount < 3) {
-      const timer = setTimeout(() => {
-        console.log(`Retrying fetch matches (attempt ${retryCount + 1})...`);
-        setRetryCount(prev => prev + 1);
-        fetchMatches();
-      }, 2000); // Retry after 2 seconds
-      
-      return () => clearTimeout(timer);
-    }
-  }, [matchesError, retryCount]);
-  
+  // Fetch matches with retry mechanism
   const fetchMatches = useCallback(async () => {
     if (!user) return;
     
+    // Clear any existing timeout to avoid overlapping retries
+    if (retryTimeout) {
+      clearTimeout(retryTimeout);
+      setRetryTimeout(null);
+    }
+
     try {
       setIsLoadingMatches(true);
       setMatchesError(null);
@@ -50,62 +42,74 @@ export const useLeaveSwapMatches = () => {
       
       console.log(`Fetching leave swap matches for user ${user.id}...`);
       
+      // Attempt to call the edge function with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
       try {
-        // Call the edge function to get matches
-        const response = await supabase.functions.invoke('get_user_leave_swap_matches', {
-          body: { user_id: user.id },
-          headers: {
-            "Content-Type": "application/json"
-          }
-        });
+        const response = await Promise.race([
+          supabase.functions.invoke('get_user_leave_swap_matches', {
+            body: { user_id: user.id },
+            signal: controller.signal
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Request timed out")), 8000)
+          )
+        ]);
         
+        clearTimeout(timeoutId);
+        
+        // @ts-ignore: Type check on response
         const { data, error } = response;
         
-        if (error) {
-          console.error("Error from Supabase function:", error);
-          throw error;
-        }
+        if (error) throw error;
         
-        if (data) {
-          console.log("Received matches data:", data);
-          
+        if (data && Array.isArray(data)) {
           // Process active vs past matches
-          const active = data.filter((match: LeaveSwapMatch) => 
+          const active = data.filter(match => 
             match.match_status === 'pending' || match.match_status === 'accepted');
           
-          const past = data.filter((match: LeaveSwapMatch) => 
+          const past = data.filter(match => 
             match.match_status === 'completed' || match.match_status === 'cancelled');
-          
-          console.log(`Processed ${active.length} active matches and ${past.length} past matches`);
           
           setActiveMatches(active);
           setPastMatches(past);
-          // Reset retry count on successful fetch
-          setRetryCount(0);
+          setRetryCount(0); // Reset retry count on successful fetch
         } else {
-          console.log("No match data returned from function");
           setActiveMatches([]);
           setPastMatches([]);
         }
       } catch (fetchError: any) {
-        // Check if it's a connection issue
-        if (fetchError.message?.includes('Failed to send a request') || 
-            fetchError.message?.includes('Failed to fetch')) {
+        clearTimeout(timeoutId);
+        
+        // Check if it's a connection/timeout issue
+        if (fetchError.message?.includes('Failed to fetch') || 
+            fetchError.message?.includes('AbortError') ||
+            fetchError.message?.includes('Failed to send') ||
+            fetchError.message?.includes('Request timed out')) {
+          console.warn('Connection issue detected:', fetchError.message);
           setConnectionError(true);
-          console.warn('Connection to Supabase edge functions failed. Using demo data instead.');
           
-          // Mock empty data for now - we could add demo data here if needed
-          setActiveMatches([]);
-          setPastMatches([]);
-          
-          // Show toast for connection error
-          toast({
-            title: "Connection Error",
-            description: "Could not connect to the server. Please check your internet connection and try again.",
-            variant: "destructive",
-          });
+          // Implement exponential backoff for retries, but only if we're not at max retries
+          if (retryCount < 3) {
+            const nextRetryDelay = Math.min(2000 * Math.pow(2, retryCount), 10000);
+            console.log(`Will retry in ${nextRetryDelay}ms (attempt ${retryCount + 1}/3)`);
+            
+            const timeout = setTimeout(() => {
+              setRetryCount(prevCount => prevCount + 1);
+              fetchMatches();
+            }, nextRetryDelay);
+            
+            setRetryTimeout(timeout);
+          } else {
+            toast({
+              title: "Connection Error",
+              description: "Could not connect to the server after multiple attempts. Please try again later.",
+              variant: "destructive",
+            });
+          }
         } else {
-          // Re-throw other errors
+          // For other errors, just throw to be caught by the outer catch
           throw fetchError;
         }
       }
@@ -113,7 +117,6 @@ export const useLeaveSwapMatches = () => {
       console.error("Error fetching matches:", error);
       setMatchesError(error);
       
-      // Only show toast for errors that aren't connection-related
       if (!connectionError) {
         toast({
           title: "Error loading matches",
@@ -124,53 +127,71 @@ export const useLeaveSwapMatches = () => {
     } finally {
       setIsLoadingMatches(false);
     }
-  }, [user, connectionError]);
+  }, [user, retryCount, connectionError, retryTimeout]);
   
+  // Auto-fetch matches when component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      fetchMatches();
+    }
+    
+    // Clean up any pending retry timeouts on unmount
+    return () => {
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+    };
+  }, [user]);
+  
+  // Find matches function
   const findMatches = async () => {
     if (!user) return;
     
     try {
       setIsFindingMatches(true);
+      setConnectionError(false);
       
-      console.log("Invoking find_leave_swap_matches function...");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       
       try {
-        const { data, error } = await supabase.functions.invoke('find_leave_swap_matches', {
-          body: { user_id: user.id, force_check: true },
-          headers: {
-            "Content-Type": "application/json"
-          }
-        });
+        const response = await Promise.race([
+          supabase.functions.invoke('find_leave_swap_matches', {
+            body: { user_id: user.id, force_check: true },
+            signal: controller.signal
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Request timed out")), 8000)
+          )
+        ]);
         
-        if (error) {
-          console.error("Error finding matches:", error);
-          throw error;
-        }
+        clearTimeout(timeoutId);
         
-        console.log("Find matches response:", data);
+        // @ts-ignore: Type check on response
+        const { data, error } = response;
+        
+        if (error) throw error;
         
         toast({
           title: "Match finding complete",
           description: data.message || "Potential matches have been processed.",
         });
+        
+        // Refresh the matches to see new ones
+        await fetchMatches();
       } catch (fetchError: any) {
-        // Handle connection errors specially
-        if (fetchError.message?.includes('Failed to send a request') || 
-            fetchError.message?.includes('Failed to fetch')) {
+        clearTimeout(timeoutId);
+        
+        if (fetchError.message?.includes('Failed to fetch') || 
+            fetchError.message?.includes('AbortError') ||
+            fetchError.message?.includes('Failed to send') ||
+            fetchError.message?.includes('Request timed out')) {
           setConnectionError(true);
-          toast({
-            title: "Connection Error",
-            description: "Could not connect to the server. Please check your internet connection and try again.",
-            variant: "destructive",
-          });
+          throw new Error("Connection error: Could not connect to the server.");
         } else {
           throw fetchError;
         }
       }
-      
-      // Refresh matches after finding (even if there was an error, to ensure UI is consistent)
-      await fetchMatches();
-      
     } catch (error: any) {
       console.error("Error finding matches:", error);
       toast({
@@ -183,31 +204,41 @@ export const useLeaveSwapMatches = () => {
     }
   };
   
+  // Accept match function
   const acceptMatch = async ({ matchId }: { matchId: string }) => {
     if (!user || !matchId) return;
     
     try {
       setIsAcceptingMatch(true);
+      setConnectionError(false);
       console.log(`Accepting match: ${matchId}`);
       
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      
       try {
-        const { data, error } = await supabase.functions.invoke('accept_swap_match', {
-          body: { match_id: matchId },
-          headers: {
-            "Content-Type": "application/json"
-          }
-        });
+        const response = await Promise.race([
+          supabase.functions.invoke('accept_swap_match', {
+            body: { match_id: matchId },
+            signal: controller.signal
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Request timed out")), 8000)
+          )
+        ]);
         
-        if (error) {
-          console.error("Error accepting match:", error);
-          throw error;
-        }
+        clearTimeout(timeoutId);
+        
+        // @ts-ignore: Type check on response
+        const { data, error } = response;
+        
+        if (error) throw error;
         
         console.log("Match accepted:", data);
         
         toast({
           title: "Match Accepted",
-          description: "You have successfully accepted this leave swap.",
+          description: data.message || "You have successfully accepted this leave swap.",
         });
         
         // Update local state to reflect the change immediately
@@ -218,24 +249,22 @@ export const useLeaveSwapMatches = () => {
               : match
           )
         );
+        
+        // Refresh matches to get the latest data
+        await fetchMatches();
       } catch (fetchError: any) {
-        // Handle connection errors specially
-        if (fetchError.message?.includes('Failed to send a request') || 
-            fetchError.message?.includes('Failed to fetch')) {
+        clearTimeout(timeoutId);
+        
+        if (fetchError.message?.includes('Failed to fetch') || 
+            fetchError.message?.includes('AbortError') ||
+            fetchError.message?.includes('Failed to send') ||
+            fetchError.message?.includes('Request timed out')) {
           setConnectionError(true);
-          toast({
-            title: "Connection Error",
-            description: "Could not connect to the server. Please check your internet connection and try again.",
-            variant: "destructive",
-          });
+          throw new Error("Connection error: Could not connect to the server.");
         } else {
           throw fetchError;
         }
       }
-      
-      // Refresh matches to get the latest data
-      await fetchMatches();
-      
     } catch (error: any) {
       console.error("Error accepting match:", error);
       toast({
@@ -248,23 +277,34 @@ export const useLeaveSwapMatches = () => {
     }
   };
   
+  // Finalize match function
   const finalizeMatch = async ({ matchId }: { matchId: string }) => {
     if (!user || !matchId) return;
     
     try {
       setIsFinalizingMatch(true);
-      console.log(`Finalizing match: ${matchId}`);
+      setConnectionError(false);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       
       try {
-        const { data, error } = await supabase.functions.invoke('finalize_swap_match', {
-          body: { match_id: matchId }
-        });
+        const response = await Promise.race([
+          supabase.functions.invoke('finalize_swap_match', {
+            body: { match_id: matchId },
+            signal: controller.signal
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Request timed out")), 8000)
+          )
+        ]);
         
-        if (error) {
-          throw error;
-        }
+        clearTimeout(timeoutId);
         
-        console.log("Match finalized:", data);
+        // @ts-ignore: Type check on response
+        const { data, error } = response;
+        
+        if (error) throw error;
         
         toast({
           title: "Match Finalized",
@@ -278,23 +318,22 @@ export const useLeaveSwapMatches = () => {
           ...activeMatches.filter(match => match.match_id === matchId)
             .map(match => ({ ...match, match_status: 'completed' }))
         ]);
+        
+        // Refresh matches
+        await fetchMatches();
       } catch (fetchError: any) {
-        // Handle connection errors specially
-        if (fetchError.message?.includes('Failed to send a request to the Edge Function')) {
+        clearTimeout(timeoutId);
+        
+        if (fetchError.message?.includes('Failed to fetch') || 
+            fetchError.message?.includes('AbortError') ||
+            fetchError.message?.includes('Failed to send') ||
+            fetchError.message?.includes('Request timed out')) {
           setConnectionError(true);
-          toast({
-            title: "Connection Error",
-            description: "Could not connect to the server. Please check your internet connection and try again.",
-            variant: "destructive",
-          });
+          throw new Error("Connection error: Could not connect to the server.");
         } else {
           throw fetchError;
         }
       }
-      
-      // Refresh matches
-      await fetchMatches();
-      
     } catch (error: any) {
       console.error("Error finalizing match:", error);
       toast({
@@ -307,23 +346,34 @@ export const useLeaveSwapMatches = () => {
     }
   };
   
+  // Cancel match function
   const cancelMatch = async ({ matchId }: { matchId: string }) => {
     if (!user || !matchId) return;
     
     try {
       setIsCancellingMatch(true);
-      console.log(`Cancelling match: ${matchId}`);
+      setConnectionError(false);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       
       try {
-        const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
-          body: { match_id: matchId }
-        });
+        const response = await Promise.race([
+          supabase.functions.invoke('cancel_swap_match', {
+            body: { match_id: matchId },
+            signal: controller.signal
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Request timed out")), 8000)
+          )
+        ]);
         
-        if (error) {
-          throw error;
-        }
+        clearTimeout(timeoutId);
         
-        console.log("Match cancelled:", data);
+        // @ts-ignore: Type check on response
+        const { data, error } = response;
+        
+        if (error) throw error;
         
         toast({
           title: "Match Cancelled",
@@ -337,23 +387,22 @@ export const useLeaveSwapMatches = () => {
           ...activeMatches.filter(match => match.match_id === matchId)
             .map(match => ({ ...match, match_status: 'cancelled' }))
         ]);
+        
+        // Refresh matches
+        await fetchMatches();
       } catch (fetchError: any) {
-        // Handle connection errors specially
-        if (fetchError.message?.includes('Failed to send a request to the Edge Function')) {
+        clearTimeout(timeoutId);
+        
+        if (fetchError.message?.includes('Failed to fetch') || 
+            fetchError.message?.includes('AbortError') ||
+            fetchError.message?.includes('Failed to send') ||
+            fetchError.message?.includes('Request timed out')) {
           setConnectionError(true);
-          toast({
-            title: "Connection Error",
-            description: "Could not connect to the server. Please check your internet connection and try again.",
-            variant: "destructive",
-          });
+          throw new Error("Connection error: Could not connect to the server.");
         } else {
           throw fetchError;
         }
       }
-      
-      // Refresh matches
-      await fetchMatches();
-      
     } catch (error: any) {
       console.error("Error cancelling match:", error);
       toast({
@@ -366,7 +415,7 @@ export const useLeaveSwapMatches = () => {
     }
   };
   
-  // Manual function to refresh matches
+  // Manual function to refresh matches with retry reset
   const refetchMatches = useCallback(async () => {
     setRetryCount(0); // Reset retry count on manual refresh
     await fetchMatches();
@@ -382,11 +431,10 @@ export const useLeaveSwapMatches = () => {
     isFindingMatches,
     acceptMatch,
     isAcceptingMatch,
-    finalizeMatch: finalizeMatch,
+    finalizeMatch,
     isFinalizingMatch,
-    cancelMatch: cancelMatch,
+    cancelMatch,
     isCancellingMatch,
     refetchMatches,
   };
 };
-

@@ -1,5 +1,5 @@
 
-import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
 const corsHeaders = {
@@ -69,6 +69,14 @@ serve(async (req) => {
       );
     }
 
+    // Don't attempt to update if already accepted
+    if (matchData.status === 'accepted') {
+      return new Response(
+        JSON.stringify({ success: true, message: "Match already accepted", data: matchData }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
     console.log(`Found match with status: ${matchData.status}`);
     console.log(`Updating match status to 'accepted' for match ID: ${match_id}`);
 
@@ -105,13 +113,20 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, data: updateData }),
+      JSON.stringify({ 
+        success: true, 
+        data: updateData,
+        message: "Match successfully accepted" 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error) {
     console.error('Error in accept_swap_match:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        success: false,
+        error: error.message || "An unexpected error occurred" 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
