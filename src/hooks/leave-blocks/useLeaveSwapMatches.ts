@@ -140,9 +140,17 @@ export const useLeaveSwapMatches = () => {
           my_employee_id: myEmployeeId || 'N/A'
         };
       });
+
+      // Use a Map to deduplicate matches by ID
+      const uniqueMatchesMap = new Map();
+      processedMatches.forEach(match => {
+        uniqueMatchesMap.set(match.match_id, match);
+      });
       
-      console.log(`Processed ${processedMatches.length} matches`);
-      return processedMatches as LeaveSwapMatch[];
+      const uniqueMatches = Array.from(uniqueMatchesMap.values());
+      
+      console.log(`Processed ${uniqueMatches.length} unique matches (deduplicated from ${processedMatches.length})`);
+      return uniqueMatches as LeaveSwapMatch[];
     }
   });
   
