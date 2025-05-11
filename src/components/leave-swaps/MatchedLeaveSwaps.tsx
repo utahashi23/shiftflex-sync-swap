@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { 
   Card, 
@@ -348,7 +347,7 @@ Status: ${match.match_status.toUpperCase()}
                                         <div className="flex justify-between items-center">
                                           <h3 className="text-sm font-semibold">Other User Details</h3>
                                           <Button 
-                                            variant="primary" 
+                                            variant="default" 
                                             size="sm"
                                             className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white"
                                             onClick={() => copyToClipboard(match)}
