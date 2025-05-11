@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '../use-toast';
@@ -14,8 +14,30 @@ export const useLeaveSwapMatches = () => {
   const [isAcceptingMatch, setIsAcceptingMatch] = useState<boolean>(false);
   const [isFinalizingMatch, setIsFinalizingMatch] = useState<boolean>(false);
   const [isCancellingMatch, setIsCancellingMatch] = useState<boolean>(false);
+  const [retryCount, setRetryCount] = useState<number>(0);
   
   const { user } = useAuth();
+  
+  // Use effect to automatically fetch matches when component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      fetchMatches();
+    }
+  }, [user]);
+  
+  // Use effect for retry logic
+  useEffect(() => {
+    // If there was an error and we haven't exceeded retry attempts
+    if (matchesError && retryCount < 3) {
+      const timer = setTimeout(() => {
+        console.log(`Retrying fetch matches (attempt ${retryCount + 1})...`);
+        setRetryCount(prev => prev + 1);
+        fetchMatches();
+      }, 2000); // Retry after 2 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [matchesError, retryCount]);
   
   const fetchMatches = async () => {
     if (!user) return;
@@ -24,12 +46,15 @@ export const useLeaveSwapMatches = () => {
       setIsLoadingMatches(true);
       setMatchesError(null);
       
+      console.log(`Fetching leave swap matches for user ${user.id}...`);
+      
       // Call the edge function to get matches
       const { data, error } = await supabase.functions.invoke('get_user_leave_swap_matches', {
         body: { user_id: user.id }
       });
       
       if (error) {
+        console.error("Error from Supabase function:", error);
         throw error;
       }
       
@@ -47,13 +72,19 @@ export const useLeaveSwapMatches = () => {
         
         setActiveMatches(active);
         setPastMatches(past);
+        // Reset retry count on successful fetch
+        setRetryCount(0);
+      } else {
+        console.log("No match data returned from function");
+        setActiveMatches([]);
+        setPastMatches([]);
       }
     } catch (error: any) {
       console.error("Error fetching matches:", error);
       setMatchesError(error);
       toast({
         title: "Error loading matches",
-        description: error.message,
+        description: error.message || "Failed to load leave swap matches",
         variant: "destructive",
       });
     } finally {
@@ -67,13 +98,18 @@ export const useLeaveSwapMatches = () => {
     try {
       setIsFindingMatches(true);
       
+      console.log("Invoking find_leave_swap_matches function...");
+      
       const { data, error } = await supabase.functions.invoke('find_leave_swap_matches', {
         body: { user_id: user.id, force_check: true }
       });
       
       if (error) {
+        console.error("Error finding matches:", error);
         throw error;
       }
+      
+      console.log("Find matches response:", data);
       
       toast({
         title: "Match finding complete",
@@ -87,7 +123,7 @@ export const useLeaveSwapMatches = () => {
       console.error("Error finding matches:", error);
       toast({
         title: "Error finding matches",
-        description: error.message,
+        description: error.message || "Failed to find potential matches",
         variant: "destructive",
       });
     } finally {
@@ -134,7 +170,7 @@ export const useLeaveSwapMatches = () => {
       console.error("Error accepting match:", error);
       toast({
         title: "Error accepting match",
-        description: error.message,
+        description: error.message || "Failed to accept leave swap",
         variant: "destructive",
       });
     } finally {
@@ -179,7 +215,7 @@ export const useLeaveSwapMatches = () => {
       console.error("Error finalizing match:", error);
       toast({
         title: "Error finalizing match",
-        description: error.message,
+        description: error.message || "Failed to finalize leave swap",
         variant: "destructive",
       });
     } finally {
@@ -224,7 +260,7 @@ export const useLeaveSwapMatches = () => {
       console.error("Error cancelling match:", error);
       toast({
         title: "Error cancelling match",
-        description: error.message,
+        description: error.message || "Failed to cancel leave swap",
         variant: "destructive",
       });
     } finally {
@@ -232,8 +268,9 @@ export const useLeaveSwapMatches = () => {
     }
   };
   
-  // Load matches when component mounts
+  // Manual function to refresh matches
   const refetchMatches = async () => {
+    setRetryCount(0); // Reset retry count on manual refresh
     await fetchMatches();
   };
   

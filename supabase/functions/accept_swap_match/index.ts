@@ -45,6 +45,24 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
+    // Check if the match exists first
+    const { data: matchData, error: matchError } = await supabaseAdmin
+      .from('leave_swap_matches')
+      .select('id, status')
+      .eq('id', match_id)
+      .single();
+
+    if (matchError) {
+      console.error(`Error fetching match: ${matchError.message}`);
+      throw new Error(`Error fetching match: ${matchError.message}`);
+    }
+
+    if (!matchData) {
+      console.error(`Match with ID ${match_id} not found`);
+      throw new Error(`Match with ID ${match_id} not found`);
+    }
+
+    console.log(`Found match with status: ${matchData.status}`);
     console.log(`Updating match status to 'accepted' for match ID: ${match_id}`);
 
     // Update match status to "accepted"
@@ -61,7 +79,20 @@ serve(async (req) => {
 
     console.log(`Successfully updated match status to accepted:`, updateData);
 
-    // If we want to send email notifications, we could add that here
+    // Log the update in the function execution log
+    try {
+      await supabaseAdmin
+        .from('function_execution_log')
+        .insert({
+          function_name: 'accept_swap_match',
+          status: 'success',
+          details: `Match ID: ${match_id} status updated to 'accepted'`,
+          user_id: req.headers.get('Authorization')?.split(' ')[1] || null
+        });
+    } catch (logError) {
+      console.error('Error logging function execution:', logError);
+      // Don't throw here, we don't want to fail the whole function if just the logging fails
+    }
 
     return new Response(
       JSON.stringify({ success: true, data: updateData }),
