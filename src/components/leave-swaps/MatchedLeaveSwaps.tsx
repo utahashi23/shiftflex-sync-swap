@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { 
   Card, 
@@ -27,7 +26,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Calendar, RefreshCw, Check, X, Copy, FileText, Search } from 'lucide-react';
+import { Calendar, RefreshCw, Check, X, Copy, FileText, Search, Wifi, WifiOff } from 'lucide-react';
 import { useLeaveSwapMatches } from '@/hooks/leave-blocks/useLeaveSwapMatches';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -49,6 +48,7 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
     pastMatches,
     isLoadingMatches,
     matchesError,
+    connectionError,
     findMatches,
     isFindingMatches,
     acceptMatch,
@@ -163,7 +163,7 @@ Status: ${match.match_status.toUpperCase()}
                 variant="outline" 
                 size="sm" 
                 onClick={handleFindMatches}
-                disabled={isFindingMatches}
+                disabled={isFindingMatches || connectionError}
               >
                 <Search className={`h-4 w-4 mr-2 ${isFindingMatches ? 'animate-spin' : ''}`} />
                 Find Matches
@@ -181,7 +181,23 @@ Status: ${match.match_status.toUpperCase()}
           </div>
         </CardHeader>
         <CardContent>
-          {matchesError ? (
+          {connectionError ? (
+            <Alert variant="destructive">
+              <WifiOff className="h-4 w-4" />
+              <AlertTitle>Connection Error</AlertTitle>
+              <AlertDescription className="space-y-2">
+                <p>Unable to connect to the server. Please check your internet connection and try again.</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRefresh}
+                  className="mt-2"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" /> Try Again
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : matchesError ? (
             <Alert variant="destructive">
               <AlertTitle>Error loading matches</AlertTitle>
               <AlertDescription>
