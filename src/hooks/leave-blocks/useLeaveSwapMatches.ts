@@ -168,12 +168,17 @@ export const useLeaveSwapMatches = () => {
   // Find potential leave block swap matches
   const findMatchesMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('find_leave_swap_matches', {
-        body: { admin_secret: true }
-      });
-      
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase.functions.invoke('find_leave_swap_matches', {
+          body: { admin_secret: true }
+        });
+        
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        console.error("Error finding matches:", err);
+        throw new Error(err.message || "Failed to find matches");
+      }
     },
     onSuccess: (data) => {
       if (data.matches_created > 0) {
@@ -201,26 +206,34 @@ export const useLeaveSwapMatches = () => {
   // Accept a leave swap match
   const acceptMatchMutation = useMutation({
     mutationFn: async ({ matchId }: { matchId: string }) => {
-      const { data, error } = await supabase
-        .from('leave_swap_matches')
-        .update({ status: 'accepted' })
-        .eq('id', matchId)
-        .select();
-      
-      if (error) throw error;
-      return data;
+      try {
+        // Call our new edge function for accepting swaps
+        const { data, error } = await supabase.functions.invoke('accept_leave_swap', {
+          body: { match_id: matchId }
+        });
+        
+        if (error || !data.success) {
+          throw new Error(error?.message || data?.error || 'Failed to accept match');
+        }
+        
+        return data;
+      } catch (err) {
+        console.error("Error accepting match:", err);
+        throw new Error(err.message || "Failed to accept match");
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: 'Match accepted',
         description: 'The leave block swap match has been accepted successfully.',
       });
       queryClient.invalidateQueries({ queryKey: ['leave-swap-matches'] });
+      queryClient.invalidateQueries({ queryKey: ['leave-swap-requests'] });
     },
     onError: (error) => {
       toast({
         title: 'Error accepting match',
-        description: error.message,
+        description: error.message || 'Failed to accept match',
         variant: 'destructive',
       });
     }
@@ -236,6 +249,23 @@ export const useLeaveSwapMatches = () => {
         .select();
       
       if (error) throw error;
+      
+      // Update related requests to completed
+      const { data: matchData } = await supabase
+        .from('leave_swap_matches')
+        .select('requester_id, acceptor_id')
+        .eq('id', matchId)
+        .single();
+      
+      if (matchData) {
+        // Update all related requests
+        await supabase
+          .from('leave_swap_requests')
+          .update({ status: 'completed' })
+          .or(`requester_id.eq.${matchData.requester_id},requester_id.eq.${matchData.acceptor_id}`)
+          .in('status', ['accepted', 'matched']);
+      }
+      
       return data;
     },
     onSuccess: () => {
@@ -244,12 +274,13 @@ export const useLeaveSwapMatches = () => {
         description: 'The leave block swap has been finalized successfully.',
       });
       queryClient.invalidateQueries({ queryKey: ['leave-swap-matches'] });
+      queryClient.invalidateQueries({ queryKey: ['leave-swap-requests'] });
       queryClient.invalidateQueries({ queryKey: ['user-leave-blocks'] });
     },
     onError: (error) => {
       toast({
         title: 'Error finalizing match',
-        description: error.message,
+        description: error.message || 'Failed to finalize match',
         variant: 'destructive',
       });
     }
@@ -265,6 +296,23 @@ export const useLeaveSwapMatches = () => {
         .select();
       
       if (error) throw error;
+      
+      // Update related requests back to pending
+      const { data: matchData } = await supabase
+        .from('leave_swap_matches')
+        .select('requester_id, acceptor_id')
+        .eq('id', matchId)
+        .single();
+      
+      if (matchData) {
+        // Update all related requests back to pending
+        await supabase
+          .from('leave_swap_requests')
+          .update({ status: 'pending' })
+          .or(`requester_id.eq.${matchData.requester_id},requester_id.eq.${matchData.acceptor_id}`)
+          .in('status', ['accepted', 'matched']);
+      }
+      
       return data;
     },
     onSuccess: () => {
@@ -273,11 +321,12 @@ export const useLeaveSwapMatches = () => {
         description: 'The leave block swap match has been cancelled.',
       });
       queryClient.invalidateQueries({ queryKey: ['leave-swap-matches'] });
+      queryClient.invalidateQueries({ queryKey: ['leave-swap-requests'] });
     },
     onError: (error) => {
       toast({
         title: 'Error cancelling match',
-        description: error.message,
+        description: error.message || 'Failed to cancel match',
         variant: 'destructive',
       });
     }
