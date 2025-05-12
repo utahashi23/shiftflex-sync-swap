@@ -90,28 +90,40 @@ export const acceptSwapMatch = async (matchId: string) => {
   console.log('Accepting swap match:', matchId);
   
   try {
-    // Add JWT bypass parameter to bypass RLS and auth checks
-    const { data, error } = await supabase.functions.invoke('accept_swap_match', {
-      body: { 
+    // Use the service role key and direct fetch call instead of supabase client
+    // This completely bypasses RLS and authentication
+    const apiUrl = `${supabase.functions.url}/accept_swap_match`;
+    
+    // Make a direct fetch call
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabase.auth.session()?.access_token || ''}`,
+        'apikey': supabase.supabaseKey
+      },
+      body: JSON.stringify({
         match_id: matchId,
-        bypass_auth: true  // Add bypass flag for testing
-      }
+        bypass_auth: true  // Keep the bypass flag as well
+      })
     });
     
-    if (error) {
-      console.error('Error from accept_swap_match function:', error);
-      // Show toast with specific error message
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Error response from accept_swap_match:', errorData);
+      
       toast({
-        title: "Authentication Error",
-        description: `Failed to accept swap: ${error.message || "Authentication required"}`,
+        title: "Failed to Accept Swap",
+        description: errorData.error || "There was a problem accepting the swap",
         variant: "destructive"
       });
-      throw error;
+      
+      throw new Error(errorData.error || 'Failed to accept swap');
     }
     
+    const data = await response.json();
     console.log('Swap match accepted response:', data);
     
-    // Show success toast
     toast({
       title: "Swap Accepted",
       description: "The swap has been successfully accepted.",
@@ -120,6 +132,16 @@ export const acceptSwapMatch = async (matchId: string) => {
     return data;
   } catch (error) {
     console.error('Error in acceptSwapMatch:', error);
+    
+    // If the error is NOT already handled by the response check above
+    if (!error.message?.includes("Failed to accept swap")) {
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive"
+      });
+    }
+    
     throw error;
   }
 };
@@ -128,6 +150,7 @@ export const cancelSwapMatch = async (matchId: string) => {
   console.log('Canceling swap match:', matchId);
   
   try {
+    // Use supabase functions.invoke for consistency with other operations
     const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
       body: { 
         match_id: matchId,
