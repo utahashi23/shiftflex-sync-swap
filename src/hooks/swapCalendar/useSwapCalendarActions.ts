@@ -74,7 +74,7 @@ export const useSwapCalendarActions = (
       // Format preferred dates for the edge function
       const preferredDates = selectedSwapDates.map(dateStr => ({
         date: dateStr,
-        acceptedTypes: acceptedTypes
+        acceptedTypes: acceptedTypes // Make sure the property name is consistent
       }));
       
       // Log the preferred dates and accepted types for debugging

@@ -70,6 +70,12 @@ serve(async (req) => {
     const userId = user.id;
     console.log('Proceeding with user ID:', userId);
     
+    // Log the preferred dates with their accepted types for debugging
+    console.log('Preferred dates with accepted types:');
+    preferred_dates.forEach((pd: any, index: number) => {
+      console.log(`[${index}] Date: ${pd.date}, Accepted Types:`, pd.acceptedTypes);
+    });
+    
     // 1. Create the swap request
     const { data: swapRequest, error: swapRequestError } = await supabaseAdmin
       .from('shift_swap_requests')
@@ -96,7 +102,7 @@ serve(async (req) => {
     const preferredDaysToInsert = preferred_dates.map(pd => ({
       request_id: requestId,
       date: pd.date,
-      accepted_types: pd.acceptedTypes || ['day', 'afternoon', 'night']
+      accepted_types: pd.acceptedTypes || [] // Ensure accepted_types is properly included
     }));
     
     console.log('Inserting preferred dates:', preferredDaysToInsert);

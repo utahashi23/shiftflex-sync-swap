@@ -44,31 +44,33 @@ export const findMatches = (
     shiftsByUser[shift.user_id].push(shift.date);
   });
   
-  // Group preferred dates by request and include accepted_types
+  // Group preferred dates by request and include accepted_types properly renamed to acceptedTypes
   preferredDates.forEach(date => {
     if (!preferredDatesByRequest[date.request_id]) {
       preferredDatesByRequest[date.request_id] = [];
     }
     
-    // Ensure accepted_types is properly included
+    // Ensure acceptedTypes is properly included (renamed from accepted_types)
     preferredDatesByRequest[date.request_id].push({
       date: date.date,
-      accepted_types: date.accepted_types || []
+      acceptedTypes: date.accepted_types || []
     });
+    
+    // Debug log some data to verify the property conversion
+    if (verbose && date.accepted_types) {
+      console.log(`Preferred date ${date.date} for request ${date.request_id} has acceptable types:`, date.accepted_types);
+    }
   });
   
   // For debugging
   if (verbose) {
     console.log(`Mapped ${Object.keys(shiftsByUser).length} users with shifts`);
     console.log(`Mapped ${Object.keys(preferredDatesByRequest).length} requests with preferred dates`);
-    console.log('Sample shift mapping:', Array.from(shiftMap.entries())[0]);
-    console.log('Sample shiftsByUser mapping:', Object.entries(shiftsByUser)[0]);
-    console.log('Sample preferredDatesByRequest mapping:', Object.entries(preferredDatesByRequest)[0]);
     
-    // Log a sample preferred date with accepted_types for debugging
+    // Log a sample preferred date with acceptedTypes for debugging
     const sampleRequest = Object.keys(preferredDatesByRequest)[0];
     if (sampleRequest && preferredDatesByRequest[sampleRequest].length > 0) {
-      console.log('Sample preferred date with accepted_types:', preferredDatesByRequest[sampleRequest][0]);
+      console.log('Sample preferred date with acceptedTypes:', preferredDatesByRequest[sampleRequest][0]);
     }
   } else {
     console.log(`Mapped ${Object.keys(shiftsByUser).length} users with shifts`);
@@ -158,13 +160,13 @@ export const findMatches = (
       // Log preferred dates with accepted types for debugging
       if (preferredDatesByRequest[request1.id]) {
         console.log(`  Request 1 preferred dates:`, preferredDatesByRequest[request1.id].map(pd => 
-          `${pd.date} (types: ${pd.accepted_types.join(', ') || 'any'})`
+          `${pd.date} (types: ${pd.acceptedTypes?.join(', ') || 'none'})`
         ));
       }
       
       if (preferredDatesByRequest[request2.id]) {
         console.log(`  Request 2 preferred dates:`, preferredDatesByRequest[request2.id].map(pd => 
-          `${pd.date} (types: ${pd.accepted_types.join(', ') || 'any'})`
+          `${pd.date} (types: ${pd.acceptedTypes?.join(', ') || 'none'})`
         ));
       }
     } else if (Math.random() < 0.1) { // Only log some checks to avoid console spam
@@ -186,6 +188,8 @@ export const findMatches = (
       if (verbose) {
         console.log(`  Match details: ${shift1.date} <-> ${shift2.date}`);
         console.log(`  Shift types: ${shift1.type} <-> ${shift2.type}`);
+        console.log(`  Accepted types for ${request1.id.substring(0,6)}: ${preferredDatesByRequest[request1.id].find(pd => pd.date === shift2.date)?.acceptedTypes}`);
+        console.log(`  Accepted types for ${request2.id.substring(0,6)}: ${preferredDatesByRequest[request2.id].find(pd => pd.date === shift1.date)?.acceptedTypes}`);
       }
       matches.push({
         request: request1,
