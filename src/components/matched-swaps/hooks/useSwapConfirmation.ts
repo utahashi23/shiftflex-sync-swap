@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -48,6 +47,8 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         });
         throw new Error("Authentication required");
       }
+      
+      console.log("Session before accept swap call:", session ? "Valid" : "Invalid");
       
       // Call the accept_swap_match function
       const { data, error } = await supabase.functions.invoke('accept_swap_match', {
