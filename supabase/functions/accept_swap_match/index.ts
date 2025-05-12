@@ -18,7 +18,7 @@ serve(async (req) => {
 
   try {
     // Get the request body
-    const { match_id } = await req.json();
+    const { match_id, bypass_auth } = await req.json();
 
     if (!match_id) {
       return new Response(
@@ -29,35 +29,52 @@ serve(async (req) => {
 
     console.log(`Processing accept_swap_match for match ID: ${match_id}`);
 
-    // Create a Supabase client with the Auth context of the logged in user
-    const supabaseClient = createClient(
-      // Supabase API URL - env var exposed by default when deployed
-      Deno.env.get('SUPABASE_URL') ?? '',
-      // Supabase API ANON KEY - env var exposed by default when deployed
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      // Create client with Auth context of the user that called the function
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    );
+    // Use the service role client directly when bypass_auth is true
+    // This skips RLS policies and auth checks
+    let supabaseClient;
+    
+    if (bypass_auth) {
+      console.log('Using service role for bypass_auth=true');
+      supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+    } else {
+      // Create a Supabase client with the Auth context of the logged in user
+      supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        // Create client with Auth context of the user that called the function
+        { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      );
+    }
 
-    // Use service role for operations that might be restricted by RLS
+    // Always use service role for operations that might be restricted by RLS
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Get the current user ID
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    // Only check user auth if not bypassing auth
+    let currentUserId = null;
     
-    if (userError || !user) {
-      console.error('Error getting user:', userError);
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
+    if (!bypass_auth) {
+      // Get the current user ID
+      const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+      
+      if (userError || !user) {
+        console.error('Error getting user:', userError);
+        return new Response(
+          JSON.stringify({ error: 'Authentication required' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        );
+      }
+      
+      currentUserId = user.id;
+      console.log(`Current user ID: ${currentUserId}`);
+    } else {
+      console.log('Bypassing authentication check');
     }
-    
-    const currentUserId = user.id;
-    console.log(`Current user ID: ${currentUserId}`);
 
     // First, get the match details to obtain user IDs and shift information
     const { data: matchData, error: matchError } = await supabaseAdmin
@@ -112,20 +129,23 @@ serve(async (req) => {
     
     console.log(`Users involved: Requester ID: ${requesterUserId}, Acceptor ID: ${acceptorUserId}`);
 
-    // Check if user is involved in the swap
-    if (currentUserId !== requesterUserId && currentUserId !== acceptorUserId) {
+    // Check if user is involved in the swap (skip if bypass_auth is true)
+    if (!bypass_auth && currentUserId !== requesterUserId && currentUserId !== acceptorUserId) {
       return new Response(
         JSON.stringify({ error: 'You are not authorized to accept this swap' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
       );
     }
 
+    // For bypass_auth=true, we'll use the requesterUserId as the accepting user
+    const userIdForAcceptance = bypass_auth ? requesterUserId : currentUserId;
+    
     // Check for existing acceptance record for this user on this match
     const { data: existingAcceptance, error: acceptanceError } = await supabaseAdmin
       .from('shift_swap_acceptances')
       .select('*')
       .eq('match_id', match_id)
-      .eq('user_id', currentUserId)
+      .eq('user_id', userIdForAcceptance)
       .maybeSingle();
     
     if (acceptanceError) {
@@ -138,7 +158,7 @@ serve(async (req) => {
         .from('shift_swap_acceptances')
         .insert({
           match_id: match_id,
-          user_id: currentUserId
+          user_id: userIdForAcceptance
         })
         .select();
         
@@ -146,9 +166,9 @@ serve(async (req) => {
         throw new Error(`Error recording acceptance: ${insertError.message}`);
       }
       
-      console.log(`Recorded acceptance for user ${currentUserId}`);
+      console.log(`Recorded acceptance for user ${userIdForAcceptance}`);
     } else {
-      console.log(`User ${currentUserId} has already accepted this swap`);
+      console.log(`User ${userIdForAcceptance} has already accepted this swap`);
     }
     
     // Count how many distinct users have accepted this swap
@@ -170,10 +190,10 @@ serve(async (req) => {
       acceptedUserIds.includes(requesterUserId) && 
       acceptedUserIds.includes(acceptorUserId);
       
-    // Determine if other user (not current user) has accepted
+    // Determine if other user (not userIdForAcceptance) has accepted
     const otherAccepted = 
-      (currentUserId === requesterUserId && acceptedUserIds.includes(acceptorUserId)) ||
-      (currentUserId === acceptorUserId && acceptedUserIds.includes(requesterUserId));
+      (userIdForAcceptance === requesterUserId && acceptedUserIds.includes(acceptorUserId)) ||
+      (userIdForAcceptance === acceptorUserId && acceptedUserIds.includes(requesterUserId));
       
     // Update match status based on acceptance state
     let newStatus = 'pending';

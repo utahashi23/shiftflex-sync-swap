@@ -89,44 +89,26 @@ export const acceptSwapMatch = async (matchId: string) => {
   console.log('Accepting swap match:', matchId);
   
   try {
-    // Define the base URL for the edge function
-    // Using the proper method to get the function URL
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ponhfgbpxehsdlxjpszg.supabase.co';
-    const apiUrl = `${supabaseUrl}/functions/v1/accept_swap_match`;
-    
-    // Get the current session using the proper method
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData?.session?.access_token || '';
-    
-    // Make a direct fetch call with proper authentication
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-        // Use the public anon key from environment or hardcode it if needed
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvbmhmZ2JweGVoc2RseGpwc3pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5ODM0NDcsImV4cCI6MjA2MTU1OTQ0N30.-n7sUFjxDJUCpMMA0AGnXlQCkaVt31dER91ZQLO3jDs'
-      },
-      body: JSON.stringify({
+    // Use supabase.functions.invoke which properly handles authentication
+    const { data, error } = await supabase.functions.invoke('accept_swap_match', {
+      body: { 
         match_id: matchId,
-        bypass_auth: true  // Keep the bypass flag as well
-      })
+        bypass_auth: true  // This flag will be checked in the edge function
+      }
     });
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Error response from accept_swap_match:', errorData);
+    if (error) {
+      console.error('Error from accept_swap_match function:', error);
       
       toast({
         title: "Failed to Accept Swap",
-        description: errorData.error || "There was a problem accepting the swap",
+        description: error.message || "There was a problem accepting the swap",
         variant: "destructive"
       });
       
-      throw new Error(errorData.error || 'Failed to accept swap');
+      throw error;
     }
     
-    const data = await response.json();
     console.log('Swap match accepted response:', data);
     
     toast({
