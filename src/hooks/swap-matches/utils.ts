@@ -1,64 +1,27 @@
 
 import { SwapMatch } from './types';
-import { getShiftType } from '@/utils/shiftUtils';
 
 /**
- * Format raw API matches data into SwapMatch objects
+ * Format the raw matches data from the API into the SwapMatch format used by the frontend
  */
 export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
-  if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
-    return [];
-  }
-  
-  // Process and format the matches data
   return matchesData.map(match => {
-    // Log raw match data for debugging
-    console.log(`Processing match ID ${match.match_id} with status ${match.match_status}:`, match);
-    
-    // Look for colleague_type in various possible locations
-    const myShiftColleagueType = 
-      match.my_shift_colleague_type || 
-      (match.my_shift_data && match.my_shift_data.colleague_type) ||
-      'Unknown';
-    
-    const otherShiftColleagueType = 
-      match.other_shift_colleague_type || 
-      (match.other_shift_data && match.other_shift_data.colleague_type) ||
-      'Unknown';
-    
-    // Check if this match has the other_accepted status or flag
-    const isOtherAccepted = 
-      match.match_status === 'other_accepted' || 
-      match.is_other_accepted === true || 
-      match.other_accepted === true;
-    
-    // Set the correct status, prioritizing 'other_accepted' if flag is present
-    const matchStatus = isOtherAccepted ? 'other_accepted' : match.match_status;
-    
-    // Extract employee IDs if available
-    const myEmployeeId = match.my_employee_id || null;
-    const otherEmployeeId = match.other_employee_id || null;
-    
-    console.log(`Match ${match.match_id} status: ${matchStatus}, colleague types:`, {
-      myShift: myShiftColleagueType,
-      otherShift: otherShiftColleagueType,
-      isOtherAccepted,
-      myEmployeeId,
-      otherEmployeeId
-    });
+    // Determine the shift type based on the time
+    const myShiftType = determineShiftType(match.my_shift_start_time);
+    const otherShiftType = determineShiftType(match.other_shift_start_time);
     
     return {
       id: match.match_id,
-      status: matchStatus,
+      status: match.match_status,
       myShift: {
         id: match.my_shift_id,
         date: match.my_shift_date,
         startTime: match.my_shift_start_time,
         endTime: match.my_shift_end_time,
         truckName: match.my_shift_truck,
-        type: getShiftType(match.my_shift_start_time),
-        colleagueType: myShiftColleagueType,
-        employeeId: myEmployeeId
+        type: myShiftType,
+        colleagueType: match.my_shift_colleague_type || 'Unknown',
+        employeeId: match.my_employee_id
       },
       otherShift: {
         id: match.other_shift_id,
@@ -66,15 +29,36 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         startTime: match.other_shift_start_time,
         endTime: match.other_shift_end_time,
         truckName: match.other_shift_truck,
-        type: getShiftType(match.other_shift_start_time),
+        type: otherShiftType,
         userId: match.other_user_id,
         userName: match.other_user_name || 'Unknown User',
-        colleagueType: otherShiftColleagueType,
-        employeeId: otherEmployeeId
+        colleagueType: match.other_shift_colleague_type || 'Unknown',
+        employeeId: match.other_employee_id
       },
       myRequestId: match.my_request_id,
       otherRequestId: match.other_request_id,
-      createdAt: match.created_at
+      requesterId: match.requester_id,
+      createdAt: match.created_at,
+      // Add the new acceptance tracking fields
+      hasAccepted: Boolean(match.has_accepted),
+      otherHasAccepted: Boolean(match.other_has_accepted)
     };
   });
+};
+
+/**
+ * Determine the shift type based on the start time
+ */
+const determineShiftType = (startTime: string): 'day' | 'afternoon' | 'night' | 'unknown' => {
+  if (!startTime) return 'unknown';
+  
+  const hour = parseInt(startTime.split(':')[0], 10);
+  
+  if (hour >= 5 && hour < 12) {
+    return 'day';
+  } else if (hour >= 12 && hour < 18) {
+    return 'afternoon';
+  } else {
+    return 'night';
+  }
 };

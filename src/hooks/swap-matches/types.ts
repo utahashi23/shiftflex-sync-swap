@@ -27,6 +27,9 @@ export interface SwapMatch {
   myRequestId: string;
   otherRequestId: string;
   createdAt: string;
+  requesterId?: string; // To track who initiated the swap
+  hasAccepted?: boolean; // To track if current user has accepted
+  otherHasAccepted?: boolean; // To track if other user has accepted
 }
 
 export interface SwapMatchesState {

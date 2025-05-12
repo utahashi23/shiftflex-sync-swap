@@ -6,7 +6,8 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { ArrowRightLeft, Calendar, Clock, UserCircle2, AlertTriangle, FileText, Mail } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowRightLeft, Calendar, Clock, UserCircle2, AlertTriangle, FileText, Mail, CheckCircle2, Clock3 } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "./types";
 import { useState } from "react";
@@ -44,13 +45,21 @@ export const SwapCard = ({
   // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
-    otherShift: swap.otherShift.colleagueType
+    otherShift: swap.otherShift.colleagueType,
+    hasAccepted: swap.hasAccepted,
+    otherHasAccepted: swap.otherHasAccepted
   });
   
   // Determine status display text and color
   const getStatusDisplay = () => {
     switch (swap.status) {
       case 'pending':
+        if (swap.hasAccepted && !swap.otherHasAccepted) {
+          return {
+            text: 'Awaiting Other User',
+            colorClass: 'bg-blue-100 text-blue-800'
+          };
+        }
         return {
           text: 'Pending',
           colorClass: 'bg-amber-100 text-amber-800'
@@ -58,7 +67,7 @@ export const SwapCard = ({
       case 'accepted':
         return {
           text: 'Accepted',
-          colorClass: 'bg-blue-100 text-blue-800'
+          colorClass: 'bg-green-100 text-green-800'
         };
       case 'other_accepted':
         return {
@@ -186,21 +195,34 @@ export const SwapCard = ({
           </div>
         </div>
         
+        {/* Display notification for partially accepted swap */}
+        {swap.status === 'pending' && swap.hasAccepted && !swap.otherHasAccepted && (
+          <Alert className="mt-4 border-blue-200 bg-blue-50">
+            <Clock3 className="h-4 w-4 text-blue-500" />
+            <AlertDescription className="text-blue-700">
+              You've accepted this swap. Waiting for the other user to accept as well.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Display notification for partially accepted swap - other user has accepted */}
+        {swap.status === 'pending' && !swap.hasAccepted && swap.otherHasAccepted && (
+          <Alert className="mt-4 border-blue-200 bg-blue-50">
+            <CheckCircle2 className="h-4 w-4 text-blue-500" />
+            <AlertDescription className="text-blue-700">
+              The other user has already accepted this swap. Accept to complete the match!
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {/* Display warning for other_accepted status */}
         {swap.status === 'other_accepted' && (
-          <div className="mt-4 p-3 border border-yellow-300 rounded-md bg-yellow-50">
-            <div className="flex items-start">
-              <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />
-              <div>
-                <p className="text-sm font-medium text-yellow-800">
-                  This shift has already been accepted by another user
-                </p>
-                <p className="text-xs text-yellow-700 mt-1">
-                  The shift you were interested in is no longer available as it has been accepted in another swap.
-                </p>
-              </div>
-            </div>
-          </div>
+          <Alert className="mt-4 border-yellow-200 bg-yellow-50" variant="warning">
+            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-800">
+              This shift has already been accepted by another user. The shift you were interested in is no longer available.
+            </AlertDescription>
+          </Alert>
         )}
       </CardContent>
       
@@ -216,12 +238,24 @@ export const SwapCard = ({
               Swap Details
             </Button>
           
-            {swap.status === 'pending' && onAccept && (
+            {/* Show Accept button if pending and user hasn't accepted yet */}
+            {swap.status === 'pending' && !swap.hasAccepted && onAccept && (
               <Button 
                 onClick={() => onAccept(swap.id)}
                 className="bg-green-600 hover:bg-green-700"
               >
                 Accept Swap
+              </Button>
+            )}
+            
+            {/* Show waiting message if user has accepted but other user hasn't */}
+            {swap.status === 'pending' && swap.hasAccepted && !swap.otherHasAccepted && (
+              <Button 
+                disabled
+                className="opacity-70 cursor-not-allowed flex items-center"
+              >
+                <Clock3 className="h-4 w-4 mr-2" />
+                Waiting...
               </Button>
             )}
             
@@ -235,7 +269,7 @@ export const SwapCard = ({
               </Button>
             )}
             
-            {/* Explicitly check for 'accepted' status */}
+            {/* Explicitly check for 'accepted' status - this means both users have accepted */}
             {swap.status === 'accepted' && (
               <>
                 {onCancel && (
