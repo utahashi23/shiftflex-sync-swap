@@ -6,7 +6,6 @@ import { Shift } from '@/hooks/useShiftData';
 import { AcceptableShiftTypes } from './types';
 import { supabase } from '@/integrations/supabase/client';
 
-// Update the useSwapCalendarActions hook to work with our edge function
 export const useSwapCalendarActions = (
   state: any, 
   setStateActions: any, 
@@ -71,19 +70,21 @@ export const useSwapCalendarActions = (
     try {
       setIsLoading(true);
       
-      // Format preferred dates for the edge function
-      // Making sure we are using consistent property names
+      // Format preferred dates for the edge function with consistent property names
       const preferredDates = selectedSwapDates.map(dateStr => ({
         date: dateStr,
-        acceptedTypes: acceptedTypes // Use consistent property naming
+        acceptedTypes: acceptedTypes // Ensure consistent property naming
       }));
       
       // Enhanced logging for debugging
-      console.log('Creating swap request with shift:', selectedShift);
-      console.log('Selected swap dates:', selectedSwapDates);
-      console.log('Acceptable shift types object:', acceptableShiftTypes);
-      console.log('Accepted types array being sent:', acceptedTypes);
-      console.log('Preferred dates being sent:', preferredDates);
+      console.log('Creating swap request with:', {
+        shift_id: selectedShift.id,
+        shift_type: selectedShift.type,
+        shift_date: selectedShift.date,
+        selected_dates: selectedSwapDates,
+        accepted_types: acceptedTypes,
+        preferred_dates: preferredDates
+      });
       
       // Call the Supabase edge function
       const { data, error } = await supabase.functions.invoke('create_swap_request', {
@@ -136,7 +137,6 @@ export const useSwapCalendarActions = (
     }
   };
   
-  // Updated to accept a number parameter instead of 'prev' | 'next'
   const changeMonth = (increment: number) => {
     const currentDate = new Date(state.currentDate);
     const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + increment, 1);

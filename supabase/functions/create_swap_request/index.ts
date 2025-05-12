@@ -1,7 +1,4 @@
 
-// Follow this setup guide to integrate the Supabase Edge Functions with your app:
-// https://supabase.com/docs/guides/functions/getting-started
-
 import { serve } from "https://deno.land/std@0.131.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
@@ -22,7 +19,7 @@ serve(async (req) => {
     // Parse request data
     const { shift_id, preferred_dates } = await req.json();
     
-    // Enhanced validation for request parameters
+    // Validate inputs
     if (!shift_id) {
       return new Response(
         JSON.stringify({ error: 'Shift ID is required' }),
@@ -37,7 +34,7 @@ serve(async (req) => {
       );
     }
 
-    // Enhanced validation for accepted types
+    // Validate shift types for each preferred date
     for (const pd of preferred_dates) {
       if (!pd.date) {
         return new Response(
@@ -46,20 +43,32 @@ serve(async (req) => {
         );
       }
       
+      // Required: accepted shift types for strict filtering
       if (!pd.acceptedTypes || !Array.isArray(pd.acceptedTypes) || pd.acceptedTypes.length === 0) {
         return new Response(
           JSON.stringify({ error: 'Each preferred date must have at least one accepted shift type' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
         );
       }
+      
+      // Validate that accepted types only contain valid shift types
+      const validShiftTypes = ['day', 'afternoon', 'night'];
+      const invalidTypes = pd.acceptedTypes.filter(type => !validShiftTypes.includes(type));
+      if (invalidTypes.length > 0) {
+        return new Response(
+          JSON.stringify({ 
+            error: `Invalid shift types detected: ${invalidTypes.join(', ')}. Valid types are: ${validShiftTypes.join(', ')}` 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
     }
     
-    // Debug logging for request info
-    console.log('Request for shift ID:', shift_id);
-    console.log('Preferred dates count:', preferred_dates.length);
-    preferred_dates.forEach(pd => {
-      console.log(`Date: ${pd.date}, accepted types:`, pd.acceptedTypes);
-    });
+    console.log('Request validation passed. Creating swap request with:');
+    console.log('- Shift ID:', shift_id);
+    console.log('- Preferred dates:', preferred_dates.map(pd => 
+      `${pd.date} (accepted types: ${pd.acceptedTypes.join(', ')})`
+    ).join(', '));
     
     // Create an admin client with service role to bypass RLS
     const supabaseAdmin = createClient(
@@ -88,7 +97,7 @@ serve(async (req) => {
     }
 
     const userId = user.id;
-    console.log('Proceeding with user ID:', userId);
+    console.log('Authenticated user ID:', userId);
     
     // 1. Create the swap request
     const { data: swapRequest, error: swapRequestError } = await supabaseAdmin
@@ -113,21 +122,22 @@ serve(async (req) => {
     console.log('Created swap request with ID:', requestId);
     
     // 2. Add all preferred dates with their accepted types
-    // IMPORTANT: Make sure we're mapping client-side property "acceptedTypes" to database property "accepted_types"
+    // CRITICAL: Map client-side "acceptedTypes" to database's "accepted_types" 
     const preferredDaysToInsert = preferred_dates.map(pd => ({
       request_id: requestId,
       date: pd.date,
-      accepted_types: pd.acceptedTypes // This will be converted to accepted_types in the database
+      accepted_types: pd.acceptedTypes  // This will be stored as accepted_types in the database
     }));
     
-    console.log('Inserting preferred dates with accepted types:');
+    console.log('Inserting preferred dates:');
     preferredDaysToInsert.forEach(pd => {
-      console.log(`- Date ${pd.date}, types: ${pd.accepted_types ? pd.accepted_types.join(', ') : '[]'}`);
+      console.log(`- Date ${pd.date}, accepted types: [${pd.accepted_types.join(', ')}]`);
     });
     
-    const { error: datesError } = await supabaseAdmin
+    const { data: insertedDates, error: datesError } = await supabaseAdmin
       .from('shift_swap_preferred_dates')
-      .insert(preferredDaysToInsert);
+      .insert(preferredDaysToInsert)
+      .select();
       
     if (datesError) {
       console.error('Error adding preferred dates:', datesError);
@@ -140,11 +150,14 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Successfully inserted ${insertedDates.length} preferred dates`);
+    
     return new Response(
       JSON.stringify({
         success: true,
         request_id: requestId,
-        message: 'Swap request created successfully'
+        message: 'Swap request created successfully',
+        preferred_dates_count: insertedDates.length
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );

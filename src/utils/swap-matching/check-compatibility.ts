@@ -4,6 +4,7 @@ import { toast } from '@/hooks/use-toast';
 
 /**
  * Check if users want to swap shifts based on their preferences
+ * Implements strict validation of dates and shift types
  */
 export const checkSwapCompatibility = (
   request: any,
@@ -13,92 +14,93 @@ export const checkSwapCompatibility = (
   preferredDatesByRequest: Record<string, any[]>,
   shiftsByUser: Record<string, string[]>
 ) => {
-  console.log(`----- COMPATIBILITY CHECK -----`);
-  console.log(`Request ${request.id.substring(0, 6)} shift: ${requestShift.normalizedDate} (${requestShift.type})`);
-  console.log(`Request ${otherRequest.id.substring(0, 6)} shift: ${otherRequestShift.normalizedDate} (${otherRequestShift.type})`);
+  console.log(`----- COMPATIBILITY CHECK START -----`);
+  console.log(`Checking compatibility between requests ${request.id.substring(0, 6)} and ${otherRequest.id.substring(0, 6)}`);
+  console.log(`Request 1: Shift date ${requestShift.normalizedDate} (${requestShift.type})`);
+  console.log(`Request 2: Shift date ${otherRequestShift.normalizedDate} (${otherRequestShift.type})`);
   
-  // Check if the first user wants the second user's shift date and type
-  const prefDates = preferredDatesByRequest[request.id] || [];
-  console.log(`User ${request.requester_id.substring(0, 6)} has ${prefDates.length} preferred dates`);
+  // Get preferred dates for first user
+  const user1PreferredDates = preferredDatesByRequest[request.id] || [];
+  console.log(`User 1 (${request.requester_id.substring(0, 6)}) has ${user1PreferredDates.length} preferred dates`);
   
-  // Find the exact matching preferred date
-  const matchingPrefDate = prefDates.find(prefDate => prefDate.date === otherRequestShift.normalizedDate);
+  // Check if first user wants second user's date
+  const user1WantsDate = user1PreferredDates.find(pd => pd.date === otherRequestShift.normalizedDate);
   
-  if (!matchingPrefDate) {
-    console.log(`User ${request.requester_id.substring(0, 6)} doesn't have a preferred date for ${otherRequestShift.normalizedDate}`);
+  if (!user1WantsDate) {
+    console.log(`❌ User 1 doesn't want date ${otherRequestShift.normalizedDate}`);
     return { 
       isCompatible: false, 
       reason: `User ${request.requester_id.substring(0, 6)} doesn't want date ${otherRequestShift.normalizedDate}` 
     };
   }
   
-  console.log(`User ${request.requester_id.substring(0, 6)} wants date ${otherRequestShift.normalizedDate}`);
+  console.log(`✓ User 1 wants date ${otherRequestShift.normalizedDate}`);
   
-  // STRICT CHECK: Must have explicitly accepted types, and must include this shift type
-  if (!matchingPrefDate.acceptedTypes || !Array.isArray(matchingPrefDate.acceptedTypes) || matchingPrefDate.acceptedTypes.length === 0) {
-    console.log(`User ${request.requester_id.substring(0, 6)} didn't specify valid acceptable shift types, considering as not acceptable`);
-    return {
-      isCompatible: false,
-      reason: `User ${request.requester_id.substring(0, 6)} didn't specify valid acceptable shift types for ${otherRequestShift.normalizedDate}`
-    };
-  }
-  
-  console.log(`User ${request.requester_id.substring(0, 6)} accepted types:`, matchingPrefDate.acceptedTypes);
-  const firstUserWantsSecondType = matchingPrefDate.acceptedTypes.includes(otherRequestShift.type);
-  
-  if (!firstUserWantsSecondType) {
-    console.log(`User ${request.requester_id.substring(0, 6)} doesn't want shift type ${otherRequestShift.type}`);
+  // STRICT CHECK: User 1 must have specified accepted types for the date
+  if (!user1WantsDate.acceptedTypes || !Array.isArray(user1WantsDate.acceptedTypes) || user1WantsDate.acceptedTypes.length === 0) {
+    console.log(`❌ User 1 hasn't specified any accepted shift types for date ${otherRequestShift.normalizedDate}`);
     return { 
       isCompatible: false, 
-      reason: `User ${request.requester_id.substring(0, 6)} doesn't want shift type ${otherRequestShift.type}` 
+      reason: `User ${request.requester_id.substring(0, 6)} hasn't specified any acceptable shift types` 
     };
   }
   
-  console.log(`User ${request.requester_id.substring(0, 6)} wants shift type ${otherRequestShift.type}`);
+  console.log(`User 1 accepted types for that date: [${user1WantsDate.acceptedTypes.join(', ')}]`);
   
-  // Check if the second user wants the first user's shift date and type
-  const otherPrefDates = preferredDatesByRequest[otherRequest.id] || [];
-  console.log(`User ${otherRequest.requester_id.substring(0, 6)} has ${otherPrefDates.length} preferred dates`);
+  // Check if User 1 accepts User 2's shift type
+  if (!user1WantsDate.acceptedTypes.includes(otherRequestShift.type)) {
+    console.log(`❌ User 1 doesn't accept shift type ${otherRequestShift.type}`);
+    return { 
+      isCompatible: false, 
+      reason: `User ${request.requester_id.substring(0, 6)} doesn't accept shift type ${otherRequestShift.type}` 
+    };
+  }
   
-  // Find the exact matching preferred date
-  const matchingOtherPrefDate = otherPrefDates.find(prefDate => prefDate.date === requestShift.normalizedDate);
+  console.log(`✓ User 1 accepts shift type ${otherRequestShift.type}`);
   
-  if (!matchingOtherPrefDate) {
-    console.log(`User ${otherRequest.requester_id.substring(0, 6)} doesn't have a preferred date for ${requestShift.normalizedDate}`);
+  // Get preferred dates for second user
+  const user2PreferredDates = preferredDatesByRequest[otherRequest.id] || [];
+  console.log(`User 2 (${otherRequest.requester_id.substring(0, 6)}) has ${user2PreferredDates.length} preferred dates`);
+  
+  // Check if second user wants first user's date
+  const user2WantsDate = user2PreferredDates.find(pd => pd.date === requestShift.normalizedDate);
+  
+  if (!user2WantsDate) {
+    console.log(`❌ User 2 doesn't want date ${requestShift.normalizedDate}`);
     return { 
       isCompatible: false, 
       reason: `User ${otherRequest.requester_id.substring(0, 6)} doesn't want date ${requestShift.normalizedDate}` 
     };
   }
   
-  console.log(`User ${otherRequest.requester_id.substring(0, 6)} wants date ${requestShift.normalizedDate}`);
+  console.log(`✓ User 2 wants date ${requestShift.normalizedDate}`);
   
-  // STRICT CHECK: Must have explicitly accepted types, and must include this shift type
-  if (!matchingOtherPrefDate.acceptedTypes || !Array.isArray(matchingOtherPrefDate.acceptedTypes) || matchingOtherPrefDate.acceptedTypes.length === 0) {
-    console.log(`User ${otherRequest.requester_id.substring(0, 6)} didn't specify valid acceptable shift types, considering as not acceptable`);
-    return {
-      isCompatible: false,
-      reason: `User ${otherRequest.requester_id.substring(0, 6)} didn't specify valid acceptable shift types for ${requestShift.normalizedDate}`
-    };
-  }
-  
-  console.log(`User ${otherRequest.requester_id.substring(0, 6)} accepted types:`, matchingOtherPrefDate.acceptedTypes);
-  const secondUserWantsFirstType = matchingOtherPrefDate.acceptedTypes.includes(requestShift.type);
-  
-  if (!secondUserWantsFirstType) {
-    console.log(`User ${otherRequest.requester_id.substring(0, 6)} doesn't want shift type ${requestShift.type}`);
+  // STRICT CHECK: User 2 must have specified accepted types for the date
+  if (!user2WantsDate.acceptedTypes || !Array.isArray(user2WantsDate.acceptedTypes) || user2WantsDate.acceptedTypes.length === 0) {
+    console.log(`❌ User 2 hasn't specified any accepted shift types for date ${requestShift.normalizedDate}`);
     return { 
       isCompatible: false, 
-      reason: `User ${otherRequest.requester_id.substring(0, 6)} doesn't want shift type ${requestShift.type}` 
+      reason: `User ${otherRequest.requester_id.substring(0, 6)} hasn't specified any acceptable shift types` 
     };
   }
   
-  console.log(`User ${otherRequest.requester_id.substring(0, 6)} wants shift type ${requestShift.type}`);
+  console.log(`User 2 accepted types for that date: [${user2WantsDate.acceptedTypes.join(', ')}]`);
   
-  // Check if either user is already rostered on the swap date
+  // Check if User 2 accepts User 1's shift type
+  if (!user2WantsDate.acceptedTypes.includes(requestShift.type)) {
+    console.log(`❌ User 2 doesn't accept shift type ${requestShift.type}`);
+    return { 
+      isCompatible: false, 
+      reason: `User ${otherRequest.requester_id.substring(0, 6)} doesn't accept shift type ${requestShift.type}` 
+    };
+  }
+  
+  console.log(`✓ User 2 accepts shift type ${requestShift.type}`);
+  
+  // Check for schedule conflicts
   const user1HasConflict = (shiftsByUser[request.requester_id] || []).includes(otherRequestShift.normalizedDate);
   if (user1HasConflict) {
-    console.log(`User ${request.requester_id.substring(0, 6)} already has a shift on ${otherRequestShift.normalizedDate}`);
+    console.log(`❌ User 1 already has a shift on ${otherRequestShift.normalizedDate}`);
     return { 
       isCompatible: false, 
       reason: `User ${request.requester_id.substring(0, 6)} already has a shift on ${otherRequestShift.normalizedDate}` 
@@ -107,16 +109,19 @@ export const checkSwapCompatibility = (
   
   const user2HasConflict = (shiftsByUser[otherRequest.requester_id] || []).includes(requestShift.normalizedDate);
   if (user2HasConflict) {
-    console.log(`User ${otherRequest.requester_id.substring(0, 6)} already has a shift on ${requestShift.normalizedDate}`);
+    console.log(`❌ User 2 already has a shift on ${requestShift.normalizedDate}`);
     return { 
       isCompatible: false, 
       reason: `User ${otherRequest.requester_id.substring(0, 6)} already has a shift on ${requestShift.normalizedDate}` 
     };
   }
   
-  // We have a match!
-  console.log(`🎉 MATCH FOUND between requests ${request.id.substring(0, 6)} and ${otherRequest.id.substring(0, 6)}`);
-  console.log(`User ${request.requester_id.substring(0, 6)} wants to swap with User ${otherRequest.requester_id.substring(0, 6)}`);
+  // All checks passed, we have a match!
+  console.log(`🎉 MATCH FOUND! All compatibility checks passed`);
+  console.log(`----- COMPATIBILITY CHECK END -----`);
   
-  return { isCompatible: true, reason: 'Match found' };
+  return { 
+    isCompatible: true, 
+    reason: 'All compatibility criteria met' 
+  };
 };

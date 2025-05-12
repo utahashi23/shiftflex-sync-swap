@@ -96,7 +96,16 @@ export const SwapSelectionPanel = ({
             <>
               <div className="pt-4 border-t">
                 <h4 className="font-medium mb-2">Acceptable Shift Types:</h4>
-                <div className="space-y-2">
+                <div className="p-4 border border-amber-200 bg-amber-50 rounded-md mb-4">
+                  <p className="text-sm text-amber-700 mb-2 font-medium">
+                    Important: Select which shift types you're willing to accept in exchange
+                  </p>
+                  <p className="text-xs text-amber-600">
+                    Only shifts of these types will be considered for matching
+                  </p>
+                </div>
+                
+                <div className="space-y-2 p-3 border rounded-md">
                   <div className="flex items-center">
                     <Checkbox 
                       id="day-shift" 
@@ -105,9 +114,11 @@ export const SwapSelectionPanel = ({
                         setAcceptableShiftTypes(prev => ({ ...prev, day: checked === true }))
                       }
                     />
-                    <label htmlFor="day-shift" className="ml-2 text-sm flex items-center">
-                      <Sunrise className="h-3.5 w-3.5 mr-1 text-yellow-600" />
-                      Day Shift
+                    <label htmlFor="day-shift" className="ml-2 flex items-center">
+                      <div className="bg-yellow-100 text-yellow-800 p-1 rounded-md mr-2">
+                        <Sunrise className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm font-medium">Day Shift</span>
                     </label>
                   </div>
                   
@@ -119,9 +130,11 @@ export const SwapSelectionPanel = ({
                         setAcceptableShiftTypes(prev => ({ ...prev, afternoon: checked === true }))
                       }
                     />
-                    <label htmlFor="afternoon-shift" className="ml-2 text-sm flex items-center">
-                      <Sun className="h-3.5 w-3.5 mr-1 text-orange-600" />
-                      Afternoon Shift
+                    <label htmlFor="afternoon-shift" className="ml-2 flex items-center">
+                      <div className="bg-orange-100 text-orange-800 p-1 rounded-md mr-2">
+                        <Sun className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm font-medium">Afternoon Shift</span>
                     </label>
                   </div>
                   
@@ -133,15 +146,17 @@ export const SwapSelectionPanel = ({
                         setAcceptableShiftTypes(prev => ({ ...prev, night: checked === true }))
                       }
                     />
-                    <label htmlFor="night-shift" className="ml-2 text-sm flex items-center">
-                      <Moon className="h-3.5 w-3.5 mr-1 text-blue-600" />
-                      Night Shift
+                    <label htmlFor="night-shift" className="ml-2 flex items-center">
+                      <div className="bg-blue-100 text-blue-800 p-1 rounded-md mr-2">
+                        <Moon className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm font-medium">Night Shift</span>
                     </label>
                   </div>
                 </div>
                 
                 {noShiftTypeSelected && (
-                  <div className="mt-2 text-sm text-red-500">
+                  <div className="mt-2 text-sm text-red-500 font-medium">
                     Please select at least one shift type
                   </div>
                 )}
