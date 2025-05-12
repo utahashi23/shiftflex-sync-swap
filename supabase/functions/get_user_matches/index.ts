@@ -50,7 +50,8 @@ serve(async (req) => {
     )
 
     // Query for potential matches involving this user
-    let query = supabaseAdmin
+    // Fix the SQL syntax error that was causing the 400 error
+    const { data: potentialMatches, error: matchesError } = await supabaseAdmin
       .from('shift_swap_potential_matches')
       .select(`
         id,
@@ -63,17 +64,8 @@ serve(async (req) => {
         created_at,
         requester_id
       `)
-      .or(`
-        requester_request_id.in.(
-          select id from shift_swap_requests where requester_id = '${user_id}'
-        ),
-        acceptor_request_id.in.(
-          select id from shift_swap_requests where requester_id = '${user_id}'
-        )
-      `)
+      .or(`requester_request_id.in.(select id from shift_swap_requests where requester_id='${user_id}'),acceptor_request_id.in.(select id from shift_swap_requests where requester_id='${user_id}')`)
       .order('created_at', { ascending: false })
-
-    const { data: potentialMatches, error: matchesError } = await query
 
     if (matchesError) {
       throw new Error(`Error fetching potential matches: ${matchesError.message}`)
