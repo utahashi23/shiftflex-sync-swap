@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { EmailDomainWarning } from '@/components/EmailDomainWarning';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, requiresAuth: true },
@@ -258,6 +259,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           <main className="flex-1">
             <div className="py-6">
               <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                {user && <EmailDomainWarning />}
                 {children}
               </div>
             </div>
