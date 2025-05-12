@@ -44,7 +44,9 @@ export const SwapCard = ({
   // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
-    otherShift: swap.otherShift.colleagueType
+    otherShift: swap.otherShift.colleagueType,
+    amIRequester: swap.requesterId === swap.myShift.userId,
+    status: swap.status
   });
   
   // Determine status display text and color
@@ -81,6 +83,9 @@ export const SwapCard = ({
   };
   
   const statusDisplay = getStatusDisplay();
+  
+  // Determine if the current user can accept this swap
+  const canAcceptSwap = swap.status === 'pending' || swap.status === 'other_accepted';
   
   return (
     <Card className="overflow-hidden">
@@ -195,10 +200,10 @@ export const SwapCard = ({
               <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />
               <div>
                 <p className="text-sm font-medium text-yellow-800">
-                  This shift has already been accepted by another user
+                  This shift has been partially accepted
                 </p>
                 <p className="text-xs text-yellow-700 mt-1">
-                  The shift you were interested in is no longer available as it has been accepted in another swap.
+                  The other user has accepted this swap. You can now accept it to complete the swap process.
                 </p>
               </div>
             </div>
@@ -218,22 +223,13 @@ export const SwapCard = ({
               Swap Details
             </Button>
           
-            {swap.status === 'pending' && onAccept && (
+            {/* Show Accept button for pending or other_accepted status */}
+            {canAcceptSwap && onAccept && (
               <Button 
                 onClick={() => onAccept(swap.id)}
                 className="bg-green-600 hover:bg-green-700"
               >
                 Accept Swap
-              </Button>
-            )}
-            
-            {swap.status === 'other_accepted' && (
-              <Button 
-                disabled
-                variant="outline"
-                className="opacity-50 cursor-not-allowed"
-              >
-                Already Accepted
               </Button>
             )}
             

@@ -42,13 +42,19 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
     // Extract requester ID if available
     const requesterId = match.requester_id || null;
     
+    // Extract user IDs for determining acceptance state
+    const myUserId = match.my_user_id || match.requester_id;
+    const otherUserId = match.other_user_id;
+    
     console.log(`Match ${match.match_id} status: ${matchStatus}, colleague types:`, {
       myShift: myShiftColleagueType,
       otherShift: otherShiftColleagueType,
       isOtherAccepted,
       myEmployeeId,
       otherEmployeeId,
-      requesterId
+      requesterId,
+      myUserId,
+      otherUserId
     });
     
     return {
@@ -62,7 +68,8 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
         truckName: match.my_shift_truck,
         type: getShiftType(match.my_shift_start_time),
         colleagueType: myShiftColleagueType,
-        employeeId: myEmployeeId
+        employeeId: myEmployeeId,
+        userId: myUserId
       },
       otherShift: {
         id: match.other_shift_id,

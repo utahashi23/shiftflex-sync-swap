@@ -11,6 +11,7 @@ export interface SwapMatch {
     type: string;
     colleagueType: string;
     employeeId?: string;
+    userId?: string; // Added userId to track user acceptance
   };
   otherShift: {
     id: string;

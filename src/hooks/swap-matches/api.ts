@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '../use-toast';
 import { formatSwapMatches } from './utils';
@@ -33,7 +32,8 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
         match_id: matchesData[0].match_id,
         match_status: matchesData[0].match_status,
         my_shift_colleague_type: matchesData[0].my_shift_colleague_type,
-        other_shift_colleague_type: matchesData[0].other_shift_colleague_type
+        other_shift_colleague_type: matchesData[0].other_shift_colleague_type,
+        my_user_id: matchesData[0].my_user_id || matchesData[0].requester_id
       });
     }
     

@@ -13,6 +13,7 @@ export interface SwapMatch {
     type: "day" | "afternoon" | "night" | "unknown";
     colleagueType: string | null;
     employeeId?: string | null;
+    userId?: string | null; // Adding userId to track swap acceptance
   };
   otherShift: {
     id: string;
