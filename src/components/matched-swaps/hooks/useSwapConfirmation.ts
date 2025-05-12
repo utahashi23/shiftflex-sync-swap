@@ -37,7 +37,9 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // First, explicitly get the session
+      console.log("Attempting to accept swap with match ID:", confirmDialog.matchId);
+      
+      // Get the current user session
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
@@ -61,17 +63,30 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         return;
       }
       
-      console.log("Proceeding with valid session");
+      console.log("Session verified, proceeding with swap acceptance");
       
-      // Use the invoke method instead of direct fetch
-      const { data, error } = await supabase.functions.invoke('accept_swap_match', {
-        body: { match_id: confirmDialog.matchId }
-      });
+      // Call the accept_swap_match function with proper authorization header
+      // Use an alternate approach to ensure the auth header is included
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/accept_swap_match`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionData.session.access_token}`
+          },
+          body: JSON.stringify({ match_id: confirmDialog.matchId })
+        }
+      );
       
-      if (error) {
-        console.error('Error response from function:', error);
-        throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response from function:', response.status, errorText);
+        throw new Error(`Error ${response.status}: ${errorText || 'Failed to accept swap'}`);
       }
+      
+      const data = await response.json();
+      console.log("Swap acceptance response:", data);
       
       if (data.both_accepted) {
         toast({
@@ -124,14 +139,26 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         return;
       }
       
-      // Use the invoke method instead of direct fetch
-      const { data, error } = await supabase.functions.invoke('finalize_swap_match', {
-        body: { match_id: finalizeDialog.matchId }
-      });
+      // Call the finalize_swap_match function with proper authorization header
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/finalize_swap_match`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionData.session.access_token}`
+          },
+          body: JSON.stringify({ match_id: finalizeDialog.matchId })
+        }
+      );
       
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error finalizing swap:', response.status, errorText);
+        throw new Error(`Error ${response.status}: ${errorText || 'Failed to finalize swap'}`);
       }
+      
+      const data = await response.json();
       
       toast({
         title: "Swap Finalized",
@@ -177,14 +204,26 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         return;
       }
       
-      // Use the invoke method instead of direct fetch
-      const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
-        body: { match_id: matchId }
-      });
+      // Call the cancel_swap_match function with proper authorization header
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cancel_swap_match`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionData.session.access_token}`
+          },
+          body: JSON.stringify({ match_id: matchId })
+        }
+      );
       
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error canceling swap:', response.status, errorText);
+        throw new Error(`Error ${response.status}: ${errorText || 'Failed to cancel swap'}`);
       }
+      
+      const data = await response.json();
       
       toast({
         title: "Swap Canceled",
@@ -216,7 +255,7 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Use the resendSwapNotification directly for consistency
+      // Use the resendSwapNotification utility function
       const result = await resendSwapNotification(matchId);
       
       if (!result.success) {
