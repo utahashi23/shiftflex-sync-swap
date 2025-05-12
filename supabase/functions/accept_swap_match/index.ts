@@ -29,6 +29,20 @@ serve(async (req) => {
 
     console.log(`Processing accept_swap_match for match ID: ${match_id}`);
 
+    // Get auth token from request
+    const authHeader = req.headers.get('Authorization');
+    
+    if (!authHeader) {
+      console.log('No Authorization header found');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Authentication required', 
+          details: 'No authorization header found'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
     // Create a Supabase client with the Auth context of the logged in user
     const supabaseClient = createClient(
       // Supabase API URL - env var exposed by default when deployed
@@ -36,7 +50,7 @@ serve(async (req) => {
       // Supabase API ANON KEY - env var exposed by default when deployed
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       // Create client with Auth context of the user that called the function
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      { global: { headers: { Authorization: authHeader } } }
     );
 
     // Use service role for operations that might be restricted by RLS

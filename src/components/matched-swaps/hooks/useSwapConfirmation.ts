@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -36,6 +37,18 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
+      // Check if user is authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        toast({
+          title: "Authentication Required",
+          description: "You need to be logged in to accept a swap.",
+          variant: "destructive"
+        });
+        throw new Error("Authentication required");
+      }
+      
       // Call the accept_swap_match function
       const { data, error } = await supabase.functions.invoke('accept_swap_match', {
         body: { match_id: confirmDialog.matchId }
@@ -85,6 +98,18 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
+      // Check if user is authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        toast({
+          title: "Authentication Required",
+          description: "You need to be logged in to finalize a swap.",
+          variant: "destructive"
+        });
+        throw new Error("Authentication required");
+      }
+      
       // Call the finalize_swap_match function
       const { data, error } = await supabase.functions.invoke('finalize_swap_match', {
         body: { match_id: finalizeDialog.matchId }
@@ -96,9 +121,6 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         title: "Swap Finalized",
         description: "The shift swap has been finalized and the calendar has been updated.",
       });
-      
-      // The edge function already handles email notifications, so we don't need to send them again here
-      // Removing the duplicate email sending
       
       if (onSuccessCallback) {
         onSuccessCallback();
@@ -127,6 +149,18 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
+      // Check if user is authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        toast({
+          title: "Authentication Required",
+          description: "You need to be logged in to cancel a swap.",
+          variant: "destructive"
+        });
+        throw new Error("Authentication required");
+      }
+      
       // Call the cancel_swap_match function
       const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
         body: { match_id: matchId }
@@ -164,6 +198,18 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
+      // Check if user is authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        toast({
+          title: "Authentication Required",
+          description: "You need to be logged in to resend emails.",
+          variant: "destructive"
+        });
+        throw new Error("Authentication required");
+      }
+      
       // Use the resendSwapNotification directly for consistency
       const result = await resendSwapNotification(matchId);
       
