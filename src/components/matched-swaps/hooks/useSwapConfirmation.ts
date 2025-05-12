@@ -63,23 +63,15 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
       
       console.log("Proceeding with valid session");
       
-      // Call the API using fetch directly to have more control over headers
-      const response = await fetch(`${supabase.functions.url}/accept_swap_match`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionData.session.access_token}`
-        },
-        body: JSON.stringify({ match_id: confirmDialog.matchId })
+      // Use the invoke method instead of direct fetch
+      const { data, error } = await supabase.functions.invoke('accept_swap_match', {
+        body: { match_id: confirmDialog.matchId }
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error response from function:', response.status, errorText);
-        throw new Error(`Error ${response.status}: ${errorText}`);
+      if (error) {
+        console.error('Error response from function:', error);
+        throw error;
       }
-      
-      const data = await response.json();
       
       if (data.both_accepted) {
         toast({
@@ -132,22 +124,14 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         return;
       }
       
-      // Use direct fetch for more control over headers
-      const response = await fetch(`${supabase.functions.url}/finalize_swap_match`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionData.session.access_token}`
-        },
-        body: JSON.stringify({ match_id: finalizeDialog.matchId })
+      // Use the invoke method instead of direct fetch
+      const { data, error } = await supabase.functions.invoke('finalize_swap_match', {
+        body: { match_id: finalizeDialog.matchId }
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Error ${response.status}: ${errorText}`);
+      if (error) {
+        throw error;
       }
-      
-      const data = await response.json();
       
       toast({
         title: "Swap Finalized",
@@ -193,22 +177,14 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         return;
       }
       
-      // Use direct fetch for more control over headers
-      const response = await fetch(`${supabase.functions.url}/cancel_swap_match`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionData.session.access_token}`
-        },
-        body: JSON.stringify({ match_id: matchId })
+      // Use the invoke method instead of direct fetch
+      const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
+        body: { match_id: matchId }
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Error ${response.status}: ${errorText}`);
+      if (error) {
+        throw error;
       }
-      
-      const data = await response.json();
       
       toast({
         title: "Swap Canceled",
@@ -240,19 +216,6 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Get the current session explicitly
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !sessionData.session) {
-        toast({
-          title: "Authentication Required",
-          description: "You need to be logged in to resend emails.",
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return;
-      }
-      
       // Use the resendSwapNotification directly for consistency
       const result = await resendSwapNotification(matchId);
       
