@@ -50,7 +50,7 @@ serve(async (req) => {
     )
 
     // Query for potential matches involving this user
-    // Fix the SQL syntax error that was causing the 400 error
+    // Fix the SQL syntax error and remove reference to requester_id column
     const { data: potentialMatches, error: matchesError } = await supabaseAdmin
       .from('shift_swap_potential_matches')
       .select(`
@@ -61,8 +61,7 @@ serve(async (req) => {
         requester_shift_id,
         acceptor_shift_id,
         match_date,
-        created_at,
-        requester_id
+        created_at
       `)
       .or(`requester_request_id.in.(select id from shift_swap_requests where requester_id='${user_id}'),acceptor_request_id.in.(select id from shift_swap_requests where requester_id='${user_id}')`)
       .order('created_at', { ascending: false })
@@ -201,8 +200,12 @@ serve(async (req) => {
       // Determine status from the user's perspective
       let userPerspectiveStatus = match.status
       
+      // Store the requester_id for this match to track who accepted it
+      // We can determine this from the requests data instead
+      const matchRequesterId = requesterRequest.requester_id
+      
       // If the match is in 'accepted' status but current user is not the one who accepted it
-      if (match.status === 'accepted' && match.requester_id && match.requester_id !== user_id) {
+      if (match.status === 'accepted' && matchRequesterId && matchRequesterId !== user_id) {
         userPerspectiveStatus = 'other_accepted'
       }
       
