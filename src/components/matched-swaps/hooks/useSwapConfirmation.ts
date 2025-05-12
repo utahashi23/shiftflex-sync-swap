@@ -6,6 +6,10 @@ import { useSwapDialogs } from './useSwapDialogs';
 import { useEmailNotifications } from './useEmailNotifications';
 import { resendSwapNotification } from '@/utils/emailService';
 
+// The Supabase URL is available from the client file, but since supabaseUrl is protected,
+// we'll use the constant defined in the integration file
+const SUPABASE_URL = "https://ponhfgbpxehsdlxjpszg.supabase.co";
+
 /**
  * Hook for managing swap confirmation dialogs and actions
  */
@@ -65,12 +69,9 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
       
       console.log("Session verified, proceeding with swap acceptance");
       
-      // Instead of using import.meta.env.VITE_SUPABASE_URL, use the URL from the supabase client
-      const supabaseUrl = supabase.supabaseUrl;
-      
       // Call the accept_swap_match function with proper authorization header
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/accept_swap_match`,
+        `${SUPABASE_URL}/functions/v1/accept_swap_match`,
         {
           method: 'POST',
           headers: {
@@ -141,12 +142,9 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         return;
       }
       
-      // Use the supabase URL from the client instance
-      const supabaseUrl = supabase.supabaseUrl;
-      
       // Call the finalize_swap_match function with proper authorization header
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/finalize_swap_match`,
+        `${SUPABASE_URL}/functions/v1/finalize_swap_match`,
         {
           method: 'POST',
           headers: {
@@ -209,12 +207,9 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         return;
       }
       
-      // Use the supabase URL from the client instance
-      const supabaseUrl = supabase.supabaseUrl;
-      
       // Call the cancel_swap_match function with proper authorization header
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/cancel_swap_match`,
+        `${SUPABASE_URL}/functions/v1/cancel_swap_match`,
         {
           method: 'POST',
           headers: {
