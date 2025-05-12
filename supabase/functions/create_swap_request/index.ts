@@ -22,7 +22,7 @@ serve(async (req) => {
     // Parse request data
     const { shift_id, preferred_dates } = await req.json();
     
-    // Validate required parameters
+    // Enhanced validation for request parameters
     if (!shift_id) {
       return new Response(
         JSON.stringify({ error: 'Shift ID is required' }),
@@ -37,9 +37,29 @@ serve(async (req) => {
       );
     }
 
+    // Enhanced validation for accepted types
+    for (const pd of preferred_dates) {
+      if (!pd.date) {
+        return new Response(
+          JSON.stringify({ error: 'Each preferred date must have a date property' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+      
+      if (!pd.acceptedTypes || !Array.isArray(pd.acceptedTypes) || pd.acceptedTypes.length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'Each preferred date must have at least one accepted shift type' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+    }
+    
     // Debug logging for request info
     console.log('Request for shift ID:', shift_id);
     console.log('Preferred dates count:', preferred_dates.length);
+    preferred_dates.forEach(pd => {
+      console.log(`Date: ${pd.date}, accepted types:`, pd.acceptedTypes);
+    });
     
     // Create an admin client with service role to bypass RLS
     const supabaseAdmin = createClient(
@@ -70,27 +90,6 @@ serve(async (req) => {
     const userId = user.id;
     console.log('Proceeding with user ID:', userId);
     
-    // Enhanced logging for preferred dates and accepted types
-    console.log('Preferred dates details for debugging:');
-    preferred_dates.forEach((pd, index) => {
-      console.log(`[${index}] Date: ${pd.date}`);
-      if (pd.acceptedTypes && Array.isArray(pd.acceptedTypes)) {
-        console.log(`[${index}] Accepted Types:`, pd.acceptedTypes);
-      } else {
-        console.log(`[${index}] WARNING: No accepted types or invalid format`);
-      }
-    });
-    
-    // Validate each preferred date has at least one accepted type
-    for (const pd of preferred_dates) {
-      if (!pd.acceptedTypes || !Array.isArray(pd.acceptedTypes) || pd.acceptedTypes.length === 0) {
-        return new Response(
-          JSON.stringify({ error: 'Each preferred date must have at least one accepted shift type' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-        );
-      }
-    }
-    
     // 1. Create the swap request
     const { data: swapRequest, error: swapRequestError } = await supabaseAdmin
       .from('shift_swap_requests')
@@ -114,13 +113,17 @@ serve(async (req) => {
     console.log('Created swap request with ID:', requestId);
     
     // 2. Add all preferred dates with their accepted types
+    // IMPORTANT: Make sure we're mapping client-side property "acceptedTypes" to database property "accepted_types"
     const preferredDaysToInsert = preferred_dates.map(pd => ({
       request_id: requestId,
       date: pd.date,
-      accepted_types: pd.acceptedTypes // Make sure to use the client-side property name here
+      accepted_types: pd.acceptedTypes // This will be converted to accepted_types in the database
     }));
     
-    console.log('Inserting preferred dates with accepted types:', preferredDaysToInsert);
+    console.log('Inserting preferred dates with accepted types:');
+    preferredDaysToInsert.forEach(pd => {
+      console.log(`- Date ${pd.date}, types: ${pd.accepted_types ? pd.accepted_types.join(', ') : '[]'}`);
+    });
     
     const { error: datesError } = await supabaseAdmin
       .from('shift_swap_preferred_dates')

@@ -72,17 +72,18 @@ export const useSwapCalendarActions = (
       setIsLoading(true);
       
       // Format preferred dates for the edge function
-      // IMPORTANT: Make sure we consistently use 'acceptedTypes' for the client property
-      // and 'accepted_types' for the database property
+      // Making sure we are using consistent property names
       const preferredDates = selectedSwapDates.map(dateStr => ({
         date: dateStr,
-        acceptedTypes: acceptedTypes // This property name MUST match what the edge function expects
+        acceptedTypes: acceptedTypes // Use consistent property naming
       }));
       
-      // Log the preferred dates and accepted types for debugging
-      console.log('Creating swap request with preferred dates:', preferredDates);
-      console.log('Acceptable shift types:', acceptableShiftTypes);
-      console.log('Converted to accepted types array:', acceptedTypes);
+      // Enhanced logging for debugging
+      console.log('Creating swap request with shift:', selectedShift);
+      console.log('Selected swap dates:', selectedSwapDates);
+      console.log('Acceptable shift types object:', acceptableShiftTypes);
+      console.log('Accepted types array being sent:', acceptedTypes);
+      console.log('Preferred dates being sent:', preferredDates);
       
       // Call the Supabase edge function
       const { data, error } = await supabase.functions.invoke('create_swap_request', {
@@ -96,6 +97,8 @@ export const useSwapCalendarActions = (
         console.error('Error creating swap request:', error);
         throw error;
       }
+      
+      console.log('Swap request created successfully:', data);
       
       toast({
         title: "Swap Request Created",
