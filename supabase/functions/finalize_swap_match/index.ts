@@ -1,3 +1,4 @@
+
 // Follow this setup guide to integrate the Supabase Edge Functions with your app:
 // https://supabase.com/docs/guides/functions/getting-started
 
@@ -66,9 +67,9 @@ serve(async (req) => {
       throw new Error('Match not found')
     }
 
-    // Check if the match is in "dual_accepted" status (both users have accepted)
-    if (matchData.status !== 'dual_accepted') {
-      throw new Error(`Cannot finalize match in ${matchData.status} status. Match must be accepted by both users first.`)
+    // Check if the match is in "accepted" status
+    if (matchData.status !== 'accepted') {
+      throw new Error(`Cannot finalize match in ${matchData.status} status. Match must be accepted first.`)
     }
 
     console.log(`Found match data:`, matchData)

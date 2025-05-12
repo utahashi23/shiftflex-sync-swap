@@ -45,16 +45,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Get the current user ID
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    
-    if (userError || !user) {
-      throw new Error(`Error getting user: ${userError?.message || 'User not found'}`);
-    }
-    
-    const current_user_id = user.id;
-    console.log(`Current user ID: ${current_user_id}`);
-
     // First, get the match details to obtain user IDs and shift information
     const { data: matchData, error: matchError } = await supabaseAdmin
       .from('shift_swap_potential_matches')
@@ -107,48 +97,34 @@ serve(async (req) => {
     const acceptorUserId = acceptorRequest.data.requester_id;
     
     console.log(`Users involved: Requester ID: ${requesterUserId}, Acceptor ID: ${acceptorUserId}`);
+
+    // Fetch users' email addresses
+    const usersPromises = [
+      supabaseAdmin.auth.admin.getUserById(requesterUserId),
+      supabaseAdmin.auth.admin.getUserById(acceptorUserId)
+    ];
+
+    const [requesterUser, acceptorUser] = await Promise.all(usersPromises);
     
-    // Check which user is accepting (requester or acceptor)
-    const isRequesterAccepting = current_user_id === requesterUserId;
-    const isAcceptorAccepting = current_user_id === acceptorUserId;
-    
-    if (!isRequesterAccepting && !isAcceptorAccepting) {
-      throw new Error("You are not involved in this swap match");
+    if (requesterUser.error) {
+      console.error(`Error fetching requester user: ${requesterUser.error.message}`);
+      // Continue even if we can't get the user's email
     }
     
-    let newStatus = 'accepted';
-    
-    // Handle the two-step acceptance process
-    if (matchData.status === 'pending') {
-      // First user accepting
-      newStatus = 'accepted';
-      console.log(`First user acceptance - Setting status to ${newStatus}`);
-    } 
-    else if (matchData.status === 'accepted' || matchData.status === 'other_accepted') {
-      // Second user accepting
-      newStatus = 'dual_accepted';
-      console.log(`Second user acceptance - Setting status to ${newStatus}`);
-    }
-    else if (matchData.status === 'dual_accepted') {
-      // Already dual accepted
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "This swap has already been accepted by both users",
-          status: matchData.status
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
+    if (acceptorUser.error) {
+      console.error(`Error fetching acceptor user: ${acceptorUser.error.message}`);
+      // Continue even if we can't get the user's email
     }
 
-    // Update match status
+    const requesterEmail = requesterUser.data?.user?.email;
+    const acceptorEmail = acceptorUser.data?.user?.email;
+    
+    console.log(`User emails: Requester: ${requesterEmail || 'unknown'}, Acceptor: ${acceptorEmail || 'unknown'}`);
+
+    // Update match status to "accepted"
     const { data: updateData, error: updateError } = await supabaseAdmin
       .from('shift_swap_potential_matches')
-      .update({ 
-        status: newStatus,
-        // Store who accepted this swap (for UI determination)
-        ...(newStatus === 'accepted' ? { requester_id: current_user_id } : {})
-      })
+      .update({ status: 'accepted' })
       .eq('id', match_id)
       .select();
     
@@ -156,35 +132,30 @@ serve(async (req) => {
       throw new Error(`Error updating match: ${updateError.message}`);
     }
 
-    console.log(`Successfully updated match status to ${newStatus}`);
+    console.log(`Successfully updated match status to accepted`);
 
-    // Send emails only if both users have accepted
-    if (newStatus === 'dual_accepted') {
-      try {
-        // Call the resend_swap_notification edge function to handle the email sending
-        const emailResponse = await supabaseAdmin.functions.invoke('resend_swap_notification', {
-          body: { match_id }
-        });
-        
-        if (emailResponse.error) {
-          console.error(`Error sending notification emails: ${emailResponse.error.message}`);
-        } else {
-          console.log('Successfully sent notification emails');
-        }
-      } catch (emailError) {
-        console.error('Error sending emails:', emailError);
+    // Send emails using the same format as resend_swap_notification
+    // We'll call the resend_swap_notification function instead of duplicating the email creation logic
+    try {
+      // Call the resend_swap_notification edge function to handle the email sending
+      // This will use the exact same email template and logic
+      const emailResponse = await supabaseAdmin.functions.invoke('resend_swap_notification', {
+        body: { match_id }
+      });
+      
+      if (emailResponse.error) {
+        console.error(`Error sending notification emails: ${emailResponse.error.message}`);
+        // We don't throw here since the primary operation (updating the match) succeeded
+      } else {
+        console.log('Successfully sent notification emails');
       }
+    } catch (emailError) {
+      console.error('Error sending emails:', emailError);
+      // We don't throw here since the primary operation (updating the match) succeeded
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        data: updateData,
-        status: newStatus,
-        message: newStatus === 'dual_accepted' 
-          ? "Both users have accepted the swap" 
-          : "You have accepted the swap"
-      }),
+      JSON.stringify({ success: true, data: updateData }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error) {

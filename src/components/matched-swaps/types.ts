@@ -3,7 +3,7 @@
 
 export interface SwapMatch {
   id: string;
-  status: "pending" | "accepted" | "other_accepted" | "dual_accepted" | "completed";
+  status: string;
   myShift: {
     id: string;
     date: string;
@@ -28,7 +28,7 @@ export interface SwapMatch {
   };
   myRequestId: string;
   otherRequestId: string;
-  requesterId?: string; // Requester ID to determine who initiated the swap
+  requesterId?: string; // Added field for the requester ID
   createdAt: string;
 }
 
