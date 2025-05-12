@@ -41,15 +41,22 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         body: { match_id: confirmDialog.matchId }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error accepting swap:', error);
+        throw error;
+      }
       
-      toast({
-        title: "Swap Accepted",
-        description: "The shift swap has been successfully accepted.",
-      });
-      
-      // The edge function already handles email notifications, so we don't need to send them again here
-      // Removing the duplicate email sending
+      if (data && data.both_accepted) {
+        toast({
+          title: "Swap Fully Accepted",
+          description: "Both users have accepted the swap. You can now finalize it.",
+        });
+      } else {
+        toast({
+          title: "Swap Accepted",
+          description: "Waiting for the other user to accept the swap.",
+        });
+      }
       
       if (onSuccessCallback) {
         onSuccessCallback();
@@ -57,7 +64,7 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
       
       setConfirmDialog({ isOpen: false, matchId: null });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error accepting swap:', error);
       toast({
         title: "Failed to accept swap",

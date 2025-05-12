@@ -48,12 +48,23 @@ serve(async (req) => {
     // Get the current authenticated user
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     
-    if (userError || !user) {
+    if (userError) {
+      console.error('Authentication error:', userError.message);
       return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
+        JSON.stringify({ error: 'Authentication required', details: userError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
+
+    if (!user) {
+      console.error('No authenticated user found');
+      return new Response(
+        JSON.stringify({ error: 'Authentication required', details: 'No user found' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    console.log(`Authenticated as user: ${user.id}`);
 
     // First, get the match details to obtain user IDs and shift information
     const { data: matchData, error: matchError } = await supabaseAdmin
@@ -70,10 +81,12 @@ serve(async (req) => {
       .single();
     
     if (matchError) {
+      console.error('Error fetching match:', matchError.message);
       throw new Error(`Error fetching match: ${matchError.message}`);
     }
 
     if (!matchData) {
+      console.error('Match not found');
       throw new Error('Match not found');
     }
 
@@ -96,10 +109,12 @@ serve(async (req) => {
     const [requesterRequest, acceptorRequest] = await Promise.all(requestsPromises);
     
     if (requesterRequest.error) {
+      console.error('Error fetching requester request:', requesterRequest.error.message);
       throw new Error(`Error fetching requester request: ${requesterRequest.error.message}`);
     }
     
     if (acceptorRequest.error) {
+      console.error('Error fetching acceptor request:', acceptorRequest.error.message);
       throw new Error(`Error fetching acceptor request: ${acceptorRequest.error.message}`);
     }
 
@@ -107,6 +122,15 @@ serve(async (req) => {
     const acceptorUserId = acceptorRequest.data.requester_id;
     
     console.log(`Users involved: Requester ID: ${requesterUserId}, Acceptor ID: ${acceptorUserId}`);
+
+    // Check if the current user is part of this swap
+    if (user.id !== requesterUserId && user.id !== acceptorUserId) {
+      console.error('User not authorized to accept this swap');
+      return new Response(
+        JSON.stringify({ error: 'You are not authorized to accept this swap match' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
+    }
 
     // Record the user's acceptance in the shift_swap_acceptances table
     const { data: acceptanceData, error: acceptanceError } = await supabaseAdmin
@@ -123,6 +147,7 @@ serve(async (req) => {
       if (acceptanceError.code === '23505') {
         console.log(`User ${user.id} has already accepted this match`);
       } else {
+        console.error('Error recording acceptance:', acceptanceError.message);
         throw new Error(`Error recording acceptance: ${acceptanceError.message}`);
       }
     } else {
@@ -136,6 +161,7 @@ serve(async (req) => {
       .eq('match_id', match_id);
       
     if (checkError) {
+      console.error('Error checking acceptances:', checkError.message);
       throw new Error(`Error checking acceptances: ${checkError.message}`);
     }
     
@@ -146,22 +172,35 @@ serve(async (req) => {
     const acceptorAccepted = acceptances.some(a => a.user_id === acceptorUserId);
     const bothAccepted = requesterAccepted && acceptorAccepted;
     
-    // If both users have accepted or this is a special case, update the match status to "accepted"
+    let newStatus = 'pending';
+    
+    // Determine the new status based on acceptances
     if (bothAccepted || requesterUserId === acceptorUserId) {
-      // Update match status to "accepted"
-      const { data: updateData, error: updateError } = await supabaseAdmin
-        .from('shift_swap_potential_matches')
-        .update({ status: 'accepted' })
-        .eq('id', match_id)
-        .select();
-      
-      if (updateError) {
-        throw new Error(`Error updating match: ${updateError.message}`);
-      }
+      newStatus = 'accepted';
+    } else if (user.id === requesterUserId && !acceptorAccepted) {
+      // Requester accepted but acceptor hasn't
+      newStatus = 'pending';
+    } else if (user.id === acceptorUserId && !requesterAccepted) {
+      // Acceptor accepted but requester hasn't
+      newStatus = 'pending';
+    }
+    
+    // Update match status based on acceptance state
+    const { data: updateData, error: updateError } = await supabaseAdmin
+      .from('shift_swap_potential_matches')
+      .update({ status: newStatus })
+      .eq('id', match_id)
+      .select();
+    
+    if (updateError) {
+      console.error('Error updating match:', updateError.message);
+      throw new Error(`Error updating match: ${updateError.message}`);
+    }
 
-      console.log(`Successfully updated match status to accepted - both users have accepted`);
-      
-      // Send email notifications - reuse existing email logic
+    console.log(`Successfully updated match status to ${newStatus}`);
+    
+    // Send email notifications if both have accepted
+    if (bothAccepted) {
       try {
         // Call the resend_swap_notification edge function to handle the email sending
         const emailResponse = await supabaseAdmin.functions.invoke('resend_swap_notification', {
@@ -176,8 +215,6 @@ serve(async (req) => {
       } catch (emailError) {
         console.error('Error sending emails:', emailError);
       }
-    } else {
-      console.log(`Match status remains pending - waiting for the other user to accept`);
     }
 
     // Return the updated match data along with acceptance information
@@ -186,9 +223,13 @@ serve(async (req) => {
         success: true, 
         data: { 
           match_id: match_id,
+          status: newStatus,
           both_accepted: bothAccepted,
           requester_accepted: requesterAccepted,
-          acceptor_accepted: acceptorAccepted
+          acceptor_accepted: acceptorAccepted,
+          current_user_id: user.id,
+          requester_id: requesterUserId,
+          acceptor_id: acceptorUserId
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
