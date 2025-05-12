@@ -65,10 +65,12 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
       
       console.log("Session verified, proceeding with swap acceptance");
       
+      // Instead of using import.meta.env.VITE_SUPABASE_URL, use the URL from the supabase client
+      const supabaseUrl = supabase.supabaseUrl;
+      
       // Call the accept_swap_match function with proper authorization header
-      // Use an alternate approach to ensure the auth header is included
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/accept_swap_match`,
+        `${supabaseUrl}/functions/v1/accept_swap_match`,
         {
           method: 'POST',
           headers: {
@@ -139,9 +141,12 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         return;
       }
       
+      // Use the supabase URL from the client instance
+      const supabaseUrl = supabase.supabaseUrl;
+      
       // Call the finalize_swap_match function with proper authorization header
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/finalize_swap_match`,
+        `${supabaseUrl}/functions/v1/finalize_swap_match`,
         {
           method: 'POST',
           headers: {
@@ -204,9 +209,12 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         return;
       }
       
+      // Use the supabase URL from the client instance
+      const supabaseUrl = supabase.supabaseUrl;
+      
       // Call the cancel_swap_match function with proper authorization header
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cancel_swap_match`,
+        `${supabaseUrl}/functions/v1/cancel_swap_match`,
         {
           method: 'POST',
           headers: {
