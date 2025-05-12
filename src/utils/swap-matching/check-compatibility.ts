@@ -27,7 +27,12 @@ export const checkSwapCompatibility = (
       firstUserWantsSecondDate = true;
       console.log(`User ${request.requester_id} wants date ${otherRequestShift.normalizedDate}`);
       
-      if (prefDate.accepted_types.length === 0 || prefDate.accepted_types.includes(otherRequestShift.type)) {
+      // Check if user accepts this shift type - explicitly log for debugging
+      console.log(`User ${request.requester_id} acceptable types:`, prefDate.accepted_types);
+      console.log(`Other shift type: ${otherRequestShift.type}`);
+      
+      if (!prefDate.accepted_types || prefDate.accepted_types.length === 0 || 
+          prefDate.accepted_types.includes(otherRequestShift.type)) {
         firstUserWantsSecondType = true;
         console.log(`User ${request.requester_id} wants shift type ${otherRequestShift.type}`);
       } else {
@@ -38,8 +43,10 @@ export const checkSwapCompatibility = (
   }
   
   if (!firstUserWantsSecondDate || !firstUserWantsSecondType) {
-    console.log(`No match: User ${request.requester_id} doesn't want the other shift`);
-    return { isCompatible: false, reason: `User ${request.requester_id} doesn't want the other shift` };
+    return { 
+      isCompatible: false, 
+      reason: `User ${request.requester_id} doesn't want the other shift`
+    };
   }
   
   // Check if the second user wants the first user's shift date and type
@@ -52,7 +59,12 @@ export const checkSwapCompatibility = (
       secondUserWantsFirstDate = true;
       console.log(`User ${otherRequest.requester_id} wants date ${requestShift.normalizedDate}`);
       
-      if (prefDate.accepted_types.length === 0 || prefDate.accepted_types.includes(requestShift.type)) {
+      // Check if user accepts this shift type - explicitly log for debugging
+      console.log(`User ${otherRequest.requester_id} acceptable types:`, prefDate.accepted_types);
+      console.log(`First shift type: ${requestShift.type}`);
+      
+      if (!prefDate.accepted_types || prefDate.accepted_types.length === 0 || 
+          prefDate.accepted_types.includes(requestShift.type)) {
         secondUserWantsFirstType = true;
         console.log(`User ${otherRequest.requester_id} wants shift type ${requestShift.type}`);
       } else {
@@ -63,21 +75,29 @@ export const checkSwapCompatibility = (
   }
   
   if (!secondUserWantsFirstDate || !secondUserWantsFirstType) {
-    console.log(`No match: User ${otherRequest.requester_id} doesn't want the other shift`);
-    return { isCompatible: false, reason: `User ${otherRequest.requester_id} doesn't want the other shift` };
+    return { 
+      isCompatible: false, 
+      reason: `User ${otherRequest.requester_id} doesn't want the other shift`
+    };
   }
   
   // Check if either user is already rostered on the swap date
   const user1HasConflict = (shiftsByUser[request.requester_id] || []).includes(otherRequestShift.normalizedDate);
   if (user1HasConflict) {
     console.log(`User ${request.requester_id} already has a shift on ${otherRequestShift.normalizedDate}`);
-    return { isCompatible: false, reason: `User ${request.requester_id} already has a shift on ${otherRequestShift.normalizedDate}` };
+    return { 
+      isCompatible: false, 
+      reason: `User ${request.requester_id} already has a shift on ${otherRequestShift.normalizedDate}`
+    };
   }
   
   const user2HasConflict = (shiftsByUser[otherRequest.requester_id] || []).includes(requestShift.normalizedDate);
   if (user2HasConflict) {
     console.log(`User ${otherRequest.requester_id} already has a shift on ${requestShift.normalizedDate}`);
-    return { isCompatible: false, reason: `User ${otherRequest.requester_id} already has a shift on ${requestShift.normalizedDate}` };
+    return { 
+      isCompatible: false, 
+      reason: `User ${otherRequest.requester_id} already has a shift on ${requestShift.normalizedDate}`
+    };
   }
   
   // We have a match!

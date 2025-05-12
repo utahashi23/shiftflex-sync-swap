@@ -27,6 +27,10 @@ export const checkMatchCompatibility = (
       firstUserWantsSecondDate = true;
       console.log(`User ${request.requester_id} wants date ${otherRequestShift.normalizedDate}`);
       
+      // Debugging - log the accepted types and the shift type we're checking against
+      console.log(`User ${request.requester_id} accepted types:`, prefDate.accepted_types);
+      console.log(`Checking against shift type: ${otherRequestShift.type}`);
+      
       if (!prefDate.accepted_types || prefDate.accepted_types.length === 0 || 
           prefDate.accepted_types.includes(otherRequestShift.type)) {
         firstUserWantsSecondType = true;
@@ -54,6 +58,10 @@ export const checkMatchCompatibility = (
     if (prefDate.date === requestShift.normalizedDate) {
       secondUserWantsFirstDate = true;
       console.log(`User ${otherRequest.requester_id} wants date ${requestShift.normalizedDate}`);
+      
+      // Debugging - log the accepted types and the shift type we're checking against
+      console.log(`User ${otherRequest.requester_id} accepted types:`, prefDate.accepted_types);
+      console.log(`Checking against shift type: ${requestShift.type}`);
       
       if (!prefDate.accepted_types || prefDate.accepted_types.length === 0 || 
           prefDate.accepted_types.includes(requestShift.type)) {

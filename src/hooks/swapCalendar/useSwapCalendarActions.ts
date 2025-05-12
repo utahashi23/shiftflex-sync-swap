@@ -77,9 +77,12 @@ export const useSwapCalendarActions = (
         acceptedTypes: acceptedTypes
       }));
       
+      // Log the preferred dates and accepted types for debugging
       console.log('Creating swap request with preferred dates:', preferredDates);
+      console.log('Acceptable shift types:', acceptableShiftTypes);
+      console.log('Converted to accepted types array:', acceptedTypes);
       
-      // Call the Supabase edge function instead of directly accessing the database
+      // Call the Supabase edge function
       const { data, error } = await supabase.functions.invoke('create_swap_request', {
         body: { 
           shift_id: selectedShift.id,

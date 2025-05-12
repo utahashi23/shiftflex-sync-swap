@@ -44,12 +44,17 @@ export const findMatches = (
     shiftsByUser[shift.user_id].push(shift.date);
   });
   
-  // Group preferred dates by request
+  // Group preferred dates by request and include accepted_types
   preferredDates.forEach(date => {
     if (!preferredDatesByRequest[date.request_id]) {
       preferredDatesByRequest[date.request_id] = [];
     }
-    preferredDatesByRequest[date.request_id].push(date);
+    
+    // Ensure accepted_types is properly included
+    preferredDatesByRequest[date.request_id].push({
+      date: date.date,
+      accepted_types: date.accepted_types || []
+    });
   });
   
   // For debugging
@@ -59,6 +64,12 @@ export const findMatches = (
     console.log('Sample shift mapping:', Array.from(shiftMap.entries())[0]);
     console.log('Sample shiftsByUser mapping:', Object.entries(shiftsByUser)[0]);
     console.log('Sample preferredDatesByRequest mapping:', Object.entries(preferredDatesByRequest)[0]);
+    
+    // Log a sample preferred date with accepted_types for debugging
+    const sampleRequest = Object.keys(preferredDatesByRequest)[0];
+    if (sampleRequest && preferredDatesByRequest[sampleRequest].length > 0) {
+      console.log('Sample preferred date with accepted_types:', preferredDatesByRequest[sampleRequest][0]);
+    }
   } else {
     console.log(`Mapped ${Object.keys(shiftsByUser).length} users with shifts`);
     console.log(`Mapped ${Object.keys(preferredDatesByRequest).length} requests with preferred dates`);
@@ -141,8 +152,21 @@ export const findMatches = (
     
     if (verbose) {
       console.log(`Checking compatibility between requests ${request1.id} and ${request2.id}`);
-      console.log(`  Request 1 shift: ${shift1.date}, ${shift1.start_time} - ${shift1.end_time}, ${shift1.truck_name || 'No truck'}`);
-      console.log(`  Request 2 shift: ${shift2.date}, ${shift2.start_time} - ${shift2.end_time}, ${shift2.truck_name || 'No truck'}`);
+      console.log(`  Request 1 shift: ${shift1.date}, ${shift1.start_time} - ${shift1.end_time}, type: ${shift1.type}`);
+      console.log(`  Request 2 shift: ${shift2.date}, ${shift2.start_time} - ${shift2.end_time}, type: ${shift2.type}`);
+      
+      // Log preferred dates with accepted types for debugging
+      if (preferredDatesByRequest[request1.id]) {
+        console.log(`  Request 1 preferred dates:`, preferredDatesByRequest[request1.id].map(pd => 
+          `${pd.date} (types: ${pd.accepted_types.join(', ') || 'any'})`
+        ));
+      }
+      
+      if (preferredDatesByRequest[request2.id]) {
+        console.log(`  Request 2 preferred dates:`, preferredDatesByRequest[request2.id].map(pd => 
+          `${pd.date} (types: ${pd.accepted_types.join(', ') || 'any'})`
+        ));
+      }
     } else if (Math.random() < 0.1) { // Only log some checks to avoid console spam
       console.log(`Checking compatibility between requests ${request1.id.substring(0,6)} and ${request2.id.substring(0,6)}`);
     }
@@ -161,6 +185,7 @@ export const findMatches = (
       console.log(`✓ COMPATIBLE MATCH: ${request1.id.substring(0,6)} <-> ${request2.id.substring(0,6)}`);
       if (verbose) {
         console.log(`  Match details: ${shift1.date} <-> ${shift2.date}`);
+        console.log(`  Shift types: ${shift1.type} <-> ${shift2.type}`);
       }
       matches.push({
         request: request1,
