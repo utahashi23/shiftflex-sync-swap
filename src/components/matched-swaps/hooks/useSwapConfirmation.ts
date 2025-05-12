@@ -7,8 +7,7 @@ import { useEmailNotifications } from './useEmailNotifications';
 import { resendSwapNotification } from '@/utils/emailService';
 import { useAuth } from '@/hooks/useAuth';
 
-// The Supabase URL is available from the client file, but since supabaseUrl is protected,
-// we'll use the constant defined in the integration file
+// The Supabase URL is available from the client file
 const SUPABASE_URL = "https://ponhfgbpxehsdlxjpszg.supabase.co";
 
 /**
@@ -45,40 +44,16 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     try {
       console.log("Attempting to accept swap with match ID:", confirmDialog.matchId);
       
-      // Check if we have a valid session from the auth context
-      if (!session || !session.access_token) {
-        console.error('No valid session found in auth context');
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to accept this swap.",
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return;
+      // Use supabase.functions.invoke() which automatically handles authentication
+      const { data, error } = await supabase.functions.invoke('accept_swap_match', {
+        body: { match_id: confirmDialog.matchId }
+      });
+      
+      if (error) {
+        console.error('Error response from function:', error);
+        throw new Error(`Failed to accept swap: ${error.message || error}`);
       }
       
-      console.log("Using access token from auth context");
-      
-      // Call the accept_swap_match function with the auth token from the context
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/accept_swap_match`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({ match_id: confirmDialog.matchId })
-        }
-      );
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error response from function:', response.status, errorText);
-        throw new Error(`Error ${response.status}: ${errorText || 'Failed to accept swap'}`);
-      }
-      
-      const data = await response.json();
       console.log("Swap acceptance response:", data);
       
       if (data.both_accepted) {
@@ -119,37 +94,15 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Use the session from auth context
-      if (!session || !session.access_token) {
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to finalize this swap.",
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return;
+      // Use supabase.functions.invoke() which automatically handles authentication
+      const { data, error } = await supabase.functions.invoke('finalize_swap_match', {
+        body: { match_id: finalizeDialog.matchId }
+      });
+      
+      if (error) {
+        console.error('Error finalizing swap:', error);
+        throw new Error(`Failed to finalize swap: ${error.message || error}`);
       }
-      
-      // Call the finalize_swap_match function with the auth token from the context
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/finalize_swap_match`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({ match_id: finalizeDialog.matchId })
-        }
-      );
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error finalizing swap:', response.status, errorText);
-        throw new Error(`Error ${response.status}: ${errorText || 'Failed to finalize swap'}`);
-      }
-      
-      const data = await response.json();
       
       toast({
         title: "Swap Finalized",
@@ -182,37 +135,15 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Use the session from auth context
-      if (!session || !session.access_token) {
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to cancel this swap.",
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return;
+      // Use supabase.functions.invoke() which automatically handles authentication
+      const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
+        body: { match_id: matchId }
+      });
+      
+      if (error) {
+        console.error('Error canceling swap:', error);
+        throw new Error(`Failed to cancel swap: ${error.message || error}`);
       }
-      
-      // Call the cancel_swap_match function with the auth token from the context
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/cancel_swap_match`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({ match_id: matchId })
-        }
-      );
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error canceling swap:', response.status, errorText);
-        throw new Error(`Error ${response.status}: ${errorText || 'Failed to cancel swap'}`);
-      }
-      
-      const data = await response.json();
       
       toast({
         title: "Swap Canceled",
