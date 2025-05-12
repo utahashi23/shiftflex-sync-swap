@@ -44,6 +44,14 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     try {
       console.log("Attempting to accept swap with match ID:", confirmDialog.matchId);
       
+      // Check if we have an active session
+      if (!session) {
+        console.error("No active session available");
+        throw new Error("Authentication required. Please log in again.");
+      }
+      
+      console.log("Authentication available:", !!session);
+      
       // Use supabase.functions.invoke() which automatically handles authentication
       const { data, error } = await supabase.functions.invoke('accept_swap_match', {
         body: { match_id: confirmDialog.matchId }
@@ -94,6 +102,12 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
+      // Check if we have an active session
+      if (!session) {
+        console.error("No active session available");
+        throw new Error("Authentication required. Please log in again.");
+      }
+      
       // Use supabase.functions.invoke() which automatically handles authentication
       const { data, error } = await supabase.functions.invoke('finalize_swap_match', {
         body: { match_id: finalizeDialog.matchId }
@@ -135,6 +149,12 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
+      // Check if we have an active session
+      if (!session) {
+        console.error("No active session available");
+        throw new Error("Authentication required. Please log in again.");
+      }
+      
       // Use supabase.functions.invoke() which automatically handles authentication
       const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
         body: { match_id: matchId }
