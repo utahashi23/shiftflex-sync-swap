@@ -14,9 +14,9 @@ export const useSwapCalendarState = () => {
   const [swapMode, setSwapMode] = useState(false);
   const [selectedSwapDates, setSelectedSwapDates] = useState<string[]>([]);
   const [acceptableShiftTypes, setAcceptableShiftTypes] = useState<AcceptableShiftTypes>({
-    day: false,
-    afternoon: false,
-    night: false,
+    day: true,
+    afternoon: true,
+    night: true,
   });
   
   const { user } = useAuth();
@@ -25,11 +25,14 @@ export const useSwapCalendarState = () => {
   // When a shift is selected, set the corresponding shift type to true
   useEffect(() => {
     if (selectedShift) {
+      // Default to enabling the same shift type as the selected shift
       setAcceptableShiftTypes({
         day: selectedShift.type === 'day',
         afternoon: selectedShift.type === 'afternoon',
         night: selectedShift.type === 'night',
       });
+      
+      console.log(`Setting initial acceptableShiftTypes based on selected shift type: ${selectedShift.type}`);
     }
   }, [selectedShift]);
 

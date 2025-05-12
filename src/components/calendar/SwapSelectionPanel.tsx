@@ -38,6 +38,8 @@ export const SwapSelectionPanel = ({
   handleCancelSwapRequest,
   setAcceptableShiftTypes
 }: SwapSelectionPanelProps) => {
+  const noShiftTypeSelected = !acceptableShiftTypes.day && !acceptableShiftTypes.afternoon && !acceptableShiftTypes.night;
+  
   return (
     <Card className="mt-4">
       <CardContent className="pt-6">
@@ -138,6 +140,12 @@ export const SwapSelectionPanel = ({
                   </div>
                 </div>
                 
+                {noShiftTypeSelected && (
+                  <div className="mt-2 text-sm text-red-500">
+                    Please select at least one shift type
+                  </div>
+                )}
+                
                 <div className="mt-4">
                   <p className="text-sm text-amber-600">
                     Select days you'd like to swap for on the calendar. You can only select days where you are not already rostered.
@@ -161,8 +169,7 @@ export const SwapSelectionPanel = ({
                 <Button 
                   onClick={handleSaveSwapRequest} 
                   className="flex-1"
-                  disabled={isLoading || selectedSwapDates.length === 0 || 
-                    (!acceptableShiftTypes.day && !acceptableShiftTypes.afternoon && !acceptableShiftTypes.night)}
+                  disabled={isLoading || selectedSwapDates.length === 0 || noShiftTypeSelected}
                 >
                   {isLoading ? "Saving..." : "Save Preferences"}
                 </Button>

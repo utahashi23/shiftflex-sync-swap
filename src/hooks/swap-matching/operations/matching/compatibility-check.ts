@@ -22,6 +22,9 @@ export const checkMatchCompatibility = (
   let firstUserWantsSecondType = false;
   const prefDates = preferredDatesByRequest[request.id] || [];
   
+  console.log(`Checking if user ${request.requester_id} wants date ${otherRequestShift.normalizedDate} with type ${otherRequestShift.type}`);
+  console.log(`User ${request.requester_id} has ${prefDates.length} preferred dates`);
+  
   for (const prefDate of prefDates) {
     if (prefDate.date === otherRequestShift.normalizedDate) {
       firstUserWantsSecondDate = true;
@@ -31,12 +34,15 @@ export const checkMatchCompatibility = (
       console.log(`User ${request.requester_id} accepted types:`, prefDate.accepted_types);
       console.log(`Checking against shift type: ${otherRequestShift.type}`);
       
-      if (!prefDate.accepted_types || prefDate.accepted_types.length === 0 || 
-          prefDate.accepted_types.includes(otherRequestShift.type)) {
-        firstUserWantsSecondType = true;
-        console.log(`User ${request.requester_id} wants shift type ${otherRequestShift.type}`);
+      // Only consider it a match if the user explicitly accepts this shift type
+      // If accepted_types is empty, it means no types were selected (the user didn't specify)
+      if (prefDate.accepted_types && prefDate.accepted_types.length > 0) {
+        firstUserWantsSecondType = prefDate.accepted_types.includes(otherRequestShift.type);
+        console.log(`User ${request.requester_id} ${firstUserWantsSecondType ? 'wants' : 'doesn\'t want'} shift type ${otherRequestShift.type}`);
       } else {
-        console.log(`User ${request.requester_id} doesn't want shift type ${otherRequestShift.type}`);
+        // If no types specified, we'll consider it as not acceptable
+        firstUserWantsSecondType = false;
+        console.log(`User ${request.requester_id} didn't specify acceptable shift types, considering as not acceptable`);
       }
       break;
     }
@@ -45,7 +51,7 @@ export const checkMatchCompatibility = (
   if (!firstUserWantsSecondDate || !firstUserWantsSecondType) {
     return { 
       isCompatible: false, 
-      reason: `User ${request.requester_id} doesn't want the other shift`
+      reason: `User ${request.requester_id} doesn't want the other shift or its type`
     };
   }
   
@@ -53,6 +59,9 @@ export const checkMatchCompatibility = (
   let secondUserWantsFirstDate = false;
   let secondUserWantsFirstType = false;
   const otherPrefDates = preferredDatesByRequest[otherRequest.id] || [];
+  
+  console.log(`Checking if user ${otherRequest.requester_id} wants date ${requestShift.normalizedDate} with type ${requestShift.type}`);
+  console.log(`User ${otherRequest.requester_id} has ${otherPrefDates.length} preferred dates`);
   
   for (const prefDate of otherPrefDates) {
     if (prefDate.date === requestShift.normalizedDate) {
@@ -63,12 +72,15 @@ export const checkMatchCompatibility = (
       console.log(`User ${otherRequest.requester_id} accepted types:`, prefDate.accepted_types);
       console.log(`Checking against shift type: ${requestShift.type}`);
       
-      if (!prefDate.accepted_types || prefDate.accepted_types.length === 0 || 
-          prefDate.accepted_types.includes(requestShift.type)) {
-        secondUserWantsFirstType = true;
-        console.log(`User ${otherRequest.requester_id} wants shift type ${requestShift.type}`);
+      // Only consider it a match if the user explicitly accepts this shift type
+      // If accepted_types is empty, it means no types were selected (the user didn't specify)
+      if (prefDate.accepted_types && prefDate.accepted_types.length > 0) {
+        secondUserWantsFirstType = prefDate.accepted_types.includes(requestShift.type);
+        console.log(`User ${otherRequest.requester_id} ${secondUserWantsFirstType ? 'wants' : 'doesn\'t want'} shift type ${requestShift.type}`);
       } else {
-        console.log(`User ${otherRequest.requester_id} doesn't want shift type ${requestShift.type}`);
+        // If no types specified, we'll consider it as not acceptable
+        secondUserWantsFirstType = false;
+        console.log(`User ${otherRequest.requester_id} didn't specify acceptable shift types, considering as not acceptable`);
       }
       break;
     }
@@ -77,7 +89,7 @@ export const checkMatchCompatibility = (
   if (!secondUserWantsFirstDate || !secondUserWantsFirstType) {
     return { 
       isCompatible: false, 
-      reason: `User ${otherRequest.requester_id} doesn't want the other shift`
+      reason: `User ${otherRequest.requester_id} doesn't want the other shift or its type`
     };
   }
   

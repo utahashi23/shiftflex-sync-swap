@@ -19,12 +19,18 @@ export const useMatchTesterAlgorithm = (user: any) => {
     console.log("Running simple match with", allRequests.length, "requests and", allPreferredDates.length, "preferred dates");
     
     // Group preferred dates by request ID for faster lookups
-    const preferredDatesByRequest: Record<string, string[]> = {};
+    const preferredDatesByRequest: Record<string, any> = {};
+    
+    // Process preferred dates with accepted types
     allPreferredDates.forEach(date => {
       if (!preferredDatesByRequest[date.request_id]) {
         preferredDatesByRequest[date.request_id] = [];
       }
-      preferredDatesByRequest[date.request_id].push(date.date);
+      
+      preferredDatesByRequest[date.request_id].push({
+        date: date.date,
+        accepted_types: date.accepted_types || []
+      });
     });
 
     console.log("Preferred dates grouped by request:", Object.keys(preferredDatesByRequest).length);
@@ -34,7 +40,11 @@ export const useMatchTesterAlgorithm = (user: any) => {
       const userRequests = allRequests.filter(r => r.requester_id === user.id);
       console.log(`User ${user.id} has ${userRequests.length} requests`);
       userRequests.forEach(req => {
-        console.log(`- Request ${req.id}: shift date ${req.shift_date}, preferred dates: ${preferredDatesByRequest[req.id]?.join(', ') || 'none'}`);
+        const preferredDatesWithTypes = preferredDatesByRequest[req.id]?.map((pd: any) => 
+          `${pd.date} (types: ${pd.accepted_types?.join(', ') || 'any'})`
+        ).join(', ');
+        
+        console.log(`- Request ${req.id}: shift date ${req.shift_date}, preferred dates: ${preferredDatesWithTypes || 'none'}`);
       });
     }
 
@@ -87,19 +97,51 @@ export const useMatchTesterAlgorithm = (user: any) => {
           const userPreferredDates = preferredDatesByRequest[userRequest.id] || [];
           const otherPreferredDates = preferredDatesByRequest[otherRequest.id] || [];
           
-          const userWantsOtherDate = userPreferredDates.includes(otherShiftDate);
-          const otherWantsUserDate = otherPreferredDates.includes(userShiftDate);
+          // Check if user wants other's date WITH shift type
+          let userWantsOtherDate = false;
+          for (const prefDate of userPreferredDates) {
+            if (prefDate.date === otherShiftDate) {
+              // Check if the user accepts this shift type
+              if (prefDate.accepted_types && prefDate.accepted_types.length > 0) {
+                // Get other shift type
+                const otherShiftType = determineShiftType(otherRequest.shift?.startTime);
+                if (prefDate.accepted_types.includes(otherShiftType)) {
+                  userWantsOtherDate = true;
+                  break;
+                }
+              }
+            }
+          }
+          
+          // Check if other user wants user's date WITH shift type
+          let otherWantsUserDate = false;
+          for (const prefDate of otherPreferredDates) {
+            if (prefDate.date === userShiftDate) {
+              // Check if the user accepts this shift type
+              if (prefDate.accepted_types && prefDate.accepted_types.length > 0) {
+                // Get user shift type
+                const userShiftType = determineShiftType(userRequest.shift?.startTime);
+                if (prefDate.accepted_types.includes(userShiftType)) {
+                  otherWantsUserDate = true;
+                  break;
+                }
+              }
+            }
+          }
           
           if (userWantsOtherDate && otherWantsUserDate) {
+            const userShiftType = determineShiftType(userRequest.shift?.startTime);
+            const otherShiftType = determineShiftType(otherRequest.shift?.startTime);
+            
             console.log(`MATCH FOUND: ${userRequest.id} <-> ${otherRequest.id}`);
-            console.log(`- ${userRequest.user?.first_name} wants ${otherShiftDate}, ${otherRequest.user?.first_name} wants ${userShiftDate}`);
+            console.log(`- ${userRequest.user?.first_name} wants ${otherShiftDate} (${otherShiftType}), ${otherRequest.user?.first_name} wants ${userShiftDate} (${userShiftType})`);
             
             matches.push({
               request1Id: userRequest.id,
               request2Id: otherRequest.id,
               request1ShiftDate: userShiftDate,
               request2ShiftDate: otherShiftDate,
-              matchReason: "Both users want each other's shift dates",
+              matchReason: "Both users want each other's shift dates with acceptable shift types",
               request1Shift: userRequest.shift,
               request2Shift: otherRequest.shift,
               request1User: userRequest.user,
@@ -137,14 +179,45 @@ export const useMatchTesterAlgorithm = (user: any) => {
         const request1PreferredDates = preferredDatesByRequest[request1.id] || [];
         const request2PreferredDates = preferredDatesByRequest[request2.id] || [];
         
-        // Check if each request wants the other's shift date
-        const request1WantsRequest2Date = request1PreferredDates.includes(request2ShiftDate);
-        const request2WantsRequest1Date = request2PreferredDates.includes(request1ShiftDate);
+        // Check if request1 wants request2's date WITH shift type
+        let request1WantsRequest2Date = false;
+        for (const prefDate of request1PreferredDates) {
+          if (prefDate.date === request2ShiftDate) {
+            // Check if the user accepts this shift type
+            if (prefDate.accepted_types && prefDate.accepted_types.length > 0) {
+              // Get request2 shift type
+              const request2ShiftType = determineShiftType(request2.shift?.startTime);
+              if (prefDate.accepted_types.includes(request2ShiftType)) {
+                request1WantsRequest2Date = true;
+                break;
+              }
+            }
+          }
+        }
+        
+        // Check if request2 wants request1's date WITH shift type
+        let request2WantsRequest1Date = false;
+        for (const prefDate of request2PreferredDates) {
+          if (prefDate.date === request1ShiftDate) {
+            // Check if the user accepts this shift type
+            if (prefDate.accepted_types && prefDate.accepted_types.length > 0) {
+              // Get request1 shift type
+              const request1ShiftType = determineShiftType(request1.shift?.startTime);
+              if (prefDate.accepted_types.includes(request1ShiftType)) {
+                request2WantsRequest1Date = true;
+                break;
+              }
+            }
+          }
+        }
         
         // If both conditions are met, it's a match!
         if (request1WantsRequest2Date && request2WantsRequest1Date) {
+          const request1ShiftType = determineShiftType(request1.shift?.startTime);
+          const request2ShiftType = determineShiftType(request2.shift?.startTime);
+          
           console.log(`MATCH FOUND: ${request1.id} <-> ${request2.id}`);
-          console.log(`- ${request1.user?.first_name} wants ${request2ShiftDate}, ${request2.user?.first_name} wants ${request1ShiftDate}`);
+          console.log(`- ${request1.user?.first_name} wants ${request2ShiftDate} (${request2ShiftType}), ${request2.user?.first_name} wants ${request1ShiftDate} (${request1ShiftType})`);
           
           // Add to matches array if not already there (avoids duplicates)
           const isDuplicate = matches.some(m => 
@@ -158,7 +231,7 @@ export const useMatchTesterAlgorithm = (user: any) => {
               request2Id: request2.id,
               request1ShiftDate,
               request2ShiftDate,
-              matchReason: "Both users want each other's shift dates",
+              matchReason: "Both users want each other's shift dates with acceptable shift types",
               request1Shift: request1.shift,
               request2Shift: request2.shift,
               request1User: request1.user,
@@ -182,6 +255,21 @@ export const useMatchTesterAlgorithm = (user: any) => {
     });
     
     return matches;
+  };
+  
+  // Helper function to determine shift type
+  const determineShiftType = (startTime?: string): 'day' | 'afternoon' | 'night' => {
+    if (!startTime) return 'day';
+    
+    const startHour = parseInt(startTime.split(':')[0], 10);
+    
+    if (startHour <= 8) {
+      return 'day';
+    } else if (startHour > 8 && startHour < 16) {
+      return 'afternoon';
+    } else {
+      return 'night';
+    }
   };
 
   return { matchResults, setMatchResults, runSimpleMatch };
