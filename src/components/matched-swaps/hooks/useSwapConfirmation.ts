@@ -5,6 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { useSwapDialogs } from './useSwapDialogs';
 import { useEmailNotifications } from './useEmailNotifications';
 import { resendSwapNotification } from '@/utils/emailService';
+import { useAuth } from '@/hooks/useAuth';
 
 // The Supabase URL is available from the client file, but since supabaseUrl is protected,
 // we'll use the constant defined in the integration file
@@ -17,6 +18,7 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
   const { confirmDialog, setConfirmDialog, finalizeDialog, setFinalizeDialog } = useSwapDialogs();
   const emailNotifications = useEmailNotifications();
   const [isLoading, setIsLoading] = useState(false);
+  const { session } = useAuth(); // Access the session directly from the auth context
 
   /**
    * Trigger the accept confirmation dialog
@@ -43,40 +45,28 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     try {
       console.log("Attempting to accept swap with match ID:", confirmDialog.matchId);
       
-      // Get the current user session
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('Session error:', sessionError);
+      // Check if we have a valid session from the auth context
+      if (!session || !session.access_token) {
+        console.error('No valid session found in auth context');
         toast({
-          title: "Authentication Error",
-          description: "Could not verify your session. Please try logging in again.",
+          title: "Authentication Required",
+          description: "Please log in to accept this swap.",
           variant: "destructive"
         });
         setIsLoading(false);
         return;
       }
       
-      if (!sessionData.session) {
-        toast({
-          title: "Session Required",
-          description: "You need to be logged in to perform this action.",
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return;
-      }
+      console.log("Using access token from auth context");
       
-      console.log("Session verified, proceeding with swap acceptance");
-      
-      // Call the accept_swap_match function with proper authorization header
+      // Call the accept_swap_match function with the auth token from the context
       const response = await fetch(
         `${SUPABASE_URL}/functions/v1/accept_swap_match`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionData.session.access_token}`
+            'Authorization': `Bearer ${session.access_token}`
           },
           body: JSON.stringify({ match_id: confirmDialog.matchId })
         }
@@ -129,27 +119,25 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Get the current session explicitly
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !sessionData.session) {
+      // Use the session from auth context
+      if (!session || !session.access_token) {
         toast({
           title: "Authentication Required",
-          description: "You need to be logged in to finalize a swap.",
+          description: "Please log in to finalize this swap.",
           variant: "destructive"
         });
         setIsLoading(false);
         return;
       }
       
-      // Call the finalize_swap_match function with proper authorization header
+      // Call the finalize_swap_match function with the auth token from the context
       const response = await fetch(
         `${SUPABASE_URL}/functions/v1/finalize_swap_match`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionData.session.access_token}`
+            'Authorization': `Bearer ${session.access_token}`
           },
           body: JSON.stringify({ match_id: finalizeDialog.matchId })
         }
@@ -194,27 +182,25 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Get the current session explicitly
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !sessionData.session) {
+      // Use the session from auth context
+      if (!session || !session.access_token) {
         toast({
           title: "Authentication Required",
-          description: "You need to be logged in to cancel a swap.",
+          description: "Please log in to cancel this swap.",
           variant: "destructive"
         });
         setIsLoading(false);
         return;
       }
       
-      // Call the cancel_swap_match function with proper authorization header
+      // Call the cancel_swap_match function with the auth token from the context
       const response = await fetch(
         `${SUPABASE_URL}/functions/v1/cancel_swap_match`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionData.session.access_token}`
+            'Authorization': `Bearer ${session.access_token}`
           },
           body: JSON.stringify({ match_id: matchId })
         }
