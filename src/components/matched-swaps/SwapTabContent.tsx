@@ -39,6 +39,10 @@ export const SwapTabContent = ({
       if (swap.status === 'other_accepted') {
         console.log(`Found OTHER_ACCEPTED swap with ID: ${swap.id}`);
       }
+      
+      if (swap.status === 'dual_accepted') {
+        console.log(`Found DUAL_ACCEPTED swap with ID: ${swap.id}`);
+      }
     });
   }
 
@@ -73,6 +77,7 @@ export const SwapTabContent = ({
     pending: uniqueSwaps.filter(s => s.status === 'pending').length,
     accepted: uniqueSwaps.filter(s => s.status === 'accepted').length,
     other_accepted: uniqueSwaps.filter(s => s.status === 'other_accepted').length,
+    dual_accepted: uniqueSwaps.filter(s => s.status === 'dual_accepted').length,
     completed: uniqueSwaps.filter(s => s.status === 'completed').length
   });
 
@@ -83,10 +88,10 @@ export const SwapTabContent = ({
           key={swap.id}
           swap={swap} 
           isPast={isPast}
-          onAccept={!isPast && swap.status === 'pending' ? onAcceptSwap : undefined}
-          onFinalize={!isPast && swap.status === 'accepted' ? onFinalizeSwap : undefined}
-          onCancel={!isPast && swap.status === 'accepted' ? onCancelSwap : undefined}
-          onResendEmail={!isPast && swap.status === 'accepted' ? onResendEmail : undefined}
+          onAccept={!isPast ? onAcceptSwap : undefined}
+          onFinalize={!isPast && swap.status === 'dual_accepted' ? onFinalizeSwap : undefined}
+          onCancel={!isPast ? onCancelSwap : undefined}
+          onResendEmail={!isPast && (swap.status === 'accepted' || swap.status === 'dual_accepted') ? onResendEmail : undefined}
         />
       ))}
     </div>
