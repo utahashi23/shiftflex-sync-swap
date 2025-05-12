@@ -159,6 +159,35 @@ export type Database = {
         }
         Relationships: []
       }
+      shift_swap_acceptances: {
+        Row: {
+          accepted_at: string | null
+          id: string
+          match_id: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          id?: string
+          match_id: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          id?: string
+          match_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_swap_acceptances_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "shift_swap_potential_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shift_swap_matches: {
         Row: {
           acceptor_id: string

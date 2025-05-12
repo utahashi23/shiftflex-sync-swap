@@ -16,17 +16,18 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
   
   const { user } = useAuth();
   
-  const fetchMatches = async (userPerspectiveOnly: boolean = true, userInitiatorOnly: boolean = true) => {
+  const fetchMatches = async (userPerspectiveOnly: boolean = true, userInitiatorOnly: boolean = false) => {
     if (!user) return;
     
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
-      // Always force userInitiatorOnly to true to ensure consistent behavior
+      // Important: We're setting userInitiatorOnly to false to ensure we get ALL matches
+      // including those where the user is the acceptor
       const { matches, pastMatches, rawApiData } = await fetchUserMatches(
         user.id,
         userPerspectiveOnly, 
-        true // Always use true for userInitiatorOnly
+        userInitiatorOnly // Allowing both initiator and non-initiator matches
       );
       
       setState({
@@ -60,12 +61,12 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
       
       await acceptSwapMatch(matchId);
       
-      // Refresh matches after accepting
-      await fetchMatches();
+      // Refresh matches after accepting to get updated statuses
+      await fetchMatches(true, false);
       
       toast({
         title: "Swap Accepted",
-        description: "You have successfully accepted the swap. Waiting for roster approval.",
+        description: "You have accepted the swap. Waiting for the other user's approval.",
       });
       
       return true;
@@ -171,8 +172,8 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
   // Fetch matches when the component mounts or user changes
   useEffect(() => {
     if (user) {
-      // Always force userInitiatorOnly to true to ensure consistent behavior
-      fetchMatches(true, true);
+      // Important: Set userInitiatorOnly to false to ensure we get all matches
+      fetchMatches(true, false);
     }
   }, [user]);
   

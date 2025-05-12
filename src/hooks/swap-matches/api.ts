@@ -4,11 +4,12 @@ import { toast } from '../use-toast';
 import { formatSwapMatches } from './utils';
 import { SwapMatch } from './types';
 
-export const fetchUserMatches = async (userId: string, userPerspectiveOnly: boolean = true, userInitiatorOnly: boolean = true) => {
+export const fetchUserMatches = async (userId: string, userPerspectiveOnly: boolean = true, userInitiatorOnly: boolean = false) => {
   console.log('Fetching matches for user:', userId);
+  console.log('Parameters:', { userPerspectiveOnly, userInitiatorOnly });
   
   try {
-    // Call the edge function with explicit parameters to fetch colleague types
+    // Call the edge function with explicit parameters
     const { data: matchesData, error: matchesError } = await supabase.functions.invoke('get_user_matches', {
       body: { 
         user_id: userId,
@@ -60,7 +61,7 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
     });
     
     // Separate active and past matches
-    // IMPORTANT CHANGE: Include 'other_accepted' status in active matches
+    // IMPORTANT: Include 'other_accepted' status in active matches
     const activeMatches = formattedMatches.filter((match: SwapMatch) => 
       match.status === 'pending' || match.status === 'accepted' || match.status === 'other_accepted'
     );

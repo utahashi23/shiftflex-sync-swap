@@ -26,6 +26,7 @@ export interface SwapMatch {
   };
   myRequestId: string;
   otherRequestId: string;
+  requesterId?: string; // ID of the user who initiated this swap
   createdAt: string;
 }
 

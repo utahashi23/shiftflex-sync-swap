@@ -39,12 +39,16 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
     const myEmployeeId = match.my_employee_id || null;
     const otherEmployeeId = match.other_employee_id || null;
     
+    // Extract requester ID if available
+    const requesterId = match.requester_id || null;
+    
     console.log(`Match ${match.match_id} status: ${matchStatus}, colleague types:`, {
       myShift: myShiftColleagueType,
       otherShift: otherShiftColleagueType,
       isOtherAccepted,
       myEmployeeId,
-      otherEmployeeId
+      otherEmployeeId,
+      requesterId
     });
     
     return {
@@ -74,6 +78,7 @@ export const formatSwapMatches = (matchesData: any[]): SwapMatch[] => {
       },
       myRequestId: match.my_request_id,
       otherRequestId: match.other_request_id,
+      requesterId: requesterId,
       createdAt: match.created_at
     };
   });

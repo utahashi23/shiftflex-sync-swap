@@ -1,9 +1,9 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useSwapDialogs } from './useSwapDialogs';
 import { useEmailNotifications } from './useEmailNotifications';
-import { resendSwapNotification } from '@/utils/emailService';
 
 /**
  * Hook for managing swap confirmation dialogs and actions
@@ -36,7 +36,7 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Call the accept_swap_match function
+      // Call the accept_swap_match function using the Supabase client
       const { data, error } = await supabase.functions.invoke('accept_swap_match', {
         body: { match_id: confirmDialog.matchId }
       });
@@ -47,9 +47,6 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         title: "Swap Accepted",
         description: "The shift swap has been successfully accepted.",
       });
-      
-      // The edge function already handles email notifications, so we don't need to send them again here
-      // Removing the duplicate email sending
       
       if (onSuccessCallback) {
         onSuccessCallback();
@@ -78,7 +75,7 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Call the finalize_swap_match function
+      // Call the finalize_swap_match function using the Supabase client
       const { data, error } = await supabase.functions.invoke('finalize_swap_match', {
         body: { match_id: finalizeDialog.matchId }
       });
@@ -89,9 +86,6 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         title: "Swap Finalized",
         description: "The shift swap has been finalized and the calendar has been updated.",
       });
-      
-      // The edge function already handles email notifications, so we don't need to send them again here
-      // Removing the duplicate email sending
       
       if (onSuccessCallback) {
         onSuccessCallback();
@@ -120,7 +114,7 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Call the cancel_swap_match function
+      // Call the cancel_swap_match function using the Supabase client
       const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
         body: { match_id: matchId }
       });
@@ -157,11 +151,13 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Use the resendSwapNotification directly for consistency
-      const result = await resendSwapNotification(matchId);
+      // Use the Supabase client to call the edge function
+      const { data, error } = await supabase.functions.invoke('resend_swap_notification', {
+        body: { match_id: matchId }
+      });
       
-      if (!result.success) {
-        throw new Error(result.error || "Failed to send email");
+      if (error) {
+        throw new Error(error.message || "Failed to send email");
       }
       
       toast({
@@ -169,7 +165,7 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         description: "Notification emails have been resent successfully.",
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error resending email:', error);
       toast({
         title: "Failed to resend email",
