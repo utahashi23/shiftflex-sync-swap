@@ -1,7 +1,7 @@
 
 export interface SwapMatch {
   id: string;
-  status: "pending" | "accepted" | "completed" | "other_accepted";
+  status: "pending" | "accepted" | "other_accepted" | "dual_accepted" | "completed";
   myShift: {
     id: string;
     date: string;
@@ -26,6 +26,7 @@ export interface SwapMatch {
   };
   myRequestId: string;
   otherRequestId: string;
+  requesterId?: string;
   createdAt: string;
 }
 

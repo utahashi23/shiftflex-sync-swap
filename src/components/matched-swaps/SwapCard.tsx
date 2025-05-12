@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -87,8 +86,10 @@ export const SwapCard = ({
           colorClass: 'bg-green-100 text-green-800'
         };
       default:
+        // Safe handling for the status string
+        const statusStr = String(swap.status);
         return {
-          text: swap.status.charAt(0).toUpperCase() + swap.status.slice(1),
+          text: statusStr.charAt(0).toUpperCase() + statusStr.slice(1),
           colorClass: 'bg-gray-100 text-gray-800'
         };
     }

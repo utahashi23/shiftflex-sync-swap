@@ -60,7 +60,7 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
     });
     
     // Separate active and past matches
-    // IMPORTANT CHANGE: Include 'other_accepted', 'dual_accepted' and 'accepted' statuses in active matches
+    // Include 'other_accepted', 'dual_accepted' and 'accepted' statuses in active matches
     const activeMatches = formattedMatches.filter((match: SwapMatch) => 
       match.status === 'pending' || 
       match.status === 'accepted' || 
