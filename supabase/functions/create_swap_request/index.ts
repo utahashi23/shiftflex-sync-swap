@@ -70,11 +70,26 @@ serve(async (req) => {
     const userId = user.id;
     console.log('Proceeding with user ID:', userId);
     
-    // Log the preferred dates with their accepted types for debugging
-    console.log('Preferred dates with accepted types:');
-    preferred_dates.forEach((pd: any, index: number) => {
-      console.log(`[${index}] Date: ${pd.date}, Accepted Types:`, pd.acceptedTypes);
+    // Enhanced logging for preferred dates and accepted types
+    console.log('Preferred dates details for debugging:');
+    preferred_dates.forEach((pd, index) => {
+      console.log(`[${index}] Date: ${pd.date}`);
+      if (pd.acceptedTypes && Array.isArray(pd.acceptedTypes)) {
+        console.log(`[${index}] Accepted Types:`, pd.acceptedTypes);
+      } else {
+        console.log(`[${index}] WARNING: No accepted types or invalid format`);
+      }
     });
+    
+    // Validate each preferred date has at least one accepted type
+    for (const pd of preferred_dates) {
+      if (!pd.acceptedTypes || !Array.isArray(pd.acceptedTypes) || pd.acceptedTypes.length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'Each preferred date must have at least one accepted shift type' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+    }
     
     // 1. Create the swap request
     const { data: swapRequest, error: swapRequestError } = await supabaseAdmin
@@ -98,14 +113,14 @@ serve(async (req) => {
     const requestId = swapRequest.id;
     console.log('Created swap request with ID:', requestId);
     
-    // 2. Add all preferred dates
+    // 2. Add all preferred dates with their accepted types
     const preferredDaysToInsert = preferred_dates.map(pd => ({
       request_id: requestId,
       date: pd.date,
-      accepted_types: pd.acceptedTypes || [] // Ensure accepted_types is properly included
+      accepted_types: pd.acceptedTypes // Make sure to use the client-side property name here
     }));
     
-    console.log('Inserting preferred dates:', preferredDaysToInsert);
+    console.log('Inserting preferred dates with accepted types:', preferredDaysToInsert);
     
     const { error: datesError } = await supabaseAdmin
       .from('shift_swap_preferred_dates')

@@ -72,9 +72,11 @@ export const useSwapCalendarActions = (
       setIsLoading(true);
       
       // Format preferred dates for the edge function
+      // IMPORTANT: Make sure we consistently use 'acceptedTypes' for the client property
+      // and 'accepted_types' for the database property
       const preferredDates = selectedSwapDates.map(dateStr => ({
         date: dateStr,
-        acceptedTypes: acceptedTypes // Make sure the property name is consistent
+        acceptedTypes: acceptedTypes // This property name MUST match what the edge function expects
       }));
       
       // Log the preferred dates and accepted types for debugging
