@@ -6,11 +6,13 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { ArrowRightLeft, Calendar, Clock, UserCircle2, AlertTriangle, FileText, Mail } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowRightLeft, Calendar, Clock, UserCircle2, AlertTriangle, FileText, Mail, Loader2, Check } from "lucide-react";
 import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "./types";
 import { useState } from "react";
 import { ShiftDetailsDialog } from "./ShiftDetailsDialog";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SwapCardProps {
   swap: SwapMatch;
@@ -40,12 +42,18 @@ export const SwapCard = ({
 }: SwapCardProps) => {
   // Dialog state for shift details
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const { user } = useAuth();
   
   // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
     otherShift: swap.otherShift.colleagueType
   });
+  
+  // Determine if this user has accepted the swap
+  const iAccepted = swap.status === 'accepted' && swap.requesterId === user?.id;
+  const otherAccepted = swap.status === 'other_accepted';
+  const bothAccepted = swap.status === 'dual_accepted';
   
   // Determine status display text and color
   const getStatusDisplay = () => {
@@ -56,14 +64,22 @@ export const SwapCard = ({
           colorClass: 'bg-amber-100 text-amber-800'
         };
       case 'accepted':
-        return {
-          text: 'Accepted',
+        return iAccepted ? {
+          text: 'You Accepted - Waiting for Other User',
+          colorClass: 'bg-blue-100 text-blue-800'
+        } : {
+          text: 'Other User Accepted - Waiting for You',
           colorClass: 'bg-blue-100 text-blue-800'
         };
       case 'other_accepted':
         return {
-          text: 'Accepted by Another User',
+          text: 'Other User Accepted',
           colorClass: 'bg-gray-100 text-gray-800'
+        };
+      case 'dual_accepted':
+        return {
+          text: 'Both Accepted - Ready to Finalize',
+          colorClass: 'bg-green-100 text-green-800'
         };
       case 'completed':
         return {
@@ -186,21 +202,41 @@ export const SwapCard = ({
           </div>
         </div>
         
+        {/* Display acceptance status information */}
+        {(iAccepted) && (
+          <Alert className="mt-4 bg-blue-50 border border-blue-200">
+            <Check className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-700">
+              You have accepted this swap. Waiting for the other user to accept.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {/* Display warning for other_accepted status */}
-        {swap.status === 'other_accepted' && (
+        {(swap.status === 'other_accepted') && (
           <div className="mt-4 p-3 border border-yellow-300 rounded-md bg-yellow-50">
             <div className="flex items-start">
               <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />
               <div>
                 <p className="text-sm font-medium text-yellow-800">
-                  This shift has already been accepted by another user
+                  The other user has already accepted this swap
                 </p>
                 <p className="text-xs text-yellow-700 mt-1">
-                  The shift you were interested in is no longer available as it has been accepted in another swap.
+                  Please accept this swap to proceed with the exchange.
                 </p>
               </div>
             </div>
           </div>
+        )}
+        
+        {/* Display dual acceptance information */}
+        {(bothAccepted) && (
+          <Alert className="mt-4 bg-green-50 border border-green-200">
+            <Check className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-700">
+              Both users have accepted this swap. Ready to finalize.
+            </AlertDescription>
+          </Alert>
         )}
       </CardContent>
       
@@ -216,7 +252,8 @@ export const SwapCard = ({
               Swap Details
             </Button>
           
-            {swap.status === 'pending' && onAccept && (
+            {/* Show accept button if swap is pending or other_accepted */}
+            {(swap.status === 'pending' || swap.status === 'other_accepted') && onAccept && (
               <Button 
                 onClick={() => onAccept(swap.id)}
                 className="bg-green-600 hover:bg-green-700"
@@ -225,49 +262,48 @@ export const SwapCard = ({
               </Button>
             )}
             
-            {swap.status === 'other_accepted' && (
+            {/* Show waiting button if user has accepted but waiting for other user */}
+            {(iAccepted) && (
               <Button 
                 disabled
-                variant="outline"
-                className="opacity-50 cursor-not-allowed"
+                className="flex items-center bg-blue-600 hover:bg-blue-600 cursor-not-allowed"
               >
-                Already Accepted
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Waiting for Other User
               </Button>
             )}
             
-            {/* Explicitly check for 'accepted' status */}
-            {swap.status === 'accepted' && (
-              <>
-                {onCancel && (
-                  <Button 
-                    onClick={() => onCancel(swap.id)}
-                    variant="outline"
-                    className="hover:bg-red-50"
-                  >
-                    Cancel
-                  </Button>
-                )}
+            {/* Show cancel option for accepted swaps */}
+            {(swap.status === 'accepted' || swap.status === 'other_accepted' || swap.status === 'dual_accepted') && onCancel && (
+              <Button 
+                onClick={() => onCancel(swap.id)}
+                variant="outline"
+                className="hover:bg-red-50"
+              >
+                Cancel
+              </Button>
+            )}
 
-                {onResendEmail && (
-                  <Button 
-                    onClick={() => onResendEmail(swap.id)}
-                    variant="outline"
-                    className="flex items-center"
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    Resend Email
-                  </Button>
-                )}
-                
-                {onFinalize && (
-                  <Button 
-                    onClick={() => onFinalize(swap.id)}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    Finalize Swap
-                  </Button>
-                )}
-              </>
+            {/* Show email resend option for accepted swaps */}
+            {(swap.status === 'accepted' || swap.status === 'dual_accepted') && onResendEmail && (
+              <Button 
+                onClick={() => onResendEmail(swap.id)}
+                variant="outline"
+                className="flex items-center"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Resend Email
+              </Button>
+            )}
+            
+            {/* Show finalize button only when both users have accepted */}
+            {bothAccepted && onFinalize && (
+              <Button 
+                onClick={() => onFinalize(swap.id)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Finalize Swap
+              </Button>
             )}
           </div>
         </CardFooter>

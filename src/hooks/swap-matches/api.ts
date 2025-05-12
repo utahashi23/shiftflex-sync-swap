@@ -60,9 +60,12 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
     });
     
     // Separate active and past matches
-    // IMPORTANT CHANGE: Include 'other_accepted' status in active matches
+    // IMPORTANT CHANGE: Include 'other_accepted', 'dual_accepted' and 'accepted' statuses in active matches
     const activeMatches = formattedMatches.filter((match: SwapMatch) => 
-      match.status === 'pending' || match.status === 'accepted' || match.status === 'other_accepted'
+      match.status === 'pending' || 
+      match.status === 'accepted' || 
+      match.status === 'other_accepted' ||
+      match.status === 'dual_accepted'
     );
     
     const pastMatches = formattedMatches.filter((match: SwapMatch) => 
@@ -70,8 +73,7 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
     );
     
     console.log(`Processed ${activeMatches.length} active matches and ${pastMatches.length} past matches`);
-    console.log(`Active matches with 'accepted' status: ${activeMatches.filter((m: SwapMatch) => m.status === 'accepted').length}`);
-    console.log(`Active matches with 'other_accepted' status: ${activeMatches.filter((m: SwapMatch) => m.status === 'other_accepted').length}`);
+    console.log(`Active matches statuses: pending=${activeMatches.filter((m: SwapMatch) => m.status === 'pending').length}, accepted=${activeMatches.filter((m: SwapMatch) => m.status === 'accepted').length}, other_accepted=${activeMatches.filter((m: SwapMatch) => m.status === 'other_accepted').length}, dual_accepted=${activeMatches.filter((m: SwapMatch) => m.status === 'dual_accepted').length}`);
     
     return {
       matches: activeMatches,
