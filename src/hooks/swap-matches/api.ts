@@ -32,9 +32,7 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
         match_id: matchesData[0].match_id,
         match_status: matchesData[0].match_status,
         my_shift_colleague_type: matchesData[0].my_shift_colleague_type,
-        other_shift_colleague_type: matchesData[0].other_shift_colleague_type,
-        has_accepted: matchesData[0].has_accepted,
-        other_has_accepted: matchesData[0].other_has_accepted
+        other_shift_colleague_type: matchesData[0].other_shift_colleague_type
       });
     }
     
@@ -58,7 +56,7 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
     
     // Additional logging for debugging status issues
     formattedMatches.forEach((match: SwapMatch) => {
-      console.log(`Formatted match ${match.id} has status: ${match.status}, hasAccepted: ${match.hasAccepted}, otherHasAccepted: ${match.otherHasAccepted}`);
+      console.log(`Formatted match ${match.id} has status: ${match.status}`);
     });
     
     // Separate active and past matches

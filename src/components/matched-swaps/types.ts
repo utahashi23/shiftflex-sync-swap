@@ -30,8 +30,6 @@ export interface SwapMatch {
   otherRequestId: string;
   requesterId?: string; // Added field for the requester ID
   createdAt: string;
-  hasAccepted?: boolean; // To track if current user has accepted
-  otherHasAccepted?: boolean; // To track if other user has accepted
 }
 
 export interface ConfirmDialogState {

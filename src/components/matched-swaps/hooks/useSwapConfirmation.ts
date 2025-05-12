@@ -1,14 +1,9 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useSwapDialogs } from './useSwapDialogs';
 import { useEmailNotifications } from './useEmailNotifications';
 import { resendSwapNotification } from '@/utils/emailService';
-import { useAuth } from '@/hooks/useAuth';
-
-// The Supabase URL is available from the client file
-const SUPABASE_URL = "https://ponhfgbpxehsdlxjpszg.supabase.co";
 
 /**
  * Hook for managing swap confirmation dialogs and actions
@@ -17,7 +12,6 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
   const { confirmDialog, setConfirmDialog, finalizeDialog, setFinalizeDialog } = useSwapDialogs();
   const emailNotifications = useEmailNotifications();
   const [isLoading, setIsLoading] = useState(false);
-  const { session } = useAuth(); // Access the session directly from the auth context
 
   /**
    * Trigger the accept confirmation dialog
@@ -42,53 +36,35 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      console.log("Attempting to accept swap with match ID:", confirmDialog.matchId);
-      
-      // Check if we have an active session
-      if (!session) {
-        console.error("No active session available");
-        throw new Error("Authentication required. Please log in again.");
-      }
-      
-      console.log("Authentication available:", !!session);
-      
-      // Use supabase.functions.invoke() which automatically handles authentication
+      // Call the accept_swap_match function
       const { data, error } = await supabase.functions.invoke('accept_swap_match', {
         body: { match_id: confirmDialog.matchId }
       });
       
-      if (error) {
-        console.error('Error response from function:', error);
-        throw new Error(`Failed to accept swap: ${error.message || error}`);
-      }
+      if (error) throw error;
       
-      console.log("Swap acceptance response:", data);
+      toast({
+        title: "Swap Accepted",
+        description: "The shift swap has been successfully accepted.",
+      });
       
-      if (data.both_accepted) {
-        toast({
-          title: "Swap Fully Accepted",
-          description: "Both users have accepted the swap. You can now finalize it.",
-        });
-      } else {
-        toast({
-          title: "Swap Accepted",
-          description: "Waiting for the other user to accept the swap.",
-        });
-      }
+      // The edge function already handles email notifications, so we don't need to send them again here
+      // Removing the duplicate email sending
       
       if (onSuccessCallback) {
         onSuccessCallback();
       }
       
-    } catch (error: any) {
+      setConfirmDialog({ isOpen: false, matchId: null });
+      
+    } catch (error) {
       console.error('Error accepting swap:', error);
       toast({
         title: "Failed to accept swap",
-        description: error.message || "There was a problem accepting the swap. Please try again.",
+        description: "There was a problem accepting the swap. Please try again.",
         variant: "destructive"
       });
     } finally {
-      setConfirmDialog({ isOpen: false, matchId: null });
       setIsLoading(false);
     }
   };
@@ -102,40 +78,35 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Check if we have an active session
-      if (!session) {
-        console.error("No active session available");
-        throw new Error("Authentication required. Please log in again.");
-      }
-      
-      // Use supabase.functions.invoke() which automatically handles authentication
+      // Call the finalize_swap_match function
       const { data, error } = await supabase.functions.invoke('finalize_swap_match', {
         body: { match_id: finalizeDialog.matchId }
       });
       
-      if (error) {
-        console.error('Error finalizing swap:', error);
-        throw new Error(`Failed to finalize swap: ${error.message || error}`);
-      }
+      if (error) throw error;
       
       toast({
         title: "Swap Finalized",
         description: "The shift swap has been finalized and the calendar has been updated.",
       });
       
+      // The edge function already handles email notifications, so we don't need to send them again here
+      // Removing the duplicate email sending
+      
       if (onSuccessCallback) {
         onSuccessCallback();
       }
       
-    } catch (error: any) {
+      setFinalizeDialog({ isOpen: false, matchId: null });
+      
+    } catch (error) {
       console.error('Error finalizing swap:', error);
       toast({
         title: "Failed to finalize swap",
-        description: error.message || "There was a problem finalizing the swap. Please try again.",
+        description: "There was a problem finalizing the swap. Please try again.",
         variant: "destructive"
       });
     } finally {
-      setFinalizeDialog({ isOpen: false, matchId: null });
       setIsLoading(false);
     }
   };
@@ -149,21 +120,12 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Check if we have an active session
-      if (!session) {
-        console.error("No active session available");
-        throw new Error("Authentication required. Please log in again.");
-      }
-      
-      // Use supabase.functions.invoke() which automatically handles authentication
+      // Call the cancel_swap_match function
       const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
         body: { match_id: matchId }
       });
       
-      if (error) {
-        console.error('Error canceling swap:', error);
-        throw new Error(`Failed to cancel swap: ${error.message || error}`);
-      }
+      if (error) throw error;
       
       toast({
         title: "Swap Canceled",
@@ -174,11 +136,11 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         onSuccessCallback();
       }
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error canceling swap:', error);
       toast({
         title: "Failed to cancel swap",
-        description: error.message || "There was a problem canceling the swap. Please try again.",
+        description: "There was a problem canceling the swap. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -195,7 +157,7 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Use the resendSwapNotification utility function
+      // Use the resendSwapNotification directly for consistency
       const result = await resendSwapNotification(matchId);
       
       if (!result.success) {
@@ -207,11 +169,11 @@ export const useSwapConfirmation = (onSuccessCallback?: () => void) => {
         description: "Notification emails have been resent successfully.",
       });
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error resending email:', error);
       toast({
         title: "Failed to resend email",
-        description: error.message || "There was a problem resending the email. Please try again.",
+        description: "There was a problem resending the email. Please try again.",
         variant: "destructive"
       });
     } finally {
