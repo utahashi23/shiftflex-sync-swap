@@ -71,8 +71,10 @@ export const SwapCard = ({
           colorClass: 'bg-green-100 text-green-800'
         };
       default:
+        // Fix the type error by ensuring we're working with a string
+        const status = swap.status as string;
         return {
-          text: swap.status.charAt(0).toUpperCase() + swap.status.slice(1),
+          text: status.charAt(0).toUpperCase() + status.slice(1),
           colorClass: 'bg-gray-100 text-gray-800'
         };
     }
