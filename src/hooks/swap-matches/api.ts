@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '../use-toast';
 import { formatSwapMatches } from './utils';
@@ -90,17 +89,23 @@ export const acceptSwapMatch = async (matchId: string) => {
   console.log('Accepting swap match:', matchId);
   
   try {
-    // Use the service role key and direct fetch call instead of supabase client
-    // This completely bypasses RLS and authentication
-    const apiUrl = `${supabase.functions.url}/accept_swap_match`;
+    // Define the base URL for the edge function
+    // Using the proper method to get the function URL
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ponhfgbpxehsdlxjpszg.supabase.co';
+    const apiUrl = `${supabaseUrl}/functions/v1/accept_swap_match`;
     
-    // Make a direct fetch call
+    // Get the current session using the proper method
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token || '';
+    
+    // Make a direct fetch call with proper authentication
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabase.auth.session()?.access_token || ''}`,
-        'apikey': supabase.supabaseKey
+        'Authorization': `Bearer ${accessToken}`,
+        // Use the public anon key from environment or hardcode it if needed
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvbmhmZ2JweGVoc2RseGpwc3pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5ODM0NDcsImV4cCI6MjA2MTU1OTQ0N30.-n7sUFjxDJUCpMMA0AGnXlQCkaVt31dER91ZQLO3jDs'
       },
       body: JSON.stringify({
         match_id: matchId,
