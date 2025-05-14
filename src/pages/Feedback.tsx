@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,6 +12,8 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from '@/hooks/useAuth';
+import { LogIn, UserPlus } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -33,6 +36,8 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const Feedback = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm<FormValues>({
@@ -91,6 +96,14 @@ const Feedback = () => {
     }
   };
 
+  const handleLoginClick = () => {
+    navigate('/login', { state: { returnUrl: '/feedback' } });
+  };
+
+  const handleRegisterClick = () => {
+    navigate('/register');
+  };
+
   return (
     <AppLayout>
       <div className="max-w-3xl mx-auto py-8">
@@ -98,6 +111,29 @@ const Feedback = () => {
         <p className="mb-8 text-gray-600">
           We value your input! Please let us know what's working well, what could be improved, and any features you'd like to see in the future.
         </p>
+
+        {!user && (
+          <Card className="mb-8 border-primary/20 bg-primary/5">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center">
+                <h3 className="text-xl font-semibold mb-3">Join the ShiftFlex Community</h3>
+                <p className="text-gray-600 mb-4">
+                  Register to actively participate and provide valuable feedback that helps shape the future of ShiftFlex.
+                </p>
+                <div className="flex flex-wrap gap-3 justify-center">
+                  <Button onClick={handleLoginClick} variant="outline">
+                    <LogIn className="mr-2" />
+                    Log in
+                  </Button>
+                  <Button onClick={handleRegisterClick}>
+                    <UserPlus className="mr-2" />
+                    Register
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
