@@ -12,7 +12,7 @@ import {
   CalendarDays,
   Home,
   FileQuestion,
-  Clock,
+  MessageSquare,
   LayoutList
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,7 +25,8 @@ const navigation = [
   { name: 'My Shift Swaps', href: '/shifts', icon: Calendar, requiresAuth: true },
   { name: 'Browse Swaps', href: '/swaps-list', icon: LayoutList, requiresAuth: true }, 
   { name: 'Leave Swaps', href: '/leave-swaps', icon: Calendar, requiresAuth: true },
-  { name: 'Roadmap', href: '/roadmap', icon: Clock, requiresAuth: false },
+  // Removed Roadmap item
+  { name: 'Feedback', href: '/feedback', icon: MessageSquare, requiresAuth: false },
   { name: 'FAQ', href: '/faq', icon: FileQuestion, requiresAuth: false },
   { name: 'Settings', href: '/settings', icon: Settings, requiresAuth: true },
 ];

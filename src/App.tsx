@@ -1,4 +1,5 @@
 
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,6 +20,7 @@ import CalendarManagement from "./pages/CalendarManagement";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import Roadmap from "./pages/Roadmap";
+import Feedback from "./pages/Feedback";
 import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
 
@@ -48,6 +50,7 @@ const App = () => (
             <Route path="/leave-swaps" element={<LeaveSwaps />} />
             <Route path="/calendar" element={<CalendarManagement />} /> {/* Roster page */}
             <Route path="/roadmap" element={<Roadmap />} />
+            <Route path="/feedback" element={<Feedback />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<Admin />} />
