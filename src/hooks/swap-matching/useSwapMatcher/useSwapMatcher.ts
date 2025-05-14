@@ -44,7 +44,7 @@ export const useSwapMatcher = () => {
     }
     
     try {
-      // Fix: Call findSwapMatches with userId or user?.id (removing extra arguments)
+      // Call findSwapMatches with userId or user?.id
       const result = await findSwapMatches(userId || user?.id);
       
       if (!result.success) {
@@ -53,12 +53,12 @@ export const useSwapMatcher = () => {
         return result;
       }
       
-      // Fix: Access allRequests instead of requests
-      if (result.allRequests && Array.isArray(result.allRequests)) {
-        console.log(`Found ${result.allRequests.length} requests`);
+      // Fix: Check for matches property instead of allRequests
+      if (result.matches && Array.isArray(result.matches)) {
+        console.log(`Found ${result.matches.length} potential matches`);
       }
       
-      // Fix: Make sure matches exist before accessing
+      // Set the matches from the result
       setMatches(result.matches || []);
       setMessage(`Found ${result.matches?.length || 0} potential swap matches`);
       return { success: true, matches: result.matches };

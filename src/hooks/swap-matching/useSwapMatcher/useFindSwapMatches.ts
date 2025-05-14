@@ -16,6 +16,7 @@ export const useFindSwapMatches = () => {
    * @param userId - User ID to find matches for
    * @param forceCheck - Whether to check all requests even if already matched
    * @param verbose - Whether to enable verbose logging
+   * @returns Object with success flag and matches array
    */
   const findSwapMatches = async (userId: string, forceCheck: boolean = false, verbose: boolean = false) => {
     try {
@@ -50,6 +51,9 @@ export const useFindSwapMatches = () => {
       
       console.log('Found matches:', data);
       setMatchResults(data);
+      
+      // Return matches property instead of data directly
+      // This ensures the return type matches what's expected in useSwapMatcher
       return { success: true, matches: data };
     } catch (error: any) {
       console.error('Error in findSwapMatches:', error);
