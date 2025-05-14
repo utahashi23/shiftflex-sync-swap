@@ -63,7 +63,7 @@ const Feedback = () => {
             <p>${data.workingWell || "No response provided"}</p>
             <h3>What's not working well?</h3>
             <p>${data.notWorkingWell || "No response provided"}</p>
-            <h3>What improvements would you like to see?</h3>
+            <h3>What features would you like to see?</h3>
             <p>${data.improvement}</p>
           `
         }
@@ -185,10 +185,10 @@ const Feedback = () => {
                   name="improvement"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>What improvements would you like to see?</FormLabel>
+                      <FormLabel>What features would you like to see?</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="Share your ideas for new features or improvements" 
+                          placeholder="Share your ideas for new features" 
                           {...field} 
                           className="min-h-[100px]"
                         />
