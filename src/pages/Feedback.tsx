@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -10,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -49,13 +49,9 @@ const Feedback = () => {
     setIsSubmitting(true);
     
     try {
-      // Call the send_email function
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send_email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      // Use Supabase functions.invoke instead of direct fetch
+      const { error } = await supabase.functions.invoke('send_email', {
+        body: {
           to: "njalsankhulani@gmail.com",
           subject: "ShiftFlex Feedback Submission",
           html: `
@@ -69,11 +65,11 @@ const Feedback = () => {
             <h3>What improvements would you like to see?</h3>
             <p>${data.improvement}</p>
           `
-        })
+        }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to send feedback');
+      if (error) {
+        throw new Error(`Failed to send feedback: ${error.message}`);
       }
       
       toast({
