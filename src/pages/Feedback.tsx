@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -52,7 +53,7 @@ const Feedback = () => {
       // Use Supabase functions.invoke instead of direct fetch
       const { error } = await supabase.functions.invoke('send_email', {
         body: {
-          to: "njalsankhulani@gmail.com",
+          to: "admin@shiftflex.au",
           subject: "ShiftFlex Feedback Submission",
           html: `
             <h2>New feedback submission from ShiftFlex</h2>
