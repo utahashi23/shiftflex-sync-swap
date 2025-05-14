@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../useAuth';
 import { toast } from '../../use-toast';
@@ -43,6 +44,7 @@ export const useSwapMatcher = () => {
     }
     
     try {
+      // Fix: Call findSwapMatches with userId or user?.id (removing extra arguments)
       const result = await findSwapMatches(userId || user?.id);
       
       if (!result.success) {
@@ -51,6 +53,12 @@ export const useSwapMatcher = () => {
         return result;
       }
       
+      // Fix: Access allRequests instead of requests
+      if (result.allRequests && Array.isArray(result.allRequests)) {
+        console.log(`Found ${result.allRequests.length} requests`);
+      }
+      
+      // Fix: Make sure matches exist before accessing
       setMatches(result.matches || []);
       setMessage(`Found ${result.matches?.length || 0} potential swap matches`);
       return { success: true, matches: result.matches };

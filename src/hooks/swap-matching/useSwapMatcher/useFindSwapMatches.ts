@@ -16,27 +16,19 @@ export const useFindSwapMatches = () => {
    * @param userId - User ID to find matches for
    * @param forceCheck - Whether to check all requests even if already matched
    * @param verbose - Whether to enable verbose logging
-   * @param userPerspectiveOnly - Whether to only show matches from the user's perspective
-   * @param userInitiatorOnly - Whether to only show matches where the user is the initiator
    */
-  const findSwapMatches = async (
-    userId: string, 
-    forceCheck: boolean = false,
-    verbose: boolean = false,
-    userPerspectiveOnly: boolean = true,
-    userInitiatorOnly: boolean = true
-  ) => {
+  const findSwapMatches = async (userId: string, forceCheck: boolean = false, verbose: boolean = false) => {
     try {
       // Prevent multiple concurrent calls
       if (isLoading || requestInProgressRef.current) {
         console.log('Already loading matches, skipping duplicate call');
-        return matchResults;
+        return { success: false, message: 'Operation already in progress' };
       }
       
       setIsLoading(true);
       requestInProgressRef.current = true;
       
-      console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}, user initiator only: ${userInitiatorOnly})`);
+      console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose})`);
       
       // Make direct call to the edge function to avoid RLS recursion
       // The edge function uses service_role to bypass RLS policies
@@ -45,23 +37,23 @@ export const useFindSwapMatches = () => {
           user_id: userId,
           force_check: forceCheck,
           verbose: verbose,
-          user_perspective_only: userPerspectiveOnly,
-          user_initiator_only: userInitiatorOnly,
+          user_perspective_only: true,
+          user_initiator_only: true,
           bypass_rls: true // Explicitly request RLS bypass
         }
       });
       
       if (error) {
         console.error('Error finding matches:', error);
-        throw error;
+        return { success: false, error: error.message };
       }
       
       console.log('Found matches:', data);
       setMatchResults(data);
-      return data;
-    } catch (error) {
+      return { success: true, matches: data };
+    } catch (error: any) {
       console.error('Error in findSwapMatches:', error);
-      throw error;
+      return { success: false, error: error.message };
     } finally {
       setIsLoading(false);
       requestInProgressRef.current = false;

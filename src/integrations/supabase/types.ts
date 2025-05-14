@@ -9,6 +9,73 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      chat_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          swap_match_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          swap_match_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          swap_match_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversations_swap_match_id_fkey"
+            columns: ["swap_match_id"]
+            isOneToOne: true
+            referencedRelation: "shift_swap_potential_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          is_read: boolean
+          sender_id: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          sender_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          sender_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_blocks: {
         Row: {
           block_number: number
@@ -743,9 +810,21 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       test_admin_access: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      user_can_access_conversation: {
+        Args: { p_conversation_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      user_is_involved_in_match: {
+        Args: { p_match_id: string; p_user_id: string }
+        Returns: boolean
       }
       user_is_involved_in_swap_request: {
         Args: { request_id: string; auth_user_id: string }
