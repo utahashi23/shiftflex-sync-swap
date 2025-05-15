@@ -9,6 +9,41 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      areas: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          region_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          region_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          region_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "areas_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_conversations: {
         Row: {
           created_at: string
@@ -75,6 +110,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      colleague_types: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          status?: string
+        }
+        Relationships: []
       }
       leave_blocks: {
         Row: {
@@ -223,6 +279,51 @@ export type Database = {
           last_name?: string | null
           organization?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      regions: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      shift_lengths: {
+        Row: {
+          created_at: string
+          hours: number
+          id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          hours: number
+          id?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          hours?: number
+          id?: string
+          status?: string
         }
         Relationships: []
       }
@@ -496,24 +597,35 @@ export type Database = {
       }
       truck_names: {
         Row: {
+          area_id: string | null
           created_at: string
           id: string
           name: string
           status: string
         }
         Insert: {
+          area_id?: string | null
           created_at?: string
           id?: string
           name: string
           status?: string
         }
         Update: {
+          area_id?: string | null
           created_at?: string
           id?: string
           name?: string
           status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "truck_names_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_leave_blocks: {
         Row: {

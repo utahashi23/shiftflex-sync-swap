@@ -1,5 +1,4 @@
 
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,6 +17,7 @@ import SwapsList from "./pages/SwapsList";
 import LeaveSwaps from "./pages/LeaveSwaps";
 import CalendarManagement from "./pages/CalendarManagement";
 import Settings from "./pages/Settings";
+import SystemSettings from "./pages/SystemSettings";
 import Admin from "./pages/Admin";
 import Roadmap from "./pages/Roadmap";
 import Feedback from "./pages/Feedback";
@@ -53,6 +53,7 @@ const App = () => (
             <Route path="/feedback" element={<Feedback />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/system-settings" element={<SystemSettings />} />
             <Route path="/admin" element={<Admin />} />
             
             {/* Catch-all for non-existent routes */}

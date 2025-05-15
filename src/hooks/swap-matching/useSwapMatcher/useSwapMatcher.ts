@@ -1,216 +1,94 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../useAuth';
-import { toast } from '../../use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useProcessState } from './useProcessState';
+import { useState } from 'react';
+import { useSwapRequests } from '../../swap-requests';
 import { useFindSwapMatches } from './useFindSwapMatches';
-import { resendSwapNotification } from '@/utils/emailService';
+import { useProcessingState } from './useProcessingState';
+import { fetchAllData } from '../operations/fetchAllData';
+import { findMatches } from '../operations/findMatches';
+import { toast } from '@/hooks/use-toast';
 
-export const useSwapMatcher = () => {
-  const { user } = useAuth();
-  const [isInitialized, setIsInitialized] = useState(false);
-  const { findSwapMatches, isLoading: isMatchesFinding } = useFindSwapMatches();
-  const { isProcessing, setIsProcessing } = useProcessState();
-  
-  // Add missing state values that were expected from useProcessState
-  const [stage, setStage] = useState('');
-  const [message, setMessage] = useState('');
+export type MatchingStatus =
+  | 'idle'
+  | 'fetching-data'
+  | 'analyzing-data'
+  | 'finding-matches'
+  | 'storing-matches'
+  | 'complete'
+  | 'error';
+
+export function useSwapMatcher() {
+  const { fetchAllRequests } = useSwapRequests();
+  const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [potentialMatches, setMatches] = useState<any[]>([]);
-  
-  // Reset function for state
-  const resetState = useCallback(() => {
-    setStage('');
-    setMessage('');
+  const [matchResults, setMatchResults] = useState<any[]>([]);
+  const [matches, setMatches] = useState<any[]>([]);
+
+  const { 
+    status,
+    progress, 
+    message,
+    startProcessing,
+    updateProgress 
+  } = useProcessingState();
+
+  const { findSwapMatches } = useFindSwapMatches();
+
+  const runMatcher = async () => {
+    if (isRunning) return;
+    
+    setIsRunning(true);
     setError(null);
     setMatches([]);
-  }, []);
-  
-  // Reset the process state when the component unmounts or when user changes
-  useEffect(() => {
-    setIsInitialized(true);
-    return () => {
-      resetState();
-    };
-  }, [user?.id, resetState]);
-
-  // Function to find swap matches
-  const processSwapMatches = useCallback(async (userId?: string) => {
-    if (!user && !userId) {
-      console.error('User not logged in');
-      setError('User not logged in');
-      return { success: false, error: 'User not logged in' };
-    }
+    setMatchResults([]);
     
     try {
-      // Call findSwapMatches with userId or user?.id
-      const result = await findSwapMatches(userId || user?.id);
+      startProcessing('fetching-data');
+      const dataResponse = await fetchAllData();
       
-      if (!result.success) {
-        console.error('Failed to find matches:', result.error);
-        setError(result.error || 'Failed to find matches');
-        return result;
+      if (!dataResponse.success) {
+        throw new Error(dataResponse.error || 'Failed to fetch data');
       }
       
-      // Fix: Check for matches property instead of allRequests
-      if (result.matches && Array.isArray(result.matches)) {
-        console.log(`Found ${result.matches.length} potential matches`);
+      updateProgress('analyzing-data', 'Analyzing shift swaps and preferred dates');
+      const { allRequests, allShifts, preferredDates, profilesMap } = dataResponse;
+      
+      // Pass the data object to findSwapMatches 
+      const matchResponse = await findSwapMatches(dataResponse, 'Finding potential matches');
+      
+      if (!matchResponse.success) {
+        throw new Error(matchResponse.message);
       }
       
-      // Set the matches from the result
-      setMatches(result.matches || []);
-      setMessage(`Found ${result.matches?.length || 0} potential swap matches`);
-      return { success: true, matches: result.matches };
-      
-    } catch (err: any) {
-      console.error('Error in processSwapMatches:', err);
-      setError(err.message || 'Failed to process swap matches');
-      return { success: false, error: err.message };
-    }
-  }, [user, findSwapMatches, setError, setMatches, setMessage]);
-  
-  // Accept a swap match
-  const acceptSwapMatch = useCallback(async (matchId: string) => {
-    if (!user) {
-      console.error('User not logged in');
-      return { success: false, error: 'User not logged in' };
-    }
-    
-    try {
-      // Call the edge function to accept the swap match
-      const { data, error } = await supabase.functions.invoke('accept_swap_match', {
-        body: { match_id: matchId }
-      });
-      
-      if (error) {
-        console.error('Failed to accept swap match:', error);
-        toast({
-          title: "Failed to Accept Swap",
-          description: error.message || 'An error occurred while accepting the swap',
-          variant: "destructive"
-        });
-        return { success: false, error: error.message };
-      }
+      setMatches(matchResponse.matches || []);
+      setMatchResults(matchResponse.results || []);
+      updateProgress('complete', `Found ${matchResponse.matches?.length || 0} potential matches`);
       
       toast({
-        title: "Swap Accepted",
-        description: "The shift swap has been accepted. Please check your email for confirmation.",
+        title: 'Matching Complete',
+        description: `Found ${matchResponse.matches?.length || 0} potential matches`,
       });
       
-      // Remove the client-side email sending to avoid duplication
-      // The edge function already handles sending emails
-      
-      return { success: true, data };
-      
-    } catch (err: any) {
-      console.error('Error in acceptSwapMatch:', err);
+    } catch (error: any) {
+      updateProgress('error', error.message);
+      setError(error.message);
       toast({
-        title: "Error",
-        description: err.message || 'An error occurred',
-        variant: "destructive"
+        title: 'Error Running Matcher',
+        description: error.message,
+        variant: 'destructive',
       });
-      return { success: false, error: err.message };
+    } finally {
+      setIsRunning(false);
     }
-  }, [user]);
-  
-  // Cancel a swap match
-  const cancelSwapMatch = useCallback(async (matchId: string) => {
-    if (!user) {
-      console.error('User not logged in');
-      return { success: false, error: 'User not logged in' };
-    }
-    
-    try {
-      // Call the edge function to cancel the swap match
-      const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
-        body: { match_id: matchId }
-      });
-      
-      if (error) {
-        console.error('Failed to cancel swap match:', error);
-        toast({
-          title: "Failed to Cancel Swap",
-          description: error.message || 'An error occurred while canceling the swap',
-          variant: "destructive"
-        });
-        return { success: false, error: error.message };
-      }
-      
-      toast({
-        title: "Swap Canceled",
-        description: "The shift swap has been successfully canceled",
-      });
-      
-      return { success: true, data };
-      
-    } catch (err: any) {
-      console.error('Error in cancelSwapMatch:', err);
-      toast({
-        title: "Error",
-        description: err.message || 'An error occurred',
-        variant: "destructive"
-      });
-      return { success: false, error: err.message };
-    }
-  }, [user]);
-  
-  // Finalize a swap match
-  const finalizeSwapMatch = useCallback(async (matchId: string) => {
-    if (!user) {
-      console.error('User not logged in');
-      return { success: false, error: 'User not logged in' };
-    }
-    
-    try {
-      // Call the edge function to finalize the swap match
-      const { data, error } = await supabase.functions.invoke('finalize_swap_match', {
-        body: { match_id: matchId }
-      });
-      
-      if (error) {
-        console.error('Failed to finalize swap match:', error);
-        toast({
-          title: "Failed to Finalize Swap",
-          description: error.message || 'An error occurred while finalizing the swap',
-          variant: "destructive"
-        });
-        return { success: false, error: error.message };
-      }
-      
-      toast({
-        title: "Swap Finalized",
-        description: "The shift swap has been finalized. Calendars have been updated.",
-      });
-      
-      // Remove the client-side email sending to avoid duplication
-      // The edge function already handles sending emails
-      
-      return { success: true, data };
-      
-    } catch (err: any) {
-      console.error('Error in finalizeSwapMatch:', err);
-      toast({
-        title: "Error",
-        description: err.message || 'An error occurred',
-        variant: "destructive"
-      });
-      return { success: false, error: err.message };
-    }
-  }, [user]);
+  };
 
   return {
-    isInitialized,
-    isLoading: isMatchesFinding,
-    isProcessing,
-    stage,
+    runMatcher,
+    isRunning,
+    status,
+    progress,
     message,
     error,
-    potentialMatches,
-    processSwapMatches,
-    acceptSwapMatch,
-    cancelSwapMatch,
-    finalizeSwapMatch,
-    resetState,
+    matches,
+    matchResults,
   };
-};
+}

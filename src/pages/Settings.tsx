@@ -8,6 +8,9 @@ import { ManualNotificationTrigger } from '@/components/settings/ManualNotificat
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
+import { Settings as SettingsIcon } from 'lucide-react';
 
 const Settings = () => {
   useAuthRedirect({ protectedRoute: true });
@@ -36,12 +39,23 @@ const Settings = () => {
   
   return (
     <AppLayout>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-gray-500 mt-1">
-          Manage your account preferences
-          {isAdmin && <span className="ml-2 text-blue-500">(Admin View)</span>}
-        </p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+          <p className="text-gray-500 mt-1">
+            Manage your account preferences
+            {isAdmin && <span className="ml-2 text-blue-500">(Admin View)</span>}
+          </p>
+        </div>
+        
+        {isAdmin && (
+          <Link to="/system-settings">
+            <Button variant="outline" className="flex items-center gap-2">
+              <SettingsIcon className="h-4 w-4" />
+              System Settings
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="space-y-8">
