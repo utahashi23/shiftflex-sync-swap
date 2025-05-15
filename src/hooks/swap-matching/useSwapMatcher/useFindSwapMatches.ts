@@ -53,7 +53,6 @@ export const useFindSwapMatches = () => {
       setMatchResults(data);
       
       // Return matches property instead of data directly
-      // This ensures the return type matches what's expected in useSwapMatcher
       return { success: true, matches: data };
     } catch (error: any) {
       console.error('Error in findSwapMatches:', error);

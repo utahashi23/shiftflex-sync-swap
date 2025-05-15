@@ -19,25 +19,10 @@ export function useSwapMatcher() {
   const { state, setState, setComplete, setError, resetState } = useProcessingState();
   
   const {
-    findMatches,
+    findSwapMatches,
     isLoading: isMatchingInProgress,
-    results
-  } = useFindSwapMatches({
-    onComplete: (matches) => {
-      setComplete({
-        matchedCount: matches.length,
-        savedCount: matches.length,
-      });
-    },
-    onError: (error) => {
-      setError(error.message);
-      toast({
-        title: 'Error finding matches',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
+    matchResults
+  } = useFindSwapMatches();
 
   const handleFindMatches = async () => {
     resetState();
@@ -62,19 +47,27 @@ export function useSwapMatcher() {
       setState({ status: 'processing', step: 'matching' });
       
       // Execute the matching process
-      await findMatches({
-        includeRegionalMatches: options.includeRegionalMatches,
-        regions: regionsData,
-        startDate: options.startDate,
-        endDate: options.endDate,
-      });
+      const result = await findSwapMatches(
+        supabase.auth.getUser().then(res => res.data.user?.id || ''),
+        options.includeRegionalMatches,
+        true
+      );
       
-      toast({
-        title: 'Matching Complete',
-        description: `Found ${results.matches?.length || 0} potential matches.`,
-      });
+      if (result.success) {
+        setComplete({
+          matchedCount: Array.isArray(result.matches) ? result.matches.length : 0,
+          savedCount: Array.isArray(result.matches) ? result.matches.length : 0,
+        });
+        
+        toast({
+          title: 'Matching Complete',
+          description: `Found ${Array.isArray(result.matches) ? result.matches.length : 0} potential matches.`,
+        });
+      } else {
+        throw new Error(result.error || 'Unknown error occurred');
+      }
       
-    } catch (error) {
+    } catch (error: any) {
       setState({ 
         status: 'error', 
         error: error.message || 'Unknown error occurred'
@@ -94,6 +87,6 @@ export function useSwapMatcher() {
     state,
     findMatches: handleFindMatches,
     isLoading: isMatchingInProgress,
-    results,
+    results: matchResults,
   };
 }

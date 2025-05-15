@@ -12,7 +12,7 @@ import ColleagueTypeManagement from '@/components/admin/ColleagueTypeManagement'
 import { useAuth } from '@/hooks/useAuth';
 
 const Admin = () => {
-  useAuthRedirect({ protectedRoute: true, adminOnly: true });
+  useAuthRedirect({ protectedRoute: true });
   const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('regions');
 

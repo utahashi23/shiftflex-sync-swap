@@ -31,11 +31,17 @@ interface SwapRequest {
   }>;
 }
 
+// Define a simplified filter type compatible with SwapRequestFilters component
+interface SimpleFilters {
+  date: Date | undefined;
+  shiftType: string[];
+}
+
 const SwapsList = () => {
   const { user } = useAuth();
-  const [filters, setFilters] = useState({
-    date: undefined as Date | undefined,
-    shiftType: [] as string[]
+  const [filters, setFilters] = useState<SimpleFilters>({
+    date: undefined,
+    shiftType: []
   });
 
   // Function to fetch swap requests
@@ -113,7 +119,7 @@ const SwapsList = () => {
 
         {/* Swap requests list */}
         <SwapListTable 
-          swapRequests={filteredSwapRequests}
+          requests={filteredSwapRequests}
           isLoading={isLoading}
         />
       </div>
