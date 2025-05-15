@@ -11,26 +11,24 @@ export function useFindSwapMatches() {
       const { allRequests, allShifts, preferredDates, profilesMap } = data;
       
       // Find potential matches
-      const matchResults = findMatches({
-        requests: allRequests,
-        shifts: allShifts,
-        preferredDates: preferredDates,
-      });
-      
-      // Process and store matches
-      const processResponse = await processMatches(
-        matchResults, 
+      const matchResults = findMatches(
         allRequests,
+        allShifts,
         preferredDates,
         profilesMap
       );
       
+      // Process and store matches
+      // Note: processMatches expects the user ID as the second parameter
+      const userId = data?.user?.id || '';
+      const processResponse = await processMatches(matchResults, userId);
+      
       // Return the results
       return {
         success: true,
-        matches: processResponse.matches,
+        matches: processResponse || [],
         results: matchResults,
-        message: `Found ${processResponse.matches.length} potential matches`,
+        message: `Found ${processResponse?.length || 0} potential matches`,
       };
     } catch (error: any) {
       console.error('Error in findSwapMatches:', error);

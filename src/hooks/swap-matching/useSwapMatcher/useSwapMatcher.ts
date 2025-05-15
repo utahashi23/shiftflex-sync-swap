@@ -2,9 +2,8 @@
 import { useState } from 'react';
 import { useSwapRequests } from '../../swap-requests';
 import { useFindSwapMatches } from './useFindSwapMatches';
-import { useProcessingState } from './useProcessingState';
+import { useProcessState } from './useProcessState'; // Updated import
 import { fetchAllData } from '../operations/fetchAllData';
-import { findMatches } from '../operations/findMatches';
 import { toast } from '@/hooks/use-toast';
 
 export type MatchingStatus =
@@ -17,7 +16,8 @@ export type MatchingStatus =
   | 'error';
 
 export function useSwapMatcher() {
-  const { fetchAllRequests } = useSwapRequests();
+  // Using only the available methods from useSwapRequests
+  const { fetchSwapRequests } = useSwapRequests();
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [matchResults, setMatchResults] = useState<any[]>([]);
@@ -29,7 +29,7 @@ export function useSwapMatcher() {
     message,
     startProcessing,
     updateProgress 
-  } = useProcessingState();
+  } = useProcessState();
 
   const { findSwapMatches } = useFindSwapMatches();
 
@@ -50,10 +50,12 @@ export function useSwapMatcher() {
       }
       
       updateProgress('analyzing-data', 'Analyzing shift swaps and preferred dates');
-      const { allRequests, allShifts, preferredDates, profilesMap } = dataResponse;
       
       // Pass the data object to findSwapMatches 
-      const matchResponse = await findSwapMatches(dataResponse, 'Finding potential matches');
+      const matchResponse = await findSwapMatches(
+        dataResponse, 
+        'Finding potential matches'
+      );
       
       if (!matchResponse.success) {
         throw new Error(matchResponse.message);
