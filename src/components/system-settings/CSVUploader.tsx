@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 interface CSVUploaderProps {
-  entityType: 'regions' | 'areas' | 'truck_names';
+  entityType: 'regions' | 'areas' | 'truck_names' | 'colleague_types';
   onSuccess: () => void;
   requiredColumns: string[];
   optionalColumns?: string[];
@@ -122,6 +122,15 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({
           .insert(data.map(row => ({ 
             name: row.name,
             area_id: row.area_id || null
+          })))
+          .select();
+          
+        if (error) throw error;
+      } else if (entityType === 'colleague_types') {
+        const { data: result, error } = await supabase
+          .from('colleague_types')
+          .insert(data.map(row => ({ 
+            name: row.name
           })))
           .select();
           
