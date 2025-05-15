@@ -1,4 +1,5 @@
 
+import { useState, useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import {
@@ -14,12 +15,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { supabase } from '@/integrations/supabase/client';
 
 interface ShiftOptionsFieldsProps {
   shiftLength: string;
   onShiftLengthChange: (length: string) => void;
-  colleagueType: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown';
+  colleagueType: string;
   onColleagueTypeChange: (type: any) => void;
+}
+
+interface ColleagueType {
+  id: string;
+  name: string;
 }
 
 export const ShiftOptionsFields = ({
@@ -28,6 +35,48 @@ export const ShiftOptionsFields = ({
   colleagueType,
   onColleagueTypeChange
 }: ShiftOptionsFieldsProps) => {
+  const [colleagueTypes, setColleagueTypes] = useState<ColleagueType[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchColleagueTypes = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('colleague_types')
+          .select('id, name')
+          .order('name');
+          
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          setColleagueTypes(data);
+        } else {
+          // If no colleague types found in the database, use default ones
+          setColleagueTypes([
+            { id: 'Qualified', name: 'Qualified' },
+            { id: 'Graduate', name: 'Graduate' },
+            { id: 'ACO', name: 'ACO' },
+            { id: 'Unknown', name: 'Unknown' }
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching colleague types:', error);
+        // Use default types if there's an error
+        setColleagueTypes([
+          { id: 'Qualified', name: 'Qualified' },
+          { id: 'Graduate', name: 'Graduate' },
+          { id: 'ACO', name: 'ACO' },
+          { id: 'Unknown', name: 'Unknown' }
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchColleagueTypes();
+  }, []);
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
@@ -82,15 +131,17 @@ export const ShiftOptionsFields = ({
         <Select
           value={colleagueType}
           onValueChange={onColleagueTypeChange}
+          disabled={isLoading}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select colleague type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Qualified">Qualified</SelectItem>
-            <SelectItem value="Graduate">Graduate</SelectItem>
-            <SelectItem value="ACO">ACO</SelectItem>
-            <SelectItem value="Unknown">Unknown</SelectItem>
+            {colleagueTypes.map((type) => (
+              <SelectItem key={type.id} value={type.name}>
+                {type.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

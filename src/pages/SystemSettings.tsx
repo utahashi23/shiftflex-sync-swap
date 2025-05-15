@@ -8,6 +8,7 @@ import { ShiftLengthSettings } from '@/components/system-settings/ShiftLengthSet
 import { RegionSettings } from '@/components/system-settings/RegionSettings';
 import { AreaSettings } from '@/components/system-settings/AreaSettings';
 import { TruckNameSettings } from '@/components/system-settings/TruckNameSettings';
+import { ColleagueTypeSettings } from '@/components/system-settings/ColleagueTypeSettings';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect } from 'react';
 
@@ -132,9 +133,7 @@ const SystemSettings = () => {
               </p>
             </div>
             <Separator />
-            <div className="text-sm text-muted-foreground">
-              Coming soon: Colleague type management
-            </div>
+            <ColleagueTypeSettings />
           </div>
         </TabsContent>
       </Tabs>
