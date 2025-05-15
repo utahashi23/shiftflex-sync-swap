@@ -27,6 +27,9 @@ const SwapRequestFilters = ({ filters, setFilters }: SwapRequestFiltersProps) =>
     });
   };
 
+  // Get the current shift type as a single string (for the toggle group)
+  const currentShiftType = filters.shiftType.length > 0 ? filters.shiftType[0] : "";
+
   return (
     <div className="flex flex-wrap gap-4 items-center">
       {/* Date filter */}
@@ -56,7 +59,7 @@ const SwapRequestFilters = ({ filters, setFilters }: SwapRequestFiltersProps) =>
       <div>
         <ToggleGroup 
           type="single" 
-          value={filters.shiftType}
+          value={currentShiftType}
           onValueChange={(value) => setFilters(prev => ({ ...prev, shiftType: value ? [value] : [] }))}
         >
           <ToggleGroupItem value="day">Day</ToggleGroupItem>
