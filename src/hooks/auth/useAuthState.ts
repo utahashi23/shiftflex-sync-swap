@@ -43,20 +43,23 @@ export const useAuthState = () => {
             // For admin user (sfadmin), check if they're in the user_roles table
             if (extendedUser.email === 'sfadmin') {
               try {
-                // Use type assertions to work around TypeScript errors with Supabase client
-                const { data, error } = supabase.rpc('has_role', { 
-                  _user_id: extendedUser.id,
-                  _role: 'admin'
-                });
-                
-                if (!error && !data) {
-                  // Add admin role if not already present
-                  supabase.from('user_roles')
-                    .insert({
-                      user_id: extendedUser.id,
-                      role: 'admin'
-                    });
-                }
+                // Use proper async/await pattern for database calls
+                (async () => {
+                  // Use proper typing for the result
+                  const { data, error } = await supabase.rpc('has_role', { 
+                    _user_id: extendedUser.id,
+                    _role: 'admin'
+                  });
+                  
+                  if (!error && !data) {
+                    // Add admin role if not already present
+                    await supabase.from('user_roles')
+                      .insert({
+                        user_id: extendedUser.id,
+                        role: 'admin'
+                      });
+                  }
+                })();
               } catch (error) {
                 console.error("Error checking admin role:", error);
               }
