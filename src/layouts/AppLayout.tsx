@@ -13,7 +13,8 @@ import {
   Home,
   FileQuestion,
   MessageSquare,
-  LayoutList
+  LayoutList,
+  Cog
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -31,15 +32,24 @@ const navigation = [
   { name: 'Settings', href: '/settings', icon: Settings, requiresAuth: true },
 ];
 
+// Admin navigation items that will only be shown to admins and specific users
+const adminNavigation = [
+  { name: 'System Settings', href: '/system-settings', icon: Cog, requiresAuth: true }
+];
+
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
 }
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Check if user is the specific admin that we want to allow access to system settings
+  const isSpecificAdmin = user?.id === '2e8fce25-0d63-4148-abd9-2653c31d9b0c';
+  const hasSystemAccess = isAdmin || isSpecificAdmin;
 
   const handleSignOut = async () => {
     await signOut();
@@ -125,6 +135,28 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                           </Link>
                         ) : null
                       )}
+
+                      {/* Add admin navigation items if user has system access */}
+                      {user && hasSystemAccess && adminNavigation.map((item) => (
+                        <Link
+                          key={item.name}
+                          to={item.href}
+                          className={classNames(
+                            location.pathname === item.href ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                            'group flex items-center px-3 py-2 text-base font-medium rounded-md'
+                          )}
+                        >
+                          <item.icon
+                            className={classNames(
+                              location.pathname === item.href ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500',
+                              'mr-4 flex-shrink-0 h-6 w-6'
+                            )}
+                            aria-hidden="true"
+                          />
+                          {item.name}
+                        </Link>
+                      ))}
+                      
                       {user && (
                         <Button
                           variant="ghost"
@@ -214,6 +246,28 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                     </Link>
                   ) : null
                 )}
+
+                {/* Add admin navigation items if user has system access */}
+                {user && hasSystemAccess && adminNavigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={classNames(
+                      location.pathname === item.href ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                      'group flex items-center px-3 py-2 text-sm font-medium rounded-md'
+                    )}
+                  >
+                    <item.icon
+                      className={classNames(
+                        location.pathname === item.href ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500',
+                        'mr-3 flex-shrink-0 h-6 w-6'
+                      )}
+                      aria-hidden="true"
+                    />
+                    {item.name}
+                  </Link>
+                ))}
+                
                 {user && (
                   <Button
                     variant="ghost"
