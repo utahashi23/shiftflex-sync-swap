@@ -12,6 +12,10 @@ const SystemSettings = () => {
   useAuthRedirect({ protectedRoute: true });
   const { toast } = useToast();
   const { user, isLoading, isAdmin } = useAuth();
+  
+  // Check if user is the specific admin that we want to allow access to
+  const isSpecificAdmin = user?.id === '2e8fce25-0d63-4148-abd9-2653c31d9b0c';
+  const hasSystemAccess = isAdmin || isSpecificAdmin;
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -22,16 +26,16 @@ const SystemSettings = () => {
       });
     }
 
-    if (!isLoading && user && !isAdmin) {
+    if (!isLoading && user && !hasSystemAccess) {
       toast({
         title: "Access Denied",
         description: "You need administrator rights to access system settings.",
         variant: "destructive",
       });
     }
-  }, [user, isLoading, isAdmin, toast]);
+  }, [user, isLoading, hasSystemAccess, toast]);
 
-  if (!isAdmin) {
+  if (!hasSystemAccess) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-[60vh]">

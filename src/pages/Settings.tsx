@@ -17,6 +17,9 @@ const Settings = () => {
   const { toast } = useToast();
   const { user, isLoading, isAdmin } = useAuth();
   
+  // Check if user is the specific admin (this user is allowed to access system settings)
+  const isSpecificAdmin = user?.id === '2e8fce25-0d63-4148-abd9-2653c31d9b0c';
+  
   useEffect(() => {
     if (!isLoading && !user) {
       toast({
@@ -48,7 +51,8 @@ const Settings = () => {
           </p>
         </div>
         
-        {isAdmin && (
+        {/* Show System Settings button for both admins and the specific user */}
+        {(isAdmin || isSpecificAdmin) && (
           <Link to="/system-settings">
             <Button variant="outline" className="flex items-center gap-2">
               <SettingsIcon className="h-4 w-4" />
