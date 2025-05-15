@@ -32,6 +32,11 @@ export const useSwapMatcher = () => {
       // Fetch all necessary data
       const data = await fetchAllData();
       
+      if (!data.success) {
+        // Handle failure case
+        throw new Error(data.message || 'Failed to fetch data');
+      }
+      
       // Update state to show we're now matching
       updateProcessingState({ 
         stage: 'matching', 
@@ -39,7 +44,7 @@ export const useSwapMatcher = () => {
         progress: 30 
       });
       
-      // Find all possible matches
+      // Find all possible matches - pass the data object with its properties
       const matches = await findSwapMatches(data);
       
       // Update state to show we're processing matches
