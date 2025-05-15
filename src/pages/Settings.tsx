@@ -1,7 +1,7 @@
 
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
-import ProfileSettings from '@/components/settings/ProfileSettings';
+import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { PasswordSettings } from '@/components/settings/PasswordSettings';
 import { CalendarIntegration } from '@/components/settings/CalendarIntegration';
 import { ManualNotificationTrigger } from '@/components/settings/ManualNotificationTrigger';

@@ -13,19 +13,12 @@ export const useAuthState = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
-  const [initialSessionChecked, setInitialSessionChecked] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
+      async (event, newSession) => {
         console.log('Auth state changed event:', event);
-        
-        // Skip processing for INITIAL_SESSION to avoid duplicate work
-        // This event will be handled by getSession() call below
-        if (event === 'INITIAL_SESSION') {
-          return;
-        }
         
         setSession(newSession);
         
@@ -43,23 +36,20 @@ export const useAuthState = () => {
             // For admin user (sfadmin), check if they're in the user_roles table
             if (extendedUser.email === 'sfadmin') {
               try {
-                // Use proper async/await pattern for database calls
-                (async () => {
-                  // Use proper typing for the result
-                  const { data, error } = await supabase.rpc('has_role', { 
-                    _user_id: extendedUser.id,
-                    _role: 'admin'
-                  });
-                  
-                  if (!error && !data) {
-                    // Add admin role if not already present
-                    await supabase.from('user_roles')
-                      .insert({
-                        user_id: extendedUser.id,
-                        role: 'admin'
-                      });
-                  }
-                })();
+                // Use type assertions to work around TypeScript errors with Supabase client
+                const { data, error } = await supabase.rpc('has_role', { 
+                  _user_id: extendedUser.id,
+                  _role: 'admin'
+                });
+                
+                if (!error && !data) {
+                  // Add admin role if not already present
+                  await supabase.from('user_roles')
+                    .insert({
+                      user_id: extendedUser.id,
+                      role: 'admin'
+                    });
+                }
               } catch (error) {
                 console.error("Error checking admin role:", error);
               }
@@ -78,32 +68,28 @@ export const useAuthState = () => {
       }
     );
 
-    // THEN check for existing session - only once
-    if (!initialSessionChecked) {
-      supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-        setInitialSessionChecked(true);
-        setSession(currentSession);
-        
-        if (currentSession?.user) {
-          // Ensure we're using ExtendedUser type
-          const extendedUser = currentSession.user as unknown as ExtendedUser;
-          setUser(extendedUser);
-          setIsEmailVerified(extendedUser.email_confirmed_at !== null);
-          setIsAdmin(extendedUser.app_metadata?.role === 'admin');
-        }
-        
-        setIsLoading(false);
-      }).catch(error => {
-        console.error('Error getting session:', error);
-        setInitialSessionChecked(true);
-        setIsLoading(false);
-      });
-    }
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      
+      if (currentSession?.user) {
+        // Ensure we're using ExtendedUser type
+        const extendedUser = currentSession.user as unknown as ExtendedUser;
+        setUser(extendedUser);
+        setIsEmailVerified(extendedUser.email_confirmed_at !== null);
+        setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+      }
+      
+      setIsLoading(false);
+    }).catch(error => {
+      console.error('Error getting session:', error);
+      setIsLoading(false);
+    });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [initialSessionChecked]);
+  }, []);
 
   return {
     user,

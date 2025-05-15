@@ -1,78 +1,210 @@
 
-import React from 'react';
-import { Calendar as CalendarIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useState } from 'react';
 import { format } from 'date-fns';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Filter } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { 
+  Popover,
+  PopoverTrigger,
+  PopoverContent 
+} from '@/components/ui/popover';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue 
+} from '@/components/ui/select';
+import { SwapFilters } from '@/hooks/useSwapList';
 
 interface SwapRequestFiltersProps {
-  filters: {
-    date: Date | undefined;
-    shiftType: string[];
-  };
-  setFilters: React.Dispatch<React.SetStateAction<{
-    date: Date | undefined;
-    shiftType: string[];
-  }>>;
+  filters: SwapFilters;
+  setFilters: React.Dispatch<React.SetStateAction<SwapFilters>>;
 }
 
 const SwapRequestFilters = ({ filters, setFilters }: SwapRequestFiltersProps) => {
-  // Clear filters
-  const handleClearFilters = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const handleDayChange = (day: string) => {
+    setFilters(prev => ({
+      ...prev,
+      day: day === 'any-day' ? null : parseInt(day)
+    }));
+  };
+  
+  const handleMonthChange = (month: string) => {
+    setFilters(prev => ({
+      ...prev,
+      month: month === 'any-month' ? null : parseInt(month)
+    }));
+  };
+  
+  const handleDateChange = (date: string) => {
+    setFilters(prev => ({
+      ...prev,
+      specificDate: date || null
+    }));
+  };
+  
+  const handleShiftTypeChange = (type: string) => {
+    setFilters(prev => ({
+      ...prev,
+      shiftType: type === 'any-shift-type' ? null : type
+    }));
+  };
+  
+  const handleColleagueTypeChange = (type: string) => {
+    setFilters(prev => ({
+      ...prev,
+      colleagueType: type === 'any-colleague-type' ? null : type
+    }));
+  };
+  
+  const clearFilters = () => {
     setFilters({
-      date: undefined,
-      shiftType: []
+      day: null,
+      month: null,
+      specificDate: null,
+      shiftType: null,
+      colleagueType: null
     });
   };
-
-  // Get the current shift type as a single string (for the toggle group)
-  const currentShiftType = filters.shiftType.length > 0 ? filters.shiftType[0] : "";
-
+  
+  // Count active filters
+  const activeFilterCount = Object.values(filters).filter(Boolean).length;
+  
   return (
-    <div className="flex flex-wrap gap-4 items-center">
-      {/* Date filter */}
-      <div>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="pl-3 pr-3">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {filters.date ? (
-                format(filters.date, 'PPP')
-              ) : (
-                'Select date'
-              )}
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="flex items-center gap-2">
+          <Filter className="h-4 w-4" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="ml-1 rounded-full bg-primary w-5 h-5 text-xs flex items-center justify-center text-primary-foreground">
+              {activeFilterCount}
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80">
+        <div className="grid gap-4">
+          <div className="space-y-2">
+            <h4 className="font-medium leading-none">Filter Swap Requests</h4>
+            <p className="text-sm text-muted-foreground">
+              Narrow down the list of available swaps
+            </p>
+          </div>
+          
+          <div className="grid gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="day" className="text-xs">Day</Label>
+                <Select 
+                  value={filters.day?.toString() || 'any-day'} 
+                  onValueChange={handleDayChange}
+                >
+                  <SelectTrigger id="day">
+                    <SelectValue placeholder="Any day" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any-day">Any day</SelectItem>
+                    {Array.from({ length: 31 }, (_, i) => (
+                      <SelectItem key={i + 1} value={(i + 1).toString()}>
+                        {i + 1}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="month" className="text-xs">Month</Label>
+                <Select 
+                  value={filters.month?.toString() || 'any-month'} 
+                  onValueChange={handleMonthChange}
+                >
+                  <SelectTrigger id="month">
+                    <SelectValue placeholder="Any month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any-month">Any month</SelectItem>
+                    {[
+                      'January', 'February', 'March', 'April',
+                      'May', 'June', 'July', 'August',
+                      'September', 'October', 'November', 'December'
+                    ].map((month, i) => (
+                      <SelectItem key={i + 1} value={(i + 1).toString()}>
+                        {month}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="specific-date" className="text-xs">Specific Date</Label>
+              <Input 
+                id="specific-date" 
+                type="date" 
+                value={filters.specificDate || ''}
+                onChange={(e) => handleDateChange(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="shift-type" className="text-xs">Shift Type</Label>
+              <Select 
+                value={filters.shiftType || 'any-shift-type'} 
+                onValueChange={handleShiftTypeChange}
+              >
+                <SelectTrigger id="shift-type">
+                  <SelectValue placeholder="Any type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any-shift-type">Any type</SelectItem>
+                  <SelectItem value="day">Day</SelectItem>
+                  <SelectItem value="afternoon">Afternoon</SelectItem>
+                  <SelectItem value="night">Night</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="colleague-type" className="text-xs">Colleague Type</Label>
+              <Select 
+                value={filters.colleagueType || 'any-colleague-type'} 
+                onValueChange={handleColleagueTypeChange}
+              >
+                <SelectTrigger id="colleague-type">
+                  <SelectValue placeholder="Any colleague" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any-colleague-type">Any colleague</SelectItem>
+                  <SelectItem value="Qualified">Qualified</SelectItem>
+                  <SelectItem value="Graduate">Graduate</SelectItem>
+                  <SelectItem value="ACO">ACO</SelectItem>
+                  <SelectItem value="Unknown">Unknown</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <div className="flex justify-between pt-2">
+            <Button 
+              variant="ghost" 
+              onClick={clearFilters}
+              disabled={!activeFilterCount}
+            >
+              Reset
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={filters.date}
-              onSelect={(date) => setFilters(prev => ({ ...prev, date }))}
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      {/* Shift type filter */}
-      <div>
-        <ToggleGroup 
-          type="single" 
-          value={currentShiftType}
-          onValueChange={(value) => setFilters(prev => ({ ...prev, shiftType: value ? [value] : [] }))}
-        >
-          <ToggleGroupItem value="day">Day</ToggleGroupItem>
-          <ToggleGroupItem value="afternoon">Afternoon</ToggleGroupItem>
-          <ToggleGroupItem value="night">Night</ToggleGroupItem>
-        </ToggleGroup>
-      </div>
-
-      {/* Clear filters button */}
-      <Button variant="ghost" onClick={handleClearFilters} className="ml-auto">
-        Clear filters
-      </Button>
-    </div>
+            <Button onClick={() => setIsOpen(false)}>Apply</Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
 

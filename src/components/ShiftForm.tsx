@@ -62,11 +62,6 @@ const ShiftForm = ({
     }
   };
   
-  // Create a type-safe handler for colleague type changes
-  const handleColleagueTypeChange = (type: string) => {
-    setColleagueType(type as "Qualified" | "Graduate" | "ACO" | "Unknown");
-  };
-  
   return (
     <div className="flex flex-col">
       <h3 className="text-lg font-semibold mb-6">{formTitle}</h3>
@@ -89,7 +84,7 @@ const ShiftForm = ({
           shiftLength={shiftLength}
           onShiftLengthChange={handleShiftLengthChange}
           colleagueType={colleagueType}
-          onColleagueTypeChange={handleColleagueTypeChange}
+          onColleagueTypeChange={setColleagueType}
         />
         
         <TimeFields

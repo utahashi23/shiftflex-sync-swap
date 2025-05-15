@@ -1,9 +1,10 @@
+
 import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { findMatches } from '../operations/findMatches';
 
 /**
  * Hook for finding potential swap matches between users
+ * Enhanced to avoid RLS recursion issues with clearer error handling
  */
 export const useFindSwapMatches = () => {
   const [matchResults, setMatchResults] = useState<any>(null);
@@ -12,9 +13,12 @@ export const useFindSwapMatches = () => {
 
   /**
    * Find potential matches for swap requests
-   * This function is updated to accept a data object from fetchAllData
+   * @param userId - User ID to find matches for
+   * @param forceCheck - Whether to check all requests even if already matched
+   * @param verbose - Whether to enable verbose logging
+   * @returns Object with success flag and matches array
    */
-  const findSwapMatches = async (data: any, userId?: string, forceCheck: boolean = false) => {
+  const findSwapMatches = async (userId: string, forceCheck: boolean = false, verbose: boolean = false) => {
     try {
       // Prevent multiple concurrent calls
       if (isLoading || requestInProgressRef.current) {
@@ -25,52 +29,32 @@ export const useFindSwapMatches = () => {
       setIsLoading(true);
       requestInProgressRef.current = true;
       
-      console.log('Finding swap matches with data', data);
+      console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose})`);
       
-      // If we have all the necessary data elements, use the findMatches function
-      if (data.allRequests && data.allShifts && data.preferredDates && data.profilesMap) {
-        const matches = findMatches(
-          data.allRequests,
-          data.allShifts,
-          data.preferredDates,
-          data.profilesMap,
-          userId,
-          forceCheck
-        );
-        
-        console.log(`Found ${matches.length} potential matches`);
-        setMatchResults(matches);
-        return matches;
-      } else {
-        // Otherwise, revert to the previous implementation using userId
-        if (!userId) {
-          console.error('No user ID provided and no complete data object available');
-          return { success: false, message: 'Missing required parameters' };
+      // Make direct call to the edge function to avoid RLS recursion
+      // The edge function uses service_role to bypass RLS policies
+      const { data, error } = await supabase.functions.invoke('get_user_matches', {
+        body: { 
+          user_id: userId,
+          force_check: forceCheck,
+          verbose: verbose,
+          user_perspective_only: true,
+          user_initiator_only: true,
+          bypass_rls: true // Explicitly request RLS bypass
         }
-        
-        console.log(`Finding swap matches for ${userId} (force: ${forceCheck})`);
-        
-        // Make direct call to the edge function to avoid RLS recursion
-        const { data: matchData, error } = await supabase.functions.invoke('get_user_matches', {
-          body: { 
-            user_id: userId,
-            force_check: forceCheck,
-            user_perspective_only: true,
-            user_initiator_only: true,
-            bypass_rls: true // Explicitly request RLS bypass
-          }
-        });
-        
-        if (error) {
-          console.error('Error finding matches:', error);
-          return { success: false, error: error.message };
-        }
-        
-        console.log('Found matches:', matchData);
-        setMatchResults(matchData);
-        
-        return { success: true, matches: matchData };
+      });
+      
+      if (error) {
+        console.error('Error finding matches:', error);
+        return { success: false, error: error.message };
       }
+      
+      console.log('Found matches:', data);
+      setMatchResults(data);
+      
+      // Return matches property instead of data directly
+      // This ensures the return type matches what's expected in useSwapMatcher
+      return { success: true, matches: data };
     } catch (error: any) {
       console.error('Error in findSwapMatches:', error);
       return { success: false, error: error.message };

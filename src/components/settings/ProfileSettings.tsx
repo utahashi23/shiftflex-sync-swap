@@ -1,186 +1,351 @@
 
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from '@/hooks/use-toast';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useState, useEffect } from 'react';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 
-const ProfileSettings = () => {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [employeeId, setEmployeeId] = useState('');
-  const [organization, setOrganization] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [regions, setRegions] = useState<{id: string, name: string}[]>([]);
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+const profileSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Invalid email address'),
+  employeeId: z.string().min(1, 'Employee service number is required')
+});
+
+const emailChangeSchema = z.object({
+  newEmail: z.string().email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+export const ProfileSettings = () => {
+  const { user, updateUser } = useAuth();
+  const [isProfileLoading, setProfileLoading] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [isEmailChangeLoading, setIsEmailChangeLoading] = useState(false);
   
+  const profileForm = useForm<z.infer<typeof profileSchema>>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: user?.email || '',
+      employeeId: ''
+    },
+  });
+
+  const emailChangeForm = useForm<z.infer<typeof emailChangeSchema>>({
+    resolver: zodResolver(emailChangeSchema),
+    defaultValues: {
+      newEmail: '',
+      password: '',
+    },
+    mode: 'onChange',
+  });
+
+  // Load profile data from the database
   useEffect(() => {
-    const loadProfile = async () => {
-      if (user) {
-        setIsLoading(true);
-        try {
-          // Fetch profile data
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-            
-          if (error) throw error;
-          
-          if (data) {
-            setFirstName(data.first_name || '');
-            setLastName(data.last_name || '');
-            setEmployeeId(data.employee_id || '');
-            setOrganization(data.organization || '');
-          }
-          
-          // Fetch regions for organization dropdown
-          const { data: regionsData, error: regionsError } = await supabase
-            .from('regions')
-            .select('id, name')
-            .eq('status', 'active')
-            .order('name');
-            
-          if (regionsError) throw regionsError;
-          
-          setRegions(regionsData || []);
-        } catch (error) {
-          console.error('Error loading profile:', error);
+    const fetchProfileData = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching profile:', error);
           toast({
-            title: 'Error',
-            description: 'Failed to load profile data',
+            title: 'Failed to load profile',
+            description: error.message,
             variant: 'destructive',
           });
-        } finally {
-          setIsLoading(false);
+        } else if (data) {
+          setProfileData(data);
+          profileForm.reset({
+            firstName: data.first_name || user?.user_metadata?.first_name || '',
+            lastName: data.last_name || user?.user_metadata?.last_name || '',
+            email: user?.email || '',
+            employeeId: data.employee_id || user?.user_metadata?.employee_id || ''
+          });
         }
+      } catch (error: any) {
+        console.error('Error in profile fetch:', error);
+      } finally {
+        setIsLoadingProfile(false);
       }
     };
-    
-    loadProfile();
+
+    fetchProfileData();
   }, [user]);
-  
-  const handleSaveProfile = async () => {
-    if (!user) return;
+
+  const onProfileSubmit = async (data: z.infer<typeof profileSchema>) => {
+    setProfileLoading(true);
     
-    setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          first_name: firstName,
-          last_name: lastName,
-          employee_id: employeeId,
-          organization: organization
-        })
-        .eq('id', user.id);
-        
+      // First, update Supabase auth metadata
+      const { success, error } = await updateUser({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        employeeId: data.employeeId,
+      });
+
+      if (!success) throw new Error(error?.message || 'Failed to update user metadata');
+
+      // Then update the profile record in the database
+      if (user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            first_name: data.firstName,
+            last_name: data.lastName,
+            employee_id: data.employeeId
+          })
+          .eq('id', user.id);
+
+        if (profileError) throw new Error(profileError.message);
+      }
+
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been successfully updated.",
+      });
+      
+    } catch (error: any) {
+      toast({
+        title: "Update Failed",
+        description: error.message || "There was a problem updating your profile.",
+        variant: "destructive",
+      });
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const onEmailChangeSubmit = async (data: z.infer<typeof emailChangeSchema>) => {
+    setIsEmailChangeLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.updateUser(
+        { 
+          email: data.newEmail 
+        }, 
+        { 
+          emailRedirectTo: `${window.location.origin}/settings` 
+        }
+      );
+      
       if (error) throw error;
       
       toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been updated successfully.',
+        title: "Verification Email Sent",
+        description: "Please check your new email inbox and click the link to verify your new address.",
       });
       
-      // Invalidate queries that might depend on profile data
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
-      
-    } catch (error) {
-      console.error('Error updating profile:', error);
+      setEmailDialogOpen(false);
+      emailChangeForm.reset();
+    } catch (error: any) {
       toast({
-        title: 'Error',
-        description: 'Failed to update profile',
-        variant: 'destructive',
+        title: "Email Change Failed",
+        description: error.message || "There was a problem changing your email.",
+        variant: "destructive",
       });
     } finally {
-      setIsSaving(false);
+      setIsEmailChangeLoading(false);
     }
   };
-  
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Profile Information</CardTitle>
-        <CardDescription>Update your personal profile details</CardDescription>
+        <CardTitle>Profile Settings</CardTitle>
+        <CardDescription>
+          Update your personal information
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="flex justify-center py-4">Loading profile data...</div>
+        {isLoadingProfile ? (
+          <div className="flex justify-center py-4">
+            <div className="animate-pulse">Loading profile...</div>
+          </div>
         ) : (
-          <form 
-            className="space-y-4" 
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSaveProfile();
-            }}
-          >
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input 
-                  id="firstName" 
-                  value={firstName} 
-                  onChange={(e) => setFirstName(e.target.value)} 
-                  placeholder="Your first name"
+          <>
+            <Form {...profileForm}>
+              <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={profileForm.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={profileForm.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="flex items-end gap-4">
+                  <FormField
+                    control={profileForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input {...field} disabled />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEmailDialogOpen(true)}
+                  >
+                    Change Email
+                  </Button>
+                </div>
+                
+                <FormField
+                  control={profileForm.control}
+                  name="employeeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Employee Service Number</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input 
-                  id="lastName" 
-                  value={lastName} 
-                  onChange={(e) => setLastName(e.target.value)} 
-                  placeholder="Your last name"
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="employeeId">Employee ID</Label>
-              <Input 
-                id="employeeId" 
-                value={employeeId} 
-                onChange={(e) => setEmployeeId(e.target.value)} 
-                placeholder="Your employee ID"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="organization">Organization</Label>
-              <Select value={organization} onValueChange={setOrganization}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select your organization" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">None</SelectItem>
-                  {regions.map(region => (
-                    <SelectItem key={region.id} value={region.name}>
-                      {region.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex justify-end">
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </div>
-          </form>
+                
+                <Button 
+                  type="submit" 
+                  disabled={isProfileLoading}
+                >
+                  {isProfileLoading ? "Saving..." : "Save Changes"}
+                </Button>
+              </form>
+            </Form>
+
+            {/* Email change dialog */}
+            <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Change your email address</DialogTitle>
+                  <DialogDescription>
+                    Enter your new email address and password to confirm the change.
+                    You'll need to verify your new email address.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <Form {...emailChangeForm}>
+                  <form onSubmit={emailChangeForm.handleSubmit(onEmailChangeSubmit)} className="space-y-4 py-4">
+                    <FormField
+                      control={emailChangeForm.control}
+                      name="newEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>New Email</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Enter your new email address" 
+                              type="email" 
+                              autoComplete="email"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={emailChangeForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Enter your password" 
+                              type="password" 
+                              autoComplete="current-password"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <DialogFooter className="pt-4">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => setEmailDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        disabled={isEmailChangeLoading}
+                      >
+                        {isEmailChangeLoading ? "Processing..." : "Change Email"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          </>
         )}
       </CardContent>
     </Card>
   );
 };
-
-export default ProfileSettings;

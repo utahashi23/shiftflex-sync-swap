@@ -1,38 +1,17 @@
 
 import { useState } from 'react';
 
-export type ProcessingStage = 'idle' | 'fetchingData' | 'matching' | 'processingMatches' | 'complete' | 'error';
-
-export interface ProcessingState {
-  stage: ProcessingStage;
-  message: string;
-  progress: number; // 0-100
-  details?: string;
-}
-
+/**
+ * Hook for managing the processing state
+ * Note: This hook only manages basic processing state flags.
+ * Additional state for stage, message, error, and matches
+ * is managed in the parent useSwapMatcher hook.
+ */
 export const useProcessState = () => {
-  const initialState: ProcessingState = {
-    stage: 'idle',
-    message: 'Ready to start matching process',
-    progress: 0
-  };
-
-  const [processingState, setProcessingState] = useState<ProcessingState>(initialState);
-
-  const updateProcessingState = (updates: Partial<ProcessingState>) => {
-    setProcessingState(prev => ({
-      ...prev,
-      ...updates
-    }));
-  };
-
-  const resetProcessingState = () => {
-    setProcessingState(initialState);
-  };
-
+  const [isProcessing, setIsProcessing] = useState(false);
+  
   return {
-    processingState,
-    updateProcessingState,
-    resetProcessingState
+    isProcessing,
+    setIsProcessing
   };
 };

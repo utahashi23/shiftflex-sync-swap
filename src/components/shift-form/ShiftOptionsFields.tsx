@@ -1,92 +1,99 @@
 
-import React from 'react';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { AlertCircle } from 'lucide-react';
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ShiftOptionsFieldsProps {
   shiftLength: string;
   onShiftLengthChange: (length: string) => void;
-  colleagueType: string;
-  onColleagueTypeChange: (type: string) => void;
+  colleagueType: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown';
+  onColleagueTypeChange: (type: any) => void;
 }
 
-export const ShiftOptionsFields: React.FC<ShiftOptionsFieldsProps> = ({
+export const ShiftOptionsFields = ({
   shiftLength,
   onShiftLengthChange,
   colleagueType,
   onColleagueTypeChange
-}) => {
-  // Fetch shift lengths from database
-  const { data: shiftLengths = [] } = useQuery({
-    queryKey: ['shiftLengths'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('shift_lengths')
-        .select('*')
-        .eq('status', 'active')
-        .order('hours');
-        
-      if (error) throw error;
-      return data;
-    }
-  });
-  
-  // Fetch colleague types from database
-  const { data: colleagueTypes = [] } = useQuery({
-    queryKey: ['colleagueTypes'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('colleague_types')
-        .select('*')
-        .eq('status', 'active')
-        .order('name');
-        
-      if (error) throw error;
-      return data;
-    }
-  });
-  
+}: ShiftOptionsFieldsProps) => {
   return (
-    <>
-      <div className="space-y-2 mb-4">
-        <Label htmlFor="shiftLength">Shift Length</Label>
-        <RadioGroup 
-          id="shiftLength" 
-          value={shiftLength} 
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <div className="flex justify-between items-center mb-1.5">
+          <Label htmlFor="shift-length">Shift Length</Label>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <AlertCircle className="h-4 w-4 text-gray-400" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Select a predefined shift length or use custom times</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <Select
+          value={shiftLength}
           onValueChange={onShiftLengthChange}
-          className="grid grid-cols-3 sm:grid-cols-6 gap-2"
         >
-          {shiftLengths.map((length) => (
-            <div key={length.id} className="flex items-center space-x-2">
-              <RadioGroupItem value={length.hours.toString()} id={`length-${length.hours}`} />
-              <Label htmlFor={`length-${length.hours}`}>{length.hours}h</Label>
-            </div>
-          ))}
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="custom" id="custom-length" />
-            <Label htmlFor="custom-length">Custom</Label>
-          </div>
-        </RadioGroup>
+          <SelectTrigger>
+            <SelectValue placeholder="Select shift length" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="8">8 Hours</SelectItem>
+            <SelectItem value="10">10 Hours</SelectItem>
+            <SelectItem value="12">12 Hours</SelectItem>
+            <SelectItem value="14">14 Hours</SelectItem>
+            <SelectItem value="custom">Custom</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       
-      <div className="space-y-2">
-        <Label htmlFor="colleagueType">Colleague Type</Label>
-        <RadioGroup 
-          id="colleagueType" 
-          value={colleagueType} 
+      <div>
+        <div className="flex justify-between items-center mb-1.5">
+          <Label htmlFor="colleague-type">Colleague Type</Label>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <AlertCircle className="h-4 w-4 text-gray-400" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Specify who you'll be working with</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <Select
+          value={colleagueType}
           onValueChange={onColleagueTypeChange}
-          className="grid grid-cols-2 gap-2"
         >
-          {colleagueTypes.map((type) => (
-            <div key={type.id} className="flex items-center space-x-2">
-              <RadioGroupItem value={type.name} id={`type-${type.name}`} />
-              <Label htmlFor={`type-${type.name}`}>{type.name}</Label>
-            </div>
-          ))}
-        </RadioGroup>
+          <SelectTrigger>
+            <SelectValue placeholder="Select colleague type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Qualified">Qualified</SelectItem>
+            <SelectItem value="Graduate">Graduate</SelectItem>
+            <SelectItem value="ACO">ACO</SelectItem>
+            <SelectItem value="Unknown">Unknown</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-    </>
+    </div>
   );
 };
