@@ -46,9 +46,13 @@ export function useSwapMatcher() {
       
       setState({ status: 'processing', step: 'matching' });
       
+      // Get the user ID first, then pass it to findSwapMatches
+      const { data } = await supabase.auth.getUser();
+      const userId = data.user?.id || '';
+      
       // Execute the matching process
       const result = await findSwapMatches(
-        supabase.auth.getUser().then(res => res.data.user?.id || ''),
+        userId,
         options.includeRegionalMatches,
         true
       );

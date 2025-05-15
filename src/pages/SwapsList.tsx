@@ -7,99 +7,50 @@ import { toast } from '@/hooks/use-toast';
 import AppLayout from '@/layouts/AppLayout';
 import SwapListTable from '@/components/swaps-list/SwapListTable';
 import SwapRequestFilters from '@/components/swaps-list/SwapRequestFilters';
-
-// Define the swap request type
-interface SwapRequest {
-  id: string;
-  status: string;
-  requester_id: string;
-  requester_shift_id: string;
-  created_at: string;
-  updated_at: string;
-  shift: {
-    id: string;
-    date: string;
-    startTime: string;
-    endTime: string;
-    truckName: string | null;
-    type: 'day' | 'afternoon' | 'night';
-  };
-  preferred_dates: Array<{
-    id: string;
-    date: string;
-    accepted_types: string[];
-  }>;
-}
-
-// Define a simplified filter type compatible with SwapRequestFilters component
-interface SimpleFilters {
-  date: Date | undefined;
-  shiftType: string[];
-}
+import { SwapFilters, SwapListItem, useSwapList } from '@/hooks/useSwapList';
 
 const SwapsList = () => {
   const { user } = useAuth();
-  const [filters, setFilters] = useState<SimpleFilters>({
+  const {
+    filteredRequests,
+    isLoading,
+    filters,
+    setFilters,
+    handleOfferSwap,
+    refreshRequests
+  } = useSwapList();
+  
+  // Initialize with empty filters, the useSwapList hook will handle the actual filtering
+  const [localFilters, setLocalFilters] = useState<{
+    date: Date | undefined;
+    shiftType: string[];
+  }>({
     date: undefined,
     shiftType: []
   });
 
-  // Function to fetch swap requests
-  const fetchSwapRequests = async () => {
-    try {
-      // We only want to fetch "pending" swap requests
-      const { data, error } = await supabase.rpc('get_user_swap_requests_safe', {
-        p_user_id: user?.id,
-        p_status: 'pending'
+  // Update filters in the useSwapList hook when localFilters change
+  useEffect(() => {
+    // Convert simplified UI filters to the full filter structure the hook expects
+    if (localFilters.date) {
+      const date = localFilters.date;
+      setFilters({
+        day: date.getDate(),
+        month: date.getMonth() + 1, // JavaScript months are 0-indexed
+        specificDate: date.toISOString().split('T')[0],
+        shiftType: localFilters.shiftType.length > 0 ? localFilters.shiftType[0] : null,
+        colleagueType: null
       });
-
-      if (error) throw error;
-      return data as SwapRequest[];
-    } catch (error) {
-      console.error('Error fetching swap requests:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load swap requests',
-        variant: 'destructive',
+    } else {
+      setFilters({
+        day: null,
+        month: null,
+        specificDate: null,
+        shiftType: localFilters.shiftType.length > 0 ? localFilters.shiftType[0] : null,
+        colleagueType: null
       });
-      return [];
     }
-  };
-
-  const { data: swapRequests = [], isLoading } = useQuery({
-    queryKey: ['swapRequests', user?.id],
-    queryFn: fetchSwapRequests,
-    enabled: !!user?.id,
-  });
-
-  // Sort swap requests by most recent date by default
-  const sortedSwapRequests = React.useMemo(() => {
-    return [...swapRequests].sort((a, b) => {
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-  }, [swapRequests]);
-
-  // Filter swap requests
-  const filteredSwapRequests = React.useMemo(() => {
-    return sortedSwapRequests.filter(request => {
-      // Filter by date if selected
-      if (filters.date && request.shift) {
-        const filterDate = filters.date.toISOString().split('T')[0];
-        if (request.shift.date !== filterDate) {
-          return false;
-        }
-      }
-
-      // Filter by shift type if selected
-      if (filters.shiftType.length > 0 && request.shift) {
-        if (!filters.shiftType.includes(request.shift.type)) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [sortedSwapRequests, filters]);
+  }, [localFilters, setFilters]);
 
   return (
     <AppLayout>
@@ -112,15 +63,15 @@ const SwapsList = () => {
         {/* Filters */}
         <div className="mb-6">
           <SwapRequestFilters 
-            filters={filters}
-            setFilters={setFilters}
+            filters={localFilters}
+            setFilters={setLocalFilters}
           />
         </div>
 
         {/* Swap requests list */}
         <SwapListTable 
-          requests={filteredSwapRequests}
-          isLoading={isLoading}
+          requests={filteredRequests}
+          onOffer={handleOfferSwap}
         />
       </div>
     </AppLayout>
