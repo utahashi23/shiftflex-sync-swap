@@ -5,6 +5,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from '@/hooks/use-toast';
 import { ShiftLengthSettings } from '@/components/system-settings/ShiftLengthSettings';
+import { RegionSettings } from '@/components/system-settings/RegionSettings';
+import { AreaSettings } from '@/components/system-settings/AreaSettings';
+import { TruckNameSettings } from '@/components/system-settings/TruckNameSettings';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect } from 'react';
 
@@ -62,8 +65,10 @@ const SystemSettings = () => {
       <Tabs defaultValue="shift-lengths" className="space-y-6">
         <TabsList>
           <TabsTrigger value="shift-lengths">Shift Lengths</TabsTrigger>
-          <TabsTrigger value="colleague-types">Colleague Types</TabsTrigger>
+          <TabsTrigger value="regions">Regions</TabsTrigger>
+          <TabsTrigger value="areas">Areas</TabsTrigger>
           <TabsTrigger value="truck-names">Truck Names</TabsTrigger>
+          <TabsTrigger value="colleague-types">Colleague Types</TabsTrigger>
         </TabsList>
 
         <TabsContent value="shift-lengths">
@@ -78,6 +83,45 @@ const SystemSettings = () => {
             <ShiftLengthSettings />
           </div>
         </TabsContent>
+        
+        <TabsContent value="regions">
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium">Regions</h3>
+              <p className="text-sm text-muted-foreground">
+                Manage geographical regions for organizing truck assignments
+              </p>
+            </div>
+            <Separator />
+            <RegionSettings />
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="areas">
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium">Areas</h3>
+              <p className="text-sm text-muted-foreground">
+                Manage areas within regions for more specific truck assignments
+              </p>
+            </div>
+            <Separator />
+            <AreaSettings />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="truck-names">
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium">Truck Names</h3>
+              <p className="text-sm text-muted-foreground">
+                Manage the available truck names and their assigned areas
+              </p>
+            </div>
+            <Separator />
+            <TruckNameSettings />
+          </div>
+        </TabsContent>
 
         <TabsContent value="colleague-types">
           <div className="space-y-6">
@@ -90,21 +134,6 @@ const SystemSettings = () => {
             <Separator />
             <div className="text-sm text-muted-foreground">
               Coming soon: Colleague type management
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="truck-names">
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium">Truck Names</h3>
-              <p className="text-sm text-muted-foreground">
-                Manage the available truck names
-              </p>
-            </div>
-            <Separator />
-            <div className="text-sm text-muted-foreground">
-              Coming soon: Truck name management
             </div>
           </div>
         </TabsContent>
