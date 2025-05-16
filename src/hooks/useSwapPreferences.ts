@@ -39,7 +39,7 @@ export function useSwapPreferences() {
     try {
       console.log('Fetching swap preferences for user:', user.id);
       
-      // Fetch all regions
+      // Fetch all regions - explicitly order by name and only select active regions
       const { data: regionsData, error: regionsError } = await supabase
         .from('regions')
         .select('*')
@@ -50,11 +50,7 @@ export function useSwapPreferences() {
       
       console.log('Regions fetched:', regionsData);
       
-      if (!regionsData || regionsData.length === 0) {
-        console.log('No regions found in the database');
-      }
-      
-      // Fetch all areas
+      // Fetch all areas - explicitly order by name and only select active areas
       const { data: areasData, error: areasError } = await supabase
         .from('areas')
         .select('*, regions(name)')
@@ -65,24 +61,18 @@ export function useSwapPreferences() {
       
       console.log('Areas fetched:', areasData);
       
-      if (!areasData || areasData.length === 0) {
-        console.log('No areas found in the database');
-      }
-      
-      // Try to fetch user preferences using direct query
-      console.log('Fetching user preferences using direct query...');
-      
+      // Get user preferences
       const { data: preferencesData, error: preferencesError } = await supabase
         .from('user_swap_preferences')
         .select('*')
         .eq('user_id', user.id);
         
       if (preferencesError) {
-        console.error('Error fetching preferences via direct query:', preferencesError);
+        console.error('Error fetching preferences:', preferencesError);
         throw preferencesError;
       }
       
-      console.log('Successfully fetched preferences via direct query:', preferencesData);
+      console.log('User preferences fetched:', preferencesData);
       
       // Extract user's selected regions and areas
       const userRegions: string[] = [];
@@ -106,12 +96,12 @@ export function useSwapPreferences() {
         id: region.id,
         name: region.name,
         areas: areasData
-          .filter((area: any) => area.region_id === region.id)
+          ?.filter((area: any) => area.region_id === region.id)
           .map((area: any) => ({
             id: area.id,
             name: area.name,
             selected: userAreas.includes(area.id),
-          }))
+          })) || []
       })) || [];
       
       setRegions(regionsWithAreas);
@@ -150,7 +140,6 @@ export function useSwapPreferences() {
       console.log('Selected areas:', selectedAreas);
       
       // First, delete existing preferences for this user
-      console.log('Deleting existing preferences...');
       const { error: deleteError } = await supabase
         .from('user_swap_preferences')
         .delete()

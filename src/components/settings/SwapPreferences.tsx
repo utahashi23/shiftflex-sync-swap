@@ -2,11 +2,9 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { CheckedState } from '@radix-ui/react-checkbox';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 import {
@@ -21,6 +19,7 @@ import { useSwapPreferences } from '@/hooks/useSwapPreferences';
 export const SwapPreferences = () => {
   const { user } = useAuth();
   const [openAccordion, setOpenAccordion] = useState<string | undefined>(undefined);
+  const [showDebug, setShowDebug] = useState(false);
   
   const {
     regions,
@@ -57,7 +56,17 @@ export const SwapPreferences = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Swap Preferences</CardTitle>
+        <CardTitle className="flex justify-between items-center">
+          <span>Swap Preferences</span>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowDebug(!showDebug)}
+          >
+            <Info className="h-4 w-4 mr-1" />
+            Toggle Debug
+          </Button>
+        </CardTitle>
         <CardDescription>
           Select regions and areas you're willing to accept swaps from
         </CardDescription>
@@ -67,6 +76,15 @@ export const SwapPreferences = () => {
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {showDebug && (
+          <Alert className="mb-4">
+            <div className="text-xs font-mono">
+              <div>Regions count: {regions.length}</div>
+              <div>Regions data: {JSON.stringify(regions.map(r => ({ id: r.id, name: r.name })), null, 2)}</div>
+            </div>
           </Alert>
         )}
 
