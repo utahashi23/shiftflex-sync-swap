@@ -73,19 +73,43 @@ export const SwapPreferences = () => {
           
         if (areasError) throw areasError;
         
-        // Fetch user preferences directly from the table
-        console.log('Fetching user preferences...');
-        const { data: preferencesData, error: preferencesError } = await supabase
-          .from('user_swap_preferences')
-          .select('*')
-          .eq('user_id', user.id);
-          
-        if (preferencesError) {
-          console.error('Error fetching preferences:', preferencesError);
-          throw preferencesError;
-        }
+        // Try to fetch user preferences first using the RPC function
+        console.log('Fetching user preferences using RPC function...');
+        let preferencesData = null;
+        let preferencesError = null;
         
-        console.log('Received preferences data:', preferencesData);
+        try {
+          const response = await supabase.rpc('get_user_swap_preferences', { 
+            p_user_id: user.id 
+          });
+          
+          preferencesData = response.data;
+          preferencesError = response.error;
+          
+          if (preferencesError) {
+            throw preferencesError;
+          }
+          
+          console.log('Successfully fetched preferences via RPC:', preferencesData);
+        } catch (rpcError) {
+          console.warn('RPC function failed, falling back to direct query:', rpcError);
+          
+          // Fall back to direct query
+          const { data, error } = await supabase
+            .from('user_swap_preferences')
+            .select('*')
+            .eq('user_id', user.id);
+            
+          preferencesData = data;
+          preferencesError = error;
+          
+          if (preferencesError) {
+            console.error('Error fetching preferences via direct query:', preferencesError);
+            throw preferencesError;
+          }
+          
+          console.log('Successfully fetched preferences via direct query:', preferencesData);
+        }
         
         // Extract user's selected regions and areas
         const userRegions: string[] = [];
@@ -332,6 +356,11 @@ export const SwapPreferences = () => {
           <div className="flex justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
           </div>
+        ) : regions.length === 0 ? (
+          <Alert className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>No regions or areas are available. Please contact your administrator.</AlertDescription>
+          </Alert>
         ) : (
           <div className="space-y-4">
             <Accordion 
