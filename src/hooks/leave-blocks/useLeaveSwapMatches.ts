@@ -79,7 +79,7 @@ export function useLeaveSwapMatches() {
         }
         
         // Transform to ensure all required fields are present
-        const transformedMatches = matchesData.map(match => {
+        const transformedMatches = matchesData.map((match: any) => {
           const otherProfile = otherProfilesMap.get(match.other_user_id) || { name: 'Unknown User', employee_id: 'N/A' };
           
           // Create complete match object with all required properties
@@ -101,7 +101,7 @@ export function useLeaveSwapMatches() {
             is_requester: match.is_requester,
             my_user_name: profileData ? `${profileData.first_name} ${profileData.last_name}` : 'Current User',
             my_employee_id: profileData?.employee_id || 'N/A',
-            // Use optional chaining for these properties that may not exist in all response items
+            // We need to explicitly check if these properties exist and provide defaults
             split_designation: match.split_designation || null,
             original_block_id: match.original_block_id || null
           };
