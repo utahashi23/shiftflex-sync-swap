@@ -61,30 +61,15 @@ serve(async (req) => {
     console.log(`Splitting block with dates ${startDate.toISOString()} to ${endDate.toISOString()}`);
     console.log(`Middle point: ${midPoint.toISOString()}`);
     
-    // Find the largest block_number to ensure we create unique block numbers
-    const { data: maxBlockData, error: maxBlockError } = await supabaseAdmin
-      .from('leave_blocks')
-      .select('block_number')
-      .order('block_number', { ascending: false })
-      .limit(1)
-      .single();
-    
-    if (maxBlockError) {
-      console.error('Error getting max block number:', maxBlockError.message);
-      throw new Error(`Error getting max block number: ${maxBlockError.message}`);
-    }
-    
-    const maxBlockNumber = maxBlockData ? maxBlockData.block_number : 0;
-    const newBlockNumberA = maxBlockNumber + 1;
-    const newBlockNumberB = maxBlockNumber + 2;
-    
-    console.log(`Using new block numbers: A=${newBlockNumberA}, B=${newBlockNumberB}`);
+    // Use the same block number but add a suffix, check if a similar block already exists
+    const originalBlockNumber = leaveBlock.block_number;
+    console.log(`Original block number: ${originalBlockNumber}`);
     
     // Create the first half block (A)
     const { data: blockA, error: blockAError } = await supabaseAdmin
       .from('leave_blocks')
       .insert({
-        block_number: newBlockNumberA,
+        block_number: originalBlockNumber,
         start_date: startDate.toISOString().split('T')[0],
         end_date: midPoint.toISOString().split('T')[0],
         status: 'active',
@@ -108,7 +93,7 @@ serve(async (req) => {
     const { data: blockB, error: blockBError } = await supabaseAdmin
       .from('leave_blocks')
       .insert({
-        block_number: newBlockNumberB,
+        block_number: originalBlockNumber,
         start_date: nextDay.toISOString().split('T')[0],
         end_date: endDate.toISOString().split('T')[0],
         status: 'active',

@@ -120,6 +120,14 @@ const MyLeave = () => {
     )
   );
 
+  // Function to format block number display with suffix if needed
+  const formatBlockNumber = (blockNumber: number, splitDesignation?: string | null) => {
+    if (splitDesignation) {
+      return `${blockNumber}${splitDesignation}`;
+    }
+    return blockNumber;
+  };
+
   return (
     <div className="space-y-8">
       <Card>
@@ -164,12 +172,7 @@ const MyLeave = () => {
                   {userLeaveBlocks?.map(block => (
                     <TableRow key={block.id} className={selectedPairIds.includes(block.id) ? "bg-muted/50" : ""}>
                       <TableCell className="font-medium">
-                        {block.block_number}
-                        {block.split_designation && (
-                          <Badge className="ml-2" variant={block.split_designation === 'A' ? "outline" : "secondary"}>
-                            {block.split_designation}
-                          </Badge>
-                        )}
+                        {formatBlockNumber(block.block_number, block.split_designation)}
                       </TableCell>
                       <TableCell>{formatDate(block.start_date)}</TableCell>
                       <TableCell>{formatDate(block.end_date)}</TableCell>
