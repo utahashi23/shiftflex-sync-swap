@@ -16,9 +16,12 @@ const ShiftSwaps = () => {
   
   // Force tab refresh when coming back to this page or after finding matches
   useEffect(() => {
-    const currentTab = activeTab;
-    setActiveTab('');
-    setTimeout(() => setActiveTab(currentTab), 10);
+    if (activeTab === 'matched') {
+      // Only reset the matched tab for a proper refresh
+      const currentTab = activeTab;
+      setActiveTab('');
+      setTimeout(() => setActiveTab(currentTab), 10);
+    }
   }, [refreshTrigger]);
   
   // Handle manual refresh
@@ -40,8 +43,11 @@ const ShiftSwaps = () => {
         defaultValue="calendar" 
         value={activeTab}
         onValueChange={(value) => {
-          // Simply set the tab without the reset/timeout to avoid unnecessary renders
           setActiveTab(value);
+          // When switching to matched tab, trigger a refresh
+          if (value === 'matched') {
+            setRefreshTrigger(prev => prev + 1);
+          }
         }}
         className="w-full"
       >

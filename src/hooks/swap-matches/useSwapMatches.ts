@@ -22,13 +22,17 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
+      console.log(`Fetching matches with params: userPerspectiveOnly=${userPerspectiveOnly}, userInitiatorOnly=${userInitiatorOnly}`);
+      
       // Important: We're setting userInitiatorOnly to false to ensure we get ALL matches
       // including those where the user is the acceptor
       const { matches, pastMatches, rawApiData } = await fetchUserMatches(
         user.id,
         userPerspectiveOnly, 
-        userInitiatorOnly // Allowing both initiator and non-initiator matches
+        userInitiatorOnly // Allow the caller to control this parameter
       );
+      
+      console.log(`useSwapMatches got ${matches.length} active matches and ${pastMatches.length} past matches`);
       
       setState({
         matches,
@@ -91,7 +95,7 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
       await cancelSwapMatch(matchId);
       
       // Refresh matches after canceling
-      await fetchMatches();
+      await fetchMatches(true, false);
       
       toast({
         title: "Swap Canceled",
@@ -120,7 +124,7 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
       await finalizeSwapMatch(matchId);
       
       // Refresh matches after finalizing
-      await fetchMatches();
+      await fetchMatches(true, false);
       
       toast({
         title: "Swap Finalized",
@@ -149,7 +153,7 @@ export const useSwapMatches = (): UseSwapMatchesReturn => {
       await completeSwapMatch(matchId);
       
       // Refresh matches after completing
-      await fetchMatches();
+      await fetchMatches(true, false);
       
       toast({
         title: "Swap Completed",

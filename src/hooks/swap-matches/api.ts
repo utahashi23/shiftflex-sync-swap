@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '../use-toast';
 import { formatSwapMatches } from './utils';
@@ -15,7 +16,9 @@ export const fetchUserMatches = async (userId: string, userPerspectiveOnly: bool
         user_perspective_only: userPerspectiveOnly,
         user_initiator_only: userInitiatorOnly,
         include_colleague_types: true, // Explicitly request colleague types
-        include_shift_data: true // Request full shift data
+        include_shift_data: true, // Request full shift data
+        has_active_requests: false, // Don't limit matches to only users with active requests
+        bypass_rls: true // Explicitly request RLS bypass
       }
     });
     

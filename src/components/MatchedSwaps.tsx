@@ -6,6 +6,7 @@ import { MatchedSwapsTabs } from './matched-swaps/MatchedSwapsTabs';
 import { TestingTools } from './matched-swaps/TestingTools';
 import { useMatchedSwapsData } from './matched-swaps/hooks/useMatchedSwapsData';
 import { useSwapConfirmation } from './matched-swaps/hooks/useSwapConfirmation';
+import { useSwapMatches } from '@/hooks/swap-matches';
 import { useAuth } from '@/hooks/useAuth';
 
 interface MatchedSwapsProps {
@@ -13,18 +14,23 @@ interface MatchedSwapsProps {
 }
 
 const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
-  // Use our custom hooks
+  // Use the consolidated hook from swap-matches
   const {
     matches,
     pastMatches,
-    isLoading,
-    isProcessing,
-    activeTab,
-    setActiveTab,
+    isLoading: isMatchesLoading,
     fetchMatches
+  } = useSwapMatches();
+  
+  // Use our existing hooks for UI state and actions
+  const {
+    isLoading: isDataLoading,
+    isProcessing
   } = useMatchedSwapsData(setRefreshTrigger);
   
   const { isAdmin } = useAuth();
+  
+  const [activeTab, setActiveTab] = useState('active');
   
   const {
     confirmDialog,
@@ -44,9 +50,17 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
       if (setRefreshTrigger) {
         setRefreshTrigger(prev => prev + 1);
       }
-      fetchMatches(); // Refresh the matches after accepting
+      fetchMatches(true, false); // Explicitly request matches with userInitiatorOnly=false
     }, 500);
   });
+  
+  // Combine loading states
+  const isLoading = isMatchesLoading || isDataLoading || isActionLoading;
+  
+  // Callback to refresh matches
+  const refreshMatches = useCallback(() => {
+    fetchMatches(true, false); // Set userInitiatorOnly to false to get all matches
+  }, [fetchMatches]);
   
   // Debug logging for matches
   console.log("MatchedSwaps - Current matches:", matches);
@@ -67,8 +81,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         onFinalizeSwap={handleFinalizeClick}
         onCancelSwap={handleCancelSwap}
         onResendEmail={handleResendEmail}
-        onRefresh={fetchMatches}
-        isLoading={isLoading || isActionLoading}
+        onRefresh={refreshMatches}
+        isLoading={isLoading}
         isProcessing={isProcessing}
       />
 
@@ -81,7 +95,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           }
         }}
         onConfirm={handleAcceptSwap}
-        isLoading={isLoading || isActionLoading}
+        isLoading={isLoading}
       />
 
       {/* Finalize Dialog */}
@@ -93,7 +107,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
           }
         }}
         onConfirm={handleFinalizeSwap}
-        isLoading={isLoading || isActionLoading}
+        isLoading={isLoading}
       />
     </div>
   );
