@@ -64,6 +64,12 @@ export const SwapPreferences = () => {
           
         if (regionsError) throw regionsError;
         
+        console.log('Regions fetched:', regionsData);
+        
+        if (!regionsData || regionsData.length === 0) {
+          console.log('No regions found in the database');
+        }
+        
         // Fetch all areas
         const { data: areasData, error: areasError } = await supabase
           .from('areas')
@@ -73,43 +79,26 @@ export const SwapPreferences = () => {
           
         if (areasError) throw areasError;
         
-        // Try to fetch user preferences first using the RPC function
-        console.log('Fetching user preferences using RPC function...');
-        let preferencesData = null;
-        let preferencesError = null;
+        console.log('Areas fetched:', areasData);
         
-        try {
-          const response = await supabase.rpc('get_user_swap_preferences', { 
-            p_user_id: user.id 
-          });
-          
-          preferencesData = response.data;
-          preferencesError = response.error;
-          
-          if (preferencesError) {
-            throw preferencesError;
-          }
-          
-          console.log('Successfully fetched preferences via RPC:', preferencesData);
-        } catch (rpcError) {
-          console.warn('RPC function failed, falling back to direct query:', rpcError);
-          
-          // Fall back to direct query
-          const { data, error } = await supabase
-            .from('user_swap_preferences')
-            .select('*')
-            .eq('user_id', user.id);
-            
-          preferencesData = data;
-          preferencesError = error;
-          
-          if (preferencesError) {
-            console.error('Error fetching preferences via direct query:', preferencesError);
-            throw preferencesError;
-          }
-          
-          console.log('Successfully fetched preferences via direct query:', preferencesData);
+        if (!areasData || areasData.length === 0) {
+          console.log('No areas found in the database');
         }
+        
+        // Try to fetch user preferences using direct query
+        console.log('Fetching user preferences using direct query...');
+        
+        const { data: preferencesData, error: preferencesError } = await supabase
+          .from('user_swap_preferences')
+          .select('*')
+          .eq('user_id', user.id);
+          
+        if (preferencesError) {
+          console.error('Error fetching preferences via direct query:', preferencesError);
+          throw preferencesError;
+        }
+        
+        console.log('Successfully fetched preferences via direct query:', preferencesData);
         
         // Extract user's selected regions and areas
         const userRegions: string[] = [];
@@ -129,7 +118,7 @@ export const SwapPreferences = () => {
         setSelectedAreas(userAreas);
         
         // Transform data for the component
-        const regionsWithAreas: RegionWithAreas[] = regionsData.map((region: any) => ({
+        const regionsWithAreas: RegionWithAreas[] = regionsData?.map((region: any) => ({
           id: region.id,
           name: region.name,
           areas: areasData
@@ -139,7 +128,7 @@ export const SwapPreferences = () => {
               name: area.name,
               selected: userAreas.includes(area.id),
             }))
-        }));
+        })) || [];
         
         setRegions(regionsWithAreas);
       } catch (error: any) {
@@ -359,7 +348,9 @@ export const SwapPreferences = () => {
         ) : regions.length === 0 ? (
           <Alert className="mb-4">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>No regions or areas are available. Please contact your administrator.</AlertDescription>
+            <AlertDescription>
+              No regions or areas are available. Please ask your administrator to add regions and areas in the system settings.
+            </AlertDescription>
           </Alert>
         ) : (
           <div className="space-y-4">
