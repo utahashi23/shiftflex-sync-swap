@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { 
   Card, 
@@ -48,8 +49,9 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
   
   const {
     leaveSwapMatches,
-    activeMatches: rawActiveMatches,
-    pastMatches: rawPastMatches,
+    activeMatches,
+    pastMatches,
+    hasActiveRequests,
     isLoadingMatches,
     matchesError,
     findMatches,
@@ -74,8 +76,8 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
   };
   
   // Apply user filtering first, then deduplicate
-  const activeMatches = filterUserMatches(rawActiveMatches);
-  const pastMatches = filterUserMatches(rawPastMatches);
+  const filteredActiveMatches = filterUserMatches(activeMatches);
+  const filteredPastMatches = filterUserMatches(pastMatches);
   
   const handleRefresh = () => {
     refetchMatches();
@@ -130,7 +132,7 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
   };
   
   const getMatchedSwapDetails = (matchId: string) => {
-    return [...activeMatches, ...pastMatches].find(match => match.match_id === matchId);
+    return [...filteredActiveMatches, ...filteredPastMatches].find(match => match.match_id === matchId);
   };
   
   const copyToClipboard = (match) => {
@@ -182,7 +184,7 @@ Status: ${match.match_status.toUpperCase()}
                 variant="outline" 
                 size="sm" 
                 onClick={handleFindMatches}
-                disabled={isFindingMatches}
+                disabled={isFindingMatches || !hasActiveRequests}
               >
                 <Search className={`h-4 w-4 mr-2 ${isFindingMatches ? 'animate-spin' : ''}`} />
                 Find Matches
@@ -207,6 +209,14 @@ Status: ${match.match_status.toUpperCase()}
                 {matchesError.message}
               </AlertDescription>
             </Alert>
+          ) : !hasActiveRequests ? (
+            <Alert>
+              <AlertTitle>No Active Swap Requests</AlertTitle>
+              <AlertDescription>
+                You need to create a leave swap request before you can find matches. 
+                Go to the "Request Swap" tab to create a new swap request.
+              </AlertDescription>
+            </Alert>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid grid-cols-2 mb-6">
@@ -221,9 +231,9 @@ Status: ${match.match_status.toUpperCase()}
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />
                   </div>
-                ) : activeMatches.length === 0 ? (
+                ) : filteredActiveMatches.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
-                    You don't have any active matches. Check back later.
+                    You don't have any active matches. Use the "Find Matches" button to search for potential swaps.
                   </p>
                 ) : (
                   <Table>
