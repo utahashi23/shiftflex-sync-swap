@@ -8,19 +8,46 @@ import { useMatchedSwapsData } from './matched-swaps/hooks/useMatchedSwapsData';
 import { useSwapConfirmation } from './matched-swaps/hooks/useSwapConfirmation';
 import { useSwapMatches } from '@/hooks/swap-matches';
 import { useAuth } from '@/hooks/useAuth';
+import { SwapMatch as ComponentSwapMatch } from './matched-swaps/types';
+import { SwapMatch as HookSwapMatch } from '@/hooks/swap-matches/types';
 
 interface MatchedSwapsProps {
   setRefreshTrigger?: React.Dispatch<React.SetStateAction<number>>;
 }
 
+// Adapter function to convert hook type to component type
+function adaptSwapMatchType(match: HookSwapMatch): ComponentSwapMatch {
+  return {
+    ...match,
+    myShift: {
+      ...match.myShift,
+      truckName: match.myShift.truckName || null,
+      // Ensure type is one of the allowed types
+      type: (match.myShift.type === 'day' || match.myShift.type === 'afternoon' || 
+             match.myShift.type === 'night') ? match.myShift.type : 'unknown'
+    },
+    otherShift: {
+      ...match.otherShift,
+      truckName: match.otherShift.truckName || null,
+      // Ensure type is one of the allowed types
+      type: (match.otherShift.type === 'day' || match.otherShift.type === 'afternoon' || 
+             match.otherShift.type === 'night') ? match.otherShift.type : 'unknown'
+    }
+  };
+}
+
 const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
   // Use the consolidated hook from swap-matches
   const {
-    matches,
-    pastMatches,
+    matches: hookMatches,
+    pastMatches: hookPastMatches,
     isLoading: isMatchesLoading,
     fetchMatches
   } = useSwapMatches();
+  
+  // Adapt the matches to the component's expected type
+  const matches: ComponentSwapMatch[] = hookMatches ? hookMatches.map(adaptSwapMatchType) : [];
+  const pastMatches: ComponentSwapMatch[] = hookPastMatches ? hookPastMatches.map(adaptSwapMatchType) : [];
   
   // Use our existing hooks for UI state and actions
   const {
