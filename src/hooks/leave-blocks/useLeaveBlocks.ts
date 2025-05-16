@@ -113,85 +113,27 @@ export const useLeaveBlocks = () => {
   });
 
   // Split a leave block into two equal parts (A and B designations)
+  // Updated to use edge function instead of direct inserts to bypass RLS issues
   const splitLeaveBlockMutation = useMutation({
     mutationFn: async ({ userLeaveBlockId }: { userLeaveBlockId: string }) => {
       // First, get the leave block details
       const userLeaveBlock = userLeaveBlocks?.find(block => block.id === userLeaveBlockId);
       if (!userLeaveBlock) throw new Error("Leave block not found");
       
-      const startDate = new Date(userLeaveBlock.start_date);
-      const endDate = new Date(userLeaveBlock.end_date);
-      const daysDifference = differenceInDays(endDate, startDate);
-      
-      // Calculate the middle point (half the days)
-      const halfDays = Math.floor(daysDifference / 2);
-      const midPoint = addDays(startDate, halfDays);
-      
-      // Create two new leave blocks
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
       
-      // First half (A)
-      const { data: blockA, error: errorA } = await supabase
-        .from('leave_blocks')
-        .insert({
-          block_number: userLeaveBlock.block_number,
-          start_date: startDate.toISOString().split('T')[0],
-          end_date: midPoint.toISOString().split('T')[0],
-          status: 'active',
-          split_designation: 'A',
-          original_block_id: userLeaveBlock.leave_block_id
-        })
-        .select()
-        .single();
-        
-      if (errorA) throw errorA;
+      // Use the edge function to handle the split operation (bypasses RLS)
+      const { data, error } = await supabase.functions.invoke('split_leave_block', {
+        body: { 
+          user_leave_block_id: userLeaveBlockId,
+          user_id: user.id
+        }
+      });
       
-      // Second half (B)
-      const nextDay = addDays(midPoint, 1);
-      const { data: blockB, error: errorB } = await supabase
-        .from('leave_blocks')
-        .insert({
-          block_number: userLeaveBlock.block_number,
-          start_date: nextDay.toISOString().split('T')[0],
-          end_date: endDate.toISOString().split('T')[0],
-          status: 'active',
-          split_designation: 'B',
-          original_block_id: userLeaveBlock.leave_block_id
-        })
-        .select()
-        .single();
-        
-      if (errorB) throw errorB;
+      if (error) throw error;
       
-      // Create user associations for the new blocks
-      const { error: errorUserA } = await supabase
-        .from('user_leave_blocks')
-        .insert({
-          user_id: user.id,
-          leave_block_id: blockA.id,
-        });
-        
-      if (errorUserA) throw errorUserA;
-      
-      const { error: errorUserB } = await supabase
-        .from('user_leave_blocks')
-        .insert({
-          user_id: user.id,
-          leave_block_id: blockB.id,
-        });
-        
-      if (errorUserB) throw errorUserB;
-      
-      // Remove the original user leave block
-      const { error: errorRemove } = await supabase
-        .from('user_leave_blocks')
-        .delete()
-        .eq('id', userLeaveBlockId);
-        
-      if (errorRemove) throw errorRemove;
-      
-      return { blockA, blockB };
+      return data;
     },
     onSuccess: () => {
       toast({
@@ -223,55 +165,21 @@ export const useLeaveBlocks = () => {
         throw new Error("These blocks cannot be joined as they're not from the same original leave block");
       }
       
-      // Get the original block properties
-      const { data: originalBlock, error: origError } = await supabase
-        .from('leave_blocks')
-        .select('*')
-        .eq('id', blockA.original_block_id)
-        .single();
-      
-      if (origError) throw origError;
-      
-      // Create a user association for the original block
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
       
-      const { error: errorUserAssoc } = await supabase
-        .from('user_leave_blocks')
-        .insert({
-          user_id: user.id,
-          leave_block_id: originalBlock.id,
-        });
-        
-      if (errorUserAssoc) throw errorUserAssoc;
+      // Use edge function to handle the join operation (bypasses RLS)
+      const { data, error } = await supabase.functions.invoke('join_leave_blocks', {
+        body: { 
+          block_a_id: blockAId,
+          block_b_id: blockBId,
+          user_id: user.id
+        }
+      });
       
-      // Remove the split blocks' user associations
-      const { error: errorRemoveA } = await supabase
-        .from('user_leave_blocks')
-        .delete()
-        .eq('id', blockAId);
-        
-      if (errorRemoveA) throw errorRemoveA;
+      if (error) throw error;
       
-      const { error: errorRemoveB } = await supabase
-        .from('user_leave_blocks')
-        .delete()
-        .eq('id', blockBId);
-        
-      if (errorRemoveB) throw errorRemoveB;
-      
-      // Also delete the split leave blocks themselves
-      await supabase
-        .from('leave_blocks')
-        .delete()
-        .eq('id', blockA.leave_block_id);
-        
-      await supabase
-        .from('leave_blocks')
-        .delete()
-        .eq('id', blockB.leave_block_id);
-      
-      return originalBlock;
+      return data;
     },
     onSuccess: () => {
       toast({
