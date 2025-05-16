@@ -30,7 +30,11 @@ export const SwapPreferences = () => {
     handleRegionToggle,
     handleAreaToggle,
     areAllAreasInRegionSelected,
-    isAreaSelected
+    isAreaSelected,
+    selectedRegions,
+    setSelectedRegions,
+    selectedAreas,
+    setSelectedAreas
   } = useSwapPreferences();
 
   // Handle region checkbox changes
@@ -46,6 +50,36 @@ export const SwapPreferences = () => {
     
     // Update the selection state of the region and its areas
     handleRegionToggle(regionId, checked);
+  };
+
+  // Handle area checkbox changes
+  const handleAreaCheckboxChange = (regionId: string, areaId: string, checked: boolean) => {
+    // Update the area selection
+    handleAreaToggle(regionId, areaId, checked);
+    
+    // If an area is checked, its region should be expanded
+    if (checked && !expandedRegions.includes(regionId)) {
+      setExpandedRegions(prev => [...prev, regionId]);
+    }
+    
+    // Update the parent region's selection based on its areas
+    const region = regions.find(r => r.id === regionId);
+    if (region) {
+      // If area is checked, add region to selectedRegions if not present
+      if (checked && !selectedRegions.includes(regionId)) {
+        setSelectedRegions(prev => [...prev, regionId]);
+      }
+      // If area is unchecked, check if any areas remain selected
+      else if (!checked) {
+        // If no other areas in this region are selected, remove region from selectedRegions
+        const anyAreaSelected = region.areas.some(area => 
+          area.id !== areaId && selectedAreas.includes(area.id)
+        );
+        if (!anyAreaSelected) {
+          setSelectedRegions(prev => prev.filter(id => id !== regionId));
+        }
+      }
+    }
   };
 
   if (!user) {
@@ -96,6 +130,8 @@ export const SwapPreferences = () => {
               <div>Regions data: {JSON.stringify(regions.map(r => ({ id: r.id, name: r.name, areasCount: r.areas.length })), null, 2)}</div>
               <div className="mt-2">First region areas (if any): {regions[0] && JSON.stringify(regions[0].areas.slice(0, 2), null, 2)}</div>
               <div className="mt-2">Expanded regions: {JSON.stringify(expandedRegions)}</div>
+              <div className="mt-2">Selected regions: {JSON.stringify(selectedRegions)}</div>
+              <div className="mt-2">Selected areas: {JSON.stringify(selectedAreas)}</div>
             </div>
           </Alert>
         )}
@@ -124,7 +160,7 @@ export const SwapPreferences = () => {
                   <div className="flex items-center p-3">
                     <Checkbox 
                       id={`region-${region.id}`}
-                      checked={areAllAreasInRegionSelected(region.id)}
+                      checked={areAllAreasInRegionSelected(region.id) || selectedRegions.includes(region.id)}
                       onCheckedChange={(checked) => handleRegionCheckboxChange(region.id, checked === true)}
                       className="mr-3"
                     />
@@ -147,7 +183,7 @@ export const SwapPreferences = () => {
                             <Checkbox 
                               id={`area-${area.id}`}
                               checked={isAreaSelected(area.id)}
-                              onCheckedChange={(checked) => handleAreaToggle(region.id, area.id, checked === true)}
+                              onCheckedChange={(checked) => handleAreaCheckboxChange(region.id, area.id, checked === true)}
                             />
                             <label 
                               htmlFor={`area-${area.id}`}

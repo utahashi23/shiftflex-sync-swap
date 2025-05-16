@@ -331,6 +331,8 @@ export function useSwapPreferences() {
     regions,
     selectedRegions,
     selectedAreas,
+    setSelectedRegions, // Expose the setter
+    setSelectedAreas,  // Expose the setter
     isLoading,
     isSaving,
     error,
