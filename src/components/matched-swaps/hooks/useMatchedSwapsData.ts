@@ -5,6 +5,7 @@ import { SwapMatch } from '../types';
 import { toast } from '@/hooks/use-toast';
 import { useSwapMatcher } from '@/hooks/swap-matching';
 import { getShiftType } from '@/utils/shiftUtils';
+import { useSwapRequests } from '@/hooks/swap-requests';
 
 /**
  * Hook for managing matched swaps data and operations
@@ -18,19 +19,22 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
   const fetchInProgressRef = useRef(false);
   const { user } = useAuth();
   const { findSwapMatches, isProcessing, initialFetchCompleted } = useSwapMatcher();
+  const { swapRequests, fetchSwapRequests } = useSwapRequests();
 
   // Auto-fetch matches on component mount - only once
   useEffect(() => {
     if (user && !initialFetchDone) {
       console.log('Auto-fetching matches on component mount');
-      fetchMatches();
+      fetchSwapRequests().then(() => {
+        fetchMatches();
+      });
       // Mark initial fetch as done to prevent further auto-fetches
       setInitialFetchDone(true);
     }
   }, [user, initialFetchDone]);
 
   /**
-   * Process matches data from API response
+   * Process matches data from API response and filter by user's active requests
    */
   const processMatchesData = (matchesData: any[]): SwapMatch[] => {
     if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
@@ -45,25 +49,33 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
     
     console.log(`Processing ${uniqueMatches.length} unique matches`);
     
-    // Log the raw data to see what we're working with
-    console.log('Raw matches data to process:', uniqueMatches);
+    // Get IDs of current user's active swap requests
+    const userRequestIds = swapRequests
+      .filter(req => req.status === 'pending' || req.status === 'matched')
+      .map(req => req.id);
     
-    // Process the data
-    return uniqueMatches.map((match: any) => {
-      // Explicitly log the colleague_type fields for debugging
-      console.log(`Match ${match.match_id} colleague types from API:`, {
-        my_shift_colleague_type: match.my_shift_colleague_type,
-        other_shift_colleague_type: match.other_shift_colleague_type
-      });
+    console.log('User has active request IDs:', userRequestIds);
+    
+    // Filter to only include matches related to user's active requests
+    const relevantMatches = uniqueMatches.filter((match: any) => {
+      // Check if either the my_request_id or other_request_id is in the user's active requests
+      const isRelevant = userRequestIds.includes(match.my_request_id) || 
+                        userRequestIds.includes(match.other_request_id);
       
+      if (!isRelevant) {
+        console.log(`Match ${match.match_id} filtered out - not related to user's requests`);
+      }
+      
+      return isRelevant;
+    });
+    
+    console.log(`After filtering, ${relevantMatches.length} matches are relevant to user's requests`);
+    
+    // Process the relevant matches data
+    return relevantMatches.map((match: any) => {
       // Extract colleague types from raw data
       const myShiftColleagueType = match.my_shift_colleague_type || 'Unknown';
       const otherShiftColleagueType = match.other_shift_colleague_type || 'Unknown';
-      
-      console.log(`Match ${match.match_id} processed colleague types:`, {
-        myShift: myShiftColleagueType,
-        otherShift: otherShiftColleagueType
-      });
       
       return {
         id: match.match_id,
@@ -109,6 +121,27 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
     try {
       console.log('Finding matches for user:', user.id);
       
+      // First ensure we have the latest swap requests data
+      await fetchSwapRequests();
+      
+      // Check if user has any active swap requests
+      const activeRequests = swapRequests.filter(req => 
+        req.status === 'pending' || req.status === 'matched'
+      );
+      
+      if (activeRequests.length === 0) {
+        console.log('User has no active swap requests, skipping match search');
+        setMatches([]);
+        setPastMatches([]);
+        toast({
+          title: "No active requests",
+          description: "You need to create a swap request first before looking for matches.",
+        });
+        setIsLoading(false);
+        fetchInProgressRef.current = false;
+        return;
+      }
+      
       // Explicitly request colleague types inclusion
       const matchesData = await findSwapMatches(user.id, true, true);
       console.log('Raw match data received from function:', matchesData);
@@ -139,7 +172,6 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       );
       
       console.log(`Processed ${activeMatches.length} active matches and ${completedMatches.length} past matches`);
-      console.log(`Active matches - pending: ${activeMatches.filter(m => m.status === 'pending').length}, accepted: ${activeMatches.filter(m => m.status === 'accepted').length}, other_accepted: ${activeMatches.filter(m => m.status === 'other_accepted').length}`);
       
       // Update the state with the new matches
       setMatches(activeMatches);

@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { useSwapRequests } from '@/hooks/swap-requests';
 
 /**
  * Hook for finding and processing swap matches correctly,
@@ -14,6 +15,7 @@ export const useSwapMatcher = () => {
   const [isFindingMatches, setIsFindingMatches] = useState(false);
   const [matchesCache, setMatchesCache] = useState<Record<string, any[]>>({});
   const [initialFetchCompleted, setInitialFetchCompleted] = useState(false);
+  const { swapRequests, fetchSwapRequests } = useSwapRequests();
   
   /**
    * Find potential matches by calling the edge function directly
@@ -37,6 +39,19 @@ export const useSwapMatcher = () => {
     const targetUserId = userId || user?.id;
     
     try {
+      // First ensure we have the latest swap requests
+      await fetchSwapRequests();
+      
+      // Check if user has any active requests
+      const activeRequests = swapRequests.filter(req => 
+        req.status === 'pending' || req.status === 'matched'
+      );
+      
+      if (activeRequests.length === 0) {
+        console.log('User has no active swap requests, skipping match search');
+        return [];
+      }
+      
       setIsFindingMatches(true);
       setIsProcessing(true);
       
@@ -50,6 +65,8 @@ export const useSwapMatcher = () => {
           verbose: verbose,
           user_perspective_only: true,
           user_initiator_only: true,
+          include_colleague_types: true, // Explicitly request colleague types
+          has_active_requests: true, // Only return matches for users with active requests
           bypass_rls: true // Explicitly request RLS bypass
         }
       });
@@ -83,7 +100,7 @@ export const useSwapMatcher = () => {
       setIsFindingMatches(false);
       setIsProcessing(false);
     }
-  }, [user]);
+  }, [user, swapRequests, fetchSwapRequests]);
 
   return {
     findSwapMatches,
