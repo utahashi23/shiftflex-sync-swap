@@ -56,8 +56,32 @@ export function useLeaveSwapMatches() {
       if (matchesError) throw matchesError;
 
       if (matchesData) {
+        console.log("Raw matches data:", matchesData);
+        
+        // Fetch other users' profiles for their employee IDs
+        const otherUserIds = matchesData.map(match => match.other_user_id);
+        const { data: otherProfilesData, error: otherProfilesError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, employee_id')
+          .in('id', otherUserIds);
+          
+        if (otherProfilesError) throw otherProfilesError;
+        
+        // Create a map for quick lookup of other user profiles
+        const otherProfilesMap = new Map();
+        if (otherProfilesData) {
+          otherProfilesData.forEach(profile => {
+            otherProfilesMap.set(profile.id, {
+              name: `${profile.first_name} ${profile.last_name}`,
+              employee_id: profile.employee_id || 'N/A'
+            });
+          });
+        }
+        
         // Transform to ensure all required fields are present
         const transformedMatches = matchesData.map(match => {
+          const otherProfile = otherProfilesMap.get(match.other_user_id) || { name: 'Unknown User', employee_id: 'N/A' };
+          
           return {
             match_id: match.match_id,
             match_status: match.match_status,
@@ -71,13 +95,17 @@ export function useLeaveSwapMatches() {
             other_start_date: match.other_start_date,
             other_end_date: match.other_end_date,
             other_user_id: match.other_user_id,
-            other_user_name: match.other_user_name || 'Unknown User',
-            other_employee_id: match.other_employee_id || 'N/A',
+            other_user_name: otherProfile.name,
+            other_employee_id: otherProfile.employee_id,
             is_requester: match.is_requester,
             my_user_name: profileData ? `${profileData.first_name} ${profileData.last_name}` : 'Current User',
-            my_employee_id: profileData?.employee_id || 'N/A'
+            my_employee_id: profileData?.employee_id || 'N/A',
+            split_designation: match.split_designation,
+            original_block_id: match.original_block_id
           } as LeaveSwapMatch;
         });
+
+        console.log("Transformed matches:", transformedMatches);
 
         // Deduplicate matches based on match_id
         const activeMatchesMap = new Map<string, LeaveSwapMatch>();
