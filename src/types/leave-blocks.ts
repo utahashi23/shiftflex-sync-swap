@@ -6,6 +6,8 @@ export interface LeaveBlock {
   end_date: string;
   status: string;
   created_at: string;
+  split_designation?: 'A' | 'B' | null;
+  original_block_id?: string | null;
 }
 
 export interface UserLeaveBlock {
@@ -17,6 +19,8 @@ export interface UserLeaveBlock {
   end_date: string;
   status: string;
   created_at: string;
+  split_designation?: 'A' | 'B' | null;
+  original_block_id?: string | null;
 }
 
 export interface LeaveSwapRequest {
@@ -48,4 +52,6 @@ export interface LeaveSwapMatch {
   is_requester: boolean;
   my_user_name: string;
   my_employee_id: string;
+  split_designation?: 'A' | 'B' | null;
+  original_block_id?: string | null;
 }
