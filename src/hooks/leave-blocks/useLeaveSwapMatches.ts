@@ -113,20 +113,29 @@ export function useLeaveSwapMatches() {
 
         console.log("Transformed matches:", transformedMatches);
 
-        // Use Map to deduplicate matches based on match_id
-        // This ensures we don't have the same match showing up from multiple perspectives
+        // Create a unique key for each match based on the combination of blocks and other user
+        // This ensures we truly deduplicate based on the actual swap relationship
+        const getUniqueMatchKey = (match: LeaveSwapMatch) => {
+          // Sort the IDs to ensure consistency regardless of which side the user is on
+          const blockIds = [match.my_leave_block_id, match.other_leave_block_id].sort().join('_');
+          return `${blockIds}_${match.other_user_id}`;
+        };
+        
+        // Use Maps with our custom unique keys for deduplication
         const activeMatchesMap = new Map<string, LeaveSwapMatch>();
         const pastMatchesMap = new Map<string, LeaveSwapMatch>();
         
         transformedMatches.forEach(match => {
+          const uniqueKey = getUniqueMatchKey(match);
+          
           if (['pending', 'accepted'].includes(match.match_status)) {
-            // Only add if it doesn't exist yet or the current one is from the user's perspective
-            if (!activeMatchesMap.has(match.match_id)) {
-              activeMatchesMap.set(match.match_id, match);
+            // If we already have this match and the current one is from the user's perspective as requester, prioritize it
+            if (!activeMatchesMap.has(uniqueKey) || match.is_requester) {
+              activeMatchesMap.set(uniqueKey, match);
             }
           } else if (['completed', 'cancelled'].includes(match.match_status)) {
-            if (!pastMatchesMap.has(match.match_id)) {
-              pastMatchesMap.set(match.match_id, match);
+            if (!pastMatchesMap.has(uniqueKey) || match.is_requester) {
+              pastMatchesMap.set(uniqueKey, match);
             }
           }
         });
