@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { CheckedState } from '@radix-ui/react-checkbox';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 import {
   Accordion,
@@ -38,6 +41,7 @@ export const SwapPreferences = () => {
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [openAccordion, setOpenAccordion] = useState<string | undefined>(undefined);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -47,7 +51,10 @@ export const SwapPreferences = () => {
     const fetchData = async () => {
       if (!user) return;
       
+      setError(null);
       try {
+        console.log('Fetching swap preferences for user:', user.id);
+        
         // Fetch all regions
         const { data: regionsData, error: regionsError } = await supabase
           .from('regions')
@@ -67,14 +74,18 @@ export const SwapPreferences = () => {
         if (areasError) throw areasError;
         
         // Fetch user preferences directly from the table
+        console.log('Fetching user preferences...');
         const { data: preferencesData, error: preferencesError } = await supabase
           .from('user_swap_preferences')
           .select('*')
           .eq('user_id', user.id);
           
         if (preferencesError) {
+          console.error('Error fetching preferences:', preferencesError);
           throw preferencesError;
         }
+        
+        console.log('Received preferences data:', preferencesData);
         
         // Extract user's selected regions and areas
         const userRegions: string[] = [];
@@ -86,6 +97,9 @@ export const SwapPreferences = () => {
             if (pref.area_id) userAreas.push(pref.area_id);
           });
         }
+        
+        console.log('User regions:', userRegions);
+        console.log('User areas:', userAreas);
         
         setSelectedRegions(userRegions);
         setSelectedAreas(userAreas);
@@ -106,6 +120,7 @@ export const SwapPreferences = () => {
         setRegions(regionsWithAreas);
       } catch (error: any) {
         console.error('Error fetching swap preferences data:', error);
+        setError(error.message || 'Failed to load swap preferences');
         toast({
           title: 'Error',
           description: error.message || 'Failed to load swap preferences',
@@ -182,18 +197,34 @@ export const SwapPreferences = () => {
   };
   
   const savePreferences = async () => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in to save preferences',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     setIsSaving(true);
+    setError(null);
     
     try {
+      console.log('Saving preferences for user:', user.id);
+      console.log('Selected regions:', selectedRegions);
+      console.log('Selected areas:', selectedAreas);
+      
       // First, delete existing preferences for this user
+      console.log('Deleting existing preferences...');
       const { error: deleteError } = await supabase
         .from('user_swap_preferences')
         .delete()
         .eq('user_id', user.id);
         
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('Error deleting preferences:', deleteError);
+        throw deleteError;
+      }
       
       // Prepare data to insert
       const preferencesToInsert: UserSwapPreference[] = [];
@@ -218,11 +249,15 @@ export const SwapPreferences = () => {
       
       // Insert new preferences if there are any
       if (preferencesToInsert.length > 0) {
+        console.log('Inserting new preferences:', preferencesToInsert);
         const { error: insertError } = await supabase
           .from('user_swap_preferences')
           .insert(preferencesToInsert);
           
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Error inserting preferences:', insertError);
+          throw insertError;
+        }
       }
       
       toast({
@@ -231,6 +266,7 @@ export const SwapPreferences = () => {
       });
     } catch (error: any) {
       console.error('Error saving swap preferences:', error);
+      setError(error.message || 'Failed to save swap preferences');
       toast({
         title: 'Error',
         description: error.message || 'Failed to save swap preferences',
@@ -261,6 +297,21 @@ export const SwapPreferences = () => {
     setOpenAccordion(value === openAccordion ? undefined : value);
   };
 
+  if (!user) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              You must be logged in to view swap preferences
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -270,6 +321,13 @@ export const SwapPreferences = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
         {isLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
