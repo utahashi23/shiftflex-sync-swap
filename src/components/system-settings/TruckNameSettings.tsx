@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -30,6 +30,7 @@ import { useAreas } from '@/hooks/useAreas';
 import { useRegions } from '@/hooks/useRegions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { CSVUploader } from "./CSVUploader";
+import { SearchFilter } from "./SearchFilter";
 
 export const TruckNameSettings = () => {
   const { truckNames, isLoading, isRefreshing, fetchTruckNames, addTruckName, updateTruckName, deleteTruckName } = useTruckNamesAdmin();
@@ -51,6 +52,7 @@ export const TruckNameSettings = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [searchFilter, setSearchFilter] = useState('');
 
   // Filter areas based on selected region
   useEffect(() => {
@@ -113,6 +115,18 @@ export const TruckNameSettings = () => {
     setEditingTruck(truck);
     setIsDeleteDialogOpen(true);
   };
+
+  // Filter trucks based on search term
+  const filteredTrucks = useMemo(() => {
+    if (!searchFilter) return truckNames;
+    const lowerFilter = searchFilter.toLowerCase();
+    
+    return truckNames.filter(truck => 
+      truck.name.toLowerCase().includes(lowerFilter) ||
+      (truck.area?.name && truck.area.name.toLowerCase().includes(lowerFilter)) ||
+      (truck.area?.region?.name && truck.area.region.name.toLowerCase().includes(lowerFilter))
+    );
+  }, [truckNames, searchFilter]);
 
   return (
     <Card className="w-full">
@@ -213,6 +227,13 @@ export const TruckNameSettings = () => {
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-4">
+          <SearchFilter 
+            placeholder="Search truck names, areas, or regions..." 
+            onFilterChange={setSearchFilter} 
+          />
+        </div>
+        
         {isLoading ? (
           <div className="flex justify-center items-center p-8">
             <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
@@ -229,8 +250,8 @@ export const TruckNameSettings = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {truckNames.length > 0 ? (
-                  truckNames.map((truck) => (
+                {filteredTrucks.length > 0 ? (
+                  filteredTrucks.map((truck) => (
                     <TableRow key={truck.id}>
                       <TableCell>{truck.name}</TableCell>
                       <TableCell>{truck.area?.name || 'Not Assigned'}</TableCell>
@@ -262,7 +283,7 @@ export const TruckNameSettings = () => {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={4} className="h-24 text-center">
-                      No truck names found.
+                      {searchFilter ? "No matching truck names found." : "No truck names found."}
                     </TableCell>
                   </TableRow>
                 )}

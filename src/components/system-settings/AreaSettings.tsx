@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -29,6 +29,7 @@ import { useAreas, Area } from '@/hooks/useAreas';
 import { useRegions } from '@/hooks/useRegions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { CSVUploader } from "./CSVUploader";
+import { SearchFilter } from "./SearchFilter";
 
 export const AreaSettings = () => {
   const { areas, isLoading, isRefreshing, fetchAreas, addArea, updateArea, deleteArea } = useAreas();
@@ -43,6 +44,7 @@ export const AreaSettings = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [searchFilter, setSearchFilter] = useState('');
 
   const handleAddArea = async () => {
     if (!newAreaName.trim() || !selectedRegionId) return;
@@ -79,6 +81,17 @@ export const AreaSettings = () => {
     setEditingArea(area);
     setIsDeleteDialogOpen(true);
   };
+
+  // Filter areas based on search term
+  const filteredAreas = useMemo(() => {
+    if (!searchFilter) return areas;
+    const lowerFilter = searchFilter.toLowerCase();
+    
+    return areas.filter(area => 
+      area.name.toLowerCase().includes(lowerFilter) ||
+      (area.region && area.region.name.toLowerCase().includes(lowerFilter))
+    );
+  }, [areas, searchFilter]);
 
   return (
     <Card className="w-full">
@@ -157,6 +170,13 @@ export const AreaSettings = () => {
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-4">
+          <SearchFilter 
+            placeholder="Search areas or regions..." 
+            onFilterChange={setSearchFilter} 
+          />
+        </div>
+        
         {isLoading || isLoadingRegions ? (
           <div className="flex justify-center items-center p-8">
             <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
@@ -172,8 +192,8 @@ export const AreaSettings = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {areas.length > 0 ? (
-                  areas.map((area) => (
+                {filteredAreas.length > 0 ? (
+                  filteredAreas.map((area) => (
                     <TableRow key={area.id}>
                       <TableCell>{area.name}</TableCell>
                       <TableCell>{area.region?.name}</TableCell>
@@ -204,7 +224,7 @@ export const AreaSettings = () => {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={3} className="h-24 text-center">
-                      No areas found.
+                      {searchFilter ? "No matching areas found." : "No areas found."}
                     </TableCell>
                   </TableRow>
                 )}

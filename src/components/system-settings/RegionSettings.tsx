@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -21,6 +21,7 @@ import { Loader2, Pencil, Trash, Plus, Upload } from 'lucide-react';
 import { useRegions, Region } from '@/hooks/useRegions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { CSVUploader } from "./CSVUploader";
+import { SearchFilter } from "./SearchFilter";
 
 export const RegionSettings = () => {
   const { regions, isLoading, isRefreshing, fetchRegions, addRegion, updateRegion, deleteRegion } = useRegions();
@@ -31,6 +32,7 @@ export const RegionSettings = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [searchFilter, setSearchFilter] = useState('');
 
   const handleAddRegion = async () => {
     if (!newRegionName.trim()) return;
@@ -64,6 +66,14 @@ export const RegionSettings = () => {
     setEditingRegion(region);
     setIsDeleteDialogOpen(true);
   };
+
+  // Filter regions based on search term
+  const filteredRegions = useMemo(() => {
+    if (!searchFilter) return regions;
+    return regions.filter(region => 
+      region.name.toLowerCase().includes(searchFilter.toLowerCase())
+    );
+  }, [regions, searchFilter]);
 
   return (
     <Card className="w-full">
@@ -122,6 +132,13 @@ export const RegionSettings = () => {
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-4">
+          <SearchFilter 
+            placeholder="Search regions..." 
+            onFilterChange={setSearchFilter} 
+          />
+        </div>
+        
         {isLoading ? (
           <div className="flex justify-center items-center p-8">
             <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
@@ -136,8 +153,8 @@ export const RegionSettings = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {regions.length > 0 ? (
-                  regions.map((region) => (
+                {filteredRegions.length > 0 ? (
+                  filteredRegions.map((region) => (
                     <TableRow key={region.id}>
                       <TableCell>{region.name}</TableCell>
                       <TableCell className="text-right">
@@ -167,7 +184,7 @@ export const RegionSettings = () => {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={2} className="h-24 text-center">
-                      No regions found.
+                      {searchFilter ? "No matching regions found." : "No regions found."}
                     </TableCell>
                   </TableRow>
                 )}
