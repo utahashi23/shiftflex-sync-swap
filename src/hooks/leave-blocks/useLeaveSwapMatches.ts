@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { LeaveSwapMatch } from '@/types/leave-blocks';
@@ -5,13 +6,18 @@ import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 
+/**
+ * Hook for managing leave swap matches
+ * 
+ * This hook handles fetching, accepting, finalizing and cancelling leave swap matches
+ */
 export function useLeaveSwapMatches() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isFindingMatches, setIsFindingMatches] = useState(false);
   
-  // First fetch the user's swap requests to determine if they have any
+  // First check if user has any active swap requests
   const {
     data: userSwapRequests,
     isLoading: isLoadingRequests
@@ -32,9 +38,9 @@ export function useLeaveSwapMatches() {
     enabled: !!user?.id
   });
 
-  // Only fetch leave swap matches if user has active requests
+  // Only fetch matches if there are active requests
   const {
-    data: leaveSwapMatches,
+    data: matchesData,
     isLoading: isLoadingMatches,
     error: matchesError,
     refetch: refetchMatches
@@ -43,9 +49,9 @@ export function useLeaveSwapMatches() {
     queryFn: async () => {
       if (!user?.id) return [];
       
-      // Skip fetching matches if user has no active swap requests
+      // Skip if no active requests
       if (userSwapRequests && userSwapRequests.length === 0) {
-        console.log('User has no active swap requests, skipping match fetch');
+        console.log('No active swap requests, skipping match fetch');
         return [];
       }
       
@@ -53,34 +59,64 @@ export function useLeaveSwapMatches() {
         .rpc('get_user_leave_swap_matches', { p_user_id: user.id });
       
       if (error) throw error;
-      
-      // Log original data for debugging
-      console.log('Original matches from API:', data ? data.length : 0);
-      
-      // Deduplicate matches by match_id
-      if (data && data.length > 0) {
-        const seenIds = new Set();
-        const uniqueMatches = data.filter((match: LeaveSwapMatch) => {
-          // If we've already seen this ID, filter it out
-          if (seenIds.has(match.match_id)) {
-            console.log('Filtering duplicate match:', match.match_id);
-            return false;
-          }
-          // Otherwise add it to our set and keep it
-          seenIds.add(match.match_id);
-          return true;
-        });
-        
-        console.log('After deduplication:', uniqueMatches.length);
-        return uniqueMatches as LeaveSwapMatch[];
-      }
-      
-      return data as LeaveSwapMatch[];
+      return data || [];
     },
-    enabled: !!user?.id && !!userSwapRequests
+    enabled: !!user?.id && Array.isArray(userSwapRequests)
+  });
+  
+  // Process raw matches data to ensure uniqueness and add employee ID fields
+  const processedMatches = async () => {
+    if (!matchesData || !Array.isArray(matchesData)) return { activeMatches: [], pastMatches: [] };
+    
+    // Get unique matches by match_id
+    const uniqueMatches = [...new Map(matchesData.map(match => [match.match_id, match])).values()];
+    console.log(`Processed ${uniqueMatches.length} unique matches from ${matchesData.length} total`);
+    
+    // Fetch employee IDs for my_user and other_user
+    const profilePromises = uniqueMatches.map(async (match) => {
+      // Get profiles for both users
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, employee_id')
+        .in('id', [match.other_user_id, user?.id || '']);
+        
+      if (!profiles) return match;
+      
+      const myProfile = profiles.find(p => p.id === user?.id);
+      const otherProfile = profiles.find(p => p.id === match.other_user_id);
+      
+      return {
+        ...match,
+        other_employee_id: otherProfile?.employee_id || '',
+        my_employee_id: myProfile?.employee_id || ''
+      };
+    });
+    
+    const enhancedMatches = await Promise.all(profilePromises);
+    
+    // Split into active and past matches
+    const activeMatches = enhancedMatches.filter(
+      match => match.match_status === 'pending' || match.match_status === 'accepted'
+    );
+    
+    const pastMatches = enhancedMatches.filter(
+      match => match.match_status === 'completed' || match.match_status === 'cancelled'
+    );
+    
+    return { activeMatches, pastMatches };
+  };
+  
+  // Extract and memoize the active and past matches
+  const { 
+    data: { activeMatches = [], pastMatches = [] } = { activeMatches: [], pastMatches: [] },
+    isLoading: isProcessingMatches
+  } = useQuery({
+    queryKey: ['processed-leave-swap-matches', matchesData],
+    queryFn: processedMatches,
+    enabled: !!matchesData && Array.isArray(matchesData),
   });
 
-  // Find automatic matches through Supabase function
+  // Trigger finding leave swap matches
   const findMatches = async () => {
     try {
       setIsFindingMatches(true);
@@ -122,7 +158,7 @@ export function useLeaveSwapMatches() {
     }
   };
 
-  // Accept a leave swap match
+  // Accept a match
   const acceptMatch = useMutation({
     mutationFn: async ({ matchId }: { matchId: string }) => {
       const { data, error } = await supabase.functions.invoke('accept_leave_swap', {
@@ -149,7 +185,7 @@ export function useLeaveSwapMatches() {
     }
   });
 
-  // Finalize a leave swap match
+  // Finalize a match
   const finalizeMatch = useMutation({
     mutationFn: async ({ matchId }: { matchId: string }) => {
       const { data, error } = await supabase.functions.invoke('finalize_leave_swap', {
@@ -176,7 +212,7 @@ export function useLeaveSwapMatches() {
     }
   });
 
-  // Cancel a leave swap match
+  // Cancel a match
   const cancelMatch = useMutation({
     mutationFn: async ({ matchId }: { matchId: string }) => {
       const { data, error } = await supabase.functions.invoke('cancel_leave_swap', {
@@ -202,49 +238,11 @@ export function useLeaveSwapMatches() {
     }
   });
 
-  // Process matches to filter out duplicates and separate active/past matches
-  const processMatches = () => {
-    if (!leaveSwapMatches) return { activeMatches: [], pastMatches: [] };
-    
-    console.log('Processing matches, total count:', leaveSwapMatches.length);
-    
-    // Create a Map to track matches by ID, ensuring uniqueness
-    const uniqueMatchesMap = new Map();
-    
-    // Process each match, only keeping the first occurrence of each ID
-    leaveSwapMatches.forEach(match => {
-      if (!uniqueMatchesMap.has(match.match_id)) {
-        uniqueMatchesMap.set(match.match_id, match);
-      } else {
-        console.log('Skipping duplicate match ID:', match.match_id);
-      }
-    });
-    
-    const uniqueMatches = Array.from(uniqueMatchesMap.values());
-    console.log('Unique matches after Map deduplication:', uniqueMatches.length);
-    
-    // Then separate active and past matches
-    const activeMatches = uniqueMatches.filter(
-      match => match.match_status === 'pending' || match.match_status === 'accepted'
-    );
-    
-    const pastMatches = uniqueMatches.filter(
-      match => match.match_status === 'completed' || match.match_status === 'cancelled'
-    );
-    
-    console.log('Active matches:', activeMatches.length, 'Past matches:', pastMatches.length);
-    
-    return { activeMatches, pastMatches };
-  };
-  
-  const { activeMatches, pastMatches } = processMatches();
-
   return {
-    leaveSwapMatches,
     activeMatches,
     pastMatches,
     hasActiveRequests: userSwapRequests && userSwapRequests.length > 0,
-    isLoadingMatches: isLoadingMatches || isLoadingRequests,
+    isLoadingMatches: isLoadingMatches || isLoadingRequests || isProcessingMatches,
     matchesError,
     findMatches,
     isFindingMatches,
