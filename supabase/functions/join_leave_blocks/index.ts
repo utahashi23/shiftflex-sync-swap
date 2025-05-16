@@ -117,8 +117,7 @@ serve(async (req) => {
     
     console.log('Successfully removed user associations with split blocks');
     
-    // Delete the split blocks themselves
-    // Note: We only delete them if they're not being used by other users
+    // Delete the split blocks themselves if they're not being used by other users
     if (blockA.leave_block) {
       const { error: deleteBlockAError } = await supabaseAdmin
         .from('leave_blocks')

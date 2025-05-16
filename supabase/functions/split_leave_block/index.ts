@@ -61,11 +61,30 @@ serve(async (req) => {
     console.log(`Splitting block with dates ${startDate.toISOString()} to ${endDate.toISOString()}`);
     console.log(`Middle point: ${midPoint.toISOString()}`);
     
+    // Find the largest block_number to ensure we create unique block numbers
+    const { data: maxBlockData, error: maxBlockError } = await supabaseAdmin
+      .from('leave_blocks')
+      .select('block_number')
+      .order('block_number', { ascending: false })
+      .limit(1)
+      .single();
+    
+    if (maxBlockError) {
+      console.error('Error getting max block number:', maxBlockError.message);
+      throw new Error(`Error getting max block number: ${maxBlockError.message}`);
+    }
+    
+    const maxBlockNumber = maxBlockData ? maxBlockData.block_number : 0;
+    const newBlockNumberA = maxBlockNumber + 1;
+    const newBlockNumberB = maxBlockNumber + 2;
+    
+    console.log(`Using new block numbers: A=${newBlockNumberA}, B=${newBlockNumberB}`);
+    
     // Create the first half block (A)
     const { data: blockA, error: blockAError } = await supabaseAdmin
       .from('leave_blocks')
       .insert({
-        block_number: leaveBlock.block_number,
+        block_number: newBlockNumberA,
         start_date: startDate.toISOString().split('T')[0],
         end_date: midPoint.toISOString().split('T')[0],
         status: 'active',
@@ -80,7 +99,7 @@ serve(async (req) => {
       throw new Error(`Error creating split block A: ${blockAError.message}`);
     }
     
-    console.log(`Created block A: ${blockA.id}`);
+    console.log(`Created block A: ${blockA.id}, with block_number: ${blockA.block_number}`);
     
     // Create the second half block (B)
     const nextDay = new Date(midPoint);
@@ -89,7 +108,7 @@ serve(async (req) => {
     const { data: blockB, error: blockBError } = await supabaseAdmin
       .from('leave_blocks')
       .insert({
-        block_number: leaveBlock.block_number,
+        block_number: newBlockNumberB,
         start_date: nextDay.toISOString().split('T')[0],
         end_date: endDate.toISOString().split('T')[0],
         status: 'active',
@@ -104,7 +123,7 @@ serve(async (req) => {
       throw new Error(`Error creating split block B: ${blockBError.message}`);
     }
     
-    console.log(`Created block B: ${blockB.id}`);
+    console.log(`Created block B: ${blockB.id}, with block_number: ${blockB.block_number}`);
     
     // Create user associations for the new blocks
     const { error: userBlockAError } = await supabaseAdmin
