@@ -18,8 +18,8 @@ import { useSwapPreferences } from '@/hooks/useSwapPreferences';
 
 export const SwapPreferences = () => {
   const { user } = useAuth();
-  const [openAccordion, setOpenAccordion] = useState<string | undefined>(undefined);
-  const [showDebug, setShowDebug] = useState(true); // Set to true by default to help diagnose issues
+  const [expandedRegions, setExpandedRegions] = useState<string[]>([]);
+  const [showDebug, setShowDebug] = useState(true);
   
   const {
     regions,
@@ -33,9 +33,19 @@ export const SwapPreferences = () => {
     isAreaSelected
   } = useSwapPreferences();
 
-  // Handle accordion state changes
-  const handleAccordionChange = (value: string) => {
-    setOpenAccordion(value === openAccordion ? undefined : value);
+  // Handle region checkbox changes
+  const handleRegionCheckboxChange = (regionId: string, checked: boolean) => {
+    // Toggle the region's expanded state
+    if (checked) {
+      // Expand the region when checked
+      setExpandedRegions(prev => [...prev, regionId]);
+    } else {
+      // Collapse the region when unchecked
+      setExpandedRegions(prev => prev.filter(id => id !== regionId));
+    }
+    
+    // Update the selection state of the region and its areas
+    handleRegionToggle(regionId, checked);
   };
 
   if (!user) {
@@ -85,6 +95,7 @@ export const SwapPreferences = () => {
               <div>Regions count: {regions.length}</div>
               <div>Regions data: {JSON.stringify(regions.map(r => ({ id: r.id, name: r.name, areasCount: r.areas.length })), null, 2)}</div>
               <div className="mt-2">First region areas (if any): {regions[0] && JSON.stringify(regions[0].areas.slice(0, 2), null, 2)}</div>
+              <div className="mt-2">Expanded regions: {JSON.stringify(expandedRegions)}</div>
             </div>
           </Alert>
         )}
@@ -103,11 +114,10 @@ export const SwapPreferences = () => {
         ) : (
           <div className="space-y-4">
             <Accordion 
-              type="single" 
-              collapsible 
-              className="space-y-2" 
-              value={openAccordion}
-              onValueChange={handleAccordionChange}
+              type="multiple" 
+              className="space-y-2"
+              value={expandedRegions}
+              onValueChange={setExpandedRegions}
             >
               {regions.map((region) => (
                 <AccordionItem key={region.id} value={region.id} className="border rounded-md overflow-hidden">
@@ -115,7 +125,7 @@ export const SwapPreferences = () => {
                     <Checkbox 
                       id={`region-${region.id}`}
                       checked={areAllAreasInRegionSelected(region.id)}
-                      onCheckedChange={(checked) => handleRegionToggle(region.id, checked === true)}
+                      onCheckedChange={(checked) => handleRegionCheckboxChange(region.id, checked === true)}
                       className="mr-3"
                     />
                     <AccordionTrigger className="flex-1 hover:no-underline">
