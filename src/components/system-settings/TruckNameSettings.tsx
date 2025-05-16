@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { 
   Card, 
@@ -17,13 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SafeSelect } from "@/components/ui/safe-select";
 import { Loader2, Pencil, Trash, Plus, Upload } from 'lucide-react';
 import { useTruckNamesAdmin, TruckName } from '@/hooks/useTruckNamesAdmin';
 import { useAreas } from '@/hooks/useAreas';
@@ -180,41 +173,27 @@ export const TruckNameSettings = () => {
                   />
                 </div>
                 <div>
-                  <Select 
+                  <SafeSelect 
                     value={selectedRegionId} 
                     onValueChange={setSelectedRegionId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Region (Optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      {regions.map((region) => (
-                        <SelectItem key={region.id} value={region.id}>
-                          {region.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={[
+                      { value: "", label: "None" },
+                      ...regions.map(region => ({ value: region.id, label: region.name }))
+                    ]}
+                    placeholder="Select Region (Optional)"
+                  />
                 </div>
                 {selectedRegionId && (
                   <div>
-                    <Select 
+                    <SafeSelect 
                       value={selectedAreaId} 
                       onValueChange={setSelectedAreaId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Area (Optional)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">None</SelectItem>
-                        {filteredAreas.map((area) => (
-                          <SelectItem key={area.id} value={area.id}>
-                            {area.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={[
+                        { value: "", label: "None" },
+                        ...filteredAreas.map(area => ({ value: area.id, label: area.name }))
+                      ]}
+                      placeholder="Select Area (Optional)"
+                    />
                   </div>
                 )}
               </div>
@@ -307,41 +286,27 @@ export const TruckNameSettings = () => {
                 />
               </div>
               <div>
-                <Select 
+                <SafeSelect 
                   value={editRegionId} 
                   onValueChange={setEditRegionId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Region (Optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {regions.map((region) => (
-                      <SelectItem key={region.id} value={region.id}>
-                        {region.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={[
+                    { value: "", label: "None" },
+                    ...regions.map(region => ({ value: region.id, label: region.name }))
+                  ]}
+                  placeholder="Select Region (Optional)"
+                />
               </div>
               {editRegionId && (
                 <div>
-                  <Select 
+                  <SafeSelect 
                     value={editAreaId} 
                     onValueChange={setEditAreaId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Area (Optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      {editFilteredAreas.map((area) => (
-                        <SelectItem key={area.id} value={area.id}>
-                          {area.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={[
+                      { value: "", label: "None" },
+                      ...editFilteredAreas.map(area => ({ value: area.id, label: area.name }))
+                    ]}
+                    placeholder="Select Area (Optional)"
+                  />
                 </div>
               )}
             </div>

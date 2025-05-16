@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from 'react';
 import { 
   Card, 
@@ -17,13 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SafeSelect, SafeSelectItem } from "@/components/ui/safe-select";
 import { Loader2, Pencil, Trash, Plus, Upload } from 'lucide-react';
 import { useAreas, Area } from '@/hooks/useAreas';
 import { useRegions } from '@/hooks/useRegions';
@@ -144,21 +137,12 @@ export const AreaSettings = () => {
                   />
                 </div>
                 <div>
-                  <Select 
+                  <SafeSelect 
                     value={selectedRegionId} 
                     onValueChange={setSelectedRegionId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Region" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {regions.map((region) => (
-                        <SelectItem key={region.id} value={region.id}>
-                          {region.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={regions.map(region => ({ value: region.id, label: region.name }))}
+                    placeholder="Select Region"
+                  />
                 </div>
               </div>
               <DialogFooter>
@@ -248,21 +232,12 @@ export const AreaSettings = () => {
                 />
               </div>
               <div>
-                <Select 
+                <SafeSelect 
                   value={editRegionId} 
                   onValueChange={setEditRegionId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Region" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {regions.map((region) => (
-                      <SelectItem key={region.id} value={region.id}>
-                        {region.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={regions.map(region => ({ value: region.id, label: region.name }))}
+                  placeholder="Select Region"
+                />
               </div>
             </div>
             <DialogFooter>

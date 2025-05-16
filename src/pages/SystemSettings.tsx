@@ -9,6 +9,7 @@ import { RegionSettings } from '@/components/system-settings/RegionSettings';
 import { AreaSettings } from '@/components/system-settings/AreaSettings';
 import { TruckNameSettings } from '@/components/system-settings/TruckNameSettings';
 import { ColleagueTypeSettings } from '@/components/system-settings/ColleagueTypeSettings';
+import { SwapPreferences } from '@/components/settings/SwapPreferences';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect } from 'react';
 
@@ -70,6 +71,7 @@ const SystemSettings = () => {
           <TabsTrigger value="areas">Areas</TabsTrigger>
           <TabsTrigger value="truck-names">Truck Names</TabsTrigger>
           <TabsTrigger value="colleague-types">Colleague Types</TabsTrigger>
+          <TabsTrigger value="swap-preferences">Swap Preferences</TabsTrigger>
         </TabsList>
 
         <TabsContent value="shift-lengths">
@@ -134,6 +136,19 @@ const SystemSettings = () => {
             </div>
             <Separator />
             <ColleagueTypeSettings />
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="swap-preferences">
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium">System Swap Preferences</h3>
+              <p className="text-sm text-muted-foreground">
+                Configure default swap preferences for the system
+              </p>
+            </div>
+            <Separator />
+            <SwapPreferences />
           </div>
         </TabsContent>
       </Tabs>
