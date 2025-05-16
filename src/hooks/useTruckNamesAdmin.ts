@@ -37,13 +37,16 @@ export const useTruckNamesAdmin = (areaId?: string) => {
         throw error;
       }
 
-      // Fix: Transform the data to properly handle the nested area and region properties
-      const transformedData: TruckName[] = data.map((truck: any) => {
-        return {
-          ...truck,
-          area: truck.areas // Fixed property mapping
-        };
-      });
+      // Transform the data to properly handle the nested area and region properties
+      const transformedData: TruckName[] = data.map((truck: any) => ({
+        ...truck,
+        area: truck.areas ? {
+          ...truck.areas,
+          region: truck.areas.regions ? {
+            ...truck.areas.regions
+          } : null
+        } : null
+      }));
       
       setTruckNames(transformedData || []);
     } catch (error: any) {
