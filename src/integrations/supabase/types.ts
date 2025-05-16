@@ -942,6 +942,16 @@ export type Database = {
           other_user_name: string
         }[]
       }
+      get_user_swap_preferences: {
+        Args: { p_user_id: string }
+        Returns: {
+          id: string
+          user_id: string
+          region_id: string
+          area_id: string
+          created_at: string
+        }[]
+      }
       get_user_swap_requests_safe: {
         Args: { p_user_id: string; p_status: string }
         Returns: {

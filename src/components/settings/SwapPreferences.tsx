@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -61,51 +60,29 @@ export const SwapPreferences = () => {
           
         if (areasError) throw areasError;
         
-        // Fetch user preferences using RPC function to bypass type issues
+        // Fetch user preferences directly from the table
         const { data: preferencesData, error: preferencesError } = await supabase
-          .rpc('get_user_swap_preferences', { p_user_id: user.id });
+          .from('user_swap_preferences')
+          .select('*')
+          .eq('user_id', user.id);
           
         if (preferencesError) {
-          // If the error is that the function doesn't exist, we'll handle it below
-          if (!preferencesError.message.includes('does not exist')) {
-            throw preferencesError;
-          }
-          
-          // Try direct query as fallback
-          const { data: directData, error: directError } = await supabase
-            .from('user_swap_preferences')
-            .select('*')
-            .eq('user_id', user.id);
-            
-          if (directError) throw directError;
-          
-          // Use the direct query data
-          if (directData) {
-            // Extract user's selected regions and areas
-            const userRegions: string[] = [];
-            const userAreas: string[] = [];
-            
-            directData.forEach((pref: any) => {
-              if (pref.region_id) userRegions.push(pref.region_id);
-              if (pref.area_id) userAreas.push(pref.area_id);
-            });
-            
-            setSelectedRegions(userRegions);
-            setSelectedAreas(userAreas);
-          }
-        } else if (preferencesData) {
-          // Extract user's selected regions and areas
-          const userRegions: string[] = [];
-          const userAreas: string[] = [];
-          
-          preferencesData.forEach((pref: any) => {
+          throw preferencesError;
+        }
+        
+        // Extract user's selected regions and areas
+        const userRegions: string[] = [];
+        const userAreas: string[] = [];
+        
+        if (preferencesData && Array.isArray(preferencesData)) {
+          preferencesData.forEach((pref) => {
             if (pref.region_id) userRegions.push(pref.region_id);
             if (pref.area_id) userAreas.push(pref.area_id);
           });
-          
-          setSelectedRegions(userRegions);
-          setSelectedAreas(userAreas);
         }
+        
+        setSelectedRegions(userRegions);
+        setSelectedAreas(userAreas);
         
         // Transform data for the component
         const regionsWithAreas: RegionWithAreas[] = regionsData.map((region: any) => ({
@@ -116,7 +93,7 @@ export const SwapPreferences = () => {
             .map((area: any) => ({
               id: area.id,
               name: area.name,
-              selected: selectedAreas.includes(area.id),
+              selected: userAreas.includes(area.id),
             })),
           expanded: false
         }));
