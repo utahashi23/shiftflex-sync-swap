@@ -21,6 +21,17 @@ interface UserSwapPreference {
   area_id: string | null;
 }
 
+// Define the interface for the RPC response
+interface RegionAreaData {
+  region_id: string;
+  region_name: string;
+  region_status: string;
+  area_id: string | null;
+  area_name: string | null;
+  area_status: string | null;
+  area_region_id: string | null;
+}
+
 export function useSwapPreferences() {
   const [regions, setRegions] = useState<RegionWithAreas[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
@@ -39,16 +50,27 @@ export function useSwapPreferences() {
     try {
       console.log('Fetching swap preferences for user:', user.id);
       
-      // Use the bypass function to get all regions and areas directly
-      const { data: regionsAndAreas, error: diagError } = await supabase
-        .rpc('get_all_regions_and_areas');
-        
-      if (diagError) {
-        console.error('Error fetching regions and areas via RPC:', diagError);
-        throw diagError;
+      // Use a direct REST call to bypass RPC type checking issue
+      const response = await fetch(
+        `${supabase.supabaseUrl}/rest/v1/rpc/get_all_regions_and_areas`,
+        {
+          method: 'POST',
+          headers: {
+            'apikey': supabase.supabaseKey,
+            'Authorization': `Bearer ${supabase.supabaseKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error fetching regions and areas via REST:', errorText);
+        throw new Error(`Failed to fetch regions and areas: ${errorText}`);
       }
       
-      console.log('Regions and areas data from RPC:', regionsAndAreas);
+      const regionsAndAreas: RegionAreaData[] = await response.json();
+      console.log('Regions and areas data from REST call:', regionsAndAreas);
       
       // Transform the data from the bypass function
       const regionsMap = new Map<string, RegionWithAreas>();
@@ -56,7 +78,7 @@ export function useSwapPreferences() {
       if (regionsAndAreas && Array.isArray(regionsAndAreas)) {
         // First pass: Create all regions
         regionsAndAreas.forEach(item => {
-          if (!regionsMap.has(item.region_id)) {
+          if (item.region_id && !regionsMap.has(item.region_id)) {
             regionsMap.set(item.region_id, {
               id: item.region_id,
               name: item.region_name,
@@ -67,12 +89,12 @@ export function useSwapPreferences() {
         
         // Second pass: Add all areas to their respective regions
         regionsAndAreas.forEach(item => {
-          if (item.area_id) {
+          if (item.area_id && item.region_id) {
             const region = regionsMap.get(item.region_id);
             if (region) {
               region.areas.push({
                 id: item.area_id,
-                name: item.area_name,
+                name: item.area_name || 'Unnamed area',
                 selected: false
               });
             }
