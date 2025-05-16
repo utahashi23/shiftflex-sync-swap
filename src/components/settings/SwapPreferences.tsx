@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,7 +8,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { CheckedState } from '@radix-ui/react-checkbox';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { all } from '@/lib/utils';
+
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 interface RegionWithAreas {
   id: string;
@@ -17,7 +24,6 @@ interface RegionWithAreas {
     name: string;
     selected: boolean;
   }[];
-  expanded: boolean;
 }
 
 interface UserSwapPreference {
@@ -94,8 +100,7 @@ export const SwapPreferences = () => {
               id: area.id,
               name: area.name,
               selected: userAreas.includes(area.id),
-            })),
-          expanded: false
+            }))
         }));
         
         setRegions(regionsWithAreas);
@@ -174,14 +179,6 @@ export const SwapPreferences = () => {
     } else {
       setSelectedAreas(prev => prev.filter(id => id !== areaId));
     }
-  };
-  
-  const toggleRegionExpanded = (regionId: string) => {
-    setRegions(regions.map(region => 
-      region.id === regionId 
-        ? { ...region, expanded: !region.expanded } 
-        : region
-    ));
   };
   
   const savePreferences = async () => {
@@ -274,77 +271,55 @@ export const SwapPreferences = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {regions.map((region) => (
-              <div key={region.id} className="border rounded-md p-3">
-                <div className="flex items-center space-x-3">
-                  <Checkbox 
-                    id={`region-${region.id}`}
-                    checked={areAllAreasInRegionSelected(region.id)}
-                    onCheckedChange={(checked) => handleRegionToggle(region.id, checked)}
-                  />
-                  <label 
-                    htmlFor={`region-${region.id}`} 
-                    className="text-md font-medium flex-1 cursor-pointer"
-                  >
-                    {region.name}
-                  </label>
-                  <Button
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => toggleRegionExpanded(region.id)}
-                    className="h-8 w-8 p-0"
-                  >
-                    {region.expanded ? (
-                      <span className="sr-only">Collapse</span>
-                    ) : (
-                      <span className="sr-only">Expand</span>
-                    )}
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className={`h-4 w-4 transition-transform ${
-                        region.expanded ? 'rotate-180' : ''
-                      }`}
-                    >
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  </Button>
-                </div>
-                
-                {region.expanded && region.areas.length > 0 && (
-                  <div className="ml-8 mt-2 grid gap-2">
-                    {region.areas.map((area) => (
-                      <div key={area.id} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`area-${area.id}`}
-                          checked={isAreaSelected(area.id)}
-                          onCheckedChange={(checked) => handleAreaToggle(region.id, area.id, checked)}
-                        />
-                        <label 
-                          htmlFor={`area-${area.id}`}
-                          className="text-sm cursor-pointer"
-                        >
-                          {area.name}
-                        </label>
+            <Accordion type="single" collapsible className="space-y-2">
+              {regions.map((region) => (
+                <AccordionItem key={region.id} value={region.id} className="border rounded-md overflow-hidden">
+                  <div className="flex items-center p-3">
+                    <Checkbox 
+                      id={`region-${region.id}`}
+                      checked={areAllAreasInRegionSelected(region.id)}
+                      onCheckedChange={(checked) => handleRegionToggle(region.id, checked)}
+                      className="mr-3"
+                    />
+                    <AccordionTrigger className="flex-1 hover:no-underline">
+                      <label 
+                        htmlFor={`region-${region.id}`} 
+                        className="text-md font-medium cursor-pointer flex-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {region.name}
+                      </label>
+                    </AccordionTrigger>
+                  </div>
+                  
+                  <AccordionContent className="px-3 pb-3">
+                    {region.areas.length > 0 ? (
+                      <div className="ml-8 grid gap-2">
+                        {region.areas.map((area) => (
+                          <div key={area.id} className="flex items-center space-x-2">
+                            <Checkbox 
+                              id={`area-${area.id}`}
+                              checked={isAreaSelected(area.id)}
+                              onCheckedChange={(checked) => handleAreaToggle(region.id, area.id, checked)}
+                            />
+                            <label 
+                              htmlFor={`area-${area.id}`}
+                              className="text-sm cursor-pointer"
+                            >
+                              {area.name}
+                            </label>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
-                
-                {region.expanded && region.areas.length === 0 && (
-                  <div className="ml-8 mt-2 text-sm text-gray-500 italic">
-                    No areas available in this region
-                  </div>
-                )}
-              </div>
-            ))}
+                    ) : (
+                      <div className="ml-8 mt-2 text-sm text-gray-500 italic">
+                        No areas available in this region
+                      </div>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
             
             <Button 
               className="w-full mt-4" 
