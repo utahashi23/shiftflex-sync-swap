@@ -5,12 +5,61 @@ import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { PasswordSettings } from '@/components/settings/PasswordSettings';
 import { CalendarIntegration } from '@/components/settings/CalendarIntegration';
 import { ManualNotificationTrigger } from '@/components/settings/ManualNotificationTrigger';
+import { SwapPreferences } from '@/components/settings/SwapPreferences';
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Settings as SettingsIcon } from 'lucide-react';
+import { 
+  Collapsible, 
+  CollapsibleContent, 
+  CollapsibleTrigger 
+} from '@/components/ui/collapsible';
+
+interface SettingsSectionProps {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}
+
+const SettingsSection = ({ title, defaultOpen = false, children }: SettingsSectionProps) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  
+  return (
+    <Collapsible
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      className="border rounded-lg overflow-hidden mb-6"
+    >
+      <CollapsibleTrigger asChild>
+        <div className="flex items-center justify-between bg-muted/40 px-6 py-4 cursor-pointer hover:bg-muted/60 transition-colors">
+          <h2 className="text-xl font-medium">{title}</h2>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`h-5 w-5 transition-transform ${
+              isOpen ? 'rotate-180' : ''
+            }`}
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-6 py-4">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
 
 const Settings = () => {
   useAuthRedirect({ protectedRoute: true });
@@ -62,11 +111,26 @@ const Settings = () => {
         )}
       </div>
 
-      <div className="space-y-8">
-        <ManualNotificationTrigger />
-        <ProfileSettings />
-        <PasswordSettings />
-        <CalendarIntegration />
+      <div className="space-y-6">
+        <SettingsSection title="Profile" defaultOpen={true}>
+          <ProfileSettings />
+        </SettingsSection>
+        
+        <SettingsSection title="Password">
+          <PasswordSettings />
+        </SettingsSection>
+        
+        <SettingsSection title="Swap Preferences">
+          <SwapPreferences />
+        </SettingsSection>
+        
+        <SettingsSection title="Calendar Integration">
+          <CalendarIntegration />
+        </SettingsSection>
+        
+        <SettingsSection title="Notifications">
+          <ManualNotificationTrigger />
+        </SettingsSection>
       </div>
     </AppLayout>
   );
