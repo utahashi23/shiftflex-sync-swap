@@ -82,7 +82,8 @@ export function useLeaveSwapMatches() {
         const transformedMatches = matchesData.map(match => {
           const otherProfile = otherProfilesMap.get(match.other_user_id) || { name: 'Unknown User', employee_id: 'N/A' };
           
-          return {
+          // Create complete match object with all required properties
+          const transformedMatch: LeaveSwapMatch = {
             match_id: match.match_id,
             match_status: match.match_status,
             created_at: match.created_at,
@@ -100,9 +101,12 @@ export function useLeaveSwapMatches() {
             is_requester: match.is_requester,
             my_user_name: profileData ? `${profileData.first_name} ${profileData.last_name}` : 'Current User',
             my_employee_id: profileData?.employee_id || 'N/A',
-            split_designation: match.split_designation,
-            original_block_id: match.original_block_id
-          } as LeaveSwapMatch;
+            // Use optional chaining for these properties that may not exist in all response items
+            split_designation: match.split_designation || null,
+            original_block_id: match.original_block_id || null
+          };
+          
+          return transformedMatch;
         });
 
         console.log("Transformed matches:", transformedMatches);
