@@ -39,72 +39,97 @@ export function useSwapPreferences() {
     try {
       console.log('Fetching swap preferences for user:', user.id);
       
-      // Fetch all regions - explicitly order by name and only select active regions
+      // Try fetching regions with no filter first to see if we get any data
       const { data: regionsData, error: regionsError } = await supabase
+        .from('regions')
+        .select('*');
+        
+      if (regionsError) throw regionsError;
+      
+      console.log('All regions fetched (no filter):', regionsData);
+      
+      // Now try with the active filter
+      const { data: activeRegionsData, error: activeRegionsError } = await supabase
         .from('regions')
         .select('*')
         .eq('status', 'active')
         .order('name');
         
-      if (regionsError) throw regionsError;
+      if (activeRegionsError) throw activeRegionsError;
       
-      console.log('Regions fetched:', regionsData);
+      console.log('Active regions fetched:', activeRegionsData);
       
-      // Fetch all areas - explicitly order by name and only select active areas
+      // Fetch all areas with extended debug info
       const { data: areasData, error: areasError } = await supabase
+        .from('areas')
+        .select('*, regions(name)');
+        
+      if (areasError) throw areasError;
+      
+      console.log('All areas fetched (no filter):', areasData);
+      
+      // Now fetch active areas
+      const { data: activeAreasData, error: activeAreasError } = await supabase
         .from('areas')
         .select('*, regions(name)')
         .eq('status', 'active')
         .order('name');
         
-      if (areasError) throw areasError;
+      if (activeAreasError) throw activeAreasError;
       
-      console.log('Areas fetched:', areasData);
+      console.log('Active areas fetched:', activeAreasData);
       
-      // Get user preferences
+      // Use the RPC function to get user preferences if direct query fails
       const { data: preferencesData, error: preferencesError } = await supabase
-        .from('user_swap_preferences')
-        .select('*')
-        .eq('user_id', user.id);
+        .rpc('get_user_swap_preferences', { p_user_id: user.id });
         
       if (preferencesError) {
-        console.error('Error fetching preferences:', preferencesError);
-        throw preferencesError;
+        console.error('Error fetching preferences via RPC:', preferencesError);
+        
+        // Fall back to direct query
+        const { data: directPrefData, error: directPrefError } = await supabase
+          .from('user_swap_preferences')
+          .select('*')
+          .eq('user_id', user.id);
+          
+        if (directPrefError) {
+          console.error('Error with direct preferences query:', directPrefError);
+          throw directPrefError;
+        }
+        
+        console.log('User preferences fetched (direct):', directPrefData);
+        // Use the direct query data if RPC failed
+        const userPrefs = directPrefData || [];
+        
+        // Process preferences
+        const userRegions: string[] = [];
+        const userAreas: string[] = [];
+        
+        if (userPrefs && Array.isArray(userPrefs)) {
+          userPrefs.forEach((pref) => {
+            if (pref.region_id) userRegions.push(pref.region_id);
+            if (pref.area_id) userAreas.push(pref.area_id);
+          });
+        }
+        
+        processPreferences(activeRegionsData || regionsData, activeAreasData || areasData, userRegions, userAreas);
+      } else {
+        console.log('User preferences fetched (RPC):', preferencesData);
+        
+        // Extract user's selected regions and areas
+        const userRegions: string[] = [];
+        const userAreas: string[] = [];
+        
+        if (preferencesData && Array.isArray(preferencesData)) {
+          preferencesData.forEach((pref) => {
+            if (pref.region_id) userRegions.push(pref.region_id);
+            if (pref.area_id) userAreas.push(pref.area_id);
+          });
+        }
+        
+        processPreferences(activeRegionsData || regionsData, activeAreasData || areasData, userRegions, userAreas);
       }
       
-      console.log('User preferences fetched:', preferencesData);
-      
-      // Extract user's selected regions and areas
-      const userRegions: string[] = [];
-      const userAreas: string[] = [];
-      
-      if (preferencesData && Array.isArray(preferencesData)) {
-        preferencesData.forEach((pref) => {
-          if (pref.region_id) userRegions.push(pref.region_id);
-          if (pref.area_id) userAreas.push(pref.area_id);
-        });
-      }
-      
-      console.log('User regions:', userRegions);
-      console.log('User areas:', userAreas);
-      
-      setSelectedRegions(userRegions);
-      setSelectedAreas(userAreas);
-      
-      // Transform data for the component
-      const regionsWithAreas: RegionWithAreas[] = regionsData?.map((region: any) => ({
-        id: region.id,
-        name: region.name,
-        areas: areasData
-          ?.filter((area: any) => area.region_id === region.id)
-          .map((area: any) => ({
-            id: area.id,
-            name: area.name,
-            selected: userAreas.includes(area.id),
-          })) || []
-      })) || [];
-      
-      setRegions(regionsWithAreas);
       return { success: true };
     } catch (error: any) {
       console.error('Error fetching swap preferences data:', error);
@@ -118,6 +143,31 @@ export function useSwapPreferences() {
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  // Helper function to process preferences
+  const processPreferences = (regionsData: any[], areasData: any[], userRegions: string[], userAreas: string[]) => {
+    console.log('Processing preferences with:');
+    console.log('User regions:', userRegions);
+    console.log('User areas:', userAreas);
+    
+    setSelectedRegions(userRegions);
+    setSelectedAreas(userAreas);
+    
+    // Transform data for the component
+    const regionsWithAreas: RegionWithAreas[] = regionsData?.map((region: any) => ({
+      id: region.id,
+      name: region.name,
+      areas: areasData
+        ?.filter((area: any) => area.region_id === region.id)
+        .map((area: any) => ({
+          id: area.id,
+          name: area.name,
+          selected: userAreas.includes(area.id),
+        })) || []
+    })) || [];
+    
+    setRegions(regionsWithAreas);
   };
 
   // Save preferences to the database

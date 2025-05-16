@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from '@/hooks/useAuth';
@@ -19,7 +19,7 @@ import { useSwapPreferences } from '@/hooks/useSwapPreferences';
 export const SwapPreferences = () => {
   const { user } = useAuth();
   const [openAccordion, setOpenAccordion] = useState<string | undefined>(undefined);
-  const [showDebug, setShowDebug] = useState(false);
+  const [showDebug, setShowDebug] = useState(true); // Set to true by default to help diagnose issues
   
   const {
     regions,
@@ -81,9 +81,10 @@ export const SwapPreferences = () => {
 
         {showDebug && (
           <Alert className="mb-4">
-            <div className="text-xs font-mono">
+            <div className="text-xs font-mono overflow-auto max-h-40">
               <div>Regions count: {regions.length}</div>
-              <div>Regions data: {JSON.stringify(regions.map(r => ({ id: r.id, name: r.name })), null, 2)}</div>
+              <div>Regions data: {JSON.stringify(regions.map(r => ({ id: r.id, name: r.name, areasCount: r.areas.length })), null, 2)}</div>
+              <div className="mt-2">First region areas (if any): {regions[0] && JSON.stringify(regions[0].areas.slice(0, 2), null, 2)}</div>
             </div>
           </Alert>
         )}
@@ -96,7 +97,7 @@ export const SwapPreferences = () => {
           <Alert className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              No regions or areas are available. Please ask your administrator to add regions and areas in the system settings.
+              No regions or areas are available. This may be due to RLS (Row Level Security) policies. Please ask your administrator to add regions and areas in the system settings or verify RLS policies allow access.
             </AlertDescription>
           </Alert>
         ) : (
