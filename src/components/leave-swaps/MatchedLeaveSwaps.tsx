@@ -65,9 +65,16 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
     refetchMatches
   } = useLeaveSwapMatches();
 
-  // Debug logging
-  console.log('MatchedLeaveSwaps - Active matches:', activeMatches?.length);
-  console.log('MatchedLeaveSwaps - Past matches:', pastMatches?.length);
+  // Debug logging with more detail
+  console.log('MatchedLeaveSwaps - Active matches count:', activeMatches?.length);
+  console.log('MatchedLeaveSwaps - Past matches count:', pastMatches?.length);
+  console.log('MatchedLeaveSwaps - Raw matches data length:', leaveSwapMatches?.length);
+  
+  if (activeMatches?.length > 0) {
+    console.log('First active match:', activeMatches[0].match_id);
+    // Log all active match IDs to check for duplicates
+    console.log('All active match IDs:', activeMatches.map(m => m.match_id));
+  }
   
   const handleRefresh = () => {
     refetchMatches();

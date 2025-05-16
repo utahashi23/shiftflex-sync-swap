@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { LeaveSwapMatch } from '@/types/leave-blocks';
@@ -55,11 +54,24 @@ export function useLeaveSwapMatches() {
       
       if (error) throw error;
       
+      // Log original data for debugging
+      console.log('Original matches from API:', data ? data.length : 0);
+      
       // Deduplicate matches by match_id
       if (data && data.length > 0) {
-        const uniqueMatches = Array.from(
-          new Map(data.map((match: LeaveSwapMatch) => [match.match_id, match])).values()
-        );
+        const seenIds = new Set();
+        const uniqueMatches = data.filter((match: LeaveSwapMatch) => {
+          // If we've already seen this ID, filter it out
+          if (seenIds.has(match.match_id)) {
+            console.log('Filtering duplicate match:', match.match_id);
+            return false;
+          }
+          // Otherwise add it to our set and keep it
+          seenIds.add(match.match_id);
+          return true;
+        });
+        
+        console.log('After deduplication:', uniqueMatches.length);
         return uniqueMatches as LeaveSwapMatch[];
       }
       
@@ -194,10 +206,22 @@ export function useLeaveSwapMatches() {
   const processMatches = () => {
     if (!leaveSwapMatches) return { activeMatches: [], pastMatches: [] };
     
-    // First ensure we have unique matches by match_id
-    const uniqueMatches = Array.from(
-      new Map(leaveSwapMatches.map(match => [match.match_id, match])).values()
-    );
+    console.log('Processing matches, total count:', leaveSwapMatches.length);
+    
+    // Create a Map to track matches by ID, ensuring uniqueness
+    const uniqueMatchesMap = new Map();
+    
+    // Process each match, only keeping the first occurrence of each ID
+    leaveSwapMatches.forEach(match => {
+      if (!uniqueMatchesMap.has(match.match_id)) {
+        uniqueMatchesMap.set(match.match_id, match);
+      } else {
+        console.log('Skipping duplicate match ID:', match.match_id);
+      }
+    });
+    
+    const uniqueMatches = Array.from(uniqueMatchesMap.values());
+    console.log('Unique matches after Map deduplication:', uniqueMatches.length);
     
     // Then separate active and past matches
     const activeMatches = uniqueMatches.filter(
@@ -207,6 +231,8 @@ export function useLeaveSwapMatches() {
     const pastMatches = uniqueMatches.filter(
       match => match.match_status === 'completed' || match.match_status === 'cancelled'
     );
+    
+    console.log('Active matches:', activeMatches.length, 'Past matches:', pastMatches.length);
     
     return { activeMatches, pastMatches };
   };
