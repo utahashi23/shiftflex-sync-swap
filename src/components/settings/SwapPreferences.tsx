@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,6 +38,7 @@ export const SwapPreferences = () => {
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [openAccordion, setOpenAccordion] = useState<string | undefined>(undefined);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -256,6 +256,11 @@ export const SwapPreferences = () => {
     return region.areas.every(area => isAreaSelected(area.id));
   };
 
+  // Handle accordion state changes
+  const handleAccordionChange = (value: string) => {
+    setOpenAccordion(value === openAccordion ? undefined : value);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -271,7 +276,13 @@ export const SwapPreferences = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            <Accordion type="single" collapsible className="space-y-2">
+            <Accordion 
+              type="single" 
+              collapsible 
+              className="space-y-2" 
+              value={openAccordion}
+              onValueChange={handleAccordionChange}
+            >
               {regions.map((region) => (
                 <AccordionItem key={region.id} value={region.id} className="border rounded-md overflow-hidden">
                   <div className="flex items-center p-3">
