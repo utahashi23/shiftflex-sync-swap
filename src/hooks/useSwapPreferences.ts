@@ -39,47 +39,51 @@ export function useSwapPreferences() {
     try {
       console.log('Fetching swap preferences for user:', user.id);
       
-      // Try fetching regions with no filter first to see if we get any data
-      const { data: regionsData, error: regionsError } = await supabase
-        .from('regions')
-        .select('*');
+      // Use the bypass function to get all regions and areas directly
+      const { data: regionsAndAreas, error: diagError } = await supabase
+        .rpc('get_all_regions_and_areas');
         
-      if (regionsError) throw regionsError;
+      if (diagError) {
+        console.error('Error fetching regions and areas via RPC:', diagError);
+        throw diagError;
+      }
       
-      console.log('All regions fetched (no filter):', regionsData);
+      console.log('Regions and areas data from RPC:', regionsAndAreas);
       
-      // Now try with the active filter
-      const { data: activeRegionsData, error: activeRegionsError } = await supabase
-        .from('regions')
-        .select('*')
-        .eq('status', 'active')
-        .order('name');
+      // Transform the data from the bypass function
+      const regionsMap = new Map<string, RegionWithAreas>();
+      
+      if (regionsAndAreas && Array.isArray(regionsAndAreas)) {
+        // First pass: Create all regions
+        regionsAndAreas.forEach(item => {
+          if (!regionsMap.has(item.region_id)) {
+            regionsMap.set(item.region_id, {
+              id: item.region_id,
+              name: item.region_name,
+              areas: []
+            });
+          }
+        });
         
-      if (activeRegionsError) throw activeRegionsError;
+        // Second pass: Add all areas to their respective regions
+        regionsAndAreas.forEach(item => {
+          if (item.area_id) {
+            const region = regionsMap.get(item.region_id);
+            if (region) {
+              region.areas.push({
+                id: item.area_id,
+                name: item.area_name,
+                selected: false
+              });
+            }
+          }
+        });
+      }
       
-      console.log('Active regions fetched:', activeRegionsData);
+      const regionsArray = Array.from(regionsMap.values());
+      console.log('Transformed regions data:', regionsArray);
       
-      // Fetch all areas with extended debug info
-      const { data: areasData, error: areasError } = await supabase
-        .from('areas')
-        .select('*, regions(name)');
-        
-      if (areasError) throw areasError;
-      
-      console.log('All areas fetched (no filter):', areasData);
-      
-      // Now fetch active areas
-      const { data: activeAreasData, error: activeAreasError } = await supabase
-        .from('areas')
-        .select('*, regions(name)')
-        .eq('status', 'active')
-        .order('name');
-        
-      if (activeAreasError) throw activeAreasError;
-      
-      console.log('Active areas fetched:', activeAreasData);
-      
-      // Use the RPC function to get user preferences if direct query fails
+      // Fetch user preferences
       const { data: preferencesData, error: preferencesError } = await supabase
         .rpc('get_user_swap_preferences', { p_user_id: user.id });
         
@@ -98,36 +102,10 @@ export function useSwapPreferences() {
         }
         
         console.log('User preferences fetched (direct):', directPrefData);
-        // Use the direct query data if RPC failed
-        const userPrefs = directPrefData || [];
-        
-        // Process preferences
-        const userRegions: string[] = [];
-        const userAreas: string[] = [];
-        
-        if (userPrefs && Array.isArray(userPrefs)) {
-          userPrefs.forEach((pref) => {
-            if (pref.region_id) userRegions.push(pref.region_id);
-            if (pref.area_id) userAreas.push(pref.area_id);
-          });
-        }
-        
-        processPreferences(activeRegionsData || regionsData, activeAreasData || areasData, userRegions, userAreas);
+        processPreferences(regionsArray, directPrefData || []);
       } else {
         console.log('User preferences fetched (RPC):', preferencesData);
-        
-        // Extract user's selected regions and areas
-        const userRegions: string[] = [];
-        const userAreas: string[] = [];
-        
-        if (preferencesData && Array.isArray(preferencesData)) {
-          preferencesData.forEach((pref) => {
-            if (pref.region_id) userRegions.push(pref.region_id);
-            if (pref.area_id) userAreas.push(pref.area_id);
-          });
-        }
-        
-        processPreferences(activeRegionsData || regionsData, activeAreasData || areasData, userRegions, userAreas);
+        processPreferences(regionsArray, preferencesData || []);
       }
       
       return { success: true };
@@ -146,28 +124,34 @@ export function useSwapPreferences() {
   };
   
   // Helper function to process preferences
-  const processPreferences = (regionsData: any[], areasData: any[], userRegions: string[], userAreas: string[]) => {
+  const processPreferences = (regionsData: RegionWithAreas[], userPrefs: any[]) => {
     console.log('Processing preferences with:');
-    console.log('User regions:', userRegions);
-    console.log('User areas:', userAreas);
+    console.log('Regions data:', regionsData);
+    console.log('User preferences:', userPrefs);
+    
+    const userRegions: string[] = [];
+    const userAreas: string[] = [];
+    
+    if (userPrefs && Array.isArray(userPrefs)) {
+      userPrefs.forEach((pref) => {
+        if (pref.region_id) userRegions.push(pref.region_id);
+        if (pref.area_id) userAreas.push(pref.area_id);
+      });
+    }
     
     setSelectedRegions(userRegions);
     setSelectedAreas(userAreas);
     
-    // Transform data for the component
-    const regionsWithAreas: RegionWithAreas[] = regionsData?.map((region: any) => ({
-      id: region.id,
-      name: region.name,
-      areas: areasData
-        ?.filter((area: any) => area.region_id === region.id)
-        .map((area: any) => ({
-          id: area.id,
-          name: area.name,
-          selected: userAreas.includes(area.id),
-        })) || []
-    })) || [];
+    // Mark areas as selected based on user preferences
+    const updatedRegions = regionsData.map(region => ({
+      ...region,
+      areas: region.areas.map(area => ({
+        ...area,
+        selected: userAreas.includes(area.id)
+      }))
+    }));
     
-    setRegions(regionsWithAreas);
+    setRegions(updatedRegions);
   };
 
   // Save preferences to the database
@@ -254,6 +238,7 @@ export function useSwapPreferences() {
     }
   };
 
+  // Utility functions for region/area selection
   const handleRegionToggle = (regionId: string, checked: boolean) => {
     // Update the regions state
     const updatedRegions = regions.map(region => {
