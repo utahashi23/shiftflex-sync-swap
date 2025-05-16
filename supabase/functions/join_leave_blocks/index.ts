@@ -27,6 +27,8 @@ serve(async (req) => {
       throw new Error('Missing required parameters');
     }
 
+    console.log(`Starting join operation for block_a_id: ${block_a_id}, block_b_id: ${block_b_id}, user_id: ${user_id}`);
+
     // Get the details of both blocks
     const { data: blockA, error: blockAError } = await supabaseAdmin
       .from('user_leave_blocks')
@@ -36,6 +38,7 @@ serve(async (req) => {
       .single();
     
     if (blockAError || !blockA) {
+      console.error('Error fetching block A:', blockAError?.message);
       throw new Error('Block A not found or access denied');
     }
     
@@ -47,6 +50,7 @@ serve(async (req) => {
       .single();
     
     if (blockBError || !blockB) {
+      console.error('Error fetching block B:', blockBError?.message);
       throw new Error('Block B not found or access denied');
     }
     
@@ -57,6 +61,8 @@ serve(async (req) => {
       throw new Error('Blocks must be splits from the same original block');
     }
     
+    console.log(`Verified blocks A and B have the same original block ID: ${blockA.leave_block.original_block_id}`);
+    
     // Get the original block details
     const { data: originalBlock, error: originalBlockError } = await supabaseAdmin
       .from('leave_blocks')
@@ -65,8 +71,11 @@ serve(async (req) => {
       .single();
     
     if (originalBlockError || !originalBlock) {
+      console.error('Error fetching original block:', originalBlockError?.message);
       throw new Error('Original block not found');
     }
+    
+    console.log(`Found original block: ${originalBlock.id}, block_number: ${originalBlock.block_number}`);
     
     // Create a user association with the original block
     const { data: userOriginalBlock, error: userOriginalBlockError } = await supabaseAdmin
@@ -79,8 +88,11 @@ serve(async (req) => {
       .single();
     
     if (userOriginalBlockError) {
+      console.error('Error creating original block association:', userOriginalBlockError.message);
       throw new Error(`Error creating association with original block: ${userOriginalBlockError.message}`);
     }
+    
+    console.log(`Created user association with original block: ${userOriginalBlock.id}`);
     
     // Remove the user's associations with the split blocks
     const { error: removeAError } = await supabaseAdmin
@@ -89,6 +101,7 @@ serve(async (req) => {
       .eq('id', block_a_id);
     
     if (removeAError) {
+      console.error('Error removing block A association:', removeAError.message);
       throw new Error(`Error removing block A association: ${removeAError.message}`);
     }
     
@@ -98,8 +111,11 @@ serve(async (req) => {
       .eq('id', block_b_id);
     
     if (removeBError) {
+      console.error('Error removing block B association:', removeBError.message);
       throw new Error(`Error removing block B association: ${removeBError.message}`);
     }
+    
+    console.log('Successfully removed user associations with split blocks');
     
     // Delete the split blocks themselves
     // Note: We only delete them if they're not being used by other users
@@ -112,6 +128,8 @@ serve(async (req) => {
       
       if (deleteBlockAError) {
         console.log(`Warning: Could not delete block A: ${deleteBlockAError.message}`);
+      } else {
+        console.log(`Successfully deleted block A: ${blockA.leave_block.id}`);
       }
     }
     
@@ -124,6 +142,8 @@ serve(async (req) => {
       
       if (deleteBlockBError) {
         console.log(`Warning: Could not delete block B: ${deleteBlockBError.message}`);
+      } else {
+        console.log(`Successfully deleted block B: ${blockB.leave_block.id}`);
       }
     }
     

@@ -8,7 +8,7 @@ const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
 serve(async (req) => {
-  // Handle CORS
+  // This is critical: handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -27,6 +27,8 @@ serve(async (req) => {
       throw new Error('Missing required parameters: user_leave_block_id and user_id are required');
     }
 
+    console.log(`Starting split operation for user_leave_block_id: ${user_leave_block_id}, user_id: ${user_id}`);
+
     // Get the user leave block details
     const { data: userLeaveBlock, error: userLeaveBlockError } = await supabaseAdmin
       .from('user_leave_blocks')
@@ -36,6 +38,7 @@ serve(async (req) => {
       .single();
     
     if (userLeaveBlockError || !userLeaveBlock) {
+      console.error('Error fetching leave block:', userLeaveBlockError?.message);
       throw new Error('Leave block not found or access denied');
     }
     
@@ -43,6 +46,8 @@ serve(async (req) => {
     if (!leaveBlock) {
       throw new Error('Associated leave block not found');
     }
+    
+    console.log(`Found leave block: ${leaveBlock.id}, block_number: ${leaveBlock.block_number}`);
     
     const startDate = new Date(leaveBlock.start_date);
     const endDate = new Date(leaveBlock.end_date);
@@ -52,6 +57,9 @@ serve(async (req) => {
     const halfDays = Math.floor(daysDifference / 2);
     const midPoint = new Date(startDate);
     midPoint.setDate(startDate.getDate() + halfDays);
+    
+    console.log(`Splitting block with dates ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    console.log(`Middle point: ${midPoint.toISOString()}`);
     
     // Create the first half block (A)
     const { data: blockA, error: blockAError } = await supabaseAdmin
@@ -68,8 +76,11 @@ serve(async (req) => {
       .single();
     
     if (blockAError) {
+      console.error('Error creating block A:', blockAError.message);
       throw new Error(`Error creating split block A: ${blockAError.message}`);
     }
+    
+    console.log(`Created block A: ${blockA.id}`);
     
     // Create the second half block (B)
     const nextDay = new Date(midPoint);
@@ -89,8 +100,11 @@ serve(async (req) => {
       .single();
     
     if (blockBError) {
+      console.error('Error creating block B:', blockBError.message);
       throw new Error(`Error creating split block B: ${blockBError.message}`);
     }
+    
+    console.log(`Created block B: ${blockB.id}`);
     
     // Create user associations for the new blocks
     const { error: userBlockAError } = await supabaseAdmin
@@ -101,6 +115,7 @@ serve(async (req) => {
       });
     
     if (userBlockAError) {
+      console.error('Error associating user with block A:', userBlockAError.message);
       throw new Error(`Error associating user with block A: ${userBlockAError.message}`);
     }
     
@@ -112,8 +127,11 @@ serve(async (req) => {
       });
     
     if (userBlockBError) {
+      console.error('Error associating user with block B:', userBlockBError.message);
       throw new Error(`Error associating user with block B: ${userBlockBError.message}`);
     }
+    
+    console.log('Successfully created user associations for both blocks');
     
     // Remove the original user leave block
     const { error: removeError } = await supabaseAdmin
@@ -122,8 +140,11 @@ serve(async (req) => {
       .eq('id', user_leave_block_id);
     
     if (removeError) {
+      console.error('Error removing original user leave block:', removeError.message);
       throw new Error(`Error removing original user leave block: ${removeError.message}`);
     }
+    
+    console.log('Successfully removed original user leave block');
     
     return new Response(
       JSON.stringify({ 
