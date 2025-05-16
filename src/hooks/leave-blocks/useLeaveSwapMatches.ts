@@ -55,6 +55,14 @@ export function useLeaveSwapMatches() {
       
       if (error) throw error;
       
+      // Deduplicate matches by match_id
+      if (data && data.length > 0) {
+        const uniqueMatches = Array.from(
+          new Map(data.map((match: LeaveSwapMatch) => [match.match_id, match])).values()
+        );
+        return uniqueMatches as LeaveSwapMatch[];
+      }
+      
       return data as LeaveSwapMatch[];
     },
     enabled: !!user?.id && !!userSwapRequests
@@ -182,14 +190,28 @@ export function useLeaveSwapMatches() {
     }
   });
 
-  // Filter out active and past matches
-  const activeMatches = leaveSwapMatches?.filter(
-    match => match.match_status === 'pending' || match.match_status === 'accepted'
-  ) || [];
+  // Process matches to filter out duplicates and separate active/past matches
+  const processMatches = () => {
+    if (!leaveSwapMatches) return { activeMatches: [], pastMatches: [] };
+    
+    // First ensure we have unique matches by match_id
+    const uniqueMatches = Array.from(
+      new Map(leaveSwapMatches.map(match => [match.match_id, match])).values()
+    );
+    
+    // Then separate active and past matches
+    const activeMatches = uniqueMatches.filter(
+      match => match.match_status === 'pending' || match.match_status === 'accepted'
+    );
+    
+    const pastMatches = uniqueMatches.filter(
+      match => match.match_status === 'completed' || match.match_status === 'cancelled'
+    );
+    
+    return { activeMatches, pastMatches };
+  };
   
-  const pastMatches = leaveSwapMatches?.filter(
-    match => match.match_status === 'completed' || match.match_status === 'cancelled'
-  ) || [];
+  const { activeMatches, pastMatches } = processMatches();
 
   return {
     leaveSwapMatches,

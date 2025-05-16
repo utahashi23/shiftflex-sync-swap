@@ -65,19 +65,9 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
     refetchMatches
   } = useLeaveSwapMatches();
 
-  // Filter matches where the current user is the requester
-  const filterUserMatches = (matches: LeaveSwapMatch[]): LeaveSwapMatch[] => {
-    // If we don't have a logged in user, return all matches
-    if (!user) return matches;
-    
-    // Filter to just show matches where the current user is the requester
-    // Looking at the LeaveSwapMatch type, we should use the is_requester property
-    return matches.filter(match => match.is_requester);
-  };
-  
-  // Apply user filtering first, then deduplicate
-  const filteredActiveMatches = filterUserMatches(activeMatches);
-  const filteredPastMatches = filterUserMatches(pastMatches);
+  // Debug logging
+  console.log('MatchedLeaveSwaps - Active matches:', activeMatches?.length);
+  console.log('MatchedLeaveSwaps - Past matches:', pastMatches?.length);
   
   const handleRefresh = () => {
     refetchMatches();
@@ -132,7 +122,8 @@ const MatchedLeaveSwaps = ({ setRefreshTrigger }: MatchedLeaveSwapsProps) => {
   };
   
   const getMatchedSwapDetails = (matchId: string) => {
-    return [...filteredActiveMatches, ...filteredPastMatches].find(match => match.match_id === matchId);
+    // Search for the match in both active and past matches
+    return [...activeMatches, ...pastMatches].find(match => match.match_id === matchId);
   };
   
   const copyToClipboard = (match) => {
@@ -231,7 +222,7 @@ Status: ${match.match_status.toUpperCase()}
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />
                   </div>
-                ) : filteredActiveMatches.length === 0 ? (
+                ) : activeMatches.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
                     You don't have any active matches. Use the "Find Matches" button to search for potential swaps.
                   </p>
