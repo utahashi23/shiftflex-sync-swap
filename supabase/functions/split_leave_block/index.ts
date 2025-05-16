@@ -61,9 +61,31 @@ serve(async (req) => {
     console.log(`Splitting block with dates ${startDate.toISOString()} to ${endDate.toISOString()}`);
     console.log(`Middle point: ${midPoint.toISOString()}`);
     
-    // Use the same block number but add a suffix, check if a similar block already exists
+    // Use the same block number but add a suffix
     const originalBlockNumber = leaveBlock.block_number;
     console.log(`Original block number: ${originalBlockNumber}`);
+    
+    // Before inserting, check if blocks with these designations already exist
+    const { data: existingBlocks, error: existingBlocksError } = await supabaseAdmin
+      .from('leave_blocks')
+      .select('id, split_designation')
+      .eq('block_number', originalBlockNumber)
+      .in('split_designation', ['A', 'B']);
+      
+    if (existingBlocksError) {
+      console.error('Error checking for existing split blocks:', existingBlocksError.message);
+    } else {
+      console.log(`Found ${existingBlocks.length} existing split blocks for block number ${originalBlockNumber}`);
+      if (existingBlocks.length > 0) {
+        const splitDesignations = existingBlocks.map(block => block.split_designation);
+        console.log(`Existing split designations: ${splitDesignations.join(', ')}`);
+        
+        // If both A and B already exist, we need a new approach
+        if (splitDesignations.includes('A') && splitDesignations.includes('B')) {
+          throw new Error(`Block ${originalBlockNumber} has already been split into A and B designations`);
+        }
+      }
+    }
     
     // Create the first half block (A)
     const { data: blockA, error: blockAError } = await supabaseAdmin
@@ -84,7 +106,7 @@ serve(async (req) => {
       throw new Error(`Error creating split block A: ${blockAError.message}`);
     }
     
-    console.log(`Created block A: ${blockA.id}, with block_number: ${blockA.block_number}`);
+    console.log(`Created block A: ${blockA.id}, with block_number: ${blockA.block_number}${blockA.split_designation}`);
     
     // Create the second half block (B)
     const nextDay = new Date(midPoint);
@@ -108,7 +130,7 @@ serve(async (req) => {
       throw new Error(`Error creating split block B: ${blockBError.message}`);
     }
     
-    console.log(`Created block B: ${blockB.id}, with block_number: ${blockB.block_number}`);
+    console.log(`Created block B: ${blockB.id}, with block_number: ${blockB.block_number}${blockB.split_designation}`);
     
     // Create user associations for the new blocks
     const { error: userBlockAError } = await supabaseAdmin
