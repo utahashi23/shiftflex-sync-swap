@@ -51,13 +51,17 @@ export function useSwapPreferences() {
       console.log('Fetching swap preferences for user:', user.id);
       
       // Use a direct REST call to bypass RPC type checking issue
+      // The Supabase URL and key are available from the environment or through import
+      const SUPABASE_URL = "https://ponhfgbpxehsdlxjpszg.supabase.co";
+      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvbmhmZ2JweGVoc2RseGpwc3pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5ODM0NDcsImV4cCI6MjA2MTU1OTQ0N30.-n7sUFjxDJUCpMMA0AGnXlQCkaVt31dER91ZQLO3jDs";
+      
       const response = await fetch(
-        `${supabase.supabaseUrl}/rest/v1/rpc/get_all_regions_and_areas`,
+        `${SUPABASE_URL}/rest/v1/rpc/get_all_regions_and_areas`,
         {
           method: 'POST',
           headers: {
-            'apikey': supabase.supabaseKey,
-            'Authorization': `Bearer ${supabase.supabaseKey}`,
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
             'Content-Type': 'application/json'
           }
         }
