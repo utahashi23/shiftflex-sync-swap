@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { CheckedState } from '@radix-ui/react-checkbox';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { all } from '@/lib/utils';
 
 interface RegionWithAreas {
   id: string;
@@ -18,6 +19,13 @@ interface RegionWithAreas {
     selected: boolean;
   }[];
   expanded: boolean;
+}
+
+interface UserSwapPreference {
+  id?: string;
+  user_id: string;
+  region_id: string | null;
+  area_id: string | null;
 }
 
 export const SwapPreferences = () => {
@@ -53,43 +61,62 @@ export const SwapPreferences = () => {
           
         if (areasError) throw areasError;
         
-        // Fetch user preferences
+        // Fetch user preferences using RPC function to bypass type issues
         const { data: preferencesData, error: preferencesError } = await supabase
-          .from('user_swap_preferences')
-          .select('*')
-          .eq('user_id', user.id);
+          .rpc('get_user_swap_preferences', { p_user_id: user.id });
           
         if (preferencesError) {
-          // If the error is that the table doesn't exist, we'll handle it below
+          // If the error is that the function doesn't exist, we'll handle it below
           if (!preferencesError.message.includes('does not exist')) {
             throw preferencesError;
           }
-        }
-        
-        // Extract user's selected regions and areas
-        const userRegions: string[] = [];
-        const userAreas: string[] = [];
-        
-        if (preferencesData) {
-          preferencesData.forEach((pref) => {
+          
+          // Try direct query as fallback
+          const { data: directData, error: directError } = await supabase
+            .from('user_swap_preferences')
+            .select('*')
+            .eq('user_id', user.id);
+            
+          if (directError) throw directError;
+          
+          // Use the direct query data
+          if (directData) {
+            // Extract user's selected regions and areas
+            const userRegions: string[] = [];
+            const userAreas: string[] = [];
+            
+            directData.forEach((pref: any) => {
+              if (pref.region_id) userRegions.push(pref.region_id);
+              if (pref.area_id) userAreas.push(pref.area_id);
+            });
+            
+            setSelectedRegions(userRegions);
+            setSelectedAreas(userAreas);
+          }
+        } else if (preferencesData) {
+          // Extract user's selected regions and areas
+          const userRegions: string[] = [];
+          const userAreas: string[] = [];
+          
+          preferencesData.forEach((pref: any) => {
             if (pref.region_id) userRegions.push(pref.region_id);
             if (pref.area_id) userAreas.push(pref.area_id);
           });
+          
+          setSelectedRegions(userRegions);
+          setSelectedAreas(userAreas);
         }
         
-        setSelectedRegions(userRegions);
-        setSelectedAreas(userAreas);
-        
         // Transform data for the component
-        const regionsWithAreas: RegionWithAreas[] = regionsData.map((region) => ({
+        const regionsWithAreas: RegionWithAreas[] = regionsData.map((region: any) => ({
           id: region.id,
           name: region.name,
           areas: areasData
-            .filter((area) => area.region_id === region.id)
-            .map((area) => ({
+            .filter((area: any) => area.region_id === region.id)
+            .map((area: any) => ({
               id: area.id,
               name: area.name,
-              selected: userAreas.includes(area.id),
+              selected: selectedAreas.includes(area.id),
             })),
           expanded: false
         }));
@@ -108,7 +135,7 @@ export const SwapPreferences = () => {
     };
     
     fetchData();
-  }, [user]);
+  }, [user, toast]);
   
   const handleRegionToggle = (regionId: string, checked: CheckedState) => {
     // Update the regions state
@@ -194,26 +221,32 @@ export const SwapPreferences = () => {
         
       if (deleteError) throw deleteError;
       
-      // Create preferences for selected regions
-      const regionPreferences = selectedRegions.map(regionId => ({
-        user_id: user.id,
-        region_id: regionId,
-        area_id: null
-      }));
+      // Prepare data to insert
+      const preferencesToInsert: UserSwapPreference[] = [];
       
-      // Create preferences for selected areas
-      const areaPreferences = selectedAreas.map(areaId => ({
-        user_id: user.id,
-        region_id: null,
-        area_id: areaId
-      }));
+      // Add region preferences
+      selectedRegions.forEach(regionId => {
+        preferencesToInsert.push({
+          user_id: user.id,
+          region_id: regionId,
+          area_id: null
+        });
+      });
       
-      const allPreferences = [...regionPreferences, ...areaPreferences];
+      // Add area preferences
+      selectedAreas.forEach(areaId => {
+        preferencesToInsert.push({
+          user_id: user.id,
+          region_id: null,
+          area_id: areaId
+        });
+      });
       
-      if (allPreferences.length > 0) {
+      // Insert new preferences if there are any
+      if (preferencesToInsert.length > 0) {
         const { error: insertError } = await supabase
           .from('user_swap_preferences')
-          .insert(allPreferences);
+          .insert(preferencesToInsert);
           
         if (insertError) throw insertError;
       }

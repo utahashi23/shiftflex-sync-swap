@@ -683,6 +683,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_swap_preferences: {
+        Row: {
+          area_id: string | null
+          created_at: string
+          id: string
+          region_id: string | null
+          user_id: string
+        }
+        Insert: {
+          area_id?: string | null
+          created_at?: string
+          id?: string
+          region_id?: string | null
+          user_id: string
+        }
+        Update: {
+          area_id?: string | null
+          created_at?: string
+          id?: string
+          region_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_swap_preferences_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_swap_preferences_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
