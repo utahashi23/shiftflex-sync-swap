@@ -138,6 +138,8 @@ export type Database = {
           created_at: string
           end_date: string
           id: string
+          original_block_id: string | null
+          split_designation: string | null
           start_date: string
           status: string
         }
@@ -146,6 +148,8 @@ export type Database = {
           created_at?: string
           end_date: string
           id?: string
+          original_block_id?: string | null
+          split_designation?: string | null
           start_date: string
           status?: string
         }
@@ -154,10 +158,20 @@ export type Database = {
           created_at?: string
           end_date?: string
           id?: string
+          original_block_id?: string | null
+          split_designation?: string | null
           start_date?: string
           status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leave_blocks_original_block_id_fkey"
+            columns: ["original_block_id"]
+            isOneToOne: false
+            referencedRelation: "leave_blocks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leave_swap_matches: {
         Row: {
@@ -780,6 +794,8 @@ export type Database = {
           created_at: string
           end_date: string
           id: string
+          original_block_id: string | null
+          split_designation: string | null
           start_date: string
           status: string
         }[]

@@ -82,10 +82,10 @@ const MyLeave = () => {
       block.id === selectedPairIds[0] && block.split_designation === 'A'
     );
     const blockB = userLeaveBlocks?.find(block => 
-      block.id === selectedPairIds[0] && block.split_designation === 'B'
+      block.id === selectedPairIds[1] && block.split_designation === 'B'
     );
     
-    // If the first selected block isn't A, check the second one
+    // If blocks don't have explicit A/B designations, determine by order
     let blockAId, blockBId;
     if (blockA) {
       blockAId = selectedPairIds[0];
