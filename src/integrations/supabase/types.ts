@@ -812,6 +812,18 @@ export type Database = {
           shift_id: string | null
         }[]
       }
+      get_all_regions_and_areas: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          region_id: string
+          region_name: string
+          region_status: string
+          area_id: string
+          area_name: string
+          area_status: string
+          area_region_id: string
+        }[]
+      }
       get_all_shifts: {
         Args: Record<PropertyKey, never>
         Returns: {

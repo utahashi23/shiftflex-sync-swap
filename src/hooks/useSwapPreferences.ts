@@ -50,38 +50,23 @@ export function useSwapPreferences() {
     try {
       console.log('Fetching swap preferences for user:', user.id);
       
-      // Use a direct REST call to bypass RPC type checking issue
-      // The Supabase URL and key are available from the environment or through import
-      const SUPABASE_URL = "https://ponhfgbpxehsdlxjpszg.supabase.co";
-      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvbmhmZ2JweGVoc2RseGpwc3pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5ODM0NDcsImV4cCI6MjA2MTU1OTQ0N30.-n7sUFjxDJUCpMMA0AGnXlQCkaVt31dER91ZQLO3jDs";
+      // Use supabase rpc now that our function is properly defined
+      const { data: regionsAndAreas, error: regionsError } = await supabase
+        .rpc('get_all_regions_and_areas');
       
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/rpc/get_all_regions_and_areas`,
-        {
-          method: 'POST',
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error fetching regions and areas via REST:', errorText);
-        throw new Error(`Failed to fetch regions and areas: ${errorText}`);
+      if (regionsError) {
+        console.error('Error fetching regions and areas:', regionsError);
+        throw regionsError;
       }
       
-      const regionsAndAreas: RegionAreaData[] = await response.json();
-      console.log('Regions and areas data from REST call:', regionsAndAreas);
+      console.log('Regions and areas data:', regionsAndAreas);
       
-      // Transform the data from the bypass function
+      // Transform the data
       const regionsMap = new Map<string, RegionWithAreas>();
       
       if (regionsAndAreas && Array.isArray(regionsAndAreas)) {
         // First pass: Create all regions
-        regionsAndAreas.forEach(item => {
+        regionsAndAreas.forEach((item: RegionAreaData) => {
           if (item.region_id && !regionsMap.has(item.region_id)) {
             regionsMap.set(item.region_id, {
               id: item.region_id,
@@ -92,7 +77,7 @@ export function useSwapPreferences() {
         });
         
         // Second pass: Add all areas to their respective regions
-        regionsAndAreas.forEach(item => {
+        regionsAndAreas.forEach((item: RegionAreaData) => {
           if (item.area_id && item.region_id) {
             const region = regionsMap.get(item.region_id);
             if (region) {
