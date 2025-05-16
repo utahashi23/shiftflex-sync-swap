@@ -48,7 +48,8 @@ export function useLeaveSwapMatches() {
         
       if (profileError && profileError.code !== 'PGRST116') throw profileError;
       
-      // Fetch all matches for the user (both as requester and acceptor)
+      // Fetch all matches for the user (only as the current user)
+      // The RPC function already filters from the user's perspective
       const { data: matchesData, error: matchesError } = await supabase.rpc('get_user_leave_swap_matches', {
         p_user_id: user.id
       });
@@ -59,7 +60,8 @@ export function useLeaveSwapMatches() {
         console.log("Raw matches data:", matchesData);
         
         // Fetch other users' profiles for their employee IDs
-        const otherUserIds = matchesData.map(match => match.other_user_id);
+        // Make sure we have a unique list of other user IDs
+        const otherUserIds = [...new Set(matchesData.map(match => match.other_user_id))];
         const { data: otherProfilesData, error: otherProfilesError } = await supabase
           .from('profiles')
           .select('id, first_name, last_name, employee_id')
@@ -111,15 +113,21 @@ export function useLeaveSwapMatches() {
 
         console.log("Transformed matches:", transformedMatches);
 
-        // Deduplicate matches based on match_id
+        // Use Map to deduplicate matches based on match_id
+        // This ensures we don't have the same match showing up from multiple perspectives
         const activeMatchesMap = new Map<string, LeaveSwapMatch>();
         const pastMatchesMap = new Map<string, LeaveSwapMatch>();
         
         transformedMatches.forEach(match => {
           if (['pending', 'accepted'].includes(match.match_status)) {
-            activeMatchesMap.set(match.match_id, match);
+            // Only add if it doesn't exist yet or the current one is from the user's perspective
+            if (!activeMatchesMap.has(match.match_id)) {
+              activeMatchesMap.set(match.match_id, match);
+            }
           } else if (['completed', 'cancelled'].includes(match.match_status)) {
-            pastMatchesMap.set(match.match_id, match);
+            if (!pastMatchesMap.has(match.match_id)) {
+              pastMatchesMap.set(match.match_id, match);
+            }
           }
         });
         
