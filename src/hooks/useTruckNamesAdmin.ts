@@ -37,11 +37,13 @@ export const useTruckNamesAdmin = (areaId?: string) => {
         throw error;
       }
 
-      // Transform the data to match the TruckName interface
-      const transformedData: TruckName[] = data.map((truck: any) => ({
-        ...truck,
-        area: truck.areas
-      }));
+      // Fix: Transform the data to properly handle the nested area and region properties
+      const transformedData: TruckName[] = data.map((truck: any) => {
+        return {
+          ...truck,
+          area: truck.areas // Fixed property mapping
+        };
+      });
       
       setTruckNames(transformedData || []);
     } catch (error: any) {
