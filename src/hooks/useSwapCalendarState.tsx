@@ -7,6 +7,7 @@ import { createCalendarRenderer } from './swapCalendar/renderCalendar';
 import { useSwapCalendarActions } from './swapCalendar/useSwapCalendarActions';
 import { AcceptableShiftTypes } from './swapCalendar/types';
 import { Shift } from '@/hooks/useShiftData';
+import { toast } from './use-toast';
 
 export const useSwapCalendarState = () => {
   const [currentDate, setCurrentDate] = useState(new Date());

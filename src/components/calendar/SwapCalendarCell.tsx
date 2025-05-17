@@ -74,6 +74,12 @@ export const SwapCalendarCell = ({
       {isDisabled && !shift && (
         <div className="absolute inset-0 bg-gray-100 bg-opacity-50"></div>
       )}
+
+      {isSwapSelected && (
+        <div className="absolute bottom-1 right-1">
+          <span className="bg-green-500 rounded-full w-3 h-3 flex items-center justify-center"></span>
+        </div>
+      )}
     </div>
   );
 };
