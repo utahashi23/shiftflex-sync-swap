@@ -132,6 +132,57 @@ export type Database = {
         }
         Relationships: []
       }
+      improved_shift_swaps: {
+        Row: {
+          accepted_shift_types: string[]
+          created_at: string
+          id: string
+          matched_with_id: string | null
+          requester_id: string
+          requester_shift_id: string
+          status: string
+          updated_at: string
+          wanted_date: string
+        }
+        Insert: {
+          accepted_shift_types?: string[]
+          created_at?: string
+          id?: string
+          matched_with_id?: string | null
+          requester_id: string
+          requester_shift_id: string
+          status?: string
+          updated_at?: string
+          wanted_date: string
+        }
+        Update: {
+          accepted_shift_types?: string[]
+          created_at?: string
+          id?: string
+          matched_with_id?: string | null
+          requester_id?: string
+          requester_shift_id?: string
+          status?: string
+          updated_at?: string
+          wanted_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "improved_shift_swaps_matched_with_id_fkey"
+            columns: ["matched_with_id"]
+            isOneToOne: false
+            referencedRelation: "improved_shift_swaps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "improved_shift_swaps_requester_shift_id_fkey"
+            columns: ["requester_shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_blocks: {
         Row: {
           block_number: number
@@ -784,6 +835,10 @@ export type Database = {
           acceptor_request_id: string
         }[]
       }
+      confirm_shift_swap: {
+        Args: { request_id: string; confirming_user_id: string }
+        Returns: Json
+      }
       create_leave_swap_match: {
         Args: {
           p_requester_id: string
@@ -818,6 +873,20 @@ export type Database = {
           requester2_leave_block_id: string
           requester1_block_number: number
           requester2_block_number: number
+        }[]
+      }
+      find_shift_swap_matches: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          request1_id: string
+          request2_id: string
+          requester1_id: string
+          requester2_id: string
+          shift1_id: string
+          shift2_id: string
+          shift1_date: string
+          shift2_date: string
+          compatibility_score: number
         }[]
       }
       get_all_leave_blocks: {
@@ -1034,6 +1103,10 @@ export type Database = {
       }
       is_admin: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      match_shift_swap_requests: {
+        Args: { request1_id: string; request2_id: string }
         Returns: boolean
       }
       test_admin_access: {
