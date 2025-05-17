@@ -1,48 +1,46 @@
 
-// Type definitions for the matched swaps functionality
+export type ShiftTypes = "day" | "afternoon" | "night" | "unknown";
+
+export interface ShiftInfo {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  truckName: string | null;
+  type: ShiftTypes;
+  colleagueType: string;
+  employeeId?: string;
+  userId?: string;
+}
+
+export interface OtherShiftInfo extends ShiftInfo {
+  userName: string;
+  userId: string;
+}
 
 export interface SwapMatch {
   id: string;
-  status: "pending" | "accepted" | "completed" | "other_accepted";
-  myShift: {
-    id: string;
-    date: string;
-    startTime: string;
-    endTime: string;
-    truckName: string | null;
-    type: "day" | "afternoon" | "night" | "unknown";
-    colleagueType: string | null;
-    employeeId?: string | null;
-    userId?: string | null; // Adding userId to track swap acceptance
-  };
-  otherShift: {
-    id: string;
-    date: string;
-    startTime: string;
-    endTime: string;
-    truckName: string | null;
-    type: "day" | "afternoon" | "night" | "unknown";
-    userId: string;
-    userName: string;
-    colleagueType: string | null;
-    employeeId?: string | null;
-  };
-  myRequestId: string;
-  otherRequestId: string;
-  requesterId?: string; // Added field for the requester ID
-  createdAt: string;
+  status: 'pending' | 'accepted' | 'other_accepted' | 'completed';
+  myShift: ShiftInfo;
+  otherShift: OtherShiftInfo;
+  myRequestId?: string;
+  otherRequestId?: string;
+  createdAt?: string;
+  requesterId?: string;
+  acceptorId?: string;
+  // New fields to track who has accepted
+  requesterHasAccepted?: boolean;
+  acceptorHasAccepted?: boolean;
 }
 
-export interface ConfirmDialogState {
-  isOpen: boolean;
-  matchId: string | null;
+export interface MatchesState {
+  matches: SwapMatch[];
+  pastMatches: SwapMatch[];
+  isLoading: boolean;
+  error: Error | null;
 }
 
-export interface SwapCardProps {
-  swap: SwapMatch;
-  isPast?: boolean;
-  onAccept?: (matchId: string) => void;
-  onFinalize?: (matchId: string) => void;
-  onCancel?: (matchId: string) => void;
-  onResendEmail?: (matchId: string) => void;
+export interface SwapAction {
+  match: SwapMatch;
+  action: 'accept' | 'decline' | 'finalize';
 }

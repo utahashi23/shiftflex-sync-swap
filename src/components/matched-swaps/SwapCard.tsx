@@ -11,6 +11,7 @@ import ShiftTypeBadge from "../swaps/ShiftTypeBadge";
 import { SwapMatch } from "./types";
 import { useState } from "react";
 import { ShiftDetailsDialog } from "./ShiftDetailsDialog";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SwapCardProps {
   swap: SwapMatch;
@@ -40,12 +41,13 @@ export const SwapCard = ({
 }: SwapCardProps) => {
   // Dialog state for shift details
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const { user } = useAuth();
   
   // Debug logging for colleague types and status
   console.log(`SwapCard rendering for match ${swap.id} with status ${swap.status} and colleague types:`, {
     myShift: swap.myShift.colleagueType,
     otherShift: swap.otherShift.colleagueType,
-    amIRequester: swap.requesterId === swap.myShift.userId,
+    currentUserId: user?.id,
     status: swap.status
   });
   
@@ -64,8 +66,8 @@ export const SwapCard = ({
         };
       case 'other_accepted':
         return {
-          text: 'Accepted by Another User',
-          colorClass: 'bg-gray-100 text-gray-800'
+          text: 'Partially Accepted',
+          colorClass: 'bg-yellow-100 text-yellow-800'
         };
       case 'completed':
         return {
@@ -86,6 +88,12 @@ export const SwapCard = ({
   
   // Determine if the current user can accept this swap
   const canAcceptSwap = swap.status === 'pending' || swap.status === 'other_accepted';
+
+  // Check if current user has already accepted this swap
+  // We need to determine if this is showing "Waiting for other user" or "You can accept"
+  const hasCurrentUserAccepted = swap.status === 'other_accepted' && 
+    ((swap.acceptorHasAccepted && user?.id === swap.otherShift.userId) ||
+     (swap.requesterHasAccepted && user?.id !== swap.otherShift.userId));
   
   return (
     <Card className="overflow-hidden">
@@ -193,17 +201,48 @@ export const SwapCard = ({
           </div>
         </div>
         
-        {/* Display warning for other_accepted status */}
+        {/* Display personalized notification message based on the status */}
         {swap.status === 'other_accepted' && (
-          <div className="mt-4 p-3 border border-yellow-300 rounded-md bg-yellow-50">
+          <div className="mt-4 p-3 border rounded-md bg-yellow-50">
             <div className="flex items-start">
-              <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />
+              <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2 flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium text-yellow-800">
-                  This shift has been partially accepted
+                {hasCurrentUserAccepted ? (
+                  <>
+                    <p className="text-sm font-medium text-yellow-800">
+                      Waiting for other user to accept
+                    </p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      You have accepted this swap. Once the other user accepts, you'll be able to finalize it.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-yellow-800">
+                      This shift swap has been partially accepted
+                    </p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      The other user has already accepted this swap. You can now accept it to complete the swap process.
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* For fully accepted but not finalized swaps */}
+        {swap.status === 'accepted' && (
+          <div className="mt-4 p-3 border border-blue-300 rounded-md bg-blue-50">
+            <div className="flex items-start">
+              <Mail className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-blue-800">
+                  Ready to finalize this shift swap
                 </p>
-                <p className="text-xs text-yellow-700 mt-1">
-                  The other user has accepted this swap. You can now accept it to complete the swap process.
+                <p className="text-xs text-blue-700 mt-1">
+                  Both users have accepted this swap. Please confirm your swap through UKG or email rosters, 
+                  then click "Finalize Swap" when this has been confirmed.
                 </p>
               </div>
             </div>
@@ -223,8 +262,8 @@ export const SwapCard = ({
               Swap Details
             </Button>
           
-            {/* Show Accept button for pending or other_accepted status */}
-            {canAcceptSwap && onAccept && (
+            {/* Show Accept button for pending or other_accepted status, but only if user hasn't already accepted */}
+            {canAcceptSwap && !hasCurrentUserAccepted && onAccept && (
               <Button 
                 onClick={() => onAccept(swap.id)}
                 className="bg-green-600 hover:bg-green-700"

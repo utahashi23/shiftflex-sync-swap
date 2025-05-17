@@ -32,7 +32,10 @@ function adaptSwapMatchType(match: HookSwapMatch): ComponentSwapMatch {
       // Ensure type is one of the allowed types
       type: (match.otherShift.type === 'day' || match.otherShift.type === 'afternoon' || 
              match.otherShift.type === 'night') ? match.otherShift.type : 'unknown'
-    }
+    },
+    // Make sure to pass along the acceptance tracking fields
+    requesterHasAccepted: match.requesterHasAccepted || false,
+    acceptorHasAccepted: match.acceptorHasAccepted || false
   };
 }
 

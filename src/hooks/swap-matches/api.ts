@@ -114,10 +114,23 @@ export const acceptSwapMatch = async (matchId: string) => {
     
     console.log('Swap match accepted response:', data);
     
-    toast({
-      title: "Swap Accepted",
-      description: "The swap has been successfully accepted.",
-    });
+    // Update notification based on acceptance state
+    if (data.bothAccepted) {
+      toast({
+        title: "Swap Fully Accepted",
+        description: "Both users have accepted the swap. You can now finalize it.",
+      });
+    } else if (data.requesterHasAccepted || data.acceptorHasAccepted) {
+      toast({
+        title: "Swap Accepted",
+        description: "You have accepted the swap. Waiting for the other user to accept it.",
+      });
+    } else {
+      toast({
+        title: "Swap Accepted",
+        description: "The swap has been successfully accepted.",
+      });
+    }
     
     return data;
   } catch (error) {

@@ -186,9 +186,10 @@ serve(async (req) => {
     console.log(`Users who have accepted: ${acceptedUserIds.join(', ')}`);
     
     // Determine if both users have accepted
-    const bothAccepted = 
-      acceptedUserIds.includes(requesterUserId) && 
-      acceptedUserIds.includes(acceptorUserId);
+    const requesterHasAccepted = acceptedUserIds.includes(requesterUserId);
+    const acceptorHasAccepted = acceptedUserIds.includes(acceptorUserId);
+    
+    const bothAccepted = requesterHasAccepted && acceptorHasAccepted;
       
     // Determine if other user (not userIdForAcceptance) has accepted
     const otherAccepted = 
@@ -201,7 +202,7 @@ serve(async (req) => {
     if (bothAccepted) {
       newStatus = 'accepted';
       console.log('Both users have accepted, setting status to accepted');
-    } else if (otherAccepted || acceptedUserIds.length === 1) {
+    } else if (acceptedUserIds.length > 0) {
       newStatus = 'other_accepted';
       console.log('One user has accepted, setting status to other_accepted');
     }
@@ -209,7 +210,9 @@ serve(async (req) => {
     // Update match status
     const { data: updateData, error: updateError } = await supabaseAdmin
       .from('shift_swap_potential_matches')
-      .update({ status: newStatus })
+      .update({ 
+        status: newStatus
+      })
       .eq('id', match_id)
       .select();
     
@@ -251,7 +254,9 @@ serve(async (req) => {
         data: updateData,
         status: newStatus,
         bothAccepted,
-        otherAccepted
+        otherAccepted,
+        requesterHasAccepted,
+        acceptorHasAccepted
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
