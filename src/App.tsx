@@ -6,7 +6,7 @@ import Loading from '@/components/Loading';
 import { AuthProvider } from '@/hooks/auth';
 
 // Lazy load pages for better performance
-const HomePage = lazy(() => import('@/pages/Home'));
+const HomePage = lazy(() => import('@/pages/Index'));
 const LoginPage = lazy(() => import('@/pages/Login'));
 const DashboardPage = lazy(() => import('@/pages/Dashboard'));
 const ShiftsPage = lazy(() => import('@/pages/Shifts'));
