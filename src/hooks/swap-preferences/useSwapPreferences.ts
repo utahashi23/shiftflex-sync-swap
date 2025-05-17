@@ -32,15 +32,47 @@ export const useSwapPreferences = (): UseSwapPreferencesReturn => {
         throw error;
       }
 
-      if (data && data.length > 0) {
-        // Found preferences
+      // Check for existing preferences - first try from swap_preferences table
+      const { data: prefsData, error: prefsError } = await supabase
+        .from('shift_swap_preferences')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (prefsError && prefsError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        console.error('Error fetching from shift_swap_preferences:', prefsError);
+      }
+
+      if (prefsData) {
+        // Found preferences in shift_swap_preferences
         setPreferences({
-          id: data[0].id,
+          id: prefsData.id,
+          userId: prefsData.user_id,
+          preferredAreas: prefsData.preferred_areas || [],
+          acceptableShiftTypes: prefsData.acceptable_shift_types || ['day', 'afternoon', 'night'],
+          createdAt: prefsData.created_at,
+          updatedAt: prefsData.updated_at || prefsData.created_at,
+        });
+      } else if (data && data.length > 0) {
+        // Convert the user_swap_preferences data into our expected format
+        // Note: user_swap_preferences has region_id and area_id columns
+        // We need to aggregate them into arrays
+
+        // Extract all area_ids (non-null)
+        const preferredAreas = data
+          .filter(pref => pref.area_id !== null)
+          .map(pref => pref.area_id);
+
+        // For now, default to all shift types since that table doesn't store shift types
+        const acceptableShiftTypes: ShiftType[] = ['day', 'afternoon', 'night'];
+
+        setPreferences({
+          id: data[0].id, // Use first id as reference
           userId: data[0].user_id,
-          preferredAreas: data[0].preferred_areas || [],
-          acceptableShiftTypes: data[0].acceptable_shift_types || ['day', 'afternoon', 'night'],
+          preferredAreas, 
+          acceptableShiftTypes,
           createdAt: data[0].created_at,
-          updatedAt: data[0].updated_at || data[0].created_at,
+          updatedAt: data[0].created_at // Use created_at as updated_at since it's not available
         });
       } else {
         // No preferences found
@@ -66,17 +98,23 @@ export const useSwapPreferences = (): UseSwapPreferencesReturn => {
       setIsLoading(true);
       setError(null);
 
-      // Check if preferences already exist
-      if (preferences?.id) {
+      // Check if preferences already exist in shift_swap_preferences
+      const { data: existingPrefs } = await supabase
+        .from('shift_swap_preferences')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existingPrefs) {
         // Update existing preferences
         const { error } = await supabase
           .from('shift_swap_preferences')
           .update({
-            preferred_areas: prefs.preferredAreas || preferences.preferredAreas,
-            acceptable_shift_types: prefs.acceptableShiftTypes || preferences.acceptableShiftTypes,
+            preferred_areas: prefs.preferredAreas || [],
+            acceptable_shift_types: prefs.acceptableShiftTypes || ['day', 'afternoon', 'night'],
             updated_at: new Date().toISOString(),
           })
-          .eq('id', preferences.id);
+          .eq('id', existingPrefs.id);
 
         if (error) throw error;
       } else {
