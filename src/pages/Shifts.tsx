@@ -5,8 +5,9 @@ import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { useAuth } from '@/hooks/useAuth';
 import { useShiftData } from '@/hooks/useShiftData';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar, Clock } from 'lucide-react';
-import { format } from 'date-fns';
+import { Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, addMonths, subMonths } from 'date-fns';
+import { Button } from '@/components/ui/button';
 
 const Shifts = () => {
   useAuthRedirect({ protectedRoute: true });
@@ -18,6 +19,14 @@ const Shifts = () => {
     document.title = 'My Shifts';
   }, []);
 
+  const handlePrevMonth = () => {
+    setCurrentDate(prev => subMonths(prev, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(prev => addMonths(prev, 1));
+  };
+
   return (
     <AppLayout>
       <div className="mb-8">
@@ -25,6 +34,20 @@ const Shifts = () => {
         <p className="text-gray-500 mt-1">
           View and manage your scheduled shifts
         </p>
+      </div>
+      
+      <div className="flex justify-between items-center mb-6">
+        <Button variant="outline" onClick={handlePrevMonth}>
+          <ChevronLeft className="h-4 w-4 mr-2" />
+          Previous Month
+        </Button>
+        <h2 className="text-xl font-medium">
+          {format(currentDate, 'MMMM yyyy')}
+        </h2>
+        <Button variant="outline" onClick={handleNextMonth}>
+          Next Month
+          <ChevronRight className="h-4 w-4 ml-2" />
+        </Button>
       </div>
       
       {isLoading ? (
@@ -63,7 +86,7 @@ const Shifts = () => {
       ) : (
         <div className="text-center p-8 border border-dashed rounded-lg">
           <p className="text-muted-foreground mb-4">
-            No shifts found for the current period
+            No shifts found for {format(currentDate, 'MMMM yyyy')}
           </p>
           <p className="text-sm text-gray-500">
             If you believe this is an error, please contact your administrator
