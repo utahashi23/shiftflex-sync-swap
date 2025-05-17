@@ -111,6 +111,7 @@ export const ShiftDateField = ({
             description="Choose one or more dates for your shift swap"
             onConfirm={() => setIsDialogOpen(false)}
             confirmLabel="Done"
+            cancelLabel="Cancel"
           >
             <div className="p-2">
               <Calendar

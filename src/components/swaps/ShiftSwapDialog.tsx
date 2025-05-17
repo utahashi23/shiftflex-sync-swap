@@ -38,7 +38,12 @@ export const ShiftSwapDialog = ({
 }: ShiftSwapDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-md max-h-[90vh] flex flex-col" onPointerDownOutside={(e) => {
+        // Prevent dialog from closing when clicking inside the calendar
+        if ((e.target as HTMLElement).closest('.rdp')) {
+          e.preventDefault();
+        }
+      }}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
