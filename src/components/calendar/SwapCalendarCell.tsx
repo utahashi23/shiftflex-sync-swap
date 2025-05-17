@@ -32,6 +32,15 @@ export const SwapCalendarCell = ({
     return <div className="calendar-cell"></div>;
   }
 
+  // Create a handler function that ensures the onClick is called properly
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDisabled && onClick) {
+      onClick();
+    }
+  };
+
   return (
     <div 
       className={cn(
@@ -42,7 +51,10 @@ export const SwapCalendarCell = ({
         isSwapSelected && "day-selected bg-green-50",
         "transition-colors"
       )}
-      onClick={isDisabled ? undefined : onClick}
+      onClick={handleClick}
+      role="button"
+      tabIndex={isDisabled ? -1 : 0}
+      aria-disabled={isDisabled}
     >
       <div className="flex justify-between items-start mb-1">
         <span className={cn("text-sm font-medium", isDisabled && "text-gray-500")}>{day}</span>
@@ -67,7 +79,7 @@ export const SwapCalendarCell = ({
       {shift && (
         <>
           <div className={cn("text-xs font-medium mb-0.5 truncate", isDisabled && "text-gray-500")}>{shift.title}</div>
-          <div className={cn("shift-detail", isDisabled && "text-gray-500")}>{shift.startTime} - {shift.endTime}</div>
+          <div className={cn("shift-detail text-xs text-gray-600", isDisabled && "text-gray-500")}>{shift.startTime} - {shift.endTime}</div>
         </>
       )}
       

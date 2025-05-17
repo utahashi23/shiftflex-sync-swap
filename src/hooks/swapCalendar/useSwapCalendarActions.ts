@@ -17,12 +17,14 @@ export const useSwapCalendarActions = (
   const { user } = useAuth();
   
   const handleShiftClick = (shift: Shift) => {
+    console.log("Handling shift click:", shift.id, shift.date);
     setSelectedShift(shift);
     setSwapMode(false); // Reset swap mode when selecting a new shift
     setSelectedSwapDates([]);
   };
   
   const handleRequestSwap = () => {
+    console.log("Requesting swap");
     setSwapMode(true);
     setSelectedSwapDates([]);
   };
@@ -128,6 +130,7 @@ export const useSwapCalendarActions = (
   };
   
   const toggleDateSelection = (dateStr: string) => {
+    console.log("Toggling date selection:", dateStr);
     const isSelected = state.selectedSwapDates.includes(dateStr);
     
     if (isSelected) {

@@ -24,7 +24,10 @@ export const createSwapHelpers = (state: SwapCalendarState) => {
   // Check if date is disabled for swap selection
   const isDateDisabled = (dateStr: string): boolean => {
     // User cannot select days they are already working
-    if (hasShift(dateStr)) return true;
+    if (hasShift(dateStr)) {
+      console.log(`Date ${dateStr} is disabled because user has a shift`);
+      return true;
+    }
     
     // Check 10-hour rule: A day or afternoon shift cannot follow a night shift
     // Get previous day
@@ -47,6 +50,7 @@ export const createSwapHelpers = (state: SwapCalendarState) => {
       // Regular case: If we're potentially selecting a day or afternoon shift
       // after a night shift that isn't the one being swapped
       if (acceptableShiftTypes.day || acceptableShiftTypes.afternoon) {
+        console.log(`Date ${dateStr} is disabled due to 10-hour rule (night shift on previous day)`);
         return true;
       }
     }

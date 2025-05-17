@@ -37,7 +37,7 @@ const ShiftSwapCalendar = () => {
       <WeekdayHeader />
       
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-1 mb-4">
+      <div className="grid grid-cols-7 gap-1 mb-4 touch-manipulation">
         {renderCalendar()}
       </div>
       
