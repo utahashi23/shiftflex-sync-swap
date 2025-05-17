@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import Loading from '@/components/Loading';
+import { AuthProvider } from '@/hooks/auth';
 
 // Lazy load pages for better performance
 const HomePage = lazy(() => import('@/pages/Home'));
@@ -18,20 +19,22 @@ const NotFoundPage = lazy(() => import('@/pages/NotFound'));
 function App() {
   return (
     <Router>
-      <Suspense fallback={<Loading />}>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/shifts" element={<ShiftsPage />} />
-          <Route path="/shift-swaps" element={<ShiftSwapsPage />} />
-          <Route path="/leave-swaps" element={<LeaveSwapsPage />} />
-          <Route path="/swap-preferences" element={<SwapPreferencesPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </Suspense>
-      <Toaster />
+      <AuthProvider>
+        <Suspense fallback={<Loading />}>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/shifts" element={<ShiftsPage />} />
+            <Route path="/shift-swaps" element={<ShiftSwapsPage />} />
+            <Route path="/leave-swaps" element={<LeaveSwapsPage />} />
+            <Route path="/swap-preferences" element={<SwapPreferencesPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
+        <Toaster />
+      </AuthProvider>
     </Router>
   );
 }
