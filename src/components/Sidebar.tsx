@@ -37,6 +37,7 @@ const Sidebar = () => {
           <NavItem to="/" icon={<Home size={20} />} label="Home" />
           <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" />
           <NavItem to="/shifts" icon={<Calendar size={20} />} label="My Shifts" />
+          <NavItem to="/calendar" icon={<Calendar size={20} />} label="Calendar" />
           <NavItem to="/shift-swaps" icon={<ArrowLeftRight size={20} />} label="Shift Swaps" />
           <NavItem to="/swaps-list" icon={<List size={20} />} label="Swaps List" />
           <NavItem to="/leave-swaps" icon={<Calendar size={20} />} label="Leave Swaps" />

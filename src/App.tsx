@@ -20,6 +20,7 @@ const SettingsPage = lazy(() => import('@/pages/Settings'));
 const SystemSettingsPage = lazy(() => import('@/pages/SystemSettings'));
 const FeedbackPage = lazy(() => import('@/pages/Feedback'));
 const FAQPage = lazy(() => import('@/pages/FAQ'));
+const CalendarManagementPage = lazy(() => import('@/pages/CalendarManagement'));
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
             <Route path="/system-settings" element={<SystemSettingsPage />} />
             <Route path="/feedback" element={<FeedbackPage />} />
             <Route path="/faq" element={<FAQPage />} />
+            <Route path="/calendar" element={<CalendarManagementPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
