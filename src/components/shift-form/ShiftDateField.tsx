@@ -113,7 +113,7 @@ export const ShiftDateField = ({
                   }
                 }}
                 initialFocus
-                className="p-3 pointer-events-auto"
+                className="p-3"
               />
             </PopoverContent>
           </Popover>

@@ -183,6 +183,35 @@ export type Database = {
           },
         ]
       }
+      improved_swap_wanted_dates: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          swap_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          swap_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          swap_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "improved_swap_wanted_dates_swap_id_fkey"
+            columns: ["swap_id"]
+            isOneToOne: false
+            referencedRelation: "improved_shift_swaps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_blocks: {
         Row: {
           block_number: number
