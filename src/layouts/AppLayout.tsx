@@ -1,4 +1,3 @@
-
 import { Fragment, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Dialog, Transition } from '@headlessui/react';
@@ -14,7 +13,8 @@ import {
   FileQuestion,
   MessageSquare,
   LayoutList,
-  Cog
+  Cog,
+  ArrowLeftRight
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,8 @@ import { EmailDomainWarning } from '@/components/EmailDomainWarning';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, requiresAuth: true },
   { name: 'Roster', href: '/calendar', icon: CalendarDays, requiresAuth: true },
-  { name: 'My Shift Swaps', href: '/shifts', icon: Calendar, requiresAuth: true },
+  { name: 'My Shifts', href: '/shifts', icon: Calendar, requiresAuth: true },
+  { name: 'Shift Swaps', href: '/shift-swaps', icon: ArrowLeftRight, requiresAuth: true },
   { name: 'Browse Swaps', href: '/swaps-list', icon: LayoutList, requiresAuth: true }, 
   { name: 'Leave Swaps', href: '/leave-swaps', icon: Calendar, requiresAuth: true },
   // Removed Roadmap item
