@@ -417,37 +417,31 @@ export type Database = {
       }
       shift_swap_potential_matches: {
         Row: {
-          acceptor_has_accepted: boolean
           acceptor_request_id: string
           acceptor_shift_id: string
           created_at: string
           id: string
           match_date: string
-          requester_has_accepted: boolean
           requester_request_id: string
           requester_shift_id: string
           status: string
         }
         Insert: {
-          acceptor_has_accepted?: boolean
           acceptor_request_id: string
           acceptor_shift_id: string
           created_at?: string
           id?: string
           match_date: string
-          requester_has_accepted?: boolean
           requester_request_id: string
           requester_shift_id: string
           status?: string
         }
         Update: {
-          acceptor_has_accepted?: boolean
           acceptor_request_id?: string
           acceptor_shift_id?: string
           created_at?: string
           id?: string
           match_date?: string
-          requester_has_accepted?: boolean
           requester_request_id?: string
           requester_shift_id?: string
           status?: string
@@ -482,33 +476,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      shift_swap_preferences: {
-        Row: {
-          acceptable_shift_types: string[] | null
-          created_at: string
-          id: string
-          preferred_areas: string[] | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          acceptable_shift_types?: string[] | null
-          created_at?: string
-          id?: string
-          preferred_areas?: string[] | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          acceptable_shift_types?: string[] | null
-          created_at?: string
-          id?: string
-          preferred_areas?: string[] | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
       }
       shift_swap_preferred_dates: {
         Row: {

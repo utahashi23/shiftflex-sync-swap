@@ -1,42 +1,68 @@
 
-import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Toaster } from '@/components/ui/toaster';
-import Loading from '@/components/Loading';
-import { AuthProvider } from '@/hooks/auth';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/hooks/auth"; // Ensure we're importing from the correct barrel
+import Index from "./pages/Index";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import VerifyEmail from "./pages/VerifyEmail";
+import ResetPassword from "./pages/ResetPassword";
+import Dashboard from "./pages/Dashboard";
+import ShiftSwaps from "./pages/ShiftSwaps";
+import SwapsList from "./pages/SwapsList";
+import LeaveSwaps from "./pages/LeaveSwaps";
+import CalendarManagement from "./pages/CalendarManagement";
+import Settings from "./pages/Settings";
+import SystemSettings from "./pages/SystemSettings";
+import Admin from "./pages/Admin";
+import Roadmap from "./pages/Roadmap";
+import Feedback from "./pages/Feedback";
+import FAQ from "./pages/FAQ";
+import NotFound from "./pages/NotFound";
 
-// Lazy load pages for better performance
-const HomePage = lazy(() => import('@/pages/Home'));
-const LoginPage = lazy(() => import('@/pages/Login'));
-const DashboardPage = lazy(() => import('@/pages/Dashboard'));
-const ShiftsPage = lazy(() => import('@/pages/Shifts'));
-const ShiftSwapsPage = lazy(() => import('@/pages/ShiftSwaps'));
-const LeaveSwapsPage = lazy(() => import('@/pages/LeaveSwaps'));
-const SwapPreferencesPage = lazy(() => import('@/pages/SwapPreferencesPage'));
-const AdminPage = lazy(() => import('@/pages/Admin'));
-const NotFoundPage = lazy(() => import('@/pages/NotFound'));
+const queryClient = new QueryClient();
 
-function App() {
-  return (
-    <Router>
-      <AuthProvider>
-        <Suspense fallback={<Loading />}>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/shifts" element={<ShiftsPage />} />
-            <Route path="/shift-swaps" element={<ShiftSwapsPage />} />
-            <Route path="/leave-swaps" element={<LeaveSwapsPage />} />
-            <Route path="/swap-preferences" element={<SwapPreferencesPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Suspense>
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <BrowserRouter>
+      <TooltipProvider>
         <Toaster />
-      </AuthProvider>
-    </Router>
-  );
-}
+        <Sonner />
+        <AuthProvider>
+          <Routes>
+            {/* Landing Page */}
+            <Route path="/" element={<Index />} />
+            
+            {/* Auth Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            
+            {/* App Routes */}
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/shifts" element={<ShiftSwaps />} />
+            <Route path="/swaps-list" element={<SwapsList />} />
+            <Route path="/leave-swaps" element={<LeaveSwaps />} />
+            <Route path="/calendar" element={<CalendarManagement />} /> {/* Roster page */}
+            <Route path="/roadmap" element={<Roadmap />} />
+            <Route path="/feedback" element={<Feedback />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/system-settings" element={<SystemSettings />} />
+            <Route path="/admin" element={<Admin />} />
+            
+            {/* Catch-all for non-existent routes */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
+      </TooltipProvider>
+    </BrowserRouter>
+  </QueryClientProvider>
+);
 
 export default App;
