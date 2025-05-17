@@ -10,6 +10,7 @@ export type SwapStatus = 'pending' | 'matched' | 'confirmed' | 'completed';
 export type ImprovedSwap = {
   id: string;
   wanted_date: string;
+  wantedDates?: string[];
   accepted_shift_types: string[];
   status: SwapStatus;
   matched_with_id: string | null;
@@ -17,6 +18,8 @@ export type ImprovedSwap = {
   requester_shift_id: string;
   created_at: string;
   updated_at: string;
+  shiftDetails?: any;
+  regionPreferences?: any[];
 };
 
 export type SwapMatch = {
@@ -46,21 +49,66 @@ export const useImprovedSwapMatches = () => {
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: swapData, error: swapError } = await supabase
         .from('improved_shift_swaps')
         .select('*')
         .eq('requester_id', user.id);
       
-      if (error) throw error;
+      if (swapError) throw swapError;
+
+      // Get shift details for each swap
+      const enhancedSwaps = await Promise.all((swapData || []).map(async (swap) => {
+        // Type cast the data to ensure status is of the correct type
+        const typedSwap = {
+          ...swap,
+          status: swap.status as SwapStatus
+        };
+
+        // Fetch shift details
+        const { data: shiftData } = await supabase
+          .from('shifts')
+          .select('*')
+          .eq('id', swap.requester_shift_id)
+          .single();
+
+        // Fetch wanted dates (if multiple)
+        const { data: wantedDatesData } = await supabase
+          .from('improved_swap_wanted_dates')
+          .select('date')
+          .eq('swap_id', swap.id)
+          .order('date');
+
+        // Fetch region/area preferences
+        const { data: preferencesData } = await supabase
+          .from('improved_swap_preferences')
+          .select(`
+            id, 
+            region_id, 
+            area_id,
+            regions:region_id (name),
+            areas:area_id (name)
+          `)
+          .eq('swap_id', swap.id);
+
+        // Format region preferences
+        const regionPreferences = preferencesData?.map(pref => ({
+          id: pref.id,
+          region_id: pref.region_id,
+          area_id: pref.area_id,
+          region_name: pref.regions?.name || 'Unknown Region',
+          area_name: pref.areas?.name || null
+        })) || [];
+
+        return {
+          ...typedSwap,
+          shiftDetails: shiftData || null,
+          wantedDates: wantedDatesData?.map(d => d.date) || [],
+          regionPreferences
+        };
+      }));
       
-      // Type cast the data to ensure status is of the correct type
-      const typedData = data?.map(swap => ({
-        ...swap,
-        status: swap.status as SwapStatus
-      })) || [];
-      
-      setSwaps(typedData);
-      console.log(`Found ${typedData?.length || 0} swap requests for user`);
+      setSwaps(enhancedSwaps);
+      console.log(`Found ${enhancedSwaps?.length || 0} swap requests for user`);
     } catch (err: any) {
       console.error('Error fetching swap requests:', err);
       setError(err);
@@ -80,7 +128,9 @@ export const useImprovedSwapMatches = () => {
     
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('new_find_swap_matches');
+      const { data, error } = await supabase.functions.invoke('new_find_swap_matches', {
+        body: { user_id: user.id }
+      });
       
       if (error) throw error;
       
@@ -104,28 +154,49 @@ export const useImprovedSwapMatches = () => {
     }
   };
 
-  // Create a swap request
+  // Create a swap request with multiple wanted dates
   const createSwapRequest = async (
     shiftId: string,
-    wantedDate: string,
+    wantedDates: string[] = [],
     acceptedTypes: string[] = ['day', 'afternoon', 'night']
   ) => {
     if (!user) return false;
     
     setIsProcessing(true);
     try {
+      // First create the main swap request (using first date as primary)
       const { data, error } = await supabase
         .from('improved_shift_swaps')
         .insert({
           requester_id: user.id,
           requester_shift_id: shiftId,
-          wanted_date: wantedDate,
+          wanted_date: wantedDates[0] || new Date().toISOString().split('T')[0],
           accepted_shift_types: acceptedTypes
         })
         .select()
         .single();
       
       if (error) throw error;
+
+      // If we have additional dates, add them to the secondary table
+      if (wantedDates.length > 1) {
+        // Skip the first date as it's already in the main record
+        const additionalDates = wantedDates.slice(1).map(date => ({
+          swap_id: data.id,
+          date
+        }));
+
+        // Insert additional dates
+        if (additionalDates.length > 0) {
+          const { error: datesError } = await supabase
+            .from('improved_swap_wanted_dates')
+            .insert(additionalDates);
+            
+          if (datesError) {
+            console.error('Error adding additional dates:', datesError);
+          }
+        }
+      }
       
       toast({
         title: "Swap Request Created",
@@ -156,7 +227,7 @@ export const useImprovedSwapMatches = () => {
     setIsProcessing(true);
     try {
       const response = await supabase.functions.invoke('new_accept_swap_match', {
-        body: { request_id: requestId }
+        body: { request_id: requestId, user_id: user.id }
       });
       
       if (response.error) throw new Error(response.error.message || 'Failed to accept swap match');
@@ -168,7 +239,7 @@ export const useImprovedSwapMatches = () => {
       
       toast({
         title: "Swap Accepted",
-        description: response.data?.data?.message || "You have successfully accepted the swap"
+        description: response.data?.message || "You have successfully accepted the swap"
       });
       
       // Refresh data after accepting
@@ -195,6 +266,27 @@ export const useImprovedSwapMatches = () => {
     
     setIsProcessing(true);
     try {
+      // First, delete any additional wanted dates
+      const { error: datesError } = await supabase
+        .from('improved_swap_wanted_dates')
+        .delete()
+        .eq('swap_id', requestId);
+        
+      if (datesError) {
+        console.error('Error deleting additional dates:', datesError);
+      }
+
+      // Delete any region/area preferences
+      const { error: prefsError } = await supabase
+        .from('improved_swap_preferences')
+        .delete()
+        .eq('swap_id', requestId);
+        
+      if (prefsError) {
+        console.error('Error deleting preferences:', prefsError);
+      }
+      
+      // Then delete the main swap record
       const { error } = await supabase
         .from('improved_shift_swaps')
         .delete()

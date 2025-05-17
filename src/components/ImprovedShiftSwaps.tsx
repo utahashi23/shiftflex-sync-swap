@@ -39,10 +39,16 @@ const ImprovedShiftSwaps = () => {
     setActiveTab('matches');
   };
 
-  const handleCreateSwap = async (shiftId: string, wantedDate: string, acceptedTypes: string[]) => {
-    const success = await createSwapRequest(shiftId, wantedDate, acceptedTypes);
-    if (success) {
-      setIsFormOpen(false);
+  const handleCreateSwap = async (shiftId: string, wantedDates: string[], acceptedTypes: string[]) => {
+    try {
+      const success = await createSwapRequest(shiftId, wantedDates, acceptedTypes);
+      if (success) {
+        setIsFormOpen(false);
+      }
+      return success;
+    } catch (error) {
+      console.error("Error in handleCreateSwap:", error);
+      return false;
     }
   };
 
@@ -136,13 +142,31 @@ const ImprovedShiftSwaps = () => {
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <p className="text-sm font-medium">From Date</p>
-                          <p className="text-lg">{swap.requester_shift_id}</p>
+                          <p className="text-sm font-medium">From Shift</p>
+                          {swap.shiftDetails ? (
+                            <>
+                              <p className="text-lg">{format(parseISO(swap.shiftDetails.date), 'PPP')}</p>
+                              <p className="text-sm text-gray-600">
+                                {swap.shiftDetails.truck_name || 'Unknown location'}{' '}
+                                ({swap.shiftDetails.start_time?.substring(0, 5)} - {swap.shiftDetails.end_time?.substring(0, 5)})
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-gray-500">Loading shift details...</p>
+                          )}
                         </div>
                         
                         <div className="space-y-2">
-                          <p className="text-sm font-medium">Desired Date</p>
-                          <p className="text-lg">{format(parseISO(swap.wanted_date), 'PPP')}</p>
+                          <p className="text-sm font-medium">Desired Dates</p>
+                          <div className="flex flex-col gap-1">
+                            {swap.wantedDates && swap.wantedDates.length > 0 ? (
+                              swap.wantedDates.map((date, index) => (
+                                <p key={index} className="text-md">{format(parseISO(date), 'PPP')}</p>
+                              ))
+                            ) : (
+                              <p className="text-lg">{format(parseISO(swap.wanted_date), 'PPP')}</p>
+                            )}
+                          </div>
                         </div>
                       </div>
                       
@@ -163,6 +187,22 @@ const ImprovedShiftSwaps = () => {
                           ))}
                         </div>
                       </div>
+
+                      {swap.regionPreferences && (
+                        <div>
+                          <p className="text-sm font-medium mb-2">Region/Area Preferences</p>
+                          <div className="flex flex-wrap gap-2">
+                            {swap.regionPreferences.map((pref, index) => (
+                              <span 
+                                key={index} 
+                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                              >
+                                {pref.region_name} {pref.area_name ? `- ${pref.area_name}` : ''}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       
                       {swap.status === 'pending' && (
                         <Button
@@ -259,7 +299,10 @@ const ImprovedShiftSwaps = () => {
                                 {match.my_shift?.date ? format(parseISO(match.my_shift.date), 'PPP') : 'N/A'}
                               </p>
                               <p className="text-sm text-gray-500">
-                                {match.my_shift?.truck_name || 'Unknown location'}
+                                {match.my_shift?.truck_name || 'Unknown location'} 
+                                {match.my_shift?.start_time && match.my_shift?.end_time && 
+                                  ` (${match.my_shift.start_time.substring(0, 5)} - ${match.my_shift.end_time.substring(0, 5)})`
+                                }
                               </p>
                             </div>
                             
@@ -270,6 +313,9 @@ const ImprovedShiftSwaps = () => {
                               </p>
                               <p className="text-sm text-gray-500">
                                 {match.other_shift?.truck_name || 'Unknown location'}
+                                {match.other_shift?.start_time && match.other_shift?.end_time && 
+                                  ` (${match.other_shift.start_time.substring(0, 5)} - ${match.other_shift.end_time.substring(0, 5)})`
+                                }
                               </p>
                             </div>
                           </div>
