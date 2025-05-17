@@ -22,6 +22,7 @@ serve(async (req) => {
     const { match_id } = body;
 
     if (!match_id) {
+      console.error('Missing match_id parameter');
       return new Response(
         JSON.stringify({ error: 'Missing match_id parameter' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -52,6 +53,7 @@ serve(async (req) => {
     } = await supabaseClient.auth.getUser()
 
     if (!user) {
+      console.error('Not authenticated');
       return new Response(
         JSON.stringify({ error: 'Not authenticated' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
@@ -76,12 +78,18 @@ serve(async (req) => {
 
     if (matchError) {
       console.error(`Error fetching match: ${matchError.message}`);
-      throw new Error(`Error fetching match: ${matchError.message}`)
+      return new Response(
+        JSON.stringify({ error: `Error fetching match: ${matchError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
     }
 
     if (!matchData) {
       console.error('Match not found');
-      throw new Error('Match not found')
+      return new Response(
+        JSON.stringify({ error: 'Match not found' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      )
     }
 
     // Get related requests to determine user roles
@@ -96,12 +104,18 @@ serve(async (req) => {
 
     if (requestsError) {
       console.error(`Error fetching requests: ${requestsError.message}`);
-      throw new Error(`Error fetching requests: ${requestsError.message}`)
+      return new Response(
+        JSON.stringify({ error: `Error fetching requests: ${requestsError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
     }
 
     if (!requests || requests.length !== 2) {
       console.error('Related swap requests not found');
-      throw new Error('Related swap requests not found')
+      return new Response(
+        JSON.stringify({ error: 'Related swap requests not found' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      )
     }
 
     // Determine if the current user is the requester or acceptor
@@ -110,7 +124,10 @@ serve(async (req) => {
 
     if (!requesterRequest || !acceptorRequest) {
       console.error('Could not determine request roles');
-      throw new Error('Could not determine request roles')
+      return new Response(
+        JSON.stringify({ error: 'Could not determine request roles' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
     }
 
     // Determine if current user is requester or acceptor
@@ -119,7 +136,10 @@ serve(async (req) => {
 
     if (!isRequester && !isAcceptor) {
       console.error('User is not associated with this match');
-      throw new Error('User is not associated with this match')
+      return new Response(
+        JSON.stringify({ error: 'User is not associated with this match' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      )
     }
 
     console.log(`User is ${isRequester ? 'requester' : isAcceptor ? 'acceptor' : 'unknown role'}`);
@@ -166,7 +186,10 @@ serve(async (req) => {
 
     if (updateError) {
       console.error(`Error updating match: ${updateError.message}`);
-      throw new Error(`Error updating match: ${updateError.message}`)
+      return new Response(
+        JSON.stringify({ error: `Error updating match: ${updateError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
     }
 
     console.log('Successfully updated match');
@@ -184,8 +207,8 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in accept_swap_match:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      JSON.stringify({ error: error.message || 'Unknown error occurred' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }
 })

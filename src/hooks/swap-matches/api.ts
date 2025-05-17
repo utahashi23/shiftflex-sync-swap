@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '../use-toast';
 import { formatSwapMatches } from './utils';
@@ -91,7 +92,7 @@ export const acceptSwapMatch = async (matchId: string) => {
   console.log('Accepting swap match:', matchId);
   
   try {
-    // Fix: Add proper error handling and ensure we're sending the correct payload
+    // Improved error handling for the acceptSwapMatch function
     const { data, error } = await supabase.functions.invoke('accept_swap_match', {
       body: { 
         match_id: matchId
@@ -108,6 +109,19 @@ export const acceptSwapMatch = async (matchId: string) => {
       });
       
       throw error;
+    }
+    
+    // Check if the response contains an error message
+    if (data && data.error) {
+      console.error('Error in accept_swap_match response:', data.error);
+      
+      toast({
+        title: "Failed to Accept Swap",
+        description: data.error || "There was a problem accepting the swap",
+        variant: "destructive"
+      });
+      
+      throw new Error(data.error);
     }
     
     console.log('Swap match accepted response:', data);
@@ -154,14 +168,19 @@ export const cancelSwapMatch = async (matchId: string) => {
     // Use supabase functions.invoke for consistency with other operations
     const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
       body: { 
-        match_id: matchId,
-        bypass_auth: true  // Add bypass flag for consistency
+        match_id: matchId
       }
     });
     
     if (error) {
       console.error('Error from cancel_swap_match function:', error);
       throw error;
+    }
+    
+    // Check if the response contains an error message
+    if (data && data.error) {
+      console.error('Error in cancel_swap_match response:', data.error);
+      throw new Error(data.error);
     }
     
     console.log('Swap match canceled response:', data);
@@ -178,14 +197,19 @@ export const finalizeSwapMatch = async (matchId: string) => {
   try {
     const { data, error } = await supabase.functions.invoke('finalize_swap_match', {
       body: { 
-        match_id: matchId,
-        bypass_auth: true  // Add bypass flag for consistency
+        match_id: matchId
       }
     });
     
     if (error) {
       console.error('Error from finalize_swap_match function:', error);
       throw error;
+    }
+    
+    // Check if the response contains an error message
+    if (data && data.error) {
+      console.error('Error in finalize_swap_match response:', data.error);
+      throw new Error(data.error);
     }
     
     console.log('Swap match finalized response:', data);
@@ -202,14 +226,19 @@ export const completeSwapMatch = async (matchId: string) => {
   try {
     const { data, error } = await supabase.functions.invoke('complete_swap_match', {
       body: { 
-        match_id: matchId,
-        bypass_auth: true  // Add bypass flag for consistency
+        match_id: matchId
       }
     });
     
     if (error) {
       console.error('Error from complete_swap_match function:', error);
       throw error;
+    }
+    
+    // Check if the response contains an error message
+    if (data && data.error) {
+      console.error('Error in complete_swap_match response:', data.error);
+      throw new Error(data.error);
     }
     
     console.log('Swap match completed response:', data);

@@ -99,14 +99,16 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     if (!matchId) return;
     
     try {
-      await acceptMatch(matchId);
-      // Success is handled by the useSwapMatches hook via toast notifications
-      refreshMatches(); // Refresh matches after accepting
+      console.log('Accepting swap match with ID:', matchId);
+      // Instead of using acceptMatch from the hook, use our improved handleAcceptSwap
+      // which has better error handling
+      handleAcceptClick(matchId);
+      // acceptMatch will be called when the dialog is confirmed
     } catch (error) {
       console.error('Error accepting swap:', error);
       // Error handling is done inside the acceptMatch function
     }
-  }, [acceptMatch, refreshMatches]);
+  }, [handleAcceptClick]);
   
   // Handler for canceling a swap using the hook's cancelMatch function
   const handleCancel = useCallback(async (matchId: string) => {

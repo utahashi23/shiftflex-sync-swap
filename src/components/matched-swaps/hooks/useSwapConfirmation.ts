@@ -48,7 +48,8 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Fix: Remove the bypass_auth flag which might be causing issues
+      console.log('Calling accept_swap_match with match_id:', confirmDialog.matchId);
+      
       const { data, error } = await supabase.functions.invoke('accept_swap_match', {
         body: { 
           match_id: confirmDialog.matchId
@@ -56,8 +57,16 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
       });
       
       if (error) {
+        console.error('Error response from accept_swap_match:', error);
         throw error;
       }
+      
+      if (!data || data.error) {
+        console.error('Error in accept_swap_match response:', data?.error || 'Unknown error');
+        throw new Error(data?.error || 'Failed to accept swap');
+      }
+      
+      console.log('Success response from accept_swap_match:', data);
       
       toast({
         title: 'Swap accepted',
@@ -90,7 +99,8 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Fix: Remove the bypass_auth flag which might be causing issues
+      console.log('Calling complete_swap_match with match_id:', finalizeDialog.matchId);
+      
       const { data, error } = await supabase.functions.invoke('complete_swap_match', {
         body: { 
           match_id: finalizeDialog.matchId
@@ -98,7 +108,13 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
       });
       
       if (error) {
+        console.error('Error response from complete_swap_match:', error);
         throw error;
+      }
+      
+      if (!data || data.error) {
+        console.error('Error in complete_swap_match response:', data?.error || 'Unknown error');
+        throw new Error(data?.error || 'Failed to finalize swap');
       }
       
       toast({
@@ -132,7 +148,8 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Fix: Remove the bypass_auth flag which might be causing issues
+      console.log('Calling cancel_swap_match with match_id:', matchId);
+      
       const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
         body: { 
           match_id: matchId
@@ -140,7 +157,13 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
       });
       
       if (error) {
+        console.error('Error response from cancel_swap_match:', error);
         throw error;
+      }
+      
+      if (!data || data.error) {
+        console.error('Error in cancel_swap_match response:', data?.error || 'Unknown error');
+        throw new Error(data?.error || 'Failed to cancel swap');
       }
       
       toast({
@@ -173,7 +196,8 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
     setIsLoading(true);
     
     try {
-      // Fix: Remove the bypass_auth flag which might be causing issues
+      console.log('Calling resend_swap_notification with match_id:', matchId);
+      
       const { data, error } = await supabase.functions.invoke('resend_swap_notification', {
         body: { 
           match_id: matchId
@@ -181,7 +205,13 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
       });
       
       if (error) {
+        console.error('Error response from resend_swap_notification:', error);
         throw error;
+      }
+      
+      if (!data || data.error) {
+        console.error('Error in resend_swap_notification response:', data?.error || 'Unknown error');
+        throw new Error(data?.error || 'Failed to resend email');
       }
       
       toast({
