@@ -44,3 +44,9 @@ export interface SwapAction {
   match: SwapMatch;
   action: 'accept' | 'decline' | 'finalize';
 }
+
+// Add the missing ConfirmDialogState type that's referenced in useSwapDialogs.ts
+export interface ConfirmDialogState {
+  isOpen: boolean;
+  matchId: string | null;
+}
