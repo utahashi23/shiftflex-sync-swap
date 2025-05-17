@@ -45,11 +45,20 @@ export const useSwapPreferences = (): UseSwapPreferencesReturn => {
 
       if (prefsData) {
         // Found preferences in shift_swap_preferences
+        // Make sure to validate shift types against the ShiftType enum
+        const validatedShiftTypes = prefsData.acceptable_shift_types?.map((type: string) => {
+          // Validate if the type is one of the allowed ShiftTypes
+          if (type === 'day' || type === 'afternoon' || type === 'night') {
+            return type as ShiftType;
+          }
+          return 'day' as ShiftType; // Default fallback
+        }) || ['day', 'afternoon', 'night'] as ShiftType[];
+
         setPreferences({
           id: prefsData.id,
           userId: prefsData.user_id,
           preferredAreas: prefsData.preferred_areas || [],
-          acceptableShiftTypes: prefsData.acceptable_shift_types || ['day', 'afternoon', 'night'],
+          acceptableShiftTypes: validatedShiftTypes,
           createdAt: prefsData.created_at,
           updatedAt: prefsData.updated_at || prefsData.created_at,
         });
