@@ -52,7 +52,9 @@ serve(async (req) => {
         id,
         status,
         requester_request_id,
-        acceptor_request_id
+        acceptor_request_id,
+        requester_has_accepted,
+        acceptor_has_accepted
       `)
       .eq('id', match_id)
       .single()
@@ -65,17 +67,24 @@ serve(async (req) => {
       throw new Error('Match not found')
     }
 
-    // Check if the match is in "accepted" status
-    if (matchData.status !== 'accepted') {
+    // Check if the match is in "accepted" status or "other_accepted" status
+    if (matchData.status !== 'accepted' && matchData.status !== 'other_accepted') {
       throw new Error(`Cannot cancel match in ${matchData.status} status. Only accepted matches can be canceled.`)
     }
 
     console.log(`Found match data to cancel:`, matchData)
 
+    // Reset the acceptance flags
+    const updateData = {
+      status: 'pending',
+      requester_has_accepted: false,
+      acceptor_has_accepted: false
+    };
+
     // Update match status to "pending"
-    const { data: updateData, error: updateError } = await supabaseAdmin
+    const { data: updatedMatch, error: updateError } = await supabaseAdmin
       .from('shift_swap_potential_matches')
-      .update({ status: 'pending' })
+      .update(updateData)
       .eq('id', match_id)
       .select()
     
@@ -83,10 +92,10 @@ serve(async (req) => {
       throw new Error(`Error updating match: ${updateError.message}`)
     }
 
-    console.log(`Successfully updated match status from accepted to pending`)
+    console.log(`Successfully updated match status from accepted to pending, reset acceptance flags`)
 
     return new Response(
-      JSON.stringify({ success: true, data: updateData }),
+      JSON.stringify({ success: true, data: updatedMatch }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
   } catch (error) {

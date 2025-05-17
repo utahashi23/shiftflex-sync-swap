@@ -45,7 +45,8 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     matches: hookMatches,
     pastMatches: hookPastMatches,
     isLoading: isMatchesLoading,
-    fetchMatches
+    fetchMatches,
+    cancelMatch
   } = useSwapMatches();
   
   // Adapt the matches to the component's expected type
@@ -92,6 +93,21 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     fetchMatches(true, false); // Set userInitiatorOnly to false to get all matches
   }, [fetchMatches]);
   
+  // Handler for canceling a swap using the hook's cancelMatch function
+  const handleCancel = useCallback(async (matchId: string) => {
+    if (!matchId) return;
+    
+    try {
+      const success = await cancelMatch(matchId);
+      if (success) {
+        // Refresh the matches after a successful cancel
+        refreshMatches();
+      }
+    } catch (error) {
+      console.error('Error canceling swap:', error);
+    }
+  }, [cancelMatch, refreshMatches]);
+  
   // Debug logging for matches
   console.log("MatchedSwaps - Current matches:", matches);
   console.log("MatchedSwaps - Accepted matches:", matches?.filter(m => m.status === 'accepted'));
@@ -109,7 +125,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
         pastMatches={pastMatches}
         onAcceptSwap={handleAcceptClick}
         onFinalizeSwap={handleFinalizeClick}
-        onCancelSwap={handleCancelSwap}
+        onCancelSwap={handleCancel}  // Use our local handler that calls the hook's cancelMatch
         onResendEmail={handleResendEmail}
         onRefresh={refreshMatches}
         isLoading={isLoading}
