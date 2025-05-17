@@ -1,130 +1,110 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { SwapPreference, UseSwapPreferencesReturn, ShiftType } from './types';
-import { toast } from '@/hooks/use-toast';
+import { ShiftType, SwapPreference, UseSwapPreferencesReturn } from './types';
 
-export function useSwapPreferences(): UseSwapPreferencesReturn {
+export const useSwapPreferences = (): UseSwapPreferencesReturn => {
   const [preferences, setPreferences] = useState<SwapPreference | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const { toast } = useToast();
   const { user } = useAuth();
 
   const fetchPreferences = async () => {
-    if (!user) return;
-    
-    setIsLoading(true);
-    setError(null);
-    
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const { data, error } = await supabase
-        .from('shift_swap_preferences')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
+      setIsLoading(true);
+      setError(null);
+
+      // First try to get the user's preferences using RPC
+      const { data, error } = await supabase.rpc('get_user_swap_preferences', {
+        p_user_id: user.id,
+      });
+
+      if (error) {
+        console.error('Error fetching preferences via RPC:', error);
         throw error;
       }
-      
-      if (data) {
-        // Ensure proper typing by casting the raw string array to ShiftType[]
-        const acceptableTypes = data.acceptable_shift_types || ['day', 'afternoon', 'night'];
-        const typedAcceptableTypes = acceptableTypes as ShiftType[];
-        
+
+      if (data && data.length > 0) {
+        // Found preferences
         setPreferences({
-          id: data.id,
-          userId: data.user_id,
-          preferredAreas: data.preferred_areas || [],
-          acceptableShiftTypes: typedAcceptableTypes,
-          createdAt: data.created_at,
-          updatedAt: data.updated_at
+          id: data[0].id,
+          userId: data[0].user_id,
+          preferredAreas: data[0].preferred_areas || [],
+          acceptableShiftTypes: data[0].acceptable_shift_types || ['day', 'afternoon', 'night'],
+          createdAt: data[0].created_at,
+          updatedAt: data[0].updated_at || data[0].created_at,
         });
+      } else {
+        // No preferences found
+        setPreferences(null);
       }
-    } catch (err: any) {
-      console.error('Error fetching swap preferences:', err);
-      setError(err);
+    } catch (err) {
+      console.error('Error in fetchPreferences:', err);
+      setError(err as Error);
       toast({
-        title: "Failed to load preferences",
-        description: "There was a problem loading your swap preferences.",
-        variant: "destructive"
+        title: 'Error',
+        description: 'Failed to load swap preferences',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const savePreferences = async (newPreferences: Partial<SwapPreference>): Promise<boolean> => {
+  const savePreferences = async (prefs: Partial<SwapPreference>): Promise<boolean> => {
     if (!user) return false;
-    
+
     try {
       setIsLoading(true);
-      
-      // Ensure that acceptableShiftTypes is properly typed
-      const preferencesData = {
-        user_id: user.id,
-        preferred_areas: newPreferences.preferredAreas || [],
-        acceptable_shift_types: newPreferences.acceptableShiftTypes || ['day', 'afternoon', 'night']
-      };
-      
-      // Check if preferences already exist for this user
-      const { data: existingData } = await supabase
-        .from('shift_swap_preferences')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
-      let result;
-      
-      if (existingData?.id) {
+      setError(null);
+
+      // Check if preferences already exist
+      if (preferences?.id) {
         // Update existing preferences
-        result = await supabase
+        const { error } = await supabase
           .from('shift_swap_preferences')
-          .update(preferencesData)
-          .eq('id', existingData.id)
-          .select();
+          .update({
+            preferred_areas: prefs.preferredAreas || preferences.preferredAreas,
+            acceptable_shift_types: prefs.acceptableShiftTypes || preferences.acceptableShiftTypes,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', preferences.id);
+
+        if (error) throw error;
       } else {
-        // Insert new preferences
-        result = await supabase
-          .from('shift_swap_preferences')
-          .insert(preferencesData)
-          .select();
-      }
-      
-      if (result.error) {
-        throw result.error;
-      }
-      
-      // Update the local state with new data
-      if (result.data && result.data[0]) {
-        const updated = result.data[0];
-        const typedAcceptableTypes = (updated.acceptable_shift_types || 
-          ['day', 'afternoon', 'night']) as ShiftType[];
-          
-        setPreferences({
-          id: updated.id,
-          userId: updated.user_id,
-          preferredAreas: updated.preferred_areas || [],
-          acceptableShiftTypes: typedAcceptableTypes,
-          createdAt: updated.created_at,
-          updatedAt: updated.updated_at
+        // Create new preferences
+        const { error } = await supabase.from('shift_swap_preferences').insert({
+          user_id: user.id,
+          preferred_areas: prefs.preferredAreas || [],
+          acceptable_shift_types: prefs.acceptableShiftTypes || ['day', 'afternoon', 'night'],
         });
+
+        if (error) throw error;
       }
-      
+
       toast({
-        title: "Success",
-        description: "Swap preferences successfully updated.",
+        title: 'Success',
+        description: 'Swap preferences saved successfully',
       });
-      
+
+      // Fetch updated preferences
+      await fetchPreferences();
       return true;
-    } catch (err: any) {
-      console.error('Error saving swap preferences:', err);
-      setError(err);
+    } catch (err) {
+      console.error('Error saving preferences:', err);
+      setError(err as Error);
       toast({
-        title: "Failed to save preferences",
-        description: "There was a problem saving your swap preferences.",
-        variant: "destructive"
+        title: 'Error',
+        description: 'Failed to save swap preferences',
+        variant: 'destructive',
       });
       return false;
     } finally {
@@ -132,18 +112,9 @@ export function useSwapPreferences(): UseSwapPreferencesReturn {
     }
   };
 
-  // Load preferences when user changes
   useEffect(() => {
-    if (user) {
-      fetchPreferences();
-    }
+    fetchPreferences();
   }, [user]);
 
-  return {
-    preferences,
-    isLoading,
-    error,
-    savePreferences,
-    fetchPreferences
-  };
-}
+  return { preferences, isLoading, error, savePreferences, fetchPreferences };
+};

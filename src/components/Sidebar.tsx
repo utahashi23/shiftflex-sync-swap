@@ -8,7 +8,10 @@ import {
   Home,
   ArrowLeftRight,
   Users,
-  UserCog
+  UserCog,
+  List,
+  MessageSquareText,
+  HelpCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,8 +38,12 @@ const Sidebar = () => {
           <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" />
           <NavItem to="/shifts" icon={<Calendar size={20} />} label="My Shifts" />
           <NavItem to="/shift-swaps" icon={<ArrowLeftRight size={20} />} label="Shift Swaps" />
+          <NavItem to="/swaps-list" icon={<List size={20} />} label="Swaps List" />
           <NavItem to="/leave-swaps" icon={<Calendar size={20} />} label="Leave Swaps" />
           <NavItem to="/swap-preferences" icon={<UserCog size={20} />} label="Swap Preferences" />
+          <NavItem to="/settings" icon={<Settings size={20} />} label="Settings" />
+          <NavItem to="/feedback" icon={<MessageSquareText size={20} />} label="Feedback" />
+          <NavItem to="/faq" icon={<HelpCircle size={20} />} label="FAQ" />
           
           {/* Admin-only section */}
           {isAdmin && (
@@ -45,7 +52,7 @@ const Sidebar = () => {
                 ADMIN SECTION
               </div>
               <NavItem to="/admin" icon={<Users size={20} />} label="Admin Panel" />
-              <NavItem to="/settings" icon={<Settings size={20} />} label="Settings" />
+              <NavItem to="/system-settings" icon={<Settings size={20} />} label="System Settings" />
             </>
           )}
         </nav>

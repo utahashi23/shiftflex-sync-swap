@@ -12,9 +12,14 @@ const DashboardPage = lazy(() => import('@/pages/Dashboard'));
 const ShiftsPage = lazy(() => import('@/pages/Shifts'));
 const ShiftSwapsPage = lazy(() => import('@/pages/ShiftSwaps'));
 const LeaveSwapsPage = lazy(() => import('@/pages/LeaveSwaps'));
+const SwapsListPage = lazy(() => import('@/pages/SwapsList'));
 const SwapPreferencesPage = lazy(() => import('@/pages/SwapPreferencesPage'));
 const AdminPage = lazy(() => import('@/pages/Admin'));
 const NotFoundPage = lazy(() => import('@/pages/NotFound'));
+const SettingsPage = lazy(() => import('@/pages/Settings'));
+const SystemSettingsPage = lazy(() => import('@/pages/SystemSettings'));
+const FeedbackPage = lazy(() => import('@/pages/Feedback'));
+const FAQPage = lazy(() => import('@/pages/FAQ'));
 
 function App() {
   return (
@@ -29,7 +34,12 @@ function App() {
             <Route path="/shift-swaps" element={<ShiftSwapsPage />} />
             <Route path="/leave-swaps" element={<LeaveSwapsPage />} />
             <Route path="/swap-preferences" element={<SwapPreferencesPage />} />
+            <Route path="/swaps-list" element={<SwapsListPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/system-settings" element={<SystemSettingsPage />} />
+            <Route path="/feedback" element={<FeedbackPage />} />
+            <Route path="/faq" element={<FAQPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>

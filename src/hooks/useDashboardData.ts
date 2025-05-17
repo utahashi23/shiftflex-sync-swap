@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ExtendedUser } from '@/hooks/useAuth';
@@ -35,11 +35,19 @@ export const useDashboardData = (user: ExtendedUser | null) => {
     upcomingShifts: [],
     recentActivity: []
   });
+  
+  // Use a ref to prevent unnecessary data fetching
+  const fetchedRef = useRef(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!user) {
         setIsLoading(false);
+        return;
+      }
+      
+      // Prevent refetching if we've already fetched data for this user
+      if (fetchedRef.current) {
         return;
       }
       
@@ -161,6 +169,9 @@ export const useDashboardData = (user: ExtendedUser | null) => {
           upcomingShifts: upcomingShifts.slice(0, 4), // Limit to 4 upcoming shifts
           recentActivity
         });
+        
+        // Mark as fetched to prevent continuous refetching
+        fetchedRef.current = true;
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         toast({
@@ -174,6 +185,13 @@ export const useDashboardData = (user: ExtendedUser | null) => {
     };
 
     fetchDashboardData();
+    
+    // Reset the fetch flag when the user changes
+    return () => {
+      if (user) {
+        fetchedRef.current = false;
+      }
+    };
   }, [user, findSwapMatches]);
 
   return { stats, isLoading };
