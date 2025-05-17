@@ -48,10 +48,10 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
     setIsLoading(true);
     
     try {
+      // Fix: Remove the bypass_auth flag which might be causing issues
       const { data, error } = await supabase.functions.invoke('accept_swap_match', {
         body: { 
-          match_id: confirmDialog.matchId,
-          bypass_auth: true
+          match_id: confirmDialog.matchId
         }
       });
       
@@ -90,10 +90,10 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
     setIsLoading(true);
     
     try {
+      // Fix: Remove the bypass_auth flag which might be causing issues
       const { data, error } = await supabase.functions.invoke('complete_swap_match', {
         body: { 
-          match_id: finalizeDialog.matchId,
-          bypass_auth: true
+          match_id: finalizeDialog.matchId
         }
       });
       
@@ -132,10 +132,10 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
     setIsLoading(true);
     
     try {
+      // Fix: Remove the bypass_auth flag which might be causing issues
       const { data, error } = await supabase.functions.invoke('cancel_swap_match', {
         body: { 
-          match_id: matchId,
-          bypass_auth: true
+          match_id: matchId
         }
       });
       
@@ -173,10 +173,10 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
     setIsLoading(true);
     
     try {
+      // Fix: Remove the bypass_auth flag which might be causing issues
       const { data, error } = await supabase.functions.invoke('resend_swap_notification', {
         body: { 
-          match_id: matchId,
-          bypass_auth: true
+          match_id: matchId
         }
       });
       

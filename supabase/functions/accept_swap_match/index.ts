@@ -18,7 +18,8 @@ serve(async (req) => {
 
   try {
     // Get the request body
-    const { match_id } = await req.json()
+    const body = await req.json();
+    const { match_id } = body;
 
     if (!match_id) {
       return new Response(
@@ -26,6 +27,8 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
+
+    console.log(`Processing match_id: ${match_id}`);
 
     // Create a Supabase client with the Auth context of the logged in user
     const supabaseClient = createClient(
@@ -55,7 +58,7 @@ serve(async (req) => {
       )
     }
 
-    console.log(`User ${user.id} is accepting swap match ${match_id}`)
+    console.log(`User ${user.id} is accepting swap match ${match_id}`);
 
     // Get match data
     const { data: matchData, error: matchError } = await supabaseAdmin
@@ -72,10 +75,12 @@ serve(async (req) => {
       .single()
 
     if (matchError) {
+      console.error(`Error fetching match: ${matchError.message}`);
       throw new Error(`Error fetching match: ${matchError.message}`)
     }
 
     if (!matchData) {
+      console.error('Match not found');
       throw new Error('Match not found')
     }
 
@@ -90,10 +95,12 @@ serve(async (req) => {
       .in('id', [matchData.requester_request_id, matchData.acceptor_request_id])
 
     if (requestsError) {
+      console.error(`Error fetching requests: ${requestsError.message}`);
       throw new Error(`Error fetching requests: ${requestsError.message}`)
     }
 
     if (!requests || requests.length !== 2) {
+      console.error('Related swap requests not found');
       throw new Error('Related swap requests not found')
     }
 
@@ -102,6 +109,7 @@ serve(async (req) => {
     const acceptorRequest = requests.find(r => r.id === matchData.acceptor_request_id)
 
     if (!requesterRequest || !acceptorRequest) {
+      console.error('Could not determine request roles');
       throw new Error('Could not determine request roles')
     }
 
@@ -110,8 +118,11 @@ serve(async (req) => {
     const isAcceptor = acceptorRequest.requester_id === user.id
 
     if (!isRequester && !isAcceptor) {
+      console.error('User is not associated with this match');
       throw new Error('User is not associated with this match')
     }
+
+    console.log(`User is ${isRequester ? 'requester' : isAcceptor ? 'acceptor' : 'unknown role'}`);
 
     // Update the relevant acceptance flag
     let updateData: Record<string, any> = {}
@@ -119,10 +130,12 @@ serve(async (req) => {
     
     if (isRequester) {
       updateData.requester_has_accepted = true
+      console.log('Setting requester_has_accepted to true');
     }
     
     if (isAcceptor) {
       updateData.acceptor_has_accepted = true
+      console.log('Setting acceptor_has_accepted to true');
     }
 
     // Check if both users have now accepted
@@ -135,10 +148,14 @@ serve(async (req) => {
     if (bothAccepted) {
       updateStatus = 'accepted'
       updateData.status = updateStatus
+      console.log('Both users accepted, setting status to accepted');
     } else if (updateStatus === 'pending') {
       // If previously pending, change to reflect partial acceptance
       updateData.status = 'other_accepted'
+      console.log('One user accepted, setting status to other_accepted');
     }
+
+    console.log('Updating match with data:', updateData);
 
     // Update the match
     const { data: updatedMatch, error: updateError } = await supabaseAdmin
@@ -148,8 +165,11 @@ serve(async (req) => {
       .select()
 
     if (updateError) {
+      console.error(`Error updating match: ${updateError.message}`);
       throw new Error(`Error updating match: ${updateError.message}`)
     }
+
+    console.log('Successfully updated match');
 
     return new Response(
       JSON.stringify({ 
@@ -162,7 +182,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
   } catch (error) {
-    console.error('Error in accept_swap_match:', error)
+    console.error('Error in accept_swap_match:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }

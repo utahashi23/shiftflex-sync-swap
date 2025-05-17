@@ -46,6 +46,7 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     pastMatches: hookPastMatches,
     isLoading: isMatchesLoading,
     fetchMatches,
+    acceptMatch,
     cancelMatch
   } = useSwapMatches();
   
@@ -93,16 +94,27 @@ const MatchedSwapsComponent = ({ setRefreshTrigger }: MatchedSwapsProps) => {
     fetchMatches(true, false); // Set userInitiatorOnly to false to get all matches
   }, [fetchMatches]);
   
+  // Handler for accepting a swap
+  const handleAccept = useCallback(async (matchId: string) => {
+    if (!matchId) return;
+    
+    try {
+      await acceptMatch(matchId);
+      // Success is handled by the useSwapMatches hook via toast notifications
+      refreshMatches(); // Refresh matches after accepting
+    } catch (error) {
+      console.error('Error accepting swap:', error);
+      // Error handling is done inside the acceptMatch function
+    }
+  }, [acceptMatch, refreshMatches]);
+  
   // Handler for canceling a swap using the hook's cancelMatch function
   const handleCancel = useCallback(async (matchId: string) => {
     if (!matchId) return;
     
     try {
-      const success = await cancelMatch(matchId);
-      if (success) {
-        // Refresh the matches after a successful cancel
-        refreshMatches();
-      }
+      await cancelMatch(matchId);
+      refreshMatches(); // Refresh the matches after a successful cancel
     } catch (error) {
       console.error('Error canceling swap:', error);
     }

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '../use-toast';
 import { formatSwapMatches } from './utils';
@@ -92,11 +91,10 @@ export const acceptSwapMatch = async (matchId: string) => {
   console.log('Accepting swap match:', matchId);
   
   try {
-    // Use supabase.functions.invoke which properly handles authentication
+    // Fix: Add proper error handling and ensure we're sending the correct payload
     const { data, error } = await supabase.functions.invoke('accept_swap_match', {
       body: { 
-        match_id: matchId,
-        bypass_auth: true  // This flag will be checked in the edge function
+        match_id: matchId
       }
     });
     
@@ -115,12 +113,12 @@ export const acceptSwapMatch = async (matchId: string) => {
     console.log('Swap match accepted response:', data);
     
     // Update notification based on acceptance state
-    if (data.bothAccepted) {
+    if (data && data.bothAccepted) {
       toast({
         title: "Swap Fully Accepted",
         description: "Both users have accepted the swap. You can now finalize it.",
       });
-    } else if (data.requesterHasAccepted || data.acceptorHasAccepted) {
+    } else if (data && (data.requesterHasAccepted || data.acceptorHasAccepted)) {
       toast({
         title: "Swap Accepted",
         description: "You have accepted the swap. Waiting for the other user to accept it.",
@@ -133,7 +131,7 @@ export const acceptSwapMatch = async (matchId: string) => {
     }
     
     return data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in acceptSwapMatch:', error);
     
     // If the error is NOT already handled by the response check above
