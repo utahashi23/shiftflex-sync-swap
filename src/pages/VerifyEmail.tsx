@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { MailCheck } from 'lucide-react';
 import AuthLayout from '@/layouts/AuthLayout';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/auth';
 import { toast } from '@/hooks/use-toast';
 
 const resendSchema = z.object({
