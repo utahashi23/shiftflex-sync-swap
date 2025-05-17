@@ -39,9 +39,14 @@ const ImprovedShiftSwaps = () => {
     setActiveTab('matches');
   };
 
-  const handleCreateSwap = async (shiftId: string, wantedDates: string[], acceptedTypes: string[]) => {
+  const handleCreateSwap = async (
+    shiftId: string, 
+    wantedDates: string[], 
+    acceptedTypes: string[],
+    regionPreferences: { region_id: string, area_id?: string }[] = []
+  ) => {
     try {
-      const success = await createSwapRequest(shiftId, wantedDates, acceptedTypes);
+      const success = await createSwapRequest(shiftId, wantedDates, acceptedTypes, regionPreferences);
       if (success) {
         setIsFormOpen(false);
       }
@@ -188,7 +193,7 @@ const ImprovedShiftSwaps = () => {
                         </div>
                       </div>
 
-                      {swap.regionPreferences && (
+                      {swap.regionPreferences && swap.regionPreferences.length > 0 && (
                         <div>
                           <p className="text-sm font-medium mb-2">Region/Area Preferences</p>
                           <div className="flex flex-wrap gap-2">
@@ -259,6 +264,9 @@ const ImprovedShiftSwaps = () => {
                   <Search className={`h-4 w-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
                   Find Potential Matches
                 </Button>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Click to search for matches with your current swap requests
+                </p>
               </div>
 
               {isLoading || isProcessing ? (
@@ -317,6 +325,9 @@ const ImprovedShiftSwaps = () => {
                                   ` (${match.other_shift.start_time.substring(0, 5)} - ${match.other_shift.end_time.substring(0, 5)})`
                                 }
                               </p>
+                              <p className="text-sm text-gray-500 mt-1">
+                                {match.other_shift?.userName || 'Unknown User'}
+                              </p>
                             </div>
                           </div>
                           
@@ -337,6 +348,10 @@ const ImprovedShiftSwaps = () => {
                   <h3 className="text-xl font-semibold mb-2">No Matches Found</h3>
                   <p className="text-gray-600">
                     We couldn't find any matches for your swap requests at this time.
+                  </p>
+                  <p className="text-gray-600 mt-2">
+                    This could be because there are no other users with compatible requests,
+                    or because your requested dates don't match with others.
                   </p>
                 </div>
               )}

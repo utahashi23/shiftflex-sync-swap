@@ -91,18 +91,18 @@ export const useImprovedSwapMatches = () => {
           .eq('swap_id', swap.id);
 
         // Format region preferences
-        const regionPreferences = preferencesData?.map(pref => ({
+        const regionPreferences = (preferencesData || []).map(pref => ({
           id: pref.id,
           region_id: pref.region_id,
           area_id: pref.area_id,
           region_name: pref.regions?.name || 'Unknown Region',
           area_name: pref.areas?.name || null
-        })) || [];
+        }));
 
         return {
           ...typedSwap,
           shiftDetails: shiftData || null,
-          wantedDates: wantedDatesData?.map(d => d.date) || [],
+          wantedDates: (wantedDatesData || []).map(d => d.date) || [],
           regionPreferences
         };
       }));
@@ -137,8 +137,32 @@ export const useImprovedSwapMatches = () => {
       if (data?.success && data?.data?.matches) {
         setMatches(data.data.matches);
         console.log(`Found ${data.data.matches.length} potential matches`);
+        
+        // Log match details for debugging
+        if (data.data.matches.length === 0) {
+          console.warn('No matches found despite success response, checking raw response:');
+          console.log('Full response data:', data);
+        } else {
+          // Log first match details for debugging
+          const firstMatch = data.data.matches[0];
+          console.log('Sample match details:', {
+            request1_id: firstMatch.request1_id,
+            request2_id: firstMatch.request2_id,
+            compatibility_score: firstMatch.compatibility_score,
+            myShift: {
+              date: firstMatch.my_shift?.date,
+              type: firstMatch.my_shift?.type
+            },
+            otherShift: {
+              date: firstMatch.other_shift?.date,
+              type: firstMatch.other_shift?.type,
+              userName: firstMatch.other_shift?.userName
+            }
+          });
+        }
       } else {
         console.log('No matches found or unexpected response format');
+        console.log('Full response:', data);
         setMatches([]);
       }
     } catch (err: any) {
@@ -158,7 +182,8 @@ export const useImprovedSwapMatches = () => {
   const createSwapRequest = async (
     shiftId: string,
     wantedDates: string[] = [],
-    acceptedTypes: string[] = ['day', 'afternoon', 'night']
+    acceptedTypes: string[] = ['day', 'afternoon', 'night'],
+    regionPreferences: { region_id: string, area_id?: string }[] = []
   ) => {
     if (!user) return false;
     
@@ -181,21 +206,39 @@ export const useImprovedSwapMatches = () => {
       // If we have additional dates, add them to the secondary table
       if (wantedDates.length > 1) {
         // Skip the first date as it's already in the main record
-        const additionalDates = wantedDates.slice(1).map(date => ({
-          swap_id: data.id,
-          date
-        }));
-
-        // Insert additional dates
-        if (additionalDates.length > 0) {
-          const { error: datesError } = await supabase
+        const additionalDatesPromises = wantedDates.slice(1).map(async (date) => {
+          const { error: dateError } = await supabase
             .from('improved_swap_wanted_dates')
-            .insert(additionalDates);
-            
-          if (datesError) {
-            console.error('Error adding additional dates:', datesError);
+            .insert({
+              swap_id: data.id,
+              date: date
+            });
+          
+          if (dateError) {
+            console.error('Error adding date:', date, dateError);
           }
-        }
+        });
+
+        await Promise.all(additionalDatesPromises);
+      }
+
+      // Add region/area preferences if any
+      if (regionPreferences.length > 0) {
+        const prefPromises = regionPreferences.map(async (pref) => {
+          const { error: prefError } = await supabase
+            .from('improved_swap_preferences')
+            .insert({
+              swap_id: data.id,
+              region_id: pref.region_id,
+              area_id: pref.area_id || null
+            });
+          
+          if (prefError) {
+            console.error('Error adding preference:', pref, prefError);
+          }
+        });
+
+        await Promise.all(prefPromises);
       }
       
       toast({

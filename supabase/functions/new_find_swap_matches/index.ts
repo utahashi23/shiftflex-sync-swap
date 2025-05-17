@@ -142,6 +142,12 @@ serve(async (req) => {
         const userWantsOtherShift = allWantedDates.includes(otherShift.date);
         const otherWantsUserShift = allOtherWantedDates.includes(userShift.date);
         
+        console.log(`Checking match: User ${userId} and other user ${otherRequest.requester_id}`);
+        console.log(`User wants other shift: ${userWantsOtherShift}, Other wants user shift: ${otherWantsUserShift}`);
+        console.log(`User shift date: ${userShift.date}, Other shift date: ${otherShift.date}`);
+        console.log(`User wanted dates: ${allWantedDates.join(', ')}`);
+        console.log(`Other wanted dates: ${allOtherWantedDates.join(', ')}`);
+
         if (userWantsOtherShift && otherWantsUserShift) {
           // Check shift type compatibility
           const userShiftType = getShiftType(userShift.start_time);
@@ -149,6 +155,9 @@ serve(async (req) => {
           
           const userAcceptsOtherType = otherRequest.accepted_shift_types.includes(userShiftType);
           const otherAcceptsUserType = userRequest.accepted_shift_types.includes(otherShiftType);
+          
+          console.log(`User shift type: ${userShiftType}, Other accepts: ${userAcceptsOtherType}`);
+          console.log(`Other shift type: ${otherShiftType}, User accepts: ${otherAcceptsUserType}`);
           
           if (userAcceptsOtherType && otherAcceptsUserType) {
             // We have a match! Calculate compatibility score
@@ -185,6 +194,8 @@ serve(async (req) => {
                 employee_id: otherProfile?.employee_id
               }
             });
+            
+            console.log(`✓ MATCH FOUND! Score: ${score}`);
           }
         }
       }

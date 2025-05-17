@@ -76,6 +76,8 @@ serve(async (req) => {
         body: { user_id: user_id }
       });
 
+      console.log('Potential matches response:', potentialMatches);
+
       if (!potentialMatches?.data?.matches || potentialMatches.data.matches.length === 0) {
         return createErrorResponse('No potential matches found for this request', 400);
       }
@@ -91,6 +93,8 @@ serve(async (req) => {
 
       // Take the highest scoring match
       const bestMatch = sortedMatches[0];
+      console.log('Best match:', bestMatch);
+      
       const otherRequestId = bestMatch.request1_id === request_id 
         ? bestMatch.request2_id 
         : bestMatch.request1_id;
