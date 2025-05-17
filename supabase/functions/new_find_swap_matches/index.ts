@@ -13,6 +13,7 @@ serve(async (req) => {
     // Parse request body
     const body = await req.json().catch(() => ({}));
     const userId = body.user_id;
+    const verbose = body.verbose || false;
     
     if (!userId) {
       return createErrorResponse('Missing user_id in request body', 400);
@@ -67,6 +68,10 @@ serve(async (req) => {
       return createErrorResponse(`Error fetching user shifts: ${shiftsError.message}`, 500);
     }
 
+    if (verbose) {
+      console.log(`User shifts:`, userShifts);
+    }
+
     // Get potential matches from other users' requests
     const { data: otherRequests, error: otherReqsError } = await supabaseAdmin
       .from('improved_shift_swaps')
@@ -102,39 +107,109 @@ serve(async (req) => {
       return createErrorResponse(`Error fetching other shifts: ${otherShiftsError.message}`, 500);
     }
 
+    if (verbose) {
+      console.log(`Other shifts:`, otherShifts);
+    }
+
+    // Get additional wanted dates for user requests
+    const { data: allUserWantedDates, error: wantedDatesError } = await supabaseAdmin
+      .from('improved_swap_wanted_dates')
+      .select('*')
+      .in('swap_id', userRequests.map(req => req.id));
+
+    if (wantedDatesError) {
+      console.log(`Warning fetching wanted dates: ${wantedDatesError.message}`);
+      // Continue anyway, not a fatal error
+    }
+
+    const userWantedDatesMap = new Map();
+    if (allUserWantedDates) {
+      allUserWantedDates.forEach(dateObj => {
+        if (!userWantedDatesMap.has(dateObj.swap_id)) {
+          userWantedDatesMap.set(dateObj.swap_id, []);
+        }
+        userWantedDatesMap.get(dateObj.swap_id).push(dateObj.date);
+      });
+    }
+
+    // Get additional wanted dates for other requests
+    const { data: allOtherWantedDates, error: otherWantedDatesError } = await supabaseAdmin
+      .from('improved_swap_wanted_dates')
+      .select('*')
+      .in('swap_id', otherRequests.map(req => req.id));
+
+    if (otherWantedDatesError) {
+      console.log(`Warning fetching other wanted dates: ${otherWantedDatesError.message}`);
+      // Continue anyway, not a fatal error
+    }
+
+    const otherWantedDatesMap = new Map();
+    if (allOtherWantedDates) {
+      allOtherWantedDates.forEach(dateObj => {
+        if (!otherWantedDatesMap.has(dateObj.swap_id)) {
+          otherWantedDatesMap.set(dateObj.swap_id, []);
+        }
+        otherWantedDatesMap.get(dateObj.swap_id).push(dateObj.date);
+      });
+    }
+
+    // Get user profiles for display names
+    const allUserIds = [...new Set([
+      ...otherRequests.map(req => req.requester_id)
+    ])];
+    
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, first_name, last_name, employee_id')
+      .in('id', allUserIds);
+    
+    if (profilesError) {
+      console.log(`Warning fetching profiles: ${profilesError.message}`);
+      // Continue anyway, not a fatal error
+    }
+    
+    const profileMap = new Map();
+    if (profiles) {
+      profiles.forEach(profile => {
+        profileMap.set(profile.id, profile);
+      });
+    }
+
     // Now look at each user request and find potential matches
     const potentialMatches = [];
     
     for (const userRequest of userRequests) {
       const userShift = userShifts.find(s => s.id === userRequest.requester_shift_id);
-      if (!userShift) continue; // Skip if we can't find the shift
+      if (!userShift) {
+        console.log(`Could not find user shift ${userRequest.requester_shift_id}`);
+        continue; // Skip if we can't find the shift
+      }
 
-      // Get additional wanted dates for this request
-      const { data: additionalDates } = await supabaseAdmin
-        .from('improved_swap_wanted_dates')
-        .select('date')
-        .eq('swap_id', userRequest.id);
-        
-      // All dates this user wants (primary + additional)
+      // Get all dates this user wants (primary + additional)
       const allWantedDates = [userRequest.wanted_date];
-      if (additionalDates && additionalDates.length > 0) {
-        additionalDates.forEach(d => allWantedDates.push(d.date));
+      const additionalDates = userWantedDatesMap.get(userRequest.id) || [];
+      additionalDates.forEach(date => allWantedDates.push(date));
+
+      if (verbose) {
+        console.log(`Request ${userRequest.id} wanted dates:`, allWantedDates);
+        console.log(`User shift date: ${userShift.date}, accepts: ${userRequest.accepted_shift_types.join(', ')}`);
       }
 
       for (const otherRequest of otherRequests) {
         const otherShift = otherShifts.find(s => s.id === otherRequest.requester_shift_id);
-        if (!otherShift) continue; // Skip if we can't find the shift
+        if (!otherShift) {
+          console.log(`Could not find other shift ${otherRequest.requester_shift_id}`);
+          continue; // Skip if we can't find the shift
+        }
 
-        // Get additional wanted dates for the other request
-        const { data: otherAdditionalDates } = await supabaseAdmin
-          .from('improved_swap_wanted_dates')
-          .select('date')
-          .eq('swap_id', otherRequest.id);
-          
-        // All dates the other user wants (primary + additional)
+        // Get all dates the other user wants (primary + additional)
         const allOtherWantedDates = [otherRequest.wanted_date];
-        if (otherAdditionalDates && otherAdditionalDates.length > 0) {
-          otherAdditionalDates.forEach(d => allOtherWantedDates.push(d.date));
+        const otherAdditionalDates = otherWantedDatesMap.get(otherRequest.id) || [];
+        otherAdditionalDates.forEach(date => allOtherWantedDates.push(date));
+        
+        if (verbose) {
+          console.log(`Other request ${otherRequest.id} wanted dates:`, allOtherWantedDates);
+          console.log(`Other shift date: ${otherShift.date}, accepts: ${otherRequest.accepted_shift_types.join(', ')}`);
         }
 
         // Check if this is a potential match
@@ -145,9 +220,7 @@ serve(async (req) => {
         console.log(`Checking match: User ${userId} and other user ${otherRequest.requester_id}`);
         console.log(`User wants other shift: ${userWantsOtherShift}, Other wants user shift: ${otherWantsUserShift}`);
         console.log(`User shift date: ${userShift.date}, Other shift date: ${otherShift.date}`);
-        console.log(`User wanted dates: ${allWantedDates.join(', ')}`);
-        console.log(`Other wanted dates: ${allOtherWantedDates.join(', ')}`);
-
+        
         if (userWantsOtherShift && otherWantsUserShift) {
           // Check shift type compatibility
           const userShiftType = getShiftType(userShift.start_time);
@@ -169,11 +242,7 @@ serve(async (req) => {
             }
             
             // Get user profile details for the match
-            const { data: otherProfile } = await supabaseAdmin
-              .from('profiles')
-              .select('id, first_name, last_name, employee_id')
-              .eq('id', otherRequest.requester_id)
-              .single();
+            const otherProfile = profileMap.get(otherRequest.requester_id);
               
             // Add the match to our results
             potentialMatches.push({
@@ -202,6 +271,49 @@ serve(async (req) => {
     }
 
     console.log(`Found ${potentialMatches.length} potential matches`);
+    
+    if (potentialMatches.length === 0) {
+      // Log details to help troubleshoot why no matches were found
+      console.log("Diagnostics for why no matches were found:");
+      console.log(`User has ${userRequests.length} requests`);
+      
+      for (const req of userRequests) {
+        const shift = userShifts.find(s => s.id === req.requester_shift_id);
+        console.log(`Request ${req.id}: User wants date ${req.wanted_date}, has shift on ${shift?.date}`);
+        
+        // Additional wanted dates
+        const additionalDates = userWantedDatesMap.get(req.id) || [];
+        if (additionalDates.length > 0) {
+          console.log(`  Additional wanted dates: ${additionalDates.join(', ')}`);
+        }
+      }
+      
+      // Check if there are any potential date matches regardless of other criteria
+      let dateMatchesFound = 0;
+      for (const userReq of userRequests) {
+        const userShift = userShifts.find(s => s.id === userReq.requester_shift_id);
+        if (!userShift) continue;
+        
+        const userWantedDates = [userReq.wanted_date, ...(userWantedDatesMap.get(userReq.id) || [])];
+        
+        for (const otherReq of otherRequests) {
+          const otherShift = otherShifts.find(s => s.id === otherReq.requester_shift_id);
+          if (!otherShift) continue;
+          
+          const otherWantedDates = [otherReq.wanted_date, ...(otherWantedDatesMap.get(otherReq.id) || [])];
+          
+          if (userWantedDates.includes(otherShift.date) && otherWantedDates.includes(userShift.date)) {
+            dateMatchesFound++;
+            console.log(`Found date match between user req ${userReq.id} and other req ${otherReq.id}`);
+            console.log(`  But shift type compatibility failed:`);
+            console.log(`  User shift type: ${getShiftType(userShift.start_time)}, accepted by other: ${otherReq.accepted_shift_types.includes(getShiftType(userShift.start_time))}`);
+            console.log(`  Other shift type: ${getShiftType(otherShift.start_time)}, accepted by user: ${userReq.accepted_shift_types.includes(getShiftType(otherShift.start_time))}`);
+          }
+        }
+      }
+      
+      console.log(`Found ${dateMatchesFound} potential date matches that failed other criteria`);
+    }
 
     return createSuccessResponse({
       matches: potentialMatches,

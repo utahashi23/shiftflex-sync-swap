@@ -1,4 +1,3 @@
-
 // Edge function to accept a shift swap match using the new improved system
 import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -37,7 +36,7 @@ serve(async (req) => {
     // Admin client for secure operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    // Verify the request belongs to the user or matches with user's request
+    // First check if this is a request from the user or a match with the user's request
     const { data: userRequest, error: requestError } = await supabaseAdmin
       .from('improved_shift_swaps')
       .select('*')
@@ -50,42 +49,30 @@ serve(async (req) => {
       return createErrorResponse(`Error fetching request: ${requestError.message}`, 500);
     }
 
-    if (!userRequest) {
-      // Check if the user is part of a match for this request
-      const { data: matchingRequest, error: matchError } = await supabaseAdmin
-        .from('improved_shift_swaps')
-        .select('*')
-        .eq('matched_with_id', request_id)
-        .eq('requester_id', user_id)
-        .maybeSingle();
-
-      if (matchError) {
-        console.error(`Error checking match: ${matchError.message}`);
-        return createErrorResponse(`Error checking match: ${matchError.message}`, 500);
-      }
-
-      if (!matchingRequest) {
-        return createErrorResponse('You are not authorized to accept this swap', 403);
-      }
-    }
-
-    // Create the match
+    // If it's the user's request, they're initiating a match
     if (userRequest) {
+      console.log('User is initiating a match with their own request');
+      
       // Find the best match
-      const { data: potentialMatches } = await supabaseAdmin.functions.invoke('new_find_swap_matches', {
+      const { data: matchesResponse, error: matchError } = await supabaseAdmin.functions.invoke('new_find_swap_matches', {
         body: { user_id: user_id }
       });
 
-      console.log('Potential matches response:', potentialMatches);
+      if (matchError) {
+        console.error(`Error finding matches: ${matchError.message}`);
+        return createErrorResponse(`Error finding matches: ${matchError.message}`, 500);
+      }
 
-      if (!potentialMatches?.data?.matches || potentialMatches.data.matches.length === 0) {
+      console.log('Matches response:', matchesResponse);
+
+      if (!matchesResponse?.data?.matches || matchesResponse.data.matches.length === 0) {
         return createErrorResponse('No potential matches found for this request', 400);
       }
 
       // Sort matches by compatibility score
-      const sortedMatches = potentialMatches.data.matches
-        .filter((m: any) => m.request1_id === request_id || m.request2_id === request_id)
-        .sort((a: any, b: any) => b.compatibility_score - a.compatibility_score);
+      const sortedMatches = matchesResponse.data.matches
+        .filter((m) => m.request1_id === request_id || m.request2_id === request_id)
+        .sort((a, b) => b.compatibility_score - a.compatibility_score);
 
       if (sortedMatches.length === 0) {
         return createErrorResponse('No specific match found for this request', 400);
@@ -145,54 +132,59 @@ serve(async (req) => {
           other_request_id: otherRequestId
         }
       });
-    } else {
-      // User is accepting an existing match
-      const acceptingRequestId = request_id;
-      
-      // Find the matching request
-      const { data: matchRequest, error: matchRequestError } = await supabaseAdmin
-        .from('improved_shift_swaps')
-        .select('*')
-        .eq('matched_with_id', acceptingRequestId)
-        .maybeSingle();
+    } 
+    
+    // Otherwise check if the user is accepting a match to someone else's request
+    const { data: matchedWithUserRequest, error: matchedError } = await supabaseAdmin
+      .from('improved_shift_swaps')
+      .select('*')
+      .eq('requester_id', user_id)
+      .eq('matched_with_id', request_id)
+      .maybeSingle();
 
-      if (matchRequestError || !matchRequest) {
-        console.error(`Error finding matching request: ${matchRequestError?.message || 'No match found'}`);
-        return createErrorResponse(`Error finding matching request: ${matchRequestError?.message || 'No match found'}`, 500);
-      }
-
-      // Update both requests to confirmed status
-      const { error: updateError } = await supabaseAdmin
-        .from('improved_shift_swaps')
-        .update({ 
-          status: 'confirmed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', acceptingRequestId);
-
-      if (updateError) {
-        console.error(`Error updating request: ${updateError.message}`);
-        return createErrorResponse(`Error updating request: ${updateError.message}`, 500);
-      }
-
-      const { error: updateMatchError } = await supabaseAdmin
-        .from('improved_shift_swaps')
-        .update({ 
-          status: 'confirmed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', matchRequest.id);
-
-      if (updateMatchError) {
-        console.error(`Error updating matching request: ${updateMatchError.message}`);
-        return createErrorResponse(`Error updating matching request: ${updateMatchError.message}`, 500);
-      }
-
-      return createSuccessResponse({
-        message: 'Swap confirmed successfully',
-        status: 'confirmed'
-      });
+    if (matchedError) {
+      console.error(`Error checking match: ${matchedError.message}`);
+      return createErrorResponse(`Error checking match: ${matchedError.message}`, 500);
     }
+
+    if (!matchedWithUserRequest) {
+      return createErrorResponse('You are not authorized to accept this swap', 403);
+    }
+
+    // User is accepting an existing match where their request is matched with the provided request_id
+    console.log('User is accepting an existing match');
+    
+    // Update both requests to confirmed status
+    const { error: updateUserError } = await supabaseAdmin
+      .from('improved_shift_swaps')
+      .update({ 
+        status: 'confirmed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', matchedWithUserRequest.id);
+
+    if (updateUserError) {
+      console.error(`Error updating user request: ${updateUserError.message}`);
+      return createErrorResponse(`Error updating user request: ${updateUserError.message}`, 500);
+    }
+
+    const { error: updateOtherError } = await supabaseAdmin
+      .from('improved_shift_swaps')
+      .update({ 
+        status: 'confirmed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', request_id);
+
+    if (updateOtherError) {
+      console.error(`Error updating matched request: ${updateOtherError.message}`);
+      return createErrorResponse(`Error updating matched request: ${updateOtherError.message}`, 500);
+    }
+
+    return createSuccessResponse({
+      message: 'Swap confirmed successfully',
+      status: 'confirmed'
+    });
 
   } catch (error) {
     console.error('Error in new_accept_swap_match:', error);

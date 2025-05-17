@@ -57,6 +57,26 @@ const ImprovedShiftSwaps = () => {
     }
   };
 
+  // Helper function to format a date safely
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return 'Unknown date';
+    try {
+      return format(parseISO(dateStr), 'PPP');
+    } catch (e) {
+      console.error(`Error formatting date: ${dateStr}`, e);
+      return 'Invalid date';
+    }
+  };
+
+  // Helper function to format a time safely
+  const formatTime = (timeStr: string | null | undefined) => {
+    if (!timeStr) return '';
+    if (timeStr.length >= 5) {
+      return timeStr.substring(0, 5);
+    }
+    return timeStr;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -77,7 +97,7 @@ const ImprovedShiftSwaps = () => {
             onClick={handleRefresh}
             disabled={isLoading || isProcessing}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -119,14 +139,16 @@ const ImprovedShiftSwaps = () => {
             </div>
           ) : swaps.length > 0 ? (
             <div className="space-y-4">
-              {swaps.map((swap) => (
+              {swaps.map((swap) => {
+                console.log("Rendering swap:", swap);
+                return (
                 <Card key={swap.id}>
                   <CardHeader className="pb-2">
                     <div className="flex justify-between">
                       <div>
                         <CardTitle>Swap Request {swap.status !== 'pending' && `• ${swap.status}`}</CardTitle>
                         <CardDescription>
-                          Created on {format(parseISO(swap.created_at), 'PPP')}
+                          Created on {formatDate(swap.created_at)}
                         </CardDescription>
                       </div>
                       
@@ -150,10 +172,10 @@ const ImprovedShiftSwaps = () => {
                           <p className="text-sm font-medium">From Shift</p>
                           {swap.shiftDetails ? (
                             <>
-                              <p className="text-lg">{format(parseISO(swap.shiftDetails.date), 'PPP')}</p>
+                              <p className="text-lg">{formatDate(swap.shiftDetails.date)}</p>
                               <p className="text-sm text-gray-600">
                                 {swap.shiftDetails.truck_name || 'Unknown location'}{' '}
-                                ({swap.shiftDetails.start_time?.substring(0, 5)} - {swap.shiftDetails.end_time?.substring(0, 5)})
+                                ({formatTime(swap.shiftDetails.start_time)} - {formatTime(swap.shiftDetails.end_time)})
                               </p>
                             </>
                           ) : (
@@ -166,10 +188,10 @@ const ImprovedShiftSwaps = () => {
                           <div className="flex flex-col gap-1">
                             {swap.wantedDates && swap.wantedDates.length > 0 ? (
                               swap.wantedDates.map((date, index) => (
-                                <p key={index} className="text-md">{format(parseISO(date), 'PPP')}</p>
+                                <p key={index} className="text-md">{formatDate(date)}</p>
                               ))
                             ) : (
-                              <p className="text-lg">{format(parseISO(swap.wanted_date), 'PPP')}</p>
+                              <p className="text-lg">{formatDate(swap.wanted_date)}</p>
                             )}
                           </div>
                         </div>
@@ -233,7 +255,7 @@ const ImprovedShiftSwaps = () => {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              )})}
             </div>
           ) : (
             <div className="text-center py-12 bg-secondary/20 rounded-lg">
@@ -304,12 +326,12 @@ const ImprovedShiftSwaps = () => {
                             <div className="p-3 border rounded-md">
                               <p className="text-sm font-medium mb-1">Your Shift</p>
                               <p className="text-base">
-                                {match.my_shift?.date ? format(parseISO(match.my_shift.date), 'PPP') : 'N/A'}
+                                {match.my_shift?.date ? formatDate(match.my_shift.date) : 'N/A'}
                               </p>
                               <p className="text-sm text-gray-500">
                                 {match.my_shift?.truck_name || 'Unknown location'} 
                                 {match.my_shift?.start_time && match.my_shift?.end_time && 
-                                  ` (${match.my_shift.start_time.substring(0, 5)} - ${match.my_shift.end_time.substring(0, 5)})`
+                                  ` (${formatTime(match.my_shift.start_time)} - ${formatTime(match.my_shift.end_time)})`
                                 }
                               </p>
                             </div>
@@ -317,16 +339,17 @@ const ImprovedShiftSwaps = () => {
                             <div className="p-3 border rounded-md">
                               <p className="text-sm font-medium mb-1">Their Shift</p>
                               <p className="text-base">
-                                {match.other_shift?.date ? format(parseISO(match.other_shift.date), 'PPP') : 'N/A'}
+                                {match.other_shift?.date ? formatDate(match.other_shift.date) : 'N/A'}
                               </p>
                               <p className="text-sm text-gray-500">
                                 {match.other_shift?.truck_name || 'Unknown location'}
                                 {match.other_shift?.start_time && match.other_shift?.end_time && 
-                                  ` (${match.other_shift.start_time.substring(0, 5)} - ${match.other_shift.end_time.substring(0, 5)})`
+                                  ` (${formatTime(match.other_shift.start_time)} - ${formatTime(match.other_shift.end_time)})`
                                 }
                               </p>
                               <p className="text-sm text-gray-500 mt-1">
                                 {match.other_shift?.userName || 'Unknown User'}
+                                {match.other_shift?.employee_id && ` (ID: ${match.other_shift.employee_id})`}
                               </p>
                             </div>
                           </div>
