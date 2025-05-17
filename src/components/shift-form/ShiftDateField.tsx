@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from 'date-fns';
 import { Badge } from "@/components/ui/badge";
 import { X } from 'lucide-react';
+import { ShiftSwapDialog } from '@/components/swaps/ShiftSwapDialog';
 
 interface ShiftDateFieldProps {
   value: string;
@@ -32,6 +33,7 @@ export const ShiftDateField = ({
   onMultiDateChange
 }: ShiftDateFieldProps) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
@@ -92,18 +94,25 @@ export const ShiftDateField = ({
 
       {multiSelect ? (
         <>
-          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left font-normal"
-              >
-                {selectedDates.length > 0 
-                  ? `${selectedDates.length} date${selectedDates.length !== 1 ? 's' : ''} selected` 
-                  : "Select dates"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+          <Button
+            variant="outline"
+            className="w-full justify-start text-left font-normal"
+            onClick={() => setIsDialogOpen(true)}
+          >
+            {selectedDates.length > 0 
+              ? `${selectedDates.length} date${selectedDates.length !== 1 ? 's' : ''} selected` 
+              : "Select dates"}
+          </Button>
+          
+          <ShiftSwapDialog
+            open={isDialogOpen}
+            onOpenChange={setIsDialogOpen}
+            title="Select Dates"
+            description="Choose one or more dates for your shift swap"
+            onConfirm={() => setIsDialogOpen(false)}
+            confirmLabel="Done"
+          >
+            <div className="p-2">
               <Calendar
                 mode="multiple"
                 selected={selectedDates}
@@ -113,10 +122,10 @@ export const ShiftDateField = ({
                   }
                 }}
                 initialFocus
-                className="p-3"
+                className="pointer-events-auto"
               />
-            </PopoverContent>
-          </Popover>
+            </div>
+          </ShiftSwapDialog>
           
           {/* Display selected dates */}
           {selectedDates.length > 0 && (
