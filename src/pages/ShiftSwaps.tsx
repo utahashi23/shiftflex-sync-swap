@@ -6,12 +6,13 @@ import AppLayout from '@/layouts/AppLayout';
 import ShiftSwapCalendar from '@/components/ShiftSwapCalendar';
 import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
+import ImprovedShiftSwaps from '@/components/ImprovedShiftSwaps';
 import { useAuth } from '@/hooks/useAuth';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
   const { user, isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState('calendar');
+  const [activeTab, setActiveTab] = useState('improved');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Force tab refresh when coming back to this page or after finding matches
@@ -40,7 +41,7 @@ const ShiftSwaps = () => {
       </div>
 
       <Tabs 
-        defaultValue="calendar" 
+        defaultValue="improved" 
         value={activeTab}
         onValueChange={(value) => {
           setActiveTab(value);
@@ -51,13 +52,20 @@ const ShiftSwaps = () => {
         }}
         className="w-full"
       >
-        <TabsList className="grid grid-cols-3 mb-8">
+        <TabsList className="grid grid-cols-4 mb-8">
+          <TabsTrigger value="improved">Improved System</TabsTrigger>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="requested">Requested Swaps</TabsTrigger>
           <TabsTrigger value="matched">Matched Swaps</TabsTrigger>
         </TabsList>
         
         {/* Use React.lazy/suspense pattern to lazily load tab content only when active */}
+        {activeTab === 'improved' && (
+          <TabsContent value="improved">
+            <ImprovedShiftSwaps />
+          </TabsContent>
+        )}
+        
         {activeTab === 'calendar' && (
           <TabsContent value="calendar">
             <ShiftSwapCalendar key={`calendar-${refreshTrigger}`} />
