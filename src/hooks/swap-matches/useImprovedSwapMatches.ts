@@ -72,8 +72,11 @@ export const useImprovedSwapMatches = () => {
           .single();
 
         // Fetch wanted dates (if multiple)
+        // Use direct query instead of RPC for now
         const { data: wantedDatesData } = await supabase
-          .rpc('get_improved_swap_wanted_dates', { p_swap_id: swap.id });
+          .from('improved_swap_wanted_dates')
+          .select('*')
+          .eq('swap_id', swap.id);
 
         // Format region preferences (stub for now - we'll implement this properly later)
         const regionPreferences: any[] = [];
@@ -81,7 +84,7 @@ export const useImprovedSwapMatches = () => {
         return {
           ...typedSwap,
           shiftDetails: shiftData || null,
-          wantedDates: (wantedDatesData || []).map((d: any) => d.date) || [],
+          wantedDates: wantedDatesData ? wantedDatesData.map((d: any) => d.date) : [],
           regionPreferences
         };
       }));
@@ -186,10 +189,12 @@ export const useImprovedSwapMatches = () => {
       if (wantedDates.length > 1) {
         // Skip the first date as it's already in the main record
         const additionalDatesPromises = wantedDates.slice(1).map(async (date) => {
+          // Use direct insert instead of RPC
           const { error: dateError } = await supabase
-            .rpc('add_improved_swap_wanted_date', {
-              p_swap_id: data.id,
-              p_date: date
+            .from('improved_swap_wanted_dates')
+            .insert({
+              swap_id: data.id,
+              date: date
             });
           
           if (dateError) {
@@ -273,9 +278,16 @@ export const useImprovedSwapMatches = () => {
     
     setIsProcessing(true);
     try {
-      // Delete any additional wanted dates (using RPC function)
-      await supabase.rpc('delete_improved_swap_wanted_dates', { p_swap_id: requestId });
+      // Direct delete of wanted dates
+      const { error: wantedDatesError } = await supabase
+        .from('improved_swap_wanted_dates')
+        .delete()
+        .eq('swap_id', requestId);
         
+      if (wantedDatesError) {
+        console.error('Error deleting wanted dates:', wantedDatesError);
+      }
+      
       // Delete any region/area preferences (not implemented yet)
       
       // Then delete the main swap record
