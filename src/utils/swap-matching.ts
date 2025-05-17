@@ -110,46 +110,57 @@ const areAreasCompatible = async (
   user2Id: string
 ): Promise<boolean> => {
   // Get area information for both shifts
-  const { data: areasData } = await supabase
-    .from('trucks_to_areas') 
-    .select('truck_name, area_id')
-    .in('truck_name', [shift1.truck_name, shift2.truck_name]);
+  try {
+    // Check if truck names are valid
+    if (!shift1.truck_name || !shift2.truck_name) {
+      return true; // Skip area check if no truck names
+    }
     
-  if (!areasData) {
-    return true; // Default to true if area data not found
+    // We're using a custom RPC function instead of accessing tables directly
+    const { data: areasData, error } = await supabase.rpc('get_truck_areas', {
+      truck_names: [shift1.truck_name, shift2.truck_name]
+    });
+    
+    if (error || !areasData || !areasData.length) {
+      console.error("Error fetching truck areas:", error);
+      return true; // Default to true if area data not found
+    }
+    
+    // Find the area IDs for each shift
+    const shift1AreaId = areasData.find((a: any) => a.truck_name === shift1.truck_name)?.area_id;
+    const shift2AreaId = areasData.find((a: any) => a.truck_name === shift2.truck_name)?.area_id;
+    
+    // Fetch preferences for both users
+    const { data: preferences } = await supabase
+      .from('shift_swap_preferences')
+      .select('user_id, preferred_areas')
+      .in('user_id', [user1Id, user2Id]);
+    
+    if (!preferences) {
+      return true; // Default to true if preferences not found
+    }
+    
+    // Find each user's preferences
+    const user1Prefs = preferences.find(p => p.user_id === user1Id);
+    const user2Prefs = preferences.find(p => p.user_id === user2Id);
+    
+    // Check if User A's preferred areas include User B's shift area
+    // Check if User B's preferred areas include User A's shift area
+    return (
+      !shift2AreaId || 
+      !user1Prefs || 
+      !user1Prefs.preferred_areas || 
+      user1Prefs.preferred_areas.includes(shift2AreaId)
+    ) && (
+      !shift1AreaId || 
+      !user2Prefs || 
+      !user2Prefs.preferred_areas || 
+      user2Prefs.preferred_areas.includes(shift1AreaId)
+    );
+  } catch (error) {
+    console.error("Error in areAreasCompatible:", error);
+    return true; // Default to true on error
   }
-  
-  // Find the area IDs for each shift
-  const shift1AreaId = areasData.find(a => a.truck_name === shift1.truck_name)?.area_id;
-  const shift2AreaId = areasData.find(a => a.truck_name === shift2.truck_name)?.area_id;
-  
-  // Fetch preferences for both users
-  const { data: preferences } = await supabase
-    .from('shift_swap_preferences')
-    .select('user_id, preferred_areas')
-    .in('user_id', [user1Id, user2Id]);
-  
-  if (!preferences) {
-    return true; // Default to true if preferences not found
-  }
-  
-  // Find each user's preferences
-  const user1Prefs = preferences.find(p => p.user_id === user1Id);
-  const user2Prefs = preferences.find(p => p.user_id === user2Id);
-  
-  // Check if User A's preferred areas include User B's shift area
-  // Check if User B's preferred areas include User A's shift area
-  return (
-    !shift2AreaId || 
-    !user1Prefs || 
-    !user1Prefs.preferred_areas || 
-    user1Prefs.preferred_areas.includes(shift2AreaId)
-  ) && (
-    !shift1AreaId || 
-    !user2Prefs || 
-    !user2Prefs.preferred_areas || 
-    user2Prefs.preferred_areas.includes(shift1AreaId)
-  );
 };
 
 /**
@@ -158,16 +169,20 @@ const areAreasCompatible = async (
 export const recordShiftMatch = async (request1: any, request2: any, initiatorId: string | null = null) => {
   try {
     // Create a new match record
+    const matchData = {
+      requester_request_id: request1.id,
+      acceptor_request_id: request2.id,
+      requester_shift_id: request1.requester_shift_id,
+      acceptor_shift_id: request2.requester_shift_id,
+      match_date: new Date().toISOString().split('T')[0],
+      status: 'pending',
+      requester_has_accepted: false,
+      acceptor_has_accepted: false
+    };
+    
     const { data, error } = await supabase
       .from('shift_swap_potential_matches')
-      .insert({
-        requester_request_id: request1.id,
-        acceptor_request_id: request2.id,
-        status: 'pending',
-        requester_has_accepted: false,
-        acceptor_has_accepted: false,
-        created_by: initiatorId
-      })
+      .insert(matchData)
       .select();
     
     if (error) throw error;

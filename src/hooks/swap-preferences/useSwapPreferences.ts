@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { SwapPreference, UseSwapPreferencesReturn } from './types';
+import { SwapPreference, UseSwapPreferencesReturn, ShiftType } from './types';
 import { toast } from '@/hooks/use-toast';
 
 export function useSwapPreferences(): UseSwapPreferencesReturn {
@@ -29,11 +29,15 @@ export function useSwapPreferences(): UseSwapPreferencesReturn {
       }
       
       if (data) {
+        // Ensure proper typing by casting the raw string array to ShiftType[]
+        const acceptableTypes = data.acceptable_shift_types || ['day', 'afternoon', 'night'];
+        const typedAcceptableTypes = acceptableTypes as ShiftType[];
+        
         setPreferences({
           id: data.id,
           userId: data.user_id,
           preferredAreas: data.preferred_areas || [],
-          acceptableShiftTypes: data.acceptable_shift_types || ['day', 'afternoon', 'night'],
+          acceptableShiftTypes: typedAcceptableTypes,
           createdAt: data.created_at,
           updatedAt: data.updated_at
         });
@@ -57,6 +61,7 @@ export function useSwapPreferences(): UseSwapPreferencesReturn {
     try {
       setIsLoading(true);
       
+      // Ensure that acceptableShiftTypes is properly typed
       const preferencesData = {
         user_id: user.id,
         preferred_areas: newPreferences.preferredAreas || [],
@@ -94,11 +99,14 @@ export function useSwapPreferences(): UseSwapPreferencesReturn {
       // Update the local state with new data
       if (result.data && result.data[0]) {
         const updated = result.data[0];
+        const typedAcceptableTypes = (updated.acceptable_shift_types || 
+          ['day', 'afternoon', 'night']) as ShiftType[];
+          
         setPreferences({
           id: updated.id,
           userId: updated.user_id,
           preferredAreas: updated.preferred_areas || [],
-          acceptableShiftTypes: updated.acceptable_shift_types || ['day', 'afternoon', 'night'],
+          acceptableShiftTypes: typedAcceptableTypes,
           createdAt: updated.created_at,
           updatedAt: updated.updated_at
         });
