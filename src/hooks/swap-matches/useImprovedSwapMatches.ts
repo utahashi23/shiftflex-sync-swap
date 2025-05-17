@@ -5,11 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 // Types
+export type SwapStatus = 'pending' | 'matched' | 'confirmed' | 'completed';
+
 export type ImprovedSwap = {
   id: string;
   wanted_date: string;
   accepted_shift_types: string[];
-  status: 'pending' | 'matched' | 'confirmed' | 'completed';
+  status: SwapStatus;
   matched_with_id: string | null;
   requester_id: string;
   requester_shift_id: string;
@@ -51,8 +53,14 @@ export const useImprovedSwapMatches = () => {
       
       if (error) throw error;
       
-      setSwaps(data || []);
-      console.log(`Found ${data?.length || 0} swap requests for user`);
+      // Type cast the data to ensure status is of the correct type
+      const typedData = data?.map(swap => ({
+        ...swap,
+        status: swap.status as SwapStatus
+      })) || [];
+      
+      setSwaps(typedData);
+      console.log(`Found ${typedData?.length || 0} swap requests for user`);
     } catch (err: any) {
       console.error('Error fetching swap requests:', err);
       setError(err);
