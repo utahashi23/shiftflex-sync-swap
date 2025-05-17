@@ -116,19 +116,29 @@ const areAreasCompatible = async (
       return true; // Skip area check if no truck names
     }
     
-    // We're using a custom RPC function instead of accessing tables directly
-    const { data: areasData, error } = await supabase.rpc('get_truck_areas', {
-      truck_names: [shift1.truck_name, shift2.truck_name]
+    // Instead of using RPC, use the edge function
+    const { data: areasData, error } = await supabase.functions.invoke('get_truck_areas', {
+      body: {
+        truck_names: [shift1.truck_name, shift2.truck_name]
+      }
     });
     
-    if (error || !areasData || !areasData.length) {
+    if (error || !areasData) {
       console.error("Error fetching truck areas:", error);
       return true; // Default to true if area data not found
     }
     
+    // Ensure areasData is treated as an array
+    const areasList = Array.isArray(areasData) ? areasData : [];
+    
+    if (areasList.length === 0) {
+      console.log("No area data found for trucks");
+      return true;
+    }
+    
     // Find the area IDs for each shift
-    const shift1AreaId = areasData.find((a: any) => a.truck_name === shift1.truck_name)?.area_id;
-    const shift2AreaId = areasData.find((a: any) => a.truck_name === shift2.truck_name)?.area_id;
+    const shift1AreaId = areasList.find((a: any) => a.truck_name === shift1.truck_name)?.area_id;
+    const shift2AreaId = areasList.find((a: any) => a.truck_name === shift2.truck_name)?.area_id;
     
     // Fetch preferences for both users
     const { data: preferences } = await supabase
