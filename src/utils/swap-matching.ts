@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -100,6 +99,12 @@ const areShiftTypesCompatible = async (
   );
 };
 
+// Define an interface for the truck area response
+interface TruckArea {
+  truck_name: string;
+  area_id: string | null;
+}
+
 /**
  * Check if the areas of the shifts match user preferences
  */
@@ -116,29 +121,30 @@ const areAreasCompatible = async (
       return true; // Skip area check if no truck names
     }
     
-    // Instead of using RPC, use the edge function
-    const { data: areasData, error } = await supabase.functions.invoke('get_truck_areas', {
+    // Call the Edge Function with proper typing
+    const { data, error } = await supabase.functions.invoke<TruckArea[]>('get_truck_areas', {
       body: {
         truck_names: [shift1.truck_name, shift2.truck_name]
       }
     });
     
-    if (error || !areasData) {
+    if (error) {
       console.error("Error fetching truck areas:", error);
-      return true; // Default to true if area data not found
+      return true; // Default to true if error occurs
     }
     
-    // Ensure areasData is treated as an array
-    const areasList = Array.isArray(areasData) ? areasData : [];
-    
-    if (areasList.length === 0) {
+    // Handle null or empty data
+    if (!data || !Array.isArray(data) || data.length === 0) {
       console.log("No area data found for trucks");
       return true;
     }
     
-    // Find the area IDs for each shift
-    const shift1AreaId = areasList.find((a: any) => a.truck_name === shift1.truck_name)?.area_id;
-    const shift2AreaId = areasList.find((a: any) => a.truck_name === shift2.truck_name)?.area_id;
+    // Find the area IDs for each shift with proper typing
+    const shift1Area = data.find(a => a.truck_name === shift1.truck_name);
+    const shift2Area = data.find(a => a.truck_name === shift2.truck_name);
+    
+    const shift1AreaId = shift1Area?.area_id || null;
+    const shift2AreaId = shift2Area?.area_id || null;
     
     // Fetch preferences for both users
     const { data: preferences } = await supabase
