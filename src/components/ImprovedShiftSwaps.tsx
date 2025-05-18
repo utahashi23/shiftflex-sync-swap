@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedSwapForm } from "./swaps/ImprovedSwapForm";
@@ -355,7 +354,7 @@ const ImprovedShiftSwaps = () => {
                 <ChevronLeft className="h-4 w-4" />
                 <span className="sr-only">Previous Month</span>
               </Button>
-              <h2 className="text-lg font-medium">
+              <h2 className="text-[0.85rem] font-medium">
                 {format(currentMonth, 'MMMM yyyy')}
               </h2>
               <Button 
@@ -375,7 +374,7 @@ const ImprovedShiftSwaps = () => {
                 onClick={toggleSortDirection}
                 className="flex items-center space-x-1"
               >
-                <span>Date</span>
+                <span className="text-[0.85rem]">Date</span>
                 {sortDirection === 'asc' ? (
                   <ArrowUp className="h-3 w-3" />
                 ) : (
@@ -394,7 +393,7 @@ const ImprovedShiftSwaps = () => {
                 )}
               >
                 <Trash2 className="h-3 w-3" />
-                <span>Delete Selected</span>
+                <span className="text-[0.85rem]">Delete Selected</span>
               </Button>
             </div>
           </div>
