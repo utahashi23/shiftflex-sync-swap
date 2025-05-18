@@ -1,3 +1,4 @@
+
 /**
  * Get the number of days in a month
  */
@@ -36,9 +37,26 @@ export const getMonthDateRange = (date: Date) => {
 
 /**
  * Normalize a date string to YYYY-MM-DD format
+ * Handles different date formats and ensures consistency
  */
 export const normalizeDate = (date: string): string => {
-  return new Date(date).toISOString().split('T')[0];
+  if (!date) return '';
+  
+  try {
+    // Handle various date formats
+    const parsedDate = new Date(date);
+    
+    if (isNaN(parsedDate.getTime())) {
+      console.error('Invalid date format:', date);
+      return date; // Return original if parsing fails
+    }
+    
+    // Format to YYYY-MM-DD
+    return parsedDate.toISOString().split('T')[0];
+  } catch (error) {
+    console.error('Error normalizing date:', error);
+    return date; // Return original if processing fails
+  }
 };
 
 /**
@@ -67,3 +85,4 @@ export const formatTime = (timeStr: string): string => {
     return timeStr;
   }
 };
+

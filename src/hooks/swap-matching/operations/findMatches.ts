@@ -1,5 +1,6 @@
 
 import { checkSwapCompatibility } from '@/utils/swap-matching';
+import { normalizeDate } from '@/utils/dateUtils';
 
 /**
  * Find potential matches among swap requests
@@ -18,7 +19,7 @@ export const findMatches = (
   profilesMap: Record<string, any>,
   userId?: string,
   forceCheck: boolean = false,
-  verbose: boolean = false
+  verbose: boolean = true // Set to true by default for debugging
 ) => {
   console.log('Finding matches among', allRequests.length, 'requests');
   console.log('Number of shifts:', allShifts.length);
@@ -35,7 +36,7 @@ export const findMatches = (
     // Normalize the shift data and add type
     const normalizedShift = {
       ...shift,
-      normalizedDate: shift.date,
+      normalizedDate: normalizeDate(shift.date),
       type: determineShiftType(shift.start_time)
     };
     
@@ -45,7 +46,7 @@ export const findMatches = (
       shiftsByUser[shift.user_id] = [];
     }
     
-    shiftsByUser[shift.user_id].push(shift.date);
+    shiftsByUser[shift.user_id].push(normalizeDate(shift.date));
   });
   
   // Group preferred dates by request
@@ -54,18 +55,13 @@ export const findMatches = (
       preferredDatesByRequest[date.request_id] = [];
     }
     
-    // IMPORTANT: Ensure we normalize the property name from accepted_types to acceptedTypes
+    // Normalize the preferred date
     const normalizedDate = {
-      date: date.date,
+      date: normalizeDate(date.date),
       acceptedTypes: date.accepted_types || []
     };
     
     preferredDatesByRequest[date.request_id].push(normalizedDate);
-    
-    if (verbose) {
-      console.log(`Preferred date ${date.date} for request ${date.request_id} has accepted types:`, 
-        Array.isArray(date.accepted_types) ? date.accepted_types.join(', ') : 'none');
-    }
   });
   
   // Log some diagnostics about the data
@@ -85,14 +81,17 @@ export const findMatches = (
     }
     
     // Log a sample shift
-    const sampleShiftId = shiftMap.keys().next().value;
-    if (sampleShiftId) {
-      const sampleShift = shiftMap.get(sampleShiftId);
-      console.log(`Sample shift ${sampleShiftId}:`, {
-        date: sampleShift.date,
-        startTime: sampleShift.start_time,
-        type: sampleShift.type
-      });
+    if (shiftMap.size > 0) {
+      const sampleShiftId = shiftMap.keys().next().value;
+      if (sampleShiftId) {
+        const sampleShift = shiftMap.get(sampleShiftId);
+        console.log(`Sample shift ${sampleShiftId}:`, {
+          date: sampleShift.date,
+          normalizedDate: sampleShift.normalizedDate,
+          startTime: sampleShift.start_time,
+          type: sampleShift.type
+        });
+      }
     }
   }
   
@@ -170,8 +169,8 @@ export const findMatches = (
     
     if (verbose) {
       console.log(`\nChecking compatibility between requests ${request1.id.substring(0, 6)} and ${request2.id.substring(0, 6)}`);
-      console.log(`  Request 1 shift: ${shift1.date}, ${shift1.start_time} - ${shift1.end_time}, type: ${shift1.type}`);
-      console.log(`  Request 2 shift: ${shift2.date}, ${shift2.start_time} - ${shift2.end_time}, type: ${shift2.type}`);
+      console.log(`  Request 1 shift: ${shift1.date} (${shift1.normalizedDate}), ${shift1.start_time} - ${shift1.end_time}, type: ${shift1.type}`);
+      console.log(`  Request 2 shift: ${shift2.date} (${shift2.normalizedDate}), ${shift2.start_time} - ${shift2.end_time}, type: ${shift2.type}`);
       
       // Log preferred dates with accepted types for debugging
       if (preferredDatesByRequest[request1.id]) {
@@ -205,11 +204,16 @@ export const findMatches = (
         console.log(`  Shift types: ${shift1.type} <-> ${shift2.type}`);
         
         // Log the matched preferred dates with their accepted types
-        const req1MatchedDate = preferredDatesByRequest[request1.id]?.find(pd => pd.date === shift2.date);
-        const req2MatchedDate = preferredDatesByRequest[request2.id]?.find(pd => pd.date === shift1.date);
+        const req1MatchedDate = preferredDatesByRequest[request1.id]?.find(pd => pd.date === shift2.normalizedDate);
+        const req2MatchedDate = preferredDatesByRequest[request2.id]?.find(pd => pd.date === shift1.normalizedDate);
         
-        console.log(`  Request 1 accepts types for ${shift2.date}: ${req1MatchedDate?.acceptedTypes?.join(', ') || 'none'}`);
-        console.log(`  Request 2 accepts types for ${shift1.date}: ${req2MatchedDate?.acceptedTypes?.join(', ') || 'none'}`);
+        if (req1MatchedDate) {
+          console.log(`  Request 1 accepts types for ${shift2.normalizedDate}: ${req1MatchedDate?.acceptedTypes?.join(', ') || 'none'}`);
+        }
+        
+        if (req2MatchedDate) {
+          console.log(`  Request 2 accepts types for ${shift1.normalizedDate}: ${req2MatchedDate?.acceptedTypes?.join(', ') || 'none'}`);
+        }
       }
       
       matches.push({
@@ -239,3 +243,4 @@ function determineShiftType(startTime: string): 'day' | 'afternoon' | 'night' {
     return 'night';
   }
 }
+

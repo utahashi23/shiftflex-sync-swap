@@ -1,11 +1,10 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { normalizeDate } from '@/utils/dateUtils';
 
 /**
- * Check if two shifts are compatible for swapping based on the specified logic:
- * 1. Mutual Swap Dates: User A wants User B's date and vice versa
- * 2. Accepted Types Match: UserA.accepted_type == UserB.accepted_type
- * 3. Preference Match: UserA.preference matches UserB.preference
+ * Check if two shifts are compatible for swapping based on the mutual swap dates logic:
+ * User A wants User B's date and User B wants User A's date
  */
 export const checkSwapCompatibility = (
   request1: any,
@@ -33,29 +32,8 @@ export const checkSwapCompatibility = (
     return mutualDatesResult;
   }
   
-  console.log('✓ Mutual dates check passed');
-  
-  // 2. Check if accepted shift types match
-  const typesResult = checkAcceptedTypes(
-    shift1.type, 
-    shift2.type, 
-    preferredDatesByRequest,
-    request1.id,
-    request2.id
-  );
-  
-  if (!typesResult.isCompatible) {
-    console.log(`❌ Shift types check failed: ${typesResult.reason}`);
-    return typesResult;
-  }
-  
-  console.log('✓ Shift types check passed');
-  
-  // 3. Check if preferences match (truck name, area, or region)
-  // This will be an async check, but we'll handle it in a simplified way for now
-  
-  // If we made it here, the shifts are compatible
-  console.log('🎉 Match found! All compatibility criteria met');
+  console.log('✓ Mutual dates check passed - Users want to swap each other\'s dates');
+  console.log('🎉 Match found! Mutual swap dates criteria met');
   return { isCompatible: true };
 };
 
@@ -69,79 +47,40 @@ const checkMutualSwapDates = (
   request1Id: string,
   request2Id: string
 ): { isCompatible: boolean; reason?: string } => {
+  // Get the normalized dates
+  const shift1Date = shift1.normalizedDate || normalizeDate(shift1.date);
+  const shift2Date = shift2.normalizedDate || normalizeDate(shift2.date);
+  
+  console.log(`Checking if users want to swap dates: ${shift1Date} <-> ${shift2Date}`);
+  
   // Check if User A's preferred dates include User B's shift date
   const user1PreferredDates = preferredDatesByRequest[request1Id] || [];
-  const user1WantsUser2Date = user1PreferredDates.some(pd => pd.date === shift2.normalizedDate);
+  const user1WantsUser2Date = user1PreferredDates.some(pd => pd.date === shift2Date);
 
   // Check if User B's preferred dates include User A's shift date
   const user2PreferredDates = preferredDatesByRequest[request2Id] || [];
-  const user2WantsUser1Date = user2PreferredDates.some(pd => pd.date === shift1.normalizedDate);
+  const user2WantsUser1Date = user2PreferredDates.some(pd => pd.date === shift1Date);
 
-  // Log the check results for debugging
-  console.log(`User 1 wants User 2's date: ${user1WantsUser2Date}`);
-  console.log(`User 2 wants User 1's date: ${user2WantsUser1Date}`);
+  // Log all preferred dates for debugging
+  console.log('User 1 preferred dates:', user1PreferredDates.map(pd => pd.date));
+  console.log('User 2 preferred dates:', user2PreferredDates.map(pd => pd.date));
   
-  // Both conditions must be true
+  // Log the check results for debugging
+  console.log(`User 1 wants User 2's date (${shift2Date}): ${user1WantsUser2Date}`);
+  console.log(`User 2 wants User 1's date (${shift1Date}): ${user2WantsUser1Date}`);
+  
+  // Both conditions must be true for a mutual match
   if (!user1WantsUser2Date) {
     return {
       isCompatible: false,
-      reason: "User 1 doesn't want User 2's date"
+      reason: `User 1 doesn't want User 2's date (${shift2Date})`
     };
   }
   
   if (!user2WantsUser1Date) {
     return {
       isCompatible: false,
-      reason: "User 2 doesn't want User 1's date"
-    };
-  }
-  
-  return { isCompatible: true };
-};
-
-/**
- * Check if the shift types are compatible based on user preferences
- */
-const checkAcceptedTypes = (
-  shift1Type: string,
-  shift2Type: string,
-  preferredDatesByRequest: Record<string, any[]>,
-  request1Id: string,
-  request2Id: string
-): { isCompatible: boolean; reason?: string } => {
-  // Get preferred dates for both requests
-  const user1PreferredDates = preferredDatesByRequest[request1Id] || [];
-  const user2PreferredDates = preferredDatesByRequest[request2Id] || [];
-  
-  // Find the specific date preferences
-  const user1DatePref = user1PreferredDates.find(pd => pd.acceptedTypes);
-  const user2DatePref = user2PreferredDates.find(pd => pd.acceptedTypes);
-  
-  // Check if User 1 accepts User 2's shift type
-  const user1AcceptsType = user1DatePref && 
-                          Array.isArray(user1DatePref.acceptedTypes) && 
-                          user1DatePref.acceptedTypes.includes(shift2Type);
-  
-  // Check if User 2 accepts User 1's shift type
-  const user2AcceptsType = user2DatePref && 
-                          Array.isArray(user2DatePref.acceptedTypes) && 
-                          user2DatePref.acceptedTypes.includes(shift1Type);
-  
-  // Log the check results for debugging
-  console.log(`User 1 accepts User 2's shift type (${shift2Type}): ${user1AcceptsType}`);
-  console.log(`User 2 accepts User 1's shift type (${shift1Type}): ${user2AcceptsType}`);
-  
-  if (!user1AcceptsType) {
-    return {
-      isCompatible: false,
-      reason: `User 1 doesn't accept shift type ${shift2Type}`
-    };
-  }
-  
-  if (!user2AcceptsType) {
-    return {
-      isCompatible: false,
-      reason: `User 2 doesn't accept shift type ${shift1Type}`
+      reason: `User 2 doesn't want User 1's date (${shift1Date})`
     };
   }
   
