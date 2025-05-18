@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.23.0";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -81,7 +80,6 @@ serve(async (req) => {
     console.log(`Found ${userRequests?.length || 0} pending requests for user ${user_id}`);
 
     // Fetch all potential matches for this user
-    // FIX: Using filter and or methods correctly instead of string concatenation
     let query = supabaseAdmin
       .from('shift_swap_potential_matches')
       .select(`
@@ -100,14 +98,16 @@ serve(async (req) => {
       `)
       .neq('status', 'cancelled');
       
-    // Apply the correct filter using proper filter methods
+    // Apply filters using the proper Supabase Filter method
     if (user_initiator_only) {
       // Only find matches where the user is the requester
       query = query.filter('requester.requester_id', 'eq', user_id);
     } else {
       // Find matches where the user is either the requester or the acceptor
-      // FIX: Using proper OR condition method instead of string concatenation
-      query = query.or(`requester.requester_id.eq.${user_id},acceptor.requester_id.eq.${user_id}`);
+      // Use proper OR filter syntax with filter() and or() methods
+      query = query
+        .filter('requester.requester_id', 'eq', user_id)
+        .or(`acceptor.requester_id.eq.${user_id}`);
     }
     
     const { data: potentialMatches, error: matchesError } = await query;
