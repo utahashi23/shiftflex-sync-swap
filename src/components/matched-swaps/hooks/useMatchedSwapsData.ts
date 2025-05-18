@@ -19,20 +19,25 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
   const fetchInProgressRef = useRef(false);
   const userIdRef = useRef<string | null>(null);
   const { user } = useAuth();
-  const { findSwapMatches, isProcessing, initialFetchCompleted } = useSwapMatcher();
+  const { findMatches, isProcessing, initialFetchCompleted } = useSwapMatcher();
   const { swapRequests, fetchSwapRequests } = useSwapRequests();
 
-  // Auto-fetch matches on component mount - only once
+  // Auto-fetch matches on component mount - but only once per user session
   useEffect(() => {
     // Skip fetch if we've already done it for this user
     if (user && !initialFetchDone && user.id !== userIdRef.current) {
       console.log('Auto-fetching matches on component mount');
       userIdRef.current = user.id;
-      fetchSwapRequests().then(() => {
-        fetchMatches();
-      });
-      // Mark initial fetch as done to prevent further auto-fetches
-      setInitialFetchDone(true);
+      // Set a timeout to prevent immediate loading on page render
+      const timer = setTimeout(() => {
+        fetchSwapRequests().then(() => {
+          fetchMatches();
+        });
+        // Mark initial fetch as done to prevent further auto-fetches
+        setInitialFetchDone(true);
+      }, 500);
+      
+      return () => clearTimeout(timer);
     }
   }, [user, initialFetchDone]);
 
@@ -111,11 +116,14 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
   }, [swapRequests]);
 
   /**
-   * Fetch matches data using findSwapMatches
+   * Fetch matches data using findSwapMatches with debouncing
    */
   const fetchMatches = useCallback(async () => {
-    // Check if user exists and there's no ongoing fetch operation
-    if (!user || !user.id || isLoading || fetchInProgressRef.current) return;
+    // Skip fetch if already in progress
+    if (!user || !user.id || isLoading || fetchInProgressRef.current) {
+      console.log('Skipping fetch - loading:', isLoading, 'in progress:', fetchInProgressRef.current);
+      return;
+    }
     
     // Set loading state and operation flag
     setIsLoading(true);
@@ -140,14 +148,28 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
           title: "No active requests",
           description: "You need to create a swap request first before looking for matches.",
         });
-        setIsLoading(false);
-        fetchInProgressRef.current = false;
         return;
       }
       
       // Explicitly request colleague types inclusion
-      const result = await findSwapMatches(user.id, true, true);
-      const matchesData = result?.matches;
+      const result = await findMatches(
+        user.id,
+        false, // Don't force check unless specifically requested
+        false  // No verbose logging in production
+      );
+      
+      if (!result?.success) {
+        console.log('No matches found or error occurred');
+        setMatches([]);
+        setPastMatches([]);
+        toast({
+          title: "No matches found",
+          description: "No potential swap matches were found at this time.",
+        });
+        return;
+      }
+      
+      const matchesData = result.matches;
       console.log('Raw match data received from function:', matchesData);
       
       if (!matchesData || matchesData.length === 0) {
@@ -210,9 +232,12 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       });
     } finally {
       setIsLoading(false);
-      fetchInProgressRef.current = false; // Reset the operation flag
+      // Reset the operation flag after a short delay to prevent rapid requests
+      setTimeout(() => {
+        fetchInProgressRef.current = false;
+      }, 500);
     }
-  }, [user, isLoading, fetchSwapRequests, swapRequests, findSwapMatches, processMatchesData, activeTab, setRefreshTrigger]);
+  }, [user, isLoading, fetchSwapRequests, swapRequests, findMatches, processMatchesData, activeTab, setRefreshTrigger]);
 
   return {
     matches,

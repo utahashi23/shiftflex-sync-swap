@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useSwapRequests } from '../swap-requests';
 import { useFindSwapMatches } from './useFindSwapMatches';
 import { useProcessState } from './useProcessState';
@@ -23,6 +23,9 @@ export function useSwapMatcher() {
   const [matches, setMatches] = useState<any[]>([]);
   const [initialFetchCompleted, setInitialFetchCompleted] = useState(false);
   const [requestInProgress, setRequestInProgress] = useState(false);
+  
+  // Use a ref to track if a request is already in flight
+  const requestInFlightRef = useRef(false);
 
   const { 
     status,
@@ -38,17 +41,20 @@ export function useSwapMatcher() {
   /**
    * Optimized function to find matches that prevents duplicate/excessive requests
    */
-  const findSwapMatches = async (
+  const findSwapMatches = useCallback(async (
     userId?: string, 
     forceCheck: boolean = false,
     verbose: boolean = false
   ) => {
-    if (requestInProgress) {
+    // Skip if already in progress
+    if (requestInProgress || requestInFlightRef.current) {
       console.log('Match finding operation already in progress, skipping');
-      return;
+      return { success: false, message: 'Operation already in progress' };
     }
     
+    requestInFlightRef.current = true;
     setRequestInProgress(true);
+    
     try {
       console.log('Finding potential matches for user');
       updateProgress('finding-matches', 'Finding potential matches');
@@ -85,19 +91,24 @@ export function useSwapMatcher() {
       };
     } finally {
       setRequestInProgress(false);
+      // Reset the in-flight ref after a short delay to prevent rapid successive calls
+      setTimeout(() => {
+        requestInFlightRef.current = false;
+      }, 500);
     }
-  };
+  }, [findMatches, requestInProgress, updateProgress]);
 
   /**
    * Run the matcher with proper request throttling
    */
-  const runMatcher = async () => {
-    if (isRunning || requestInProgress) {
+  const runMatcher = useCallback(async () => {
+    if (isRunning || requestInProgress || requestInFlightRef.current) {
       console.log('Matcher is already running, skipping duplicate request');
       return;
     }
     
     setIsRunning(true);
+    requestInFlightRef.current = true;
     setError(null);
     setMatches([]);
     setMatchResults([]);
@@ -135,8 +146,12 @@ export function useSwapMatcher() {
     } finally {
       setIsRunning(false);
       setInitialFetchCompleted(true);
+      // Reset the in-flight ref after a short delay
+      setTimeout(() => {
+        requestInFlightRef.current = false;
+      }, 500);
     }
-  };
+  }, [findMatches, isRunning, requestInProgress, startProcessing, updateProgress]);
 
   return {
     runMatcher,
