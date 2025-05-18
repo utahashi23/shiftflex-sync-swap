@@ -79,12 +79,18 @@ export function SwapFiltersDialog({
     onOpenChange(false);
   };
 
+  // Define a description ID for aria-describedby
+  const dialogDescriptionId = "filter-dialog-description";
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] bg-white" aria-describedby="filter-description">
+      <DialogContent 
+        className="sm:max-w-[425px] bg-white" 
+        aria-describedby={dialogDescriptionId}
+      >
         <DialogHeader>
           <DialogTitle>Swap Filters</DialogTitle>
-          <DialogDescription id="filter-description">
+          <DialogDescription id={dialogDescriptionId}>
             Customize how you view and sort shift swaps
           </DialogDescription>
         </DialogHeader>
@@ -188,7 +194,7 @@ export function SwapFiltersDialog({
           <div className="space-y-2">
             <Label>Truck Name</Label>
             <Select
-              value={localFilters.truckName || "all-trucks"}
+              value={localFilters.truckName !== null ? localFilters.truckName : "all-trucks"}
               onValueChange={(value) =>
                 setLocalFilters(prev => ({
                   ...prev,
@@ -214,7 +220,7 @@ export function SwapFiltersDialog({
           <div className="space-y-2">
             <Label>Shift Type</Label>
             <Select
-              value={localFilters.shiftType || "all-types"}
+              value={localFilters.shiftType !== null ? localFilters.shiftType : "all-types"}
               onValueChange={(value) =>
                 setLocalFilters(prev => ({
                   ...prev,

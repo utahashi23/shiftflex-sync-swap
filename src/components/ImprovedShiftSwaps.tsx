@@ -432,6 +432,25 @@ const ImprovedShiftSwaps = () => {
       </Button>
     </div>
   );
+  
+  // Filter button component that can be reused
+  const FilterButton = ({ tab }: { tab: 'create' | 'mySwaps' }) => (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => openFiltersDialog(tab)}
+      className={cn(
+        "flex items-center space-x-1",
+        hasActiveFilters ? "bg-blue-50 text-blue-700" : ""
+      )}
+    >
+      <Filter className="h-3 w-3 mr-1" />
+      <span className="text-[0.85rem]">Filter</span>
+      {hasActiveFilters && (
+        <span className="ml-1 h-2 w-2 rounded-full bg-blue-500"></span>
+      )}
+    </Button>
+  );
 
   return (
     <div className="space-y-6">
@@ -451,23 +470,9 @@ const ImprovedShiftSwaps = () => {
           <div className="flex items-center justify-between mb-4">
             <MonthNavigation />
             
-            {/* Add Filter button to Create Swap tab */}
+            {/* Add Filter button to Create Swap tab - Using the FilterButton component */}
             <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openFiltersDialog('create')}
-                className={cn(
-                  "flex items-center space-x-1",
-                  hasActiveFilters ? "bg-blue-50 text-blue-700" : ""
-                )}
-              >
-                <Filter className="h-3 w-3 mr-1" />
-                <span className="text-[0.85rem]">Filter</span>
-                {hasActiveFilters && (
-                  <span className="ml-1 h-2 w-2 rounded-full bg-blue-500"></span>
-                )}
-              </Button>
+              <FilterButton tab="create" />
             </div>
           </div>
           
@@ -489,21 +494,7 @@ const ImprovedShiftSwaps = () => {
             <MonthNavigation />
             
             <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openFiltersDialog('mySwaps')}
-                className={cn(
-                  "flex items-center space-x-1",
-                  hasActiveFilters ? "bg-blue-50 text-blue-700" : ""
-                )}
-              >
-                <Filter className="h-3 w-3 mr-1" />
-                <span className="text-[0.85rem]">Filter</span>
-                {hasActiveFilters && (
-                  <span className="ml-1 h-2 w-2 rounded-full bg-blue-500"></span>
-                )}
-              </Button>
+              <FilterButton tab="mySwaps" />
               
               <Button
                 variant="outline"
@@ -587,7 +578,7 @@ const ImprovedShiftSwaps = () => {
         </TabsContent>
       </Tabs>
       
-      {/* ... keep existing code (delete dialog) */}
+      {/* ... keep existing code (delete dialog and filter dialog) */}
       <SwapDeleteDialog
         isOpen={deleteDialog.isOpen}
         isLoading={deleteDialog.isDeleting}
