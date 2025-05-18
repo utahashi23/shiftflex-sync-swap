@@ -4,6 +4,7 @@ import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useDashboardSummary } from '@/hooks/useDashboardSummary';
+import { memo } from 'react';
 
 // Import refactored components
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -11,6 +12,11 @@ import DashboardStats from '@/components/dashboard/DashboardStats';
 import DashboardDebug from '@/components/dashboard/DashboardDebug';
 import UpcomingShifts from '@/components/dashboard/UpcomingShifts';
 import RecentActivity from '@/components/dashboard/RecentActivity';
+
+// Memo-ize components to prevent unnecessary re-renders
+const MemoizedDashboardStats = memo(DashboardStats);
+const MemoizedUpcomingShifts = memo(UpcomingShifts);
+const MemoizedRecentActivity = memo(RecentActivity);
 
 const Dashboard = () => {
   useAuthRedirect({ protectedRoute: true });
@@ -30,7 +36,7 @@ const Dashboard = () => {
         />
       </div>
 
-      <DashboardStats 
+      <MemoizedDashboardStats 
         stats={stats} 
         isLoading={isLoading} 
       />
@@ -39,12 +45,12 @@ const Dashboard = () => {
       <DashboardDebug isVisible={false} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <UpcomingShifts 
+        <MemoizedUpcomingShifts 
           shifts={stats.upcomingShifts} 
           isLoading={isLoading} 
         />
         
-        <RecentActivity 
+        <MemoizedRecentActivity 
           activities={stats.recentActivity} 
           isLoading={isLoading} 
         />

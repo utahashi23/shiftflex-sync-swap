@@ -38,6 +38,8 @@ export const useDashboardData = (user: ExtendedUser | null) => {
   
   // Use a ref to prevent unnecessary data fetching
   const fetchedRef = useRef(false);
+  // Add a userId ref to track user changes
+  const userIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -47,7 +49,7 @@ export const useDashboardData = (user: ExtendedUser | null) => {
       }
       
       // Prevent refetching if we've already fetched data for this user
-      if (fetchedRef.current) {
+      if (fetchedRef.current && userIdRef.current === user.id) {
         return;
       }
       
@@ -55,6 +57,8 @@ export const useDashboardData = (user: ExtendedUser | null) => {
       
       try {
         console.log('Fetching dashboard data for user:', user.id);
+        // Store the current userId to prevent unnecessary refetches
+        userIdRef.current = user.id;
         
         // Fetch the user's shifts
         const { data: shiftsData, error: shiftsError } = await supabase
@@ -186,12 +190,8 @@ export const useDashboardData = (user: ExtendedUser | null) => {
 
     fetchDashboardData();
     
-    // Reset the fetch flag when the user changes
-    return () => {
-      if (user) {
-        fetchedRef.current = false;
-      }
-    };
+    // No cleanup function to reset fetchedRef since we want to maintain the cache
+    // across component re-renders
   }, [user, findSwapMatches]);
 
   return { stats, isLoading };

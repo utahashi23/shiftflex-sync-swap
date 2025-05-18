@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/auth';
 import { SwapMatch } from '../types';
 import { toast } from '@/hooks/use-toast';
@@ -17,14 +17,17 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
   const [activeTab, setActiveTab] = useState('active');
   const [initialFetchDone, setInitialFetchDone] = useState(false);
   const fetchInProgressRef = useRef(false);
+  const userIdRef = useRef<string | null>(null);
   const { user } = useAuth();
   const { findSwapMatches, isProcessing, initialFetchCompleted } = useSwapMatcher();
   const { swapRequests, fetchSwapRequests } = useSwapRequests();
 
   // Auto-fetch matches on component mount - only once
   useEffect(() => {
-    if (user && !initialFetchDone) {
+    // Skip fetch if we've already done it for this user
+    if (user && !initialFetchDone && user.id !== userIdRef.current) {
       console.log('Auto-fetching matches on component mount');
+      userIdRef.current = user.id;
       fetchSwapRequests().then(() => {
         fetchMatches();
       });
@@ -36,7 +39,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
   /**
    * Process matches data from API response and filter by user's active requests
    */
-  const processMatchesData = (matchesData: any[]): SwapMatch[] => {
+  const processMatchesData = useCallback((matchesData: any[]): SwapMatch[] => {
     if (!matchesData || !Array.isArray(matchesData) || matchesData.length === 0) {
       console.log('No matches data to process');
       return [];
@@ -105,12 +108,12 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
         createdAt: match.created_at
       };
     });
-  };
+  }, [swapRequests]);
 
   /**
    * Fetch matches data using findSwapMatches
    */
-  const fetchMatches = async () => {
+  const fetchMatches = useCallback(async () => {
     // Check if user exists and there's no ongoing fetch operation
     if (!user || !user.id || isLoading || fetchInProgressRef.current) return;
     
@@ -208,7 +211,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       setIsLoading(false);
       fetchInProgressRef.current = false; // Reset the operation flag
     }
-  };
+  }, [user, isLoading, fetchSwapRequests, swapRequests, findSwapMatches, processMatchesData, activeTab, setRefreshTrigger]);
 
   return {
     matches,
