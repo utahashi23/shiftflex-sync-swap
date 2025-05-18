@@ -102,7 +102,7 @@ export const RegionPreferencesDialog = ({
         const userAreas: string[] = [];
         
         if (userPrefs && Array.isArray(userPrefs)) {
-          userPrefs.forEach((pref) => {
+          userPrefs.forEach((pref: any) => {
             if (pref.region_id) userRegions.push(pref.region_id);
             if (pref.area_id) userAreas.push(pref.area_id);
           });

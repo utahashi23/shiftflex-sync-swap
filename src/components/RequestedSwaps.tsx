@@ -107,8 +107,7 @@ const RequestedSwaps = () => {
           <SwapRequestCard 
             key={request.id}
             request={request}
-            onDeleteRequest={onDeleteRequest}
-            onDeletePreferredDate={onDeletePreferredDate}
+            onDelete={() => onDeleteRequest(request.id)}
           />
         ))
       )}

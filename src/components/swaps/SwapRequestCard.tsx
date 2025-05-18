@@ -16,6 +16,8 @@ import { SwapRequest, PreferredDate } from '@/hooks/swap-requests/types';
 interface SwapRequestCardProps {
   request: SwapRequest;
   onDelete: () => void;
+  onDeleteRequest?: (requestId: string) => void;
+  onDeletePreferredDate?: (dayId: string, requestId: string) => void;
 }
 
 const ShiftHeader = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
@@ -130,14 +132,22 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-const SwapRequestCard = ({ request, onDelete }: SwapRequestCardProps) => {
+const SwapRequestCard = ({ request, onDelete, onDeleteRequest, onDeletePreferredDate }: SwapRequestCardProps) => {
+  // Determine which delete handler to use
+  const handleDelete = onDeleteRequest ? () => onDeleteRequest(request.id) : onDelete;
+  
+  // Determine which preferred date delete handler to use
+  const handleDeletePreferredDate = onDeletePreferredDate || ((dayId: string, requestId: string) => {
+    console.log("No preferred date delete handler provided", dayId, requestId);
+  });
+
   return (
     <Card className="relative">
       <Button
         variant="ghost"
         size="icon"
         className="absolute top-4 right-4 h-8 w-8 text-gray-500 hover:text-red-600"
-        onClick={onDelete}
+        onClick={handleDelete}
       >
         <Trash2 className="h-4 w-4" />
       </Button>
@@ -153,7 +163,7 @@ const SwapRequestCard = ({ request, onDelete }: SwapRequestCardProps) => {
           <OriginalShiftInfo shift={request.originalShift} />
           <PreferredDatesSection 
             request={request}
-            onDeletePreferredDate={(dayId, requestId) => {}} // Placeholder function
+            onDeletePreferredDate={handleDeletePreferredDate}
           />
         </div>
       </CardContent>
