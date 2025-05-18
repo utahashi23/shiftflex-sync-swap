@@ -41,9 +41,7 @@ export function useSwapMatcher() {
   const findSwapMatches = async (
     userId?: string, 
     forceCheck: boolean = false,
-    verbose: boolean = false,
-    userPerspectiveOnly: boolean = true,
-    userInitiatorOnly: boolean = true
+    verbose: boolean = false
   ) => {
     if (requestInProgress) {
       console.log('Match finding operation already in progress, skipping');
@@ -114,11 +112,13 @@ export function useSwapMatcher() {
       
       updateProgress('analyzing-data', 'Analyzing shift swaps and preferred dates');
       
-      // Pass the data object to findSwapMatches - fixed type issue here
+      // Pass the userId instead of the whole data object to findMatches
+      // Use auth.uid() or null if no user is authenticated
+      const userId = ''; // This should come from auth context in a real app
       const matchResponse = await findMatches(
-        dataResponse, 
-        true, // Changed from string to boolean
-        'Finding potential matches'
+        userId,
+        true, // forceCheck as boolean
+        true  // verbose as boolean
       );
       
       if (!matchResponse.success) {

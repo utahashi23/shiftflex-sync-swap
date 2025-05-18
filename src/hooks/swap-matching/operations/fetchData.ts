@@ -27,9 +27,9 @@ export const fetchAllData = async () => {
       throw shiftsError;
     }
     
-    // Fetch all preferred dates
+    // Fetch all preferred dates - Fixed table name from 'swap_preferred_dates' to 'shift_swap_preferred_dates'
     const { data: preferredDates, error: datesError } = await supabase
-      .from('swap_preferred_dates')
+      .from('shift_swap_preferred_dates')
       .select('*');
       
     if (datesError) {
@@ -71,4 +71,3 @@ export const fetchAllData = async () => {
     };
   }
 };
-

@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 /**
  * Enhanced hook to find swap matches with throttling and caching
  */
-export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => void) => {
+export const useFindSwapMatches = (setIsProcessing?: (isProcessing: boolean) => void) => {
   const [matchResults, setMatchResults] = useState<any>(null);
   const requestTimestampRef = useRef<number>(0);
   const cachedResultsRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
@@ -21,9 +21,7 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
   const findSwapMatches = async (
     userId: string, 
     forceCheck: boolean = false,
-    verbose: boolean = false,
-    userPerspectiveOnly: boolean = true,
-    userInitiatorOnly: boolean = true
+    verbose: boolean = false
   ) => {
     try {
       // Skip if already processing
@@ -32,7 +30,7 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
       }
       
       // Create a cache key based on parameters
-      const cacheKey = `${userId}:${forceCheck}:${userPerspectiveOnly}:${userInitiatorOnly}`;
+      const cacheKey = `${userId}:${forceCheck}`;
       
       // Check if we have a cached result that's still valid
       const cachedResult = cachedResultsRef.current.get(cacheKey);
@@ -66,8 +64,8 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
           user_id: userId,
           force_check: forceCheck,
           verbose: verbose,
-          user_perspective_only: userPerspectiveOnly,
-          user_initiator_only: userInitiatorOnly,
+          user_perspective_only: true,
+          user_initiator_only: true,
           include_colleague_types: true
         }
       });
