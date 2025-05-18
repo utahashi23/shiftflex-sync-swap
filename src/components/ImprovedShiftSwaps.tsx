@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { PlusCircle } from "lucide-react";
-import { SwapRequestCard } from "./swaps/SwapRequestCard";
+import SwapRequestCard from "./swaps/SwapRequestCard";
 import { useEffect } from "react";
 import { RegionPreferencesButton } from "./swaps/RegionPreferencesButton";
 
