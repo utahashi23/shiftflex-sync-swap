@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
 import { Button } from "@/components/ui/button";
@@ -25,17 +26,20 @@ interface ImprovedSwapFormProps {
   onClose: () => void;
   onSubmit: (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => Promise<boolean>;
   isDialog?: boolean;
+  currentMonth?: Date; // Add prop for current month
 }
 
 export const ImprovedSwapForm = ({
   isOpen,
   onClose,
   onSubmit,
-  isDialog = true
+  isDialog = true,
+  currentMonth = new Date() // Default to current date if not provided
 }: ImprovedSwapFormProps) => {
   const [step, setStep] = useState(1);
   const [selectedShifts, setSelectedShifts] = useState<any[]>([]); // Now an array for multiple selection
   const [userShifts, setUserShifts] = useState<any[]>([]);
+  const [filteredShifts, setFilteredShifts] = useState<any[]>([]); // New state for filtered shifts
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
@@ -75,6 +79,38 @@ export const ImprovedSwapForm = ({
     setSelectedTypes([]);
     
   }, [user, isOpen]);
+  
+  // Filter shifts based on currentMonth
+  useEffect(() => {
+    if (!userShifts.length) {
+      setFilteredShifts([]);
+      return;
+    }
+    
+    // Get the first and last day of the selected month
+    const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    
+    // Format dates for comparison
+    const startStr = startOfMonth.toISOString().split('T')[0];
+    const endStr = endOfMonth.toISOString().split('T')[0];
+    
+    // Filter shifts that fall in the selected month
+    const shiftsInMonth = userShifts.filter(shift => {
+      const shiftDate = shift.date;
+      return shiftDate >= startStr && shiftDate <= endStr;
+    });
+    
+    console.log(`Filtered ${shiftsInMonth.length} shifts for month ${format(currentMonth, 'MMMM yyyy')}`);
+    setFilteredShifts(shiftsInMonth);
+    
+    // Clear selected shifts that are no longer in the filtered list
+    setSelectedShifts(prevSelected => 
+      prevSelected.filter(selected => 
+        shiftsInMonth.some(shift => shift.id === selected.id)
+      )
+    );
+  }, [userShifts, currentMonth]);
   
   const handleNextStep = () => {
     setStep(prev => prev + 1);
@@ -143,13 +179,17 @@ export const ImprovedSwapForm = ({
               <div className="flex justify-center py-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
-            ) : userShifts.length === 0 ? (
+            ) : filteredShifts.length === 0 ? (
               <div className="text-center py-4">
-                <p className="text-muted-foreground">No upcoming shifts found.</p>
+                <p className="text-muted-foreground">
+                  {userShifts.length === 0 
+                    ? "No upcoming shifts found." 
+                    : `No shifts found for ${format(currentMonth, 'MMMM yyyy')}.`}
+                </p>
               </div>
             ) : (
               <div className="grid gap-2">
-                {userShifts.map(shift => {
+                {filteredShifts.map(shift => {
                   const isSelected = selectedShifts.some(s => s.id === shift.id);
                   
                   // Determine shift type

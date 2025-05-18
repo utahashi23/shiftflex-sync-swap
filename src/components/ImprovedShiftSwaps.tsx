@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedSwapForm } from "./swaps/ImprovedSwapForm";
@@ -386,6 +385,7 @@ const ImprovedShiftSwaps = () => {
               onClose={() => {}}
               onSubmit={handleCreateSwap}
               isDialog={false}
+              currentMonth={currentMonth} // Pass the currentMonth to filter shifts
             />
           </div>
         </TabsContent>
