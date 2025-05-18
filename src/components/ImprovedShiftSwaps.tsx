@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,18 +19,14 @@ const ImprovedShiftSwaps = () => {
   
   const {
     createSwapRequest,
-    isCreatingSwapRequest,
+    isLoading: isCreatingSwapRequest, // Renamed to use the isLoading property from useSwapRequests
   } = useSwapRequests();
   
   const handleSwapSubmit = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
     if (!user) return false;
     
     try {
-      await createSwapRequest({
-        shiftIds,
-        wantedDates,
-        acceptedTypes,
-      });
+      await createSwapRequest(shiftIds, wantedDates, acceptedTypes);
       
       return true;
     } catch (err) {
