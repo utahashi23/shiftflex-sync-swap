@@ -105,7 +105,7 @@ serve(async (req) => {
     } else {
       // Find matches where the user is either the requester or the acceptor
       // We need to create a condition with an OR statement
-      query = query.or('requester.requester_id.eq.' + user_id + ',acceptor.requester_id.eq.' + user_id);
+      query = query.or(`requester.requester_id.eq.${user_id},acceptor.requester_id.eq.${user_id}`);
     }
     
     const { data: potentialMatches, error: matchesError } = await query;
