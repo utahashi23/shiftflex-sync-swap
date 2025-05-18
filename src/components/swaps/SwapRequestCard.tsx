@@ -3,8 +3,9 @@ import React from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrashIcon, Truck } from "lucide-react";
+import { TrashIcon, Truck, Clock } from "lucide-react";
 import ShiftTypeBadge from './ShiftTypeBadge';
+import { getShiftType } from '@/utils/shiftUtils';
 
 interface SwapRequestCardProps {
   request: any;
@@ -33,14 +34,10 @@ const SwapRequestCard = ({ request, onDelete, onDeletePreferredDate }: SwapReque
     ? format(new Date(wantedDateStr), 'dd MMM yyyy')
     : wantedDateStr;
   
-  // Determine shift type based on start time if available
-  let shiftType = 'unknown';
-  if (shift?.start_time) {
-    const hour = parseInt(shift.start_time.split(':')[0], 10);
-    if (hour < 12) shiftType = 'day';
-    else if (hour < 18) shiftType = 'afternoon';
-    else shiftType = 'night';
-  }
+  // Determine shift type based on start time using the utility function
+  let shiftType = shift?.start_time
+    ? getShiftType(shift.start_time)
+    : 'day'; // Default to day shift if no time available
 
   // Get accepted shift types
   const acceptedTypes = request.accepted_shift_types || ['day', 'afternoon', 'night'];
@@ -54,8 +51,13 @@ const SwapRequestCard = ({ request, onDelete, onDeletePreferredDate }: SwapReque
               <Truck className="h-4 w-4 text-primary" />
               {truckName || 'Shift'}
             </CardTitle>
-            <CardDescription>
-              Original date: {shiftDate}
+            <CardDescription className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span>{shiftDate}</span>
+              {/* Add the shift type badge directly in the card header area */}
+              <span className="ml-2">
+                <ShiftTypeBadge type={shiftType} size="sm" showLabel={false} />
+              </span>
             </CardDescription>
           </div>
           <Button variant="ghost" size="sm" onClick={onDelete} className="h-8 w-8 p-0">
