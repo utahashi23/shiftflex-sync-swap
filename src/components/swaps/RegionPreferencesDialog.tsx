@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -62,13 +61,13 @@ export const RegionPreferencesDialog = ({
         if (regionsError) throw regionsError;
         
         // Transform the data structure
-        const regionsMap = new Map<string, RegionAreaItem>();
+        const regionsDataMap = new Map(); // Using a regular JavaScript Map without type parameters
         
         // First pass: Create regions
         if (regionsAndAreas && Array.isArray(regionsAndAreas)) {
           regionsAndAreas.forEach((item: any) => {
-            if (item.region_id && !regionsMap.has(item.region_id)) {
-              regionsMap.set(item.region_id, {
+            if (item.region_id && !regionsDataMap.has(item.region_id)) {
+              regionsDataMap.set(item.region_id, {
                 id: item.region_id,
                 name: item.region_name,
                 areas: []
@@ -79,7 +78,7 @@ export const RegionPreferencesDialog = ({
           // Second pass: Add areas to regions
           regionsAndAreas.forEach((item: any) => {
             if (item.area_id && item.region_id) {
-              const region = regionsMap.get(item.region_id);
+              const region = regionsDataMap.get(item.region_id);
               if (region && region.areas) {
                 region.areas.push({
                   id: item.area_id,
@@ -90,7 +89,7 @@ export const RegionPreferencesDialog = ({
           });
         }
         
-        const regionsArray = Array.from(regionsMap.values()) as RegionAreaItem[];
+        const regionsArray = Array.from(regionsDataMap.values()) as RegionAreaItem[];
         
         // Fetch user preferences
         const { data: userPrefs, error: userPrefsError } = await supabase
