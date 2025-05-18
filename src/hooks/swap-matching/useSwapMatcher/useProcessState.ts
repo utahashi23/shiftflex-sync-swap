@@ -13,11 +13,13 @@ export const useProcessState = () => {
   const [status, setStatus] = useState<ProcessStatus>('idle');
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const startProcessing = (initialStatus: ProcessStatus = 'fetching-data') => {
     setStatus(initialStatus);
     setProgress(0);
     setMessage(`Starting ${initialStatus} process`);
+    setIsProcessing(true);
   };
   
   const updateProgress = (newStatus: ProcessStatus, statusMessage: string, progressValue?: number) => {
@@ -43,9 +45,11 @@ export const useProcessState = () => {
           break;
         case 'complete':
           setProgress(100);
+          setIsProcessing(false);
           break;
         case 'error':
           // Keep current progress
+          setIsProcessing(false);
           break;
         default:
           setProgress(0);
@@ -56,12 +60,15 @@ export const useProcessState = () => {
   const setError = (errorMessage: string) => {
     setStatus('error');
     setMessage(errorMessage);
+    setIsProcessing(false);
   };
   
   return {
     status,
     progress,
     message,
+    isProcessing,
+    setIsProcessing,
     startProcessing,
     updateProgress,
     setError

@@ -2,72 +2,62 @@
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Fetch all data needed for swap matching
- * @returns Data object with all necessary data
+ * Fetches all data needed for swap matching
  */
 export const fetchAllData = async () => {
   try {
-    console.log('Fetching all data for swap matching');
+    // Fetch swap requests
+    const { data: swapRequests, error: swapRequestsError } = await supabase
+      .from('shift_swap_requests')
+      .select('*')
+      .eq('status', 'pending');
     
-    // Fetch all swap requests
-    const { data: allRequests, error: requestsError } = await supabase
-      .rpc('get_all_swap_requests');
-      
-    if (requestsError) {
-      console.error('Error fetching swap requests:', requestsError);
-      throw requestsError;
+    if (swapRequestsError) {
+      console.error('Error fetching swap requests:', swapRequestsError);
+      return { 
+        success: false, 
+        error: 'Failed to fetch swap requests: ' + swapRequestsError.message 
+      };
     }
-    
-    // Fetch all shifts
-    const { data: allShifts, error: shiftsError } = await supabase
-      .rpc('get_all_shifts');
-      
-    if (shiftsError) {
-      console.error('Error fetching shifts:', shiftsError);
-      throw shiftsError;
-    }
-    
-    // Fetch all preferred dates - Fixed table name from 'swap_preferred_dates' to 'shift_swap_preferred_dates'
-    const { data: preferredDates, error: datesError } = await supabase
+
+    // Fetch preferred dates
+    const { data: preferredDates, error: preferredDatesError } = await supabase
       .from('shift_swap_preferred_dates')
       .select('*');
-      
-    if (datesError) {
-      console.error('Error fetching preferred dates:', datesError);
-      throw datesError;
-    }
     
-    // Fetch all profiles for display names
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name, employee_id');
-      
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      throw profilesError;
+    if (preferredDatesError) {
+      console.error('Error fetching preferred dates:', preferredDatesError);
+      return { 
+        success: false, 
+        error: 'Failed to fetch preferred dates: ' + preferredDatesError.message 
+      };
     }
+
+    // Fetch shifts
+    const { data: shifts, error: shiftsError } = await supabase
+      .from('shifts')
+      .select('*')
+      .eq('status', 'scheduled');
     
-    // Create a map of profiles for easy lookup
-    const profilesMap = new Map();
-    if (profiles) {
-      profiles.forEach(profile => {
-        profilesMap.set(profile.id, profile);
-      });
+    if (shiftsError) {
+      console.error('Error fetching shifts:', shiftsError);
+      return { 
+        success: false, 
+        error: 'Failed to fetch shifts: ' + shiftsError.message 
+      };
     }
-    
+
     return {
       success: true,
-      allRequests: allRequests || [],
-      allShifts: allShifts || [],
+      swapRequests: swapRequests || [],
       preferredDates: preferredDates || [],
-      profiles,
-      profilesMap
+      shifts: shifts || []
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in fetchAllData:', error);
     return {
       success: false,
-      error: error.message || 'An unknown error occurred'
+      error: error.message || 'Unknown error occurred while fetching data'
     };
   }
 };

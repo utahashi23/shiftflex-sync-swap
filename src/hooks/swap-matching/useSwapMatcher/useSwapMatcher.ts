@@ -3,7 +3,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useSwapRequests } from '../../swap-requests';
 import { useFindSwapMatches } from './useFindSwapMatches';
 import { useProcessState } from './useProcessState';
-import { fetchAllData } from './operations/fetchData';
+import { fetchAllData } from '../operations/fetchData';
 
 export type MatchingStatus =
   | 'idle'
@@ -33,7 +33,7 @@ export function useSwapMatcher() {
     message,
     startProcessing,
     updateProgress,
-    isProcessing 
+    setError: setProcessError
   } = useProcessState();
 
   const { findSwapMatches: findMatches } = useFindSwapMatches(setRequestInProgress);
