@@ -20,83 +20,54 @@ export const checkMatchCompatibility = (
   console.log(`Shift 1: ${requestShift.normalizedDate} (${requestShift.type})`);
   console.log(`Shift 2: ${otherRequestShift.normalizedDate} (${otherRequestShift.type})`);
   
+  // 1. Check for mutual swap dates
   // Get preferred dates for first user
   const user1PreferredDates = preferredDatesByRequest[request.id] || [];
-  
-  // CRITICAL: Find exact matching preferred date with the proper date format
-  const user1MatchingDate = user1PreferredDates.find(pd => pd.date === otherRequestShift.normalizedDate);
-  
-  if (!user1MatchingDate) {
-    console.log(`❌ User 1 doesn't want date ${otherRequestShift.normalizedDate}`);
-    return { 
-      isCompatible: false, 
-      reason: `User ${request.requester_id.substring(0, 6)} doesn't want date ${otherRequestShift.normalizedDate}` 
-    };
-  }
-  
-  // STRICT CHECK: Verify user has specified accepted types for this date
-  if (!user1MatchingDate.acceptedTypes || 
-      !Array.isArray(user1MatchingDate.acceptedTypes) || 
-      user1MatchingDate.acceptedTypes.length === 0) {
-    console.log(`❌ User 1 hasn't specified any accepted types for date ${otherRequestShift.normalizedDate}`);
-    return { 
-      isCompatible: false, 
-      reason: `User ${request.requester_id.substring(0, 6)} hasn't specified any acceptable shift types` 
-    };
-  }
-  
-  console.log(`User 1 accepted types: [${user1MatchingDate.acceptedTypes.join(', ')}]`);
-  
-  // Check if User 1 accepts User 2's shift type
-  if (!user1MatchingDate.acceptedTypes.includes(otherRequestShift.type)) {
-    console.log(`❌ User 1 doesn't accept shift type ${otherRequestShift.type}`);
-    return { 
-      isCompatible: false, 
-      reason: `User ${request.requester_id.substring(0, 6)} doesn't accept shift type ${otherRequestShift.type}` 
-    };
-  }
-  
-  console.log(`✓ User 1 accepts shift type ${otherRequestShift.type} for date ${otherRequestShift.normalizedDate}`);
-  
-  // Get preferred dates for second user
   const user2PreferredDates = preferredDatesByRequest[otherRequest.id] || [];
   
   // CRITICAL: Find exact matching preferred date with the proper date format
-  const user2MatchingDate = user2PreferredDates.find(pd => pd.date === requestShift.normalizedDate);
+  const user1WantsUser2Date = user1PreferredDates.some(pd => pd.date === otherRequestShift.normalizedDate);
+  const user2WantsUser1Date = user2PreferredDates.some(pd => pd.date === requestShift.normalizedDate);
   
-  if (!user2MatchingDate) {
-    console.log(`❌ User 2 doesn't want date ${requestShift.normalizedDate}`);
+  if (!user1WantsUser2Date || !user2WantsUser1Date) {
+    console.log(`❌ Mutual dates check failed: User1 wants User2 date: ${user1WantsUser2Date}, User2 wants User1 date: ${user2WantsUser1Date}`);
     return { 
       isCompatible: false, 
-      reason: `User ${otherRequest.requester_id.substring(0, 6)} doesn't want date ${requestShift.normalizedDate}` 
+      reason: !user1WantsUser2Date 
+        ? `User ${request.requester_id.substring(0, 6)} doesn't want date ${otherRequestShift.normalizedDate}`
+        : `User ${otherRequest.requester_id.substring(0, 6)} doesn't want date ${requestShift.normalizedDate}`
     };
   }
   
-  // STRICT CHECK: Verify user has specified accepted types for this date
-  if (!user2MatchingDate.acceptedTypes || 
-      !Array.isArray(user2MatchingDate.acceptedTypes) || 
-      user2MatchingDate.acceptedTypes.length === 0) {
-    console.log(`❌ User 2 hasn't specified any accepted types for date ${requestShift.normalizedDate}`);
+  console.log(`✓ Mutual dates check passed`);
+  
+  // 2. Check accepted types match
+  // Find the specific dates that each user requested
+  const user1RequestedDate = user1PreferredDates.find(pd => pd.date === otherRequestShift.normalizedDate);
+  const user2RequestedDate = user2PreferredDates.find(pd => pd.date === requestShift.normalizedDate);
+  
+  // Check that the users accept each other's shift types
+  const user1AcceptsType = user1RequestedDate && 
+                          Array.isArray(user1RequestedDate.acceptedTypes) && 
+                          user1RequestedDate.acceptedTypes.includes(otherRequestShift.type);
+                          
+  const user2AcceptsType = user2RequestedDate && 
+                          Array.isArray(user2RequestedDate.acceptedTypes) && 
+                          user2RequestedDate.acceptedTypes.includes(requestShift.type);
+  
+  if (!user1AcceptsType || !user2AcceptsType) {
+    console.log(`❌ Accepted types check failed: User1 accepts User2 type: ${user1AcceptsType}, User2 accepts User1 type: ${user2AcceptsType}`);
     return { 
       isCompatible: false, 
-      reason: `User ${otherRequest.requester_id.substring(0, 6)} hasn't specified any acceptable shift types` 
+      reason: !user1AcceptsType
+        ? `User ${request.requester_id.substring(0, 6)} doesn't accept shift type ${otherRequestShift.type}`
+        : `User ${otherRequest.requester_id.substring(0, 6)} doesn't accept shift type ${requestShift.type}`
     };
   }
   
-  console.log(`User 2 accepted types: [${user2MatchingDate.acceptedTypes.join(', ')}]`);
+  console.log(`✓ Accepted types check passed`);
   
-  // Check if User 2 accepts User 1's shift type
-  if (!user2MatchingDate.acceptedTypes.includes(requestShift.type)) {
-    console.log(`❌ User 2 doesn't accept shift type ${requestShift.type}`);
-    return { 
-      isCompatible: false, 
-      reason: `User ${otherRequest.requester_id.substring(0, 6)} doesn't accept shift type ${requestShift.type}` 
-    };
-  }
-  
-  console.log(`✓ User 2 accepts shift type ${requestShift.type} for date ${requestShift.normalizedDate}`);
-  
-  // Check for schedule conflicts
+  // 3. Check for schedule conflicts
   const user1HasConflict = (shiftsByUser[request.requester_id] || []).includes(otherRequestShift.normalizedDate);
   if (user1HasConflict) {
     console.log(`❌ User 1 already has a shift on ${otherRequestShift.normalizedDate}`);

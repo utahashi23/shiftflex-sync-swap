@@ -187,7 +187,7 @@ export const findMatches = (
       }
     }
     
-    // Check if the shifts are compatible for swapping
+    // Check if the shifts are compatible for swapping using our updated logic
     const { isCompatible, reason } = checkSwapCompatibility(
       request1, 
       request2,

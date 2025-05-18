@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedSwapForm } from "./swaps/ImprovedSwapForm";
@@ -85,6 +86,18 @@ const ImprovedShiftSwaps = () => {
   // Convert hook match types to component match types
   const matches = adaptSwapMatches(hookMatches || []);
   const pastMatches = adaptSwapMatches(hookPastMatches || []);
+  
+  // Add extra logging to help diagnose match issues
+  useEffect(() => {
+    if (hookMatches) {
+      console.log("Current match count:", hookMatches.length);
+      if (hookMatches.length > 0) {
+        console.log("Sample match:", hookMatches[0]);
+      } else {
+        console.log("No matches found - check matching logic");
+      }
+    }
+  }, [hookMatches]);
 
   // Fetch user's swap requests
   const fetchUserRequests = async () => {
@@ -131,6 +144,9 @@ const ImprovedShiftSwaps = () => {
       fetchUserRequests();
       // Also refresh from the hook
       hookFetchSwapRequests();
+    } else if (activeTab === "matches" && user) {
+      console.log("matches tab activated, refreshing matches");
+      refreshMatches();
     }
   }, [activeTab, user]);
   
