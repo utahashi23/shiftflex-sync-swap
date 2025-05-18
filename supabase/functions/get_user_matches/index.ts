@@ -79,8 +79,8 @@ serve(async (req) => {
     console.log(`Using service role to fetch user's requests...`);
     console.log(`Found ${userRequests?.length || 0} pending requests for user ${user_id}`);
 
-    // Fetch all potential matches for this user
-    let query = supabaseAdmin
+    // Completely rewrite the query approach to avoid filter syntax issues
+    let matchesQuery = supabaseAdmin
       .from('shift_swap_potential_matches')
       .select(`
         id,
@@ -97,211 +97,102 @@ serve(async (req) => {
         acceptor:acceptor_request_id(requester_id, status)
       `)
       .neq('status', 'cancelled');
-      
-    // Fix: Correct the filter syntax for OR conditions
+    
+    // Simplify the filtering logic to avoid OR syntax issues
     if (user_initiator_only) {
-      // Only find matches where the user is the requester
-      query = query.filter('requester.requester_id', 'eq', user_id);
+      // Get matches where user is the requester
+      const { data: requesterMatches, error: requesterError } = await matchesQuery
+        .eq('requester.requester_id', user_id);
+        
+      if (requesterError) {
+        console.error('Error fetching requester matches:', requesterError);
+        return new Response(
+          JSON.stringify({ success: false, error: requesterError.message }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
+      const potentialMatches = requesterMatches || [];
+      console.log(`Found ${potentialMatches.length} potential matches where user ${user_id} is requester`);
+      
+      // Process these matches
+      return await processMatchesAndReturn(
+        potentialMatches,
+        user_id,
+        supabaseAdmin,
+        corsHeaders
+      );
     } else {
-      // Find matches where the user is either the requester or the acceptor
-      // Use separate filter calls instead of one OR statement with comma
-      query = query
-        .or(`requester.requester_id.eq.${user_id},acceptor.requester_id.eq.${user_id}`);
-    }
-    
-    const { data: potentialMatches, error: matchesError } = await query;
-
-    if (matchesError) {
-      console.error('Error fetching potential matches:', matchesError);
-      return new Response(
-        JSON.stringify({ success: false, error: matchesError.message }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    if (!potentialMatches || potentialMatches.length === 0) {
-      console.log(`No potential matches found for user ${user_id}`);
-      return new Response(
-        JSON.stringify({ success: true, matches: [] }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-    
-    console.log(`Found ${potentialMatches.length} potential matches for user ${user_id}`);
-
-    // Rest of the function remains the same, fetching shift data and formatting matches
-    // ... keep existing code for collecting shift IDs
-
-    // Collect all shift IDs we need to fetch
-    const shiftIds = [];
-    for (const match of potentialMatches) {
-      shiftIds.push(match.requester_shift_id);
-      shiftIds.push(match.acceptor_shift_id);
-    }
-
-    // Fetch all shift details
-    const { data: shifts, error: shiftsError } = await supabaseAdmin
-      .from('shifts')
-      .select(`
-        id, 
-        user_id, 
-        date, 
-        start_time, 
-        end_time, 
-        truck_name, 
-        status,
-        colleague_type
-      `)
-      .in('id', shiftIds);
-
-    if (shiftsError) {
-      console.error('Error fetching shifts:', shiftsError);
-      return new Response(
-        JSON.stringify({ success: false, error: shiftsError.message }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Create a map of shifts for easy lookup
-    const shiftMap = {};
-    for (const shift of shifts) {
-      shiftMap[shift.id] = shift;
-    }
-
-    // Collect user IDs to fetch profiles
-    const userIds = new Set();
-    for (const match of potentialMatches) {
-      if (match.requester?.requester_id) {
-        userIds.add(match.requester.requester_id);
-      }
-      if (match.acceptor?.requester_id) {
-        userIds.add(match.acceptor.requester_id);
-      }
-    }
-
-    // Fetch user profiles
-    const { data: profiles, error: profilesError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, first_name, last_name, employee_id')
-      .in('id', Array.from(userIds));
-
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      return new Response(
-        JSON.stringify({ success: false, error: profilesError.message }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Create a map of profiles for easy lookup
-    const profileMap = {};
-    for (const profile of profiles) {
-      profileMap[profile.id] = profile;
-    }
-
-    // Format the matches for the API response
-    const formattedMatches = potentialMatches.map(match => {
-      // ... keep existing code for formatting matches
-      // Determine which user in the match is the current user
-      const isRequester = match.requester?.requester_id === user_id;
+      // Get matches where user is the requester
+      const { data: requesterMatches, error: requesterError } = await matchesQuery
+        .eq('requester.requester_id', user_id);
       
-      // Get the shift IDs for my shift and the other user's shift
-      const myShiftId = isRequester ? match.requester_shift_id : match.acceptor_shift_id;
-      const otherShiftId = isRequester ? match.acceptor_shift_id : match.requester_shift_id;
-      
-      // Get the shift data
-      const myShift = shiftMap[myShiftId];
-      const otherShift = shiftMap[otherShiftId];
-      
-      // Get the other user's ID and profile
-      const otherUserId = isRequester 
-        ? match.acceptor?.requester_id 
-        : match.requester?.requester_id;
-      
-      const otherUserProfile = profileMap[otherUserId];
-      
-      // Determine the match status from the user's perspective
-      const isPending = match.status === 'pending';
-      const isAccepted = match.status === 'accepted';
-      const isCompleted = match.status === 'completed';
-      
-      // Check which user has accepted the match
-      const iHaveAccepted = isRequester 
-        ? match.requester_has_accepted 
-        : match.acceptor_has_accepted;
-      
-      const theyHaveAccepted = isRequester 
-        ? match.acceptor_has_accepted 
-        : match.requester_has_accepted;
-      
-      // Determine display status
-      let displayStatus = match.status;
-      if (isPending) {
-        if (iHaveAccepted && !theyHaveAccepted) {
-          displayStatus = 'accepted'; // I've accepted, waiting for them
-        } else if (!iHaveAccepted && theyHaveAccepted) {
-          displayStatus = 'other_accepted'; // They've accepted, waiting for me
-        }
+      if (requesterError) {
+        console.error('Error fetching requester matches:', requesterError);
+        return new Response(
+          JSON.stringify({ success: false, error: requesterError.message }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
       
-      // Format the match data
-      return {
-        match_id: match.id,
-        match_status: displayStatus,
-        created_at: match.created_at,
-        match_date: match.match_date,
-        
-        // My side of the match
-        my_user_id: user_id,
-        my_request_id: isRequester ? match.requester_request_id : match.acceptor_request_id,
-        my_shift_id: myShiftId,
-        my_shift_date: myShift?.date,
-        my_shift_start_time: myShift?.start_time,
-        my_shift_end_time: myShift?.end_time,
-        my_shift_truck: myShift?.truck_name,
-        my_shift_colleague_type: myShift?.colleague_type,
-        
-        // Other user's side
-        other_user_id: otherUserId,
-        other_user_name: otherUserProfile 
-          ? `${otherUserProfile.first_name || ''} ${otherUserProfile.last_name || ''}`.trim()
-          : 'Unknown User',
-        other_user_employee_id: otherUserProfile?.employee_id,
-        other_request_id: isRequester ? match.acceptor_request_id : match.requester_request_id,
-        other_shift_id: otherShiftId,
-        other_shift_date: otherShift?.date,
-        other_shift_start_time: otherShift?.start_time,
-        other_shift_end_time: otherShift?.end_time,
-        other_shift_truck: otherShift?.truck_name,
-        other_shift_colleague_type: otherShift?.colleague_type,
-        
-        // Acceptance tracking
-        requester_has_accepted: match.requester_has_accepted,
-        acceptor_has_accepted: match.acceptor_has_accepted,
-        
-        // My role in this match
-        is_requester: isRequester
-      };
-    });
-
-    // Return the formatted matches
-    return new Response(
-      JSON.stringify({ success: true, matches: formattedMatches }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      // Get matches where user is the acceptor
+      const { data: acceptorMatches, error: acceptorError } = await supabaseAdmin
+        .from('shift_swap_potential_matches')
+        .select(`
+          id,
+          status,
+          match_date,
+          created_at,
+          requester_request_id,
+          acceptor_request_id,
+          requester_shift_id,
+          acceptor_shift_id,
+          requester_has_accepted,
+          acceptor_has_accepted,
+          requester:requester_request_id(requester_id, status),
+          acceptor:acceptor_request_id(requester_id, status)
+        `)
+        .neq('status', 'cancelled')
+        .eq('acceptor.requester_id', user_id);
+      
+      if (acceptorError) {
+        console.error('Error fetching acceptor matches:', acceptorError);
+        return new Response(
+          JSON.stringify({ success: false, error: acceptorError.message }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
-    );
+      
+      // Combine both result sets
+      const potentialMatches = [
+        ...(requesterMatches || []),
+        ...(acceptorMatches || [])
+      ];
+      
+      // Remove duplicates (if any)
+      const uniqueMatches = Array.from(
+        new Map(potentialMatches.map(match => [match.id, match])).values()
+      );
+      
+      console.log(`Found ${uniqueMatches.length} combined potential matches for user ${user_id}`);
+      
+      // Process these matches
+      return await processMatchesAndReturn(
+        uniqueMatches,
+        user_id,
+        supabaseAdmin,
+        corsHeaders
+      );
+    }
   } catch (error) {
     console.error('Error processing request:', error.message);
     
@@ -314,3 +205,186 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper function to process matches and return formatted response
+async function processMatchesAndReturn(
+  potentialMatches: any[],
+  user_id: string,
+  supabaseAdmin: any,
+  corsHeaders: any
+) {
+  if (!potentialMatches || potentialMatches.length === 0) {
+    console.log(`No potential matches found for user ${user_id}`);
+    return new Response(
+      JSON.stringify({ success: true, matches: [] }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+  
+  // Collect all shift IDs we need to fetch
+  const shiftIds = [];
+  for (const match of potentialMatches) {
+    shiftIds.push(match.requester_shift_id);
+    shiftIds.push(match.acceptor_shift_id);
+  }
+
+  // Fetch all shift details
+  const { data: shifts, error: shiftsError } = await supabaseAdmin
+    .from('shifts')
+    .select(`
+      id, 
+      user_id, 
+      date, 
+      start_time, 
+      end_time, 
+      truck_name, 
+      status,
+      colleague_type
+    `)
+    .in('id', shiftIds);
+
+  if (shiftsError) {
+    console.error('Error fetching shifts:', shiftsError);
+    return new Response(
+      JSON.stringify({ success: false, error: shiftsError.message }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+
+  // Create a map of shifts for easy lookup
+  const shiftMap = {};
+  for (const shift of shifts) {
+    shiftMap[shift.id] = shift;
+  }
+
+  // Collect user IDs to fetch profiles
+  const userIds = new Set();
+  for (const match of potentialMatches) {
+    if (match.requester?.requester_id) {
+      userIds.add(match.requester.requester_id);
+    }
+    if (match.acceptor?.requester_id) {
+      userIds.add(match.acceptor.requester_id);
+    }
+  }
+
+  // Fetch user profiles
+  const { data: profiles, error: profilesError } = await supabaseAdmin
+    .from('profiles')
+    .select('id, first_name, last_name, employee_id')
+    .in('id', Array.from(userIds));
+
+  if (profilesError) {
+    console.error('Error fetching profiles:', profilesError);
+    return new Response(
+      JSON.stringify({ success: false, error: profilesError.message }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+
+  // Create a map of profiles for easy lookup
+  const profileMap = {};
+  for (const profile of profiles) {
+    profileMap[profile.id] = profile;
+  }
+
+  // Format the matches for the API response
+  const formattedMatches = potentialMatches.map(match => {
+    // Determine which user in the match is the current user
+    const isRequester = match.requester?.requester_id === user_id;
+    
+    // Get the shift IDs for my shift and the other user's shift
+    const myShiftId = isRequester ? match.requester_shift_id : match.acceptor_shift_id;
+    const otherShiftId = isRequester ? match.acceptor_shift_id : match.requester_shift_id;
+    
+    // Get the shift data
+    const myShift = shiftMap[myShiftId];
+    const otherShift = shiftMap[otherShiftId];
+    
+    // Get the other user's ID and profile
+    const otherUserId = isRequester 
+      ? match.acceptor?.requester_id 
+      : match.requester?.requester_id;
+    
+    const otherUserProfile = profileMap[otherUserId];
+    
+    // Determine the match status from the user's perspective
+    const isPending = match.status === 'pending';
+    const isAccepted = match.status === 'accepted';
+    const isCompleted = match.status === 'completed';
+    
+    // Check which user has accepted the match
+    const iHaveAccepted = isRequester 
+      ? match.requester_has_accepted 
+      : match.acceptor_has_accepted;
+    
+    const theyHaveAccepted = isRequester 
+      ? match.acceptor_has_accepted 
+      : match.requester_has_accepted;
+    
+    // Determine display status
+    let displayStatus = match.status;
+    if (isPending) {
+      if (iHaveAccepted && !theyHaveAccepted) {
+        displayStatus = 'accepted'; // I've accepted, waiting for them
+      } else if (!iHaveAccepted && theyHaveAccepted) {
+        displayStatus = 'other_accepted'; // They've accepted, waiting for me
+      }
+    }
+    
+    // Format the match data
+    return {
+      match_id: match.id,
+      match_status: displayStatus,
+      created_at: match.created_at,
+      match_date: match.match_date,
+      
+      // My side of the match
+      my_user_id: user_id,
+      my_request_id: isRequester ? match.requester_request_id : match.acceptor_request_id,
+      my_shift_id: myShiftId,
+      my_shift_date: myShift?.date,
+      my_shift_start_time: myShift?.start_time,
+      my_shift_end_time: myShift?.end_time,
+      my_shift_truck: myShift?.truck_name,
+      my_shift_colleague_type: myShift?.colleague_type,
+      
+      // Other user's side
+      other_user_id: otherUserId,
+      other_user_name: otherUserProfile 
+        ? `${otherUserProfile.first_name || ''} ${otherUserProfile.last_name || ''}`.trim()
+        : 'Unknown User',
+      other_user_employee_id: otherUserProfile?.employee_id,
+      other_request_id: isRequester ? match.acceptor_request_id : match.requester_request_id,
+      other_shift_id: otherShiftId,
+      other_shift_date: otherShift?.date,
+      other_shift_start_time: otherShift?.start_time,
+      other_shift_end_time: otherShift?.end_time,
+      other_shift_truck: otherShift?.truck_name,
+      other_shift_colleague_type: otherShift?.colleague_type,
+      
+      // Acceptance tracking
+      requester_has_accepted: match.requester_has_accepted,
+      acceptor_has_accepted: match.acceptor_has_accepted,
+      
+      // My role in this match
+      is_requester: isRequester
+    };
+  });
+
+  // Return the formatted matches
+  return new Response(
+    JSON.stringify({ success: true, matches: formattedMatches }),
+    {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    }
+  );
+}
