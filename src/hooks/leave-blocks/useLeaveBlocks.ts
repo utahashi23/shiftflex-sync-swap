@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -60,7 +59,7 @@ export const useLeaveBlocks = () => {
         .insert({
           requester_id: user.id,
           requester_leave_block_id: leaveBlockId,
-          requested_leave_block_id: null, // This will be set when matching
+          requested_leave_block_id: null, // Set to null initially since we don't know what block the user wants to swap with yet
           status: 'pending'
         })
         .select();
