@@ -62,7 +62,7 @@ export const RegionPreferencesDialog = ({
         if (regionsError) throw regionsError;
         
         // Transform the data structure
-        const regionsMap = new Map();
+        const regionsMap = new Map<string, RegionAreaItem>();
         
         // First pass: Create regions
         if (regionsAndAreas && Array.isArray(regionsAndAreas)) {
