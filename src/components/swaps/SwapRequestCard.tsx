@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TrashIcon, Truck, Clock } from "lucide-react";
-import ShiftTypeBadge from './ShiftTypeBadge';
+import ShiftIconBadge from './ShiftIconBadge';
 import { getShiftType } from '@/utils/shiftUtils';
 
 interface SwapRequestCardProps {
@@ -72,7 +72,7 @@ const SwapRequestCard = ({ request, onDelete, onDeletePreferredDate }: SwapReque
           <div>
             <h4 className="text-sm font-medium">My shift type:</h4>
             <div className="mt-1">
-              <ShiftTypeBadge type={shiftType} />
+              <ShiftIconBadge type={shiftType} showLabel={true} />
             </div>
           </div>
           
@@ -80,7 +80,7 @@ const SwapRequestCard = ({ request, onDelete, onDeletePreferredDate }: SwapReque
             <h4 className="text-sm font-medium">Accepted shift types:</h4>
             <div className="flex flex-wrap gap-1 mt-1">
               {acceptedTypes.map((type: string) => (
-                <ShiftTypeBadge key={type} type={type} />
+                <ShiftIconBadge key={type} type={type} showLabel={true} />
               ))}
             </div>
           </div>
