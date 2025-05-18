@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -80,9 +81,12 @@ export function SwapFiltersDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] bg-white">
+      <DialogContent className="sm:max-w-[425px] bg-white" aria-describedby="filter-description">
         <DialogHeader>
           <DialogTitle>Swap Filters</DialogTitle>
+          <DialogDescription id="filter-description">
+            Customize how you view and sort shift swaps
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6 py-4">
@@ -194,7 +198,7 @@ export function SwapFiltersDialog({
                 <SelectValue placeholder="All trucks" />
               </SelectTrigger>
               <SelectContent className="bg-white z-50">
-                <SelectItem value="">All trucks</SelectItem>
+                <SelectItem value="all-trucks">All trucks</SelectItem>
                 {availableTrucks.map((truck) => (
                   <SelectItem key={truck} value={truck}>
                     {truck}
@@ -220,7 +224,7 @@ export function SwapFiltersDialog({
                 <SelectValue placeholder="All shift types" />
               </SelectTrigger>
               <SelectContent className="bg-white z-50">
-                <SelectItem value="">All shift types</SelectItem>
+                <SelectItem value="all-types">All shift types</SelectItem>
                 <SelectItem value="day">Day</SelectItem>
                 <SelectItem value="afternoon">Afternoon</SelectItem>
                 <SelectItem value="night">Night</SelectItem>
