@@ -98,14 +98,15 @@ serve(async (req) => {
       `)
       .neq('status', 'cancelled');
       
-    // Apply filters using the proper Supabase Filter method
+    // Fix: Correct the filter syntax for OR conditions
     if (user_initiator_only) {
       // Only find matches where the user is the requester
       query = query.filter('requester.requester_id', 'eq', user_id);
     } else {
       // Find matches where the user is either the requester or the acceptor
-      // We need to create a condition with an OR statement
-      query = query.or(`requester.requester_id.eq.${user_id},acceptor.requester_id.eq.${user_id}`);
+      // Use separate filter calls instead of one OR statement with comma
+      query = query
+        .or(`requester.requester_id.eq.${user_id},acceptor.requester_id.eq.${user_id}`);
     }
     
     const { data: potentialMatches, error: matchesError } = await query;
@@ -132,6 +133,9 @@ serve(async (req) => {
     }
     
     console.log(`Found ${potentialMatches.length} potential matches for user ${user_id}`);
+
+    // Rest of the function remains the same, fetching shift data and formatting matches
+    // ... keep existing code for collecting shift IDs
 
     // Collect all shift IDs we need to fetch
     const shiftIds = [];
@@ -208,6 +212,7 @@ serve(async (req) => {
 
     // Format the matches for the API response
     const formattedMatches = potentialMatches.map(match => {
+      // ... keep existing code for formatting matches
       // Determine which user in the match is the current user
       const isRequester = match.requester?.requester_id === user_id;
       
