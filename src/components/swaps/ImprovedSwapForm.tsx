@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
 import { Button } from "@/components/ui/button";
@@ -26,13 +25,15 @@ interface ImprovedSwapFormProps {
   onClose: () => void;
   onSubmit: (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => Promise<boolean>;
   isDialog?: boolean;
+  currentDate?: Date;
 }
 
 export const ImprovedSwapForm = ({
   isOpen,
   onClose,
   onSubmit,
-  isDialog = true
+  isDialog = true,
+  currentDate = new Date()
 }: ImprovedSwapFormProps) => {
   const [step, setStep] = useState(1);
   const [selectedShifts, setSelectedShifts] = useState<any[]>([]);
@@ -41,9 +42,16 @@ export const ImprovedSwapForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calendarCurrentMonth, setCalendarCurrentMonth] = useState(currentDate);
   
   const { user } = useAuth();
+  
+  // Update internal calendar month when prop changes
+  useEffect(() => {
+    if (currentDate) {
+      setCalendarCurrentMonth(currentDate);
+    }
+  }, [currentDate]);
   
   // Fetch user shifts
   useEffect(() => {
@@ -132,13 +140,15 @@ export const ImprovedSwapForm = ({
     }
   };
 
-  // Methods for month navigation
+  // Methods for month navigation - these will be controlled by parent in non-dialog mode
   const handlePrevMonth = () => {
-    setCurrentMonth(prevMonth => subMonths(prevMonth, 1));
+    if (!isDialog) return; // Don't handle navigation in non-dialog mode
+    setCalendarCurrentMonth(prevMonth => subMonths(prevMonth, 1));
   };
 
   const handleNextMonth = () => {
-    setCurrentMonth(prevMonth => addMonths(prevMonth, 1));
+    if (!isDialog) return; // Don't handle navigation in non-dialog mode
+    setCalendarCurrentMonth(prevMonth => addMonths(prevMonth, 1));
   };
 
   const renderContent = () => {
@@ -247,7 +257,7 @@ export const ImprovedSwapForm = ({
                   Previous Month
                 </Button>
                 <h2 className="text-lg font-medium">
-                  {format(currentMonth, 'MMMM yyyy')}
+                  {format(calendarCurrentMonth, 'MMMM yyyy')}
                 </h2>
                 <Button variant="outline" size="sm" onClick={handleNextMonth}>
                   Next Month
@@ -261,7 +271,7 @@ export const ImprovedSwapForm = ({
                   selected={selectedDates}
                   onSelect={(dates) => setSelectedDates(dates || [])}
                   className="rounded-md"
-                  month={currentMonth}
+                  month={calendarCurrentMonth}
                   disabled={(date) => {
                     // Disable dates before today
                     return date < new Date(new Date().setHours(0, 0, 0, 0));
