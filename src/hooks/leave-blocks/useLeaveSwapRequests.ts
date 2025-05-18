@@ -20,7 +20,16 @@ export const useLeaveSwapRequests = () => {
         .from('leave_swap_requests')
         .select(`
           *,
-          requester_leave_block:requester_leave_block_id(*)
+          requester_leave_block:requester_leave_block_id(
+            id,
+            block_number,
+            start_date,
+            end_date,
+            status,
+            created_at,
+            split_designation,
+            original_block_id
+          )
         `)
         .eq('requester_id', user.id)
         .eq('status', 'pending');
