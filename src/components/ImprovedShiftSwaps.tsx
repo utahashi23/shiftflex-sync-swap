@@ -15,13 +15,19 @@ import {
   addMonths, 
   subMonths, 
   startOfMonth, 
-  endOfMonth 
+  endOfMonth,
+  isAfter,
+  isBefore,
+  isEqual,
+  parseISO 
 } from 'date-fns';
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { ChevronLeft, ChevronRight, Trash2, ArrowDown, ArrowUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, Filter } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import SwapDeleteDialog from "./swaps/SwapDeleteDialog";
+import { SwapFiltersDialog, SwapFilters } from "./swaps/SwapFiltersDialog";
+import { getShiftType } from "@/utils/shiftUtils";
 
 // Adapter function to convert between swap match types
 function adaptSwapMatches(matches: HookSwapMatch[]): ComponentSwapMatch[] {
@@ -66,8 +72,19 @@ const ImprovedShiftSwaps = () => {
   // New state for selected requests (for multiple deletion)
   const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
   
-  // New state for sort direction
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  // Replace sortDirection with filters state
+  const [filters, setFilters] = useState<SwapFilters>({
+    sortDirection: 'asc',
+    dateRange: { from: undefined, to: undefined },
+    truckName: null,
+    shiftType: null
+  });
+  
+  // State for filter dialog
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  
+  // State to track available truck names for filtering
+  const [availableTrucks, setAvailableTrucks] = useState<string[]>([]);
   
   // New state for delete dialog
   const [deleteDialog, setDeleteDialog] = useState<{ 
@@ -115,6 +132,18 @@ const ImprovedShiftSwaps = () => {
       
       console.log("Fetched user swap requests:", data);
       setUserRequests(data || []);
+      
+      // Extract unique truck names from the data
+      const uniqueTruckNames = Array.from(
+        new Set(
+          (data || [])
+            .filter(request => request.shifts?.truck_name)
+            .map(request => request.shifts.truck_name)
+        )
+      ).sort();
+      
+      setAvailableTrucks(uniqueTruckNames as string[]);
+      
     } catch (err: any) {
       console.error("Error fetching swap requests:", err);
       toast({
@@ -210,9 +239,9 @@ const ImprovedShiftSwaps = () => {
     );
   };
 
-  // Toggle sort direction
-  const toggleSortDirection = () => {
-    setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+  // Apply filters
+  const handleApplyFilters = (newFilters: SwapFilters) => {
+    setFilters(newFilters);
   };
 
   // Open delete dialog for multiple requests
@@ -312,28 +341,64 @@ const ImprovedShiftSwaps = () => {
     }
   };
 
-  // Filter requests for current month
+  // Filter and sort requests based on all filters
   const filteredAndSortedRequests = userRequests
     .filter(request => {
       const shiftDate = request.shifts?.date ? new Date(request.shifts.date) : null;
       if (!shiftDate) return false;
       
+      // Month filter (always applied)
       const monthStart = startOfMonth(currentMonth);
       const monthEnd = endOfMonth(currentMonth);
+      const isInCurrentMonth = shiftDate >= monthStart && shiftDate <= monthEnd;
+      if (!isInCurrentMonth) return false;
       
-      return shiftDate >= monthStart && shiftDate <= monthEnd;
+      // Date range filter
+      if (filters.dateRange.from && filters.dateRange.to) {
+        // Ensure dates are at the start of day for accurate comparison
+        const isInDateRange = 
+          (isEqual(shiftDate, filters.dateRange.from) || isAfter(shiftDate, filters.dateRange.from)) &&
+          (isEqual(shiftDate, filters.dateRange.to) || isBefore(shiftDate, filters.dateRange.to));
+        if (!isInDateRange) return false;
+      } else if (filters.dateRange.from) {
+        if (isBefore(shiftDate, filters.dateRange.from)) return false;
+      } else if (filters.dateRange.to) {
+        if (isAfter(shiftDate, filters.dateRange.to)) return false;
+      }
+      
+      // Truck name filter
+      if (filters.truckName && request.shifts?.truck_name !== filters.truckName) {
+        return false;
+      }
+      
+      // Shift type filter
+      if (filters.shiftType) {
+        const shiftType = request.shifts?.start_time
+          ? getShiftType(request.shifts.start_time)
+          : 'day';
+        if (shiftType !== filters.shiftType) return false;
+      }
+      
+      return true;
     })
     .sort((a, b) => {
       const dateA = a.shifts?.date ? new Date(a.shifts.date) : new Date(0);
       const dateB = b.shifts?.date ? new Date(b.shifts.date) : new Date(0);
       
-      return sortDirection === 'asc' 
+      return filters.sortDirection === 'asc' 
         ? dateA.getTime() - dateB.getTime() 
         : dateB.getTime() - dateA.getTime();
     });
 
   // Check if any requests are selected
   const hasSelectedRequests = selectedRequests.length > 0;
+  
+  // Check if any filters are applied beyond default sort
+  const hasActiveFilters = 
+    filters.dateRange.from !== undefined || 
+    filters.dateRange.to !== undefined || 
+    filters.truckName !== null || 
+    filters.shiftType !== null;
 
   // Month navigation component that can be reused
   const MonthNavigation = () => (
@@ -399,14 +464,16 @@ const ImprovedShiftSwaps = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={toggleSortDirection}
-                className="flex items-center space-x-1"
+                onClick={() => setIsFiltersOpen(true)}
+                className={cn(
+                  "flex items-center space-x-1",
+                  hasActiveFilters ? "bg-blue-50 text-blue-700" : ""
+                )}
               >
-                <span className="text-[0.85rem]">Date</span>
-                {sortDirection === 'asc' ? (
-                  <ArrowUp className="h-3 w-3" />
-                ) : (
-                  <ArrowDown className="h-3 w-3" />
+                <Filter className="h-3 w-3 mr-1" />
+                <span className="text-[0.85rem]">Filter</span>
+                {hasActiveFilters && (
+                  <span className="ml-1 h-2 w-2 rounded-full bg-blue-500"></span>
                 )}
               </Button>
               
@@ -420,7 +487,7 @@ const ImprovedShiftSwaps = () => {
                   hasSelectedRequests ? "bg-red-50 hover:bg-red-100 text-red-700" : ""
                 )}
               >
-                <Trash2 className="h-3 w-3" />
+                <Trash2 className="h-3 w-3 mr-1" />
                 <span className="text-[0.85rem]">Delete Selected</span>
               </Button>
             </div>
@@ -444,8 +511,25 @@ const ImprovedShiftSwaps = () => {
               <div className="col-span-2 bg-muted/30 p-6 rounded-lg text-center">
                 <h3 className="font-medium mb-2">No Swap Requests</h3>
                 <p className="text-sm text-muted-foreground">
-                  You haven't created any swap requests for this month. Go to the "Create Swap Request" tab to get started.
+                  {hasActiveFilters 
+                    ? "No swap requests match the current filters."
+                    : "You haven't created any swap requests for this month. Go to the \"Create Swap Request\" tab to get started."}
                 </p>
+                {hasActiveFilters && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setFilters({
+                      sortDirection: 'asc',
+                      dateRange: { from: undefined, to: undefined },
+                      truckName: null,
+                      shiftType: null
+                    })}
+                    className="mt-2"
+                  >
+                    Reset Filters
+                  </Button>
+                )}
               </div>
             )}
             
@@ -487,6 +571,14 @@ const ImprovedShiftSwaps = () => {
         isDateOnly={false}
         isMultiDelete={deleteDialog.isMultiple}
         selectionCount={selectedRequests.length}
+      />
+      
+      <SwapFiltersDialog
+        isOpen={isFiltersOpen}
+        onOpenChange={setIsFiltersOpen}
+        filters={filters}
+        onApplyFilters={handleApplyFilters}
+        availableTrucks={availableTrucks}
       />
     </div>
   );
