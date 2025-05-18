@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Map as MapIcon } from "lucide-react"; // Renamed import to avoid conflict
+import { Map as MapIcon, ChevronDown } from "lucide-react"; // Renamed import to avoid conflict
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +18,11 @@ import { Info, AlertCircle, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface RegionAreaItem {
   id: string;
@@ -38,6 +43,7 @@ export const RegionPreferencesDialog = ({
   const [regions, setRegions] = useState<RegionAreaItem[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
+  const [expandedRegionId, setExpandedRegionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +117,11 @@ export const RegionPreferencesDialog = ({
         setRegions(regionsArray);
         setSelectedRegions(userRegions);
         setSelectedAreas(userAreas);
+        
+        // If there are regions, expand the first one by default
+        if (regionsArray.length > 0) {
+          setExpandedRegionId(regionsArray[0].id);
+        }
         
         console.log("Loaded regions:", regionsArray.length);
         console.log("User preferences - regions:", userRegions.length, "areas:", userAreas.length);
@@ -207,6 +218,9 @@ export const RegionPreferencesDialog = ({
         const areaIds = region.areas.map(area => area.id);
         setSelectedAreas(prev => [...prev, ...areaIds.filter(id => !prev.includes(id))]);
       }
+      
+      // Expand this region when checked
+      setExpandedRegionId(regionId);
     } else {
       setSelectedRegions(prev => prev.filter(id => id !== regionId));
       
@@ -215,6 +229,11 @@ export const RegionPreferencesDialog = ({
       if (region && region.areas) {
         const areaIds = region.areas.map(area => area.id);
         setSelectedAreas(prev => prev.filter(id => !areaIds.includes(id)));
+      }
+      
+      // Collapse the region when unchecked
+      if (expandedRegionId === regionId) {
+        setExpandedRegionId(null);
       }
     }
   };
@@ -262,6 +281,11 @@ export const RegionPreferencesDialog = ({
   const isAreaSelected = (areaId: string) => {
     return selectedAreas.includes(areaId);
   };
+  
+  // Toggle expansion of a region
+  const toggleRegionExpansion = (regionId: string) => {
+    setExpandedRegionId(expandedRegionId === regionId ? null : regionId);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -293,40 +317,54 @@ export const RegionPreferencesDialog = ({
           </Alert>
         ) : (
           <ScrollArea className="max-h-[60vh] pr-4">
-            <div className="space-y-4">
+            <div className="space-y-2">
               {regions.map((region) => (
-                <div key={region.id} className="space-y-2">
-                  <div className="flex items-center space-x-2">
+                <div key={region.id} className="border rounded-md overflow-hidden">
+                  <div className="flex items-center p-3">
                     <Checkbox 
                       id={`region-${region.id}`}
                       checked={selectedRegions.includes(region.id) || areAllAreasInRegionSelected(region.id)}
                       onCheckedChange={(checked) => handleRegionToggle(region.id, checked === true)}
+                      className="mr-3"
                     />
-                    <Label 
-                      htmlFor={`region-${region.id}`} 
-                      className="text-md font-medium"
+                    <div 
+                      className="flex-1 flex justify-between items-center cursor-pointer"
+                      onClick={() => toggleRegionExpansion(region.id)}
                     >
-                      {region.name}
-                    </Label>
+                      <Label 
+                        htmlFor={`region-${region.id}`} 
+                        className="text-md font-medium"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {region.name}
+                      </Label>
+                      <ChevronDown 
+                        className={`h-5 w-5 transition-transform ${
+                          expandedRegionId === region.id ? 'transform rotate-180' : ''
+                        }`} 
+                      />
+                    </div>
                   </div>
                   
-                  {region.areas && region.areas.length > 0 && (
-                    <div className="ml-8 grid gap-2">
-                      {region.areas.map((area) => (
-                        <div key={area.id} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={`area-${area.id}`}
-                            checked={isAreaSelected(area.id)}
-                            onCheckedChange={(checked) => handleAreaToggle(region.id, area.id, checked === true)}
-                          />
-                          <Label 
-                            htmlFor={`area-${area.id}`}
-                            className="text-sm"
-                          >
-                            {area.name}
-                          </Label>
-                        </div>
-                      ))}
+                  {expandedRegionId === region.id && region.areas && region.areas.length > 0 && (
+                    <div className="border-t">
+                      <div className="p-3 pl-10 space-y-2">
+                        {region.areas.map((area) => (
+                          <div key={area.id} className="flex items-center space-x-2">
+                            <Checkbox 
+                              id={`area-${area.id}`}
+                              checked={isAreaSelected(area.id)}
+                              onCheckedChange={(checked) => handleAreaToggle(region.id, area.id, checked === true)}
+                            />
+                            <Label 
+                              htmlFor={`area-${area.id}`}
+                              className="text-sm"
+                            >
+                              {area.name}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
