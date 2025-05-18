@@ -62,7 +62,7 @@ export const RegionPreferencesDialog = ({
         if (regionsError) throw regionsError;
         
         // Transform the data structure
-        const regionsMap = new Map<string, RegionAreaItem>();
+        const regionsMap = new Map();
         
         // First pass: Create regions
         if (regionsAndAreas && Array.isArray(regionsAndAreas)) {
@@ -90,7 +90,7 @@ export const RegionPreferencesDialog = ({
           });
         }
         
-        const regionsArray = Array.from(regionsMap.values());
+        const regionsArray = Array.from(regionsMap.values()) as RegionAreaItem[];
         
         // Fetch user preferences
         const { data: userPrefs, error: userPrefsError } = await supabase
