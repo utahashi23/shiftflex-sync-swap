@@ -49,7 +49,7 @@ const ShiftIconBadge = ({ type, showLabel = false, className = "" }: ShiftIconBa
       className
     )}>
       {renderIcon()}
-      {showLabel && <span className="text-sm">{getShiftTypeLabel(type)} Shift</span>}
+      {showLabel && <span className="text-sm text-muted-foreground">{getShiftTypeLabel(type)} Shift</span>}
     </div>
   );
 };
