@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Sunrise, 
   Sun, 
-  Moon
+  Moon,
+  Loader2
 } from "lucide-react";
 import { isValid } from "date-fns";
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +23,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ShiftDateField } from '@/components/shift-form/ShiftDateField';
+import { toast } from '@/hooks/use-toast';
 
 type FormValues = {
   shiftId: string;
@@ -42,6 +44,7 @@ const ImprovedShiftSwaps = () => {
   const [shifts, setShifts] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
+  const [isLoadingShifts, setIsLoadingShifts] = useState(false);
   const { user } = useAuth();
   
   const {
@@ -75,22 +78,42 @@ const ImprovedShiftSwaps = () => {
   const acceptedTypes = watch('acceptedTypes');
   const regionPreferences = watch('regionPreferences');
 
+  // Fetch user's shifts when component mounts or tab changes to create
+  useEffect(() => {
+    if (activeTab === 'create') {
+      fetchShifts();
+      fetchRegionsAndAreas();
+    } else if (activeTab === 'requests') {
+      fetchUserSwaps();
+    } else if (activeTab === 'matches') {
+      findMatches();
+    }
+  }, [activeTab, user]);
+
   // Fetch user's shifts
   const fetchShifts = async () => {
     if (!user) return;
     
+    setIsLoadingShifts(true);
     try {
+      // Call the RPC function to get shifts instead of directly querying the table
       const { data, error } = await supabase
-        .from('shifts')
-        .select('*')
-        .eq('user_id', user.id)
+        .rpc('get_all_shifts')
         .eq('status', 'scheduled');
         
       if (error) throw error;
       
+      console.log(`Fetched ${data?.length || 0} shifts for user`);
       setShifts(data || []);
     } catch (err) {
       console.error('Error fetching shifts:', err);
+      toast({
+        title: "Failed to load shifts",
+        description: "Could not load your shifts. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingShifts(false);
     }
   };
   
@@ -122,9 +145,12 @@ const ImprovedShiftSwaps = () => {
   };
 
   const handleRefresh = () => {
-    fetchShifts();
-    fetchUserSwaps();
-    if (activeTab === 'matches') {
+    if (activeTab === 'create') {
+      fetchShifts();
+      fetchRegionsAndAreas();
+    } else if (activeTab === 'requests') {
+      fetchUserSwaps();
+    } else if (activeTab === 'matches') {
       findMatches();
     }
   };
@@ -137,19 +163,17 @@ const ImprovedShiftSwaps = () => {
   // Load data when needed
   const handleTabChange = (tabValue: string) => {
     setActiveTab(tabValue);
-    
-    if (tabValue === 'create' && shifts.length === 0) {
-      fetchShifts();
-      fetchRegionsAndAreas();
-    } else if (tabValue === 'requests') {
-      fetchUserSwaps();
-    } else if (tabValue === 'matches') {
-      findMatches();
-    }
   };
 
   const onFormSubmit = async (data: FormValues) => {
-    if (!data.shiftId || data.wantedDates.length === 0) return;
+    if (!data.shiftId || data.wantedDates.length === 0) {
+      toast({
+        title: "Incomplete form",
+        description: "Please select a shift and at least one date",
+        variant: "destructive"
+      });
+      return;
+    }
     
     const acceptedTypesArray: string[] = [];
     if (data.acceptedTypes.day) acceptedTypesArray.push('day');
@@ -157,7 +181,11 @@ const ImprovedShiftSwaps = () => {
     if (data.acceptedTypes.night) acceptedTypesArray.push('night');
     
     if (acceptedTypesArray.length === 0) {
-      // Must select at least one shift type
+      toast({
+        title: "Selection required",
+        description: "Please select at least one shift type",
+        variant: "destructive"
+      });
       return;
     }
     
@@ -176,6 +204,11 @@ const ImprovedShiftSwaps = () => {
       }
     } catch (error) {
       console.error("Error in creating swap request:", error);
+      toast({
+        title: "Failed to create request",
+        description: "Could not create swap request. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -230,9 +263,9 @@ const ImprovedShiftSwaps = () => {
           <Button
             variant="outline"
             onClick={handleRefresh}
-            disabled={isLoading || isProcessing}
+            disabled={isLoading || isProcessing || isLoadingShifts}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isProcessing || isLoadingShifts ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -279,16 +312,25 @@ const ImprovedShiftSwaps = () => {
                       <Select 
                         onValueChange={field.onChange}
                         value={field.value}
+                        disabled={isLoadingShifts}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a shift to swap" />
+                          <SelectValue placeholder={isLoadingShifts ? "Loading shifts..." : "Select a shift to swap"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {shifts.map(shift => (
-                            <SelectItem key={shift.id} value={shift.id}>
-                              {format(new Date(shift.date), 'MMM d, yyyy')} - {shift.truck_name}
-                            </SelectItem>
-                          ))}
+                          {isLoadingShifts ? (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                            </div>
+                          ) : shifts.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground">No shifts available</div>
+                          ) : (
+                            shifts.map(shift => (
+                              <SelectItem key={shift.id} value={shift.id}>
+                                {format(new Date(shift.date), 'MMM d, yyyy')} - {shift.truck_name || 'Unknown location'}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     )}
@@ -404,6 +446,7 @@ const ImprovedShiftSwaps = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Select 
                       onValueChange={(value) => handleAddRegionPreference(value)}
+                      disabled={regions.length === 0}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select a region" />
@@ -422,6 +465,7 @@ const ImprovedShiftSwaps = () => {
                         const [regionId, areaId] = value.split('|');
                         handleAddRegionPreference(regionId, areaId);
                       }}
+                      disabled={areas.length === 0}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select an area" />
@@ -473,10 +517,17 @@ const ImprovedShiftSwaps = () => {
                 
                 <Button 
                   type="submit"
-                  disabled={!selectedShiftId || wantedDates.length === 0}
+                  disabled={!selectedShiftId || wantedDates.length === 0 || isProcessing}
                   className="mt-4"
                 >
-                  Create Swap Request
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Swap Request"
+                  )}
                 </Button>
               </form>
             </CardContent>

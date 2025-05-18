@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { ShiftSwapDialog } from './ShiftSwapDialog';
@@ -17,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ShiftDateField } from '@/components/shift-form/ShiftDateField';
+import { toast } from '@/hooks/use-toast';
 
 type FormValues = {
   shiftId: string;
@@ -70,24 +72,31 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
       
       setIsLoading(true);
       try {
+        // Call the RPC function to get shifts
         const { data, error } = await supabase
-          .from('shifts')
-          .select('*')
-          .eq('user_id', user.id)
+          .rpc('get_all_shifts')
           .eq('status', 'scheduled');
           
         if (error) throw error;
         
+        console.log(`Loaded ${data?.length || 0} shifts for form`);
         setShifts(data || []);
       } catch (err) {
         console.error('Error fetching shifts:', err);
+        toast({
+          title: "Failed to load shifts",
+          description: "There was a problem loading your shifts. Please try again.",
+          variant: "destructive"
+        });
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchShifts();
-  }, [user]);
+    if (isOpen) {
+      fetchShifts();
+    }
+  }, [user, isOpen]);
 
   // Fetch regions and areas
   useEffect(() => {
@@ -117,8 +126,10 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
       }
     };
     
-    fetchRegionsAndAreas();
-  }, []);
+    if (isOpen) {
+      fetchRegionsAndAreas();
+    }
+  }, [isOpen]);
 
   const onFormSubmit = async (data: FormValues) => {
     if (!data.shiftId || data.wantedDates.length === 0) return;
@@ -129,7 +140,11 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
     if (data.acceptedTypes.night) acceptedTypesArray.push('night');
     
     if (acceptedTypesArray.length === 0) {
-      // Must select at least one shift type
+      toast({
+        title: "Selection required",
+        description: "Please select at least one shift type",
+        variant: "destructive"
+      });
       return;
     }
     
@@ -201,16 +216,25 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
               <Select 
                 onValueChange={field.onChange}
                 value={field.value}
+                disabled={isLoading}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a shift to swap" />
+                  <SelectValue placeholder={isLoading ? "Loading shifts..." : "Select a shift to swap"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {shifts.map(shift => (
-                    <SelectItem key={shift.id} value={shift.id}>
-                      {format(new Date(shift.date), 'MMM d, yyyy')} - {shift.truck_name}
-                    </SelectItem>
-                  ))}
+                  {isLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : shifts.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground">No shifts available</div>
+                  ) : (
+                    shifts.map(shift => (
+                      <SelectItem key={shift.id} value={shift.id}>
+                        {format(new Date(shift.date), 'MMM d, yyyy')} - {shift.truck_name || 'Unknown location'}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             )}
@@ -322,6 +346,7 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Select 
               onValueChange={(value) => handleAddRegionPreference(value)}
+              disabled={regions.length === 0}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a region" />
@@ -340,6 +365,7 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
                 const [regionId, areaId] = value.split('|');
                 handleAddRegionPreference(regionId, areaId);
               }}
+              disabled={areas.length === 0}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select an area" />
