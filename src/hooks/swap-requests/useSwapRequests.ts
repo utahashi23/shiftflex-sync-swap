@@ -1,10 +1,10 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../useAuth';
 import { useSwapMatches } from '../swap-matches';
 import { toast } from '../use-toast';
 import { createSwapRequestApi } from './createSwapRequest';
 import { supabase } from '@/integrations/supabase/client';
+import { deletePreferredDateApi } from './deletePreferredDate';
 
 export function useSwapRequests() {
   const [isLoading, setIsLoading] = useState(false);
@@ -102,6 +102,38 @@ export function useSwapRequests() {
     }
   }, [user]);
   
+  const deletePreferredDay = useCallback(async (dayId: string, requestId: string) => {
+    if (!user) return { success: false };
+    
+    try {
+      setIsLoading(true);
+      console.log("useSwapRequests: Deleting preferred date", dayId, "from request", requestId);
+      
+      const result = await deletePreferredDateApi(dayId, requestId);
+      
+      // If this was the last preferred date and the entire request was deleted
+      if (result.requestDeleted) {
+        setSwapRequests(prev => prev.filter(r => r.id !== requestId));
+      } else {
+        // Otherwise update the request in the list to remove the date
+        // For improved_shift_swaps, we just need to refetch
+        await fetchSwapRequests();
+      }
+      
+      return result;
+    } catch (error) {
+      console.error("Error deleting preferred date:", error);
+      toast({
+        title: "Error",
+        description: "Could not delete preferred date",
+        variant: "destructive",
+      });
+      return { success: false };
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, fetchSwapRequests]);
+  
   const createSwapRequest = useCallback(async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
     if (!user) return false;
     
@@ -152,6 +184,7 @@ export function useSwapRequests() {
     fetchSwapRequests,
     deleteSwapRequest,
     createSwapRequest,
+    deletePreferredDay,  // Add the deletePreferredDay function to the hook's return value
     refreshMatches,
     handleAcceptSwap: acceptMatch,
     handleCancelSwap: cancelMatch,
