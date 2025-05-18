@@ -198,7 +198,7 @@ export const ImprovedSwapForm = ({
                   return (
                     <div 
                       key={shift.id}
-                      className={`rounded-lg p-3 hover:bg-muted cursor-pointer flex justify-between items-center ${
+                      className={`border rounded-lg p-3 hover:bg-muted cursor-pointer flex justify-between items-center ${
                         isSelected ? 'bg-secondary border-primary' : ''
                       }`}
                       onClick={() => toggleShiftSelection(shift)}
