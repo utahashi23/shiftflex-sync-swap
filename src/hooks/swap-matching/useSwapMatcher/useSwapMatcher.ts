@@ -33,6 +33,7 @@ export function useSwapMatcher() {
     message,
     startProcessing,
     updateProgress,
+    isProcessing,
     setError: setProcessError
   } = useProcessState();
 
