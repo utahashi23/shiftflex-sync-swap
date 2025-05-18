@@ -37,7 +37,8 @@ export function useSwapMatcher() {
     setError: setProcessError
   } = useProcessState();
 
-  const { findSwapMatches: findMatches } = useFindSwapMatches(setRequestInProgress);
+  // Pass setRequestInProgress as a parameter to the custom hook
+  const { findSwapMatches: findMatches } = useFindSwapMatches();
 
   /**
    * Optimized function to find matches that prevents duplicate/excessive requests
