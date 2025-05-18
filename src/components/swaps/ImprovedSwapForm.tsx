@@ -1,14 +1,15 @@
+
 import { useState, useEffect } from "react";
 import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, addMonths, subMonths } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { MultiSelect } from "@/components/swaps/MultiSelect";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { X, Truck } from "lucide-react";
+import { X, Truck, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ShiftIconBadge from "./ShiftIconBadge";
 import { getShiftType } from "@/utils/shiftUtils";
@@ -34,12 +35,13 @@ export const ImprovedSwapForm = ({
   isDialog = true
 }: ImprovedSwapFormProps) => {
   const [step, setStep] = useState(1);
-  const [selectedShifts, setSelectedShifts] = useState<any[]>([]); // Now an array for multiple selection
+  const [selectedShifts, setSelectedShifts] = useState<any[]>([]);
   const [userShifts, setUserShifts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   
   const { user } = useAuth();
   
@@ -128,6 +130,15 @@ export const ImprovedSwapForm = ({
     if (selectedShifts.length > 0) {
       handleNextStep();
     }
+  };
+
+  // Methods for month navigation
+  const handlePrevMonth = () => {
+    setCurrentMonth(prevMonth => subMonths(prevMonth, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(prevMonth => addMonths(prevMonth, 1));
   };
 
   const renderContent = () => {
@@ -228,12 +239,29 @@ export const ImprovedSwapForm = ({
               <p className="text-sm text-muted-foreground mb-4">
                 Choose dates when you would like to work instead
               </p>
+              
+              {/* Month navigation */}
+              <div className="flex justify-between items-center mb-4">
+                <Button variant="outline" size="sm" onClick={handlePrevMonth}>
+                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  Previous Month
+                </Button>
+                <h2 className="text-lg font-medium">
+                  {format(currentMonth, 'MMMM yyyy')}
+                </h2>
+                <Button variant="outline" size="sm" onClick={handleNextMonth}>
+                  Next Month
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+              
               <div className="border rounded-lg p-3">
                 <CalendarComponent
                   mode="multiple"
                   selected={selectedDates}
                   onSelect={(dates) => setSelectedDates(dates || [])}
                   className="rounded-md"
+                  month={currentMonth}
                   disabled={(date) => {
                     // Disable dates before today
                     return date < new Date(new Date().setHours(0, 0, 0, 0));
