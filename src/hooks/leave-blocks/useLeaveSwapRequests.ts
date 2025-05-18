@@ -16,11 +16,17 @@ export const useLeaveSwapRequests = () => {
     setIsLoading(true);
     
     try {
+      // Use explicit field selection with table aliases to avoid relationship errors
       const { data, error } = await supabase
         .from('leave_swap_requests')
         .select(`
-          *,
-          requester_leave_block:requester_leave_block_id(
+          id,
+          requester_id,
+          requester_leave_block_id,
+          requested_leave_block_id,
+          status,
+          created_at,
+          leave_blocks!requester_leave_block_id (
             id,
             block_number,
             start_date,
@@ -45,16 +51,16 @@ export const useLeaveSwapRequests = () => {
           requested_leave_block_id: item.requested_leave_block_id,
           status: item.status,
           created_at: item.created_at,
-          requester_leave_block: item.requester_leave_block && {
-            id: item.requester_leave_block.id,
-            block_number: item.requester_leave_block.block_number,
-            start_date: item.requester_leave_block.start_date,
-            end_date: item.requester_leave_block.end_date,
-            status: item.requester_leave_block.status,
-            created_at: item.requester_leave_block.created_at,
-            split_designation: item.requester_leave_block.split_designation as 'A' | 'B' | null | undefined,
-            original_block_id: item.requester_leave_block.original_block_id
-          }
+          requester_leave_block: item.leave_blocks ? {
+            id: item.leave_blocks.id,
+            block_number: item.leave_blocks.block_number,
+            start_date: item.leave_blocks.start_date,
+            end_date: item.leave_blocks.end_date,
+            status: item.leave_blocks.status,
+            created_at: item.leave_blocks.created_at,
+            split_designation: item.leave_blocks.split_designation as 'A' | 'B' | null | undefined,
+            original_block_id: item.leave_blocks.original_block_id
+          } : undefined
         }));
         
         setRequests(transformedData);
