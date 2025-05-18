@@ -34,7 +34,7 @@ export const useLeaveBlocks = () => {
         end_date: item.leave_block.end_date,
         status: item.status,
         created_at: item.created_at,
-        split_designation: item.leave_block.split_designation,
+        split_designation: item.leave_block.split_designation as 'A' | 'B' | null | undefined,
         original_block_id: item.leave_block.original_block_id
       })) || [];
       

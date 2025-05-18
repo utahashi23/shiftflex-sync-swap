@@ -27,18 +27,29 @@ export const useLeaveSwapRequests = () => {
       
       if (error) throw error;
       
-      // Transform the data to match our LeaveSwapRequest type
-      const transformedData: LeaveSwapRequest[] = data?.map(item => ({
-        id: item.id,
-        requester_id: item.requester_id,
-        requester_leave_block_id: item.requester_leave_block_id,
-        requested_leave_block_id: item.requested_leave_block_id,
-        status: item.status,
-        created_at: item.created_at,
-        requester_leave_block: item.requester_leave_block
-      })) || [];
-      
-      setRequests(transformedData);
+      if (data) {
+        // Transform the data to match our LeaveSwapRequest type
+        const transformedData: LeaveSwapRequest[] = data.map(item => ({
+          id: item.id,
+          requester_id: item.requester_id,
+          requester_leave_block_id: item.requester_leave_block_id,
+          requested_leave_block_id: item.requested_leave_block_id,
+          status: item.status,
+          created_at: item.created_at,
+          requester_leave_block: item.requester_leave_block && {
+            id: item.requester_leave_block.id,
+            block_number: item.requester_leave_block.block_number,
+            start_date: item.requester_leave_block.start_date,
+            end_date: item.requester_leave_block.end_date,
+            status: item.requester_leave_block.status,
+            created_at: item.requester_leave_block.created_at,
+            split_designation: item.requester_leave_block.split_designation as 'A' | 'B' | null | undefined,
+            original_block_id: item.requester_leave_block.original_block_id
+          }
+        }));
+        
+        setRequests(transformedData);
+      }
     } catch (error) {
       console.error('Error fetching leave swap requests:', error);
       toast({

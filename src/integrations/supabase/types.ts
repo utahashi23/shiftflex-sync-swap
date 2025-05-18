@@ -1134,9 +1134,17 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      join_leave_blocks: {
+        Args: { block_a_id: string; block_b_id: string }
+        Returns: Json
+      }
       match_shift_swap_requests: {
         Args: { request1_id: string; request2_id: string }
         Returns: boolean
+      }
+      split_leave_block: {
+        Args: { block_id: string }
+        Returns: Json
       }
       test_admin_access: {
         Args: Record<PropertyKey, never>
@@ -1157,6 +1165,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      leave_block_status: "active" | "inactive" | "deleted"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1273,6 +1282,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      leave_block_status: ["active", "inactive", "deleted"],
     },
   },
 } as const
