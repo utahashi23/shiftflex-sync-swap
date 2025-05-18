@@ -3,16 +3,47 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, RefreshCw, Search, Trash } from "lucide-react";
+import { Calendar, RefreshCw, Search, Trash, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useImprovedSwapMatches } from '@/hooks/swap-matches/useImprovedSwapMatches';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ImprovedSwapForm } from './swaps/ImprovedSwapForm';
+import { useForm, Controller } from 'react-hook-form';
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  Sunrise, 
+  Sun, 
+  Moon
+} from "lucide-react";
+import { isValid } from "date-fns";
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { ShiftDateField } from '@/components/shift-form/ShiftDateField';
+
+type FormValues = {
+  shiftId: string;
+  wantedDates: Date[];
+  acceptedTypes: {
+    day: boolean;
+    afternoon: boolean;
+    night: boolean;
+  };
+  regionPreferences: {
+    regionId: string;
+    areaId?: string;
+  }[];
+};
 
 const ImprovedShiftSwaps = () => {
   const [activeTab, setActiveTab] = useState('requests');
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isCreatingSwap, setIsCreatingSwap] = useState(false);
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [regions, setRegions] = useState<any[]>([]);
+  const [areas, setAreas] = useState<any[]>([]);
+  const { user } = useAuth();
   
   const {
     swaps,
@@ -27,7 +58,72 @@ const ImprovedShiftSwaps = () => {
     deleteSwapRequest
   } = useImprovedSwapMatches();
 
+  const { control, register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<FormValues>({
+    defaultValues: {
+      shiftId: '',
+      wantedDates: [],
+      acceptedTypes: {
+        day: true,
+        afternoon: true,
+        night: true
+      },
+      regionPreferences: []
+    }
+  });
+
+  const selectedShiftId = watch('shiftId');
+  const wantedDates = watch('wantedDates');
+  const acceptedTypes = watch('acceptedTypes');
+  const regionPreferences = watch('regionPreferences');
+
+  // Fetch user's shifts
+  const fetchShifts = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('shifts')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'scheduled');
+        
+      if (error) throw error;
+      
+      setShifts(data || []);
+    } catch (err) {
+      console.error('Error fetching shifts:', err);
+    }
+  };
+  
+  // Fetch regions and areas
+  const fetchRegionsAndAreas = async () => {
+    try {
+      // Fetch regions
+      const { data: regionsData, error: regionsError } = await supabase
+        .from('regions')
+        .select('*')
+        .eq('status', 'active');
+        
+      if (regionsError) throw regionsError;
+      
+      setRegions(regionsData || []);
+      
+      // Fetch areas
+      const { data: areasData, error: areasError } = await supabase
+        .from('areas')
+        .select('*')
+        .eq('status', 'active');
+        
+      if (areasError) throw areasError;
+      
+      setAreas(areasData || []);
+    } catch (err) {
+      console.error('Error fetching regions/areas:', err);
+    }
+  };
+
   const handleRefresh = () => {
+    fetchShifts();
     fetchUserSwaps();
     if (activeTab === 'matches') {
       findMatches();
@@ -38,24 +134,68 @@ const ImprovedShiftSwaps = () => {
     findMatches();
     setActiveTab('matches');
   };
+  
+  const toggleCreateSwap = () => {
+    if (!isCreatingSwap) {
+      fetchShifts();
+      fetchRegionsAndAreas();
+    } else {
+      reset();
+    }
+    setIsCreatingSwap(!isCreatingSwap);
+  };
 
-  const handleCreateSwap = async (
-    shiftId: string, 
-    wantedDates: string[], 
-    acceptedTypes: string[],
-    regionPreferences: { region_id: string, area_id?: string }[] = []
-  ) => {
+  const onFormSubmit = async (data: FormValues) => {
+    if (!data.shiftId || data.wantedDates.length === 0) return;
+    
+    const acceptedTypesArray: string[] = [];
+    if (data.acceptedTypes.day) acceptedTypesArray.push('day');
+    if (data.acceptedTypes.afternoon) acceptedTypesArray.push('afternoon');
+    if (data.acceptedTypes.night) acceptedTypesArray.push('night');
+    
+    if (acceptedTypesArray.length === 0) {
+      // Must select at least one shift type
+      return;
+    }
+    
+    // Format dates to ISO strings (YYYY-MM-DD)
+    const formattedDates = data.wantedDates
+      .filter(date => date && isValid(date))
+      .map(date => format(date, 'yyyy-MM-dd'));
+      
     try {
-      const success = await createSwapRequest(shiftId, wantedDates, acceptedTypes, regionPreferences);
+      const success = await createSwapRequest(data.shiftId, formattedDates, acceptedTypesArray);
+      
       if (success) {
-        setIsFormOpen(false);
+        reset();
+        setIsCreatingSwap(false);
       }
-      return success;
     } catch (error) {
-      console.error("Error in handleCreateSwap:", error);
-      return false;
+      console.error("Error in creating swap request:", error);
     }
   };
+
+  const handleAddRegionPreference = (regionId: string, areaId?: string) => {
+    const currentPreferences = [...(regionPreferences || [])];
+    
+    // Check if this preference already exists
+    const alreadyExists = currentPreferences.some(
+      pref => pref.regionId === regionId && pref.areaId === areaId
+    );
+    
+    if (!alreadyExists) {
+      currentPreferences.push({ regionId, areaId });
+      setValue('regionPreferences', currentPreferences);
+    }
+  };
+
+  const handleRemoveRegionPreference = (index: number) => {
+    const currentPreferences = [...(regionPreferences || [])];
+    currentPreferences.splice(index, 1);
+    setValue('regionPreferences', currentPreferences);
+  };
+
+  const selectedShift = shifts.find(shift => shift.id === selectedShiftId);
 
   // Helper function to format a date safely
   const formatDate = (dateStr: string | null | undefined) => {
@@ -84,12 +224,21 @@ const ImprovedShiftSwaps = () => {
         
         <div className="flex gap-2">
           <Button 
-            variant="outline" 
+            variant={isCreatingSwap ? "destructive" : "outline"} 
             className="flex items-center gap-2" 
-            onClick={() => setIsFormOpen(true)}
+            onClick={toggleCreateSwap}
           >
-            <Calendar className="h-4 w-4" />
-            New Swap Request
+            {isCreatingSwap ? (
+              <>
+                <X className="h-4 w-4" />
+                Cancel Request
+              </>
+            ) : (
+              <>
+                <Calendar className="h-4 w-4" />
+                New Swap Request
+              </>
+            )}
           </Button>
           
           <Button
@@ -123,6 +272,230 @@ const ImprovedShiftSwaps = () => {
         </TabsList>
         
         <TabsContent value="requests">
+          {isCreatingSwap && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Create Shift Swap Request</CardTitle>
+                <CardDescription>
+                  Select the shift you want to swap and specify your preferences.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form className="grid gap-4 py-2" onSubmit={handleSubmit(onFormSubmit)}>
+                  {/* Shift Selection */}
+                  <div className="space-y-2">
+                    <Label htmlFor="shiftId">Select Your Shift</Label>
+                    <Controller
+                      name="shiftId"
+                      control={control}
+                      render={({ field }) => (
+                        <Select 
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a shift to swap" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {shifts.map(shift => (
+                              <SelectItem key={shift.id} value={shift.id}>
+                                {format(new Date(shift.date), 'MMM d, yyyy')} - {shift.truck_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                  
+                  {/* Selected Shift Details */}
+                  {selectedShift && (
+                    <div className="p-3 border rounded-md bg-secondary/20">
+                      <p className="text-sm font-medium">Selected Shift</p>
+                      <p className="text-base">{format(new Date(selectedShift.date), 'PPPP')}</p>
+                      <p className="text-sm">
+                        {selectedShift.start_time.substring(0, 5)} - {selectedShift.end_time.substring(0, 5)}
+                      </p>
+                      <p className="text-sm text-gray-500">{selectedShift.truck_name}</p>
+                    </div>
+                  )}
+                  
+                  {/* Multiple Wanted Dates with calendar */}
+                  <div className="space-y-2">
+                    <Label>Select Preferred Dates</Label>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Select the dates you would prefer to work instead.
+                    </p>
+                    <Controller
+                      name="wantedDates"
+                      control={control}
+                      render={({ field }) => (
+                        <ShiftDateField
+                          value=""
+                          onChange={() => {}}
+                          multiSelect={true}
+                          selectedDates={field.value}
+                          onMultiDateChange={(dates) => field.onChange(dates)}
+                        />
+                      )}
+                    />
+                    
+                    {/* Warning if no dates selected */}
+                    {(!wantedDates || wantedDates.length === 0) && (
+                      <p className="text-sm text-yellow-600">
+                        Please select at least one preferred date
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Accepted Shift Types */}
+                  <div className="space-y-2">
+                    <Label>Acceptable Shift Types</Label>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Select what types of shifts you're willing to accept on your wanted dates.
+                    </p>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="day-shift"
+                          checked={acceptedTypes.day}
+                          onCheckedChange={(checked) => {
+                            setValue('acceptedTypes.day', checked === true);
+                          }}
+                        />
+                        <Label htmlFor="day-shift" className="flex items-center">
+                          <div className="bg-yellow-100 text-yellow-800 p-1 rounded-md mr-2">
+                            <Sunrise className="h-4 w-4" />
+                          </div>
+                          <span>Day Shift</span>
+                        </Label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="afternoon-shift"
+                          checked={acceptedTypes.afternoon}
+                          onCheckedChange={(checked) => {
+                            setValue('acceptedTypes.afternoon', checked === true);
+                          }}
+                        />
+                        <Label htmlFor="afternoon-shift" className="flex items-center">
+                          <div className="bg-orange-100 text-orange-800 p-1 rounded-md mr-2">
+                            <Sun className="h-4 w-4" />
+                          </div>
+                          <span>Afternoon Shift</span>
+                        </Label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="night-shift"
+                          checked={acceptedTypes.night}
+                          onCheckedChange={(checked) => {
+                            setValue('acceptedTypes.night', checked === true);
+                          }}
+                        />
+                        <Label htmlFor="night-shift" className="flex items-center">
+                          <div className="bg-blue-100 text-blue-800 p-1 rounded-md mr-2">
+                            <Moon className="h-4 w-4" />
+                          </div>
+                          <span>Night Shift</span>
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Region/Area Preferences */}
+                  <div className="space-y-2">
+                    <Label>Region/Area Preferences</Label>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Select regions or specific areas you prefer for your swap.
+                    </p>
+                    
+                    {/* Region selection */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Select 
+                        onValueChange={(value) => handleAddRegionPreference(value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a region" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {regions.map(region => (
+                            <SelectItem key={region.id} value={region.id}>
+                              {region.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      <Select
+                        onValueChange={(value) => {
+                          const [regionId, areaId] = value.split('|');
+                          handleAddRegionPreference(regionId, areaId);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an area" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {regions.map(region => (
+                            <SelectItem key={`region-group-${region.id}`} value={region.id} disabled>
+                              {region.name}
+                            </SelectItem>
+                          ))}
+                          {areas.map(area => (
+                            <SelectItem 
+                              key={area.id} 
+                              value={`${area.region_id}|${area.id}`}
+                              className="pl-6"
+                            >
+                              {area.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Display selected preferences */}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {(regionPreferences || []).map((pref, index) => {
+                        const region = regions.find(r => r.id === pref.regionId);
+                        const area = pref.areaId ? areas.find(a => a.id === pref.areaId) : null;
+                        
+                        return (
+                          <Badge 
+                            key={index}
+                            variant="outline"
+                            className="flex items-center gap-1 px-3 py-1"
+                          >
+                            {region?.name || 'Unknown'} {area && `- ${area.name}`}
+                            <button 
+                              type="button" 
+                              onClick={() => handleRemoveRegionPreference(index)}
+                              className="ml-1 text-gray-500 hover:text-gray-700"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    type="submit"
+                    disabled={!selectedShiftId || wantedDates.length === 0}
+                    className="mt-4"
+                  >
+                    Create Swap Request
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+          
           {isLoading ? (
             <div className="space-y-4">
               {[...Array(3)].map((_, i) => (
@@ -139,9 +512,7 @@ const ImprovedShiftSwaps = () => {
             </div>
           ) : swaps.length > 0 ? (
             <div className="space-y-4">
-              {swaps.map((swap) => {
-                console.log("Rendering swap:", swap);
-                return (
+              {swaps.map((swap) => (
                 <Card key={swap.id}>
                   <CardHeader className="pb-2">
                     <div className="flex justify-between">
@@ -255,15 +626,15 @@ const ImprovedShiftSwaps = () => {
                     </div>
                   </CardContent>
                 </Card>
-              )})}
+              ))}
             </div>
-          ) : (
+          ) : !isCreatingSwap ? (
             <div className="text-center py-12 bg-secondary/20 rounded-lg">
               <h3 className="text-xl font-semibold mb-2">No Swap Requests</h3>
               <p className="text-gray-600 mb-6">You haven't created any shift swap requests yet.</p>
-              <Button onClick={() => setIsFormOpen(true)}>Create a Swap Request</Button>
+              <Button onClick={toggleCreateSwap}>Create a Swap Request</Button>
             </div>
-          )}
+          ) : null}
         </TabsContent>
         
         <TabsContent value="matches">
@@ -273,7 +644,7 @@ const ImprovedShiftSwaps = () => {
               <p className="text-gray-600 mb-6">
                 You need to create a swap request before you can find matches.
               </p>
-              <Button onClick={() => setIsFormOpen(true)}>Create a Swap Request</Button>
+              <Button onClick={toggleCreateSwap}>Create a Swap Request</Button>
             </div>
           ) : (
             <>
@@ -369,27 +740,16 @@ const ImprovedShiftSwaps = () => {
               ) : (
                 <div className="text-center py-12 bg-secondary/20 rounded-lg">
                   <h3 className="text-xl font-semibold mb-2">No Matches Found</h3>
-                  <p className="text-gray-600">
-                    We couldn't find any matches for your swap requests at this time.
+                  <p className="text-gray-600 mb-6">
+                    We couldn't find any potential matches for your swap requests.
                   </p>
-                  <p className="text-gray-600 mt-2">
-                    This could be because there are no other users with compatible requests,
-                    or because your requested dates don't match with others.
-                  </p>
+                  <Button onClick={handleFindMatches}>Try Again</Button>
                 </div>
               )}
             </>
           )}
         </TabsContent>
       </Tabs>
-
-      {isFormOpen && (
-        <ImprovedSwapForm
-          isOpen={isFormOpen}
-          onClose={() => setIsFormOpen(false)}
-          onSubmit={handleCreateSwap}
-        />
-      )}
     </div>
   );
 };
