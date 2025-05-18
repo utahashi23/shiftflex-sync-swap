@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedSwapForm } from "./swaps/ImprovedSwapForm";
@@ -11,6 +10,7 @@ import { useSwapRequests } from "@/hooks/swap-requests";
 import { MatchedSwapsTabs } from "./matched-swaps/MatchedSwapsTabs";
 import { SwapMatch as ComponentSwapMatch } from "./matched-swaps/types";
 import { SwapMatch as HookSwapMatch } from "@/hooks/swap-matches/types";
+import SwapCalendar from "./SwapCalendar";
 import { 
   format, 
   addMonths, 
@@ -350,12 +350,19 @@ const ImprovedShiftSwaps = () => {
         </TabsList>
         
         <TabsContent value="create" className="mt-6 space-y-4">
-          <ImprovedSwapForm
-            isOpen={true}
-            onClose={() => {}}
-            onSubmit={handleCreateSwap}
-            isDialog={false}
-          />
+          <div className="grid gap-6 md:grid-cols-2">
+            <div>
+              <SwapCalendar />
+            </div>
+            <div>
+              <ImprovedSwapForm
+                isOpen={true}
+                onClose={() => {}}
+                onSubmit={handleCreateSwap}
+                isDialog={false}
+              />
+            </div>
+          </div>
         </TabsContent>
         
         <TabsContent value="mySwaps" className="mt-6">
