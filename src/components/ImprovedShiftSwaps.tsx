@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedSwapForm } from "./swaps/ImprovedSwapForm";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,7 +7,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { RegionPreferencesButton } from "./swaps/RegionPreferencesButton";
 import SwapRequestCard from "./swaps/SwapRequestCard";
-import { useEffect } from "react";
 import { useSwapRequests } from "@/hooks/swap-requests";
 import { MatchedSwapsTabs } from "./matched-swaps/MatchedSwapsTabs";
 import { SwapMatch as ComponentSwapMatch } from "./matched-swaps/types";
@@ -46,7 +45,8 @@ const ImprovedShiftSwaps = () => {
     pastMatches: hookPastMatches, 
     isLoading: isMatchesLoading, 
     refreshMatches,
-    createSwapRequest 
+    createSwapRequest,
+    fetchSwapRequests: hookFetchSwapRequests
   } = useSwapRequests();
 
   // Convert hook match types to component match types
@@ -85,6 +85,8 @@ const ImprovedShiftSwaps = () => {
   useEffect(() => {
     if (user) {
       fetchUserRequests();
+      // Also fetch from the hook to ensure both data sources are up to date
+      hookFetchSwapRequests();
     }
   }, [user]);
 
@@ -93,6 +95,8 @@ const ImprovedShiftSwaps = () => {
     if (activeTab === "mySwaps" && user) {
       console.log("mySwaps tab activated, refreshing requests");
       fetchUserRequests();
+      // Also refresh from the hook
+      hookFetchSwapRequests();
     }
   }, [activeTab, user]);
   
@@ -100,13 +104,7 @@ const ImprovedShiftSwaps = () => {
   const handleCreateSwap = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
     setIsSubmitting(true);
     try {
-      // Format dates for API
-      const preferredDates = wantedDates.map(date => ({
-        date,
-        acceptedTypes
-      }));
-      
-      console.log("Creating swap request with: ", { shiftIds, preferredDates });
+      console.log("Creating swap request with: ", { shiftIds, wantedDates, acceptedTypes });
       
       const success = await createSwapRequest(shiftIds, wantedDates, acceptedTypes);
       
@@ -116,8 +114,13 @@ const ImprovedShiftSwaps = () => {
           description: "Swap request created successfully",
         });
         
+        console.log("Swap created successfully, now fetching updated requests");
+        
         // Reload the user's swap requests immediately after creation
-        await fetchUserRequests();
+        await Promise.all([
+          fetchUserRequests(),
+          hookFetchSwapRequests()
+        ]);
         
         // Switch to the "My Swaps" tab after creating a swap
         setActiveTab("mySwaps");
@@ -149,6 +152,7 @@ const ImprovedShiftSwaps = () => {
         
       if (error) throw error;
       
+      // First update the local state for immediate UI feedback
       setUserRequests(userRequests.filter(request => request.id !== requestId));
       
       toast({
@@ -156,8 +160,13 @@ const ImprovedShiftSwaps = () => {
         description: "Swap request deleted successfully",
       });
       
-      // Refresh the requests list to ensure UI is in sync with database
-      await fetchUserRequests();
+      // Then refresh both data sources to ensure consistency
+      console.log("Swap deleted, refreshing requests lists");
+      await Promise.all([
+        fetchUserRequests(),
+        hookFetchSwapRequests()
+      ]);
+      
     } catch (err: any) {
       console.error("Error deleting swap request:", err);
       toast({
