@@ -1,3 +1,4 @@
+
 import {
   Dialog,
   DialogContent,
@@ -21,7 +22,7 @@ interface ShiftSwapDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   children: React.ReactNode;
-  preventAutoClose?: boolean;  // New prop to prevent automatic closing
+  preventAutoClose?: boolean;
 }
 
 export const ShiftSwapDialog = ({
@@ -35,27 +36,43 @@ export const ShiftSwapDialog = ({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   children,
-  preventAutoClose = false  // Default to false for backward compatibility
+  preventAutoClose = false
 }: ShiftSwapDialogProps) => {
-  // Wrapper function to handle dialog closing with validation
+  // Create a wrapped onOpenChange handler that respects preventAutoClose
   const handleOpenChange = (newOpenState: boolean) => {
-    // If closing the dialog and preventAutoClose is true, we'll ignore the automatic close attempt
+    // If attempting to close the dialog (newOpenState is false) and preventAutoClose is true
+    // then we don't allow automatic closing
     if (!newOpenState && preventAutoClose) {
+      // Do nothing, which prevents the dialog from closing
       return;
     }
     
-    // Otherwise, honor the requested open change
+    // In all other cases, we pass the open state change to the parent component
     onOpenChange(newOpenState);
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] flex flex-col" onPointerDownOutside={(e) => {
-        // Prevent dialog from closing when clicking inside the calendar
-        if ((e.target as HTMLElement).closest('.rdp')) {
-          e.preventDefault();
-        }
-      }}>
+      <DialogContent 
+        className="max-w-md max-h-[90vh] flex flex-col" 
+        onPointerDownOutside={(e) => {
+          // Prevent dialog from closing when clicking inside calendar elements
+          if ((e.target as HTMLElement).closest('.rdp')) {
+            e.preventDefault();
+          }
+          
+          // Also prevent closing if preventAutoClose is true
+          if (preventAutoClose) {
+            e.preventDefault();
+          }
+        }}
+        onEscapeKeyDown={(e) => {
+          // Prevent closing with Escape key if preventAutoClose is true
+          if (preventAutoClose) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}

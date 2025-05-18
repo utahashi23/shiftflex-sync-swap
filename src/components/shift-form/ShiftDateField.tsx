@@ -38,15 +38,14 @@ export const ShiftDateField = ({
 
   // Initialize temp dates with the current selected dates when dialog opens
   const handleOpenDialog = () => {
-    if (selectedDates) {
-      setTempSelectedDates([...selectedDates]);
-    }
+    // Clone the current selection into our temporary state
+    setTempSelectedDates(selectedDates ? [...selectedDates] : []);
     setIsDialogOpen(true);
   };
 
   // Apply the temp selection when confirming
   const handleConfirmSelection = () => {
-    if (onMultiDateChange && tempSelectedDates) {
+    if (onMultiDateChange) {
       onMultiDateChange(tempSelectedDates);
     }
     setIsDialogOpen(false);
@@ -54,6 +53,7 @@ export const ShiftDateField = ({
 
   // Discard changes when cancelling
   const handleCancelSelection = () => {
+    // Reset temp dates (though not strictly necessary as we'll reinitialize on open)
     setTempSelectedDates([]);
     setIsDialogOpen(false);
   };
@@ -90,6 +90,14 @@ export const ShiftDateField = ({
       onMultiDateChange(
         selectedDates.filter((_, index) => index !== indexToRemove)
       );
+    }
+  };
+
+  const handleCalendarSelect = (dates: Date[] | undefined) => {
+    if (dates) {
+      setTempSelectedDates(dates);
+    } else {
+      setTempSelectedDates([]);
     }
   };
 
@@ -142,11 +150,7 @@ export const ShiftDateField = ({
               <Calendar
                 mode="multiple"
                 selected={tempSelectedDates}
-                onSelect={(dates) => {
-                  if (dates) {
-                    setTempSelectedDates(dates);
-                  }
-                }}
+                onSelect={handleCalendarSelect}
                 initialFocus
                 className="pointer-events-auto"
               />
