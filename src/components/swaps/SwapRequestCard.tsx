@@ -1,180 +1,92 @@
 
+import React from 'react';
+import { format } from 'date-fns';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Trash2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import ShiftTypeIcon from './ShiftTypeIcon';
+import { TrashIcon } from "lucide-react";
 import ShiftTypeBadge from './ShiftTypeBadge';
-import { SwapRequest, PreferredDate } from '@/hooks/swap-requests/types';
 
 interface SwapRequestCardProps {
-  request: SwapRequest;
+  request: any;
   onDelete: () => void;
-  onDeleteRequest?: (requestId: string) => void;
   onDeletePreferredDate?: (dayId: string, requestId: string) => void;
 }
 
-const ShiftHeader = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
-  return (
-    <div className="flex items-center">
-      <div className={cn(
-        "p-1.5 rounded-md mr-2",
-        shift.type === 'day' ? "bg-yellow-100 text-yellow-600" :
-        shift.type === 'afternoon' ? "bg-orange-100 text-orange-600" :
-        "bg-blue-100 text-blue-600"
-      )}>
-        <ShiftTypeIcon type={shift.type} />
-      </div>
-      <div>
-        {shift.title || `Shift-${shift.id.substring(0, 5)}`} ({formatDate(shift.date)})
-      </div>
-    </div>
-  );
-};
+const SwapRequestCard = ({ request, onDelete, onDeletePreferredDate }: SwapRequestCardProps) => {
+  // Debug log to see the request structure
+  console.log("Rendering SwapRequestCard with request:", request);
+  
+  // Check if we have a shifts object from the join
+  const shift = request.shifts;
+  
+  // Format the shift date if available
+  const shiftDate = shift?.date 
+    ? format(new Date(shift.date), 'dd MMM yyyy')
+    : 'Unknown date';
+    
+  // Get the truck name or a fallback
+  const truckName = shift?.truck_name || 'Unknown';
+  
+  // Get wanted date from the request itself
+  const wantedDateStr = request.wanted_date || 'Unknown date';
+  const wantedDate = wantedDateStr !== 'Unknown date' 
+    ? format(new Date(wantedDateStr), 'dd MMM yyyy')
+    : wantedDateStr;
+  
+  // Determine shift type based on start time if available
+  let shiftType = 'unknown';
+  if (shift?.start_time) {
+    const hour = parseInt(shift.start_time.split(':')[0], 10);
+    if (hour < 12) shiftType = 'day';
+    else if (hour < 18) shiftType = 'afternoon';
+    else shiftType = 'night';
+  }
 
-const OriginalShiftInfo = ({ shift }: { shift: SwapRequest['originalShift'] }) => {
-  return (
-    <div className="flex justify-between">
-      <div className="space-y-1">
-        <div className="text-sm font-medium text-muted-foreground">Original Shift</div>
-        <div className="font-medium">
-          {formatDate(shift.date)}
-        </div>
-      </div>
-      <div className="space-y-1">
-        <div className="text-sm font-medium text-muted-foreground">Shift Type</div>
-        <ShiftTypeBadge type={shift.type} />
-      </div>
-      <div className="space-y-1">
-        <div className="text-sm font-medium text-muted-foreground">Time</div>
-        <div className="font-medium">{shift.startTime} - {shift.endTime}</div>
-      </div>
-    </div>
-  );
-};
-
-const PreferredDateItem = ({ 
-  preferredDay,
-  requestId,
-  canDelete, 
-  onDelete 
-}: { 
-  preferredDay: PreferredDate;
-  requestId: string;
-  canDelete: boolean;
-  onDelete: () => void;
-}) => {
-  // Check if acceptedTypes exists and is an array before using map
-  const acceptedTypes = preferredDay.acceptedTypes || [];
+  // Get accepted shift types
+  const acceptedTypes = request.accepted_shift_types || ['day', 'afternoon', 'night'];
   
   return (
-    <div className="flex items-center justify-between p-3 border rounded-md bg-secondary/20">
-      <div>
-        <div className="font-medium">{formatDate(preferredDay.date)}</div>
-        <div className="text-xs text-gray-500 mt-0.5 flex flex-wrap gap-1">
-          {acceptedTypes.map(type => (
-            <ShiftTypeBadge key={type} type={type} size="sm" />
-          ))}
+    <Card className="w-full">
+      <CardHeader className="pb-2">
+        <div className="flex justify-between">
+          <CardTitle className="text-lg">Shift: {truckName}</CardTitle>
+          <Button variant="ghost" size="sm" onClick={onDelete} className="h-8 w-8 p-0">
+            <TrashIcon className="h-4 w-4" />
+            <span className="sr-only">Delete</span>
+          </Button>
         </div>
-      </div>
-      
-      {canDelete && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-gray-400 hover:text-red-600"
-          onClick={onDelete}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
-      )}
-    </div>
-  );
-};
-
-const PreferredDatesSection = ({ 
-  request,
-  onDeletePreferredDate 
-}: { 
-  request: SwapRequest;
-  onDeletePreferredDate: (dayId: string, requestId: string) => void;
-}) => {
-  return (
-    <div>
-      <div className="text-sm font-medium text-muted-foreground mb-2">Preferred Swap Dates</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
-        {request.preferredDates.map((preferredDay) => (
-          <PreferredDateItem 
-            key={preferredDay.id}
-            preferredDay={preferredDay}
-            requestId={request.id}
-            canDelete={request.preferredDates.length > 1}
-            onDelete={() => onDeletePreferredDate(preferredDay.id, request.id)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// Format date to user-friendly string
-const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  });
-};
-
-const SwapRequestCard = ({ request, onDelete, onDeleteRequest, onDeletePreferredDate }: SwapRequestCardProps) => {
-  // Determine which delete handler to use
-  const handleDelete = onDeleteRequest ? () => onDeleteRequest(request.id) : onDelete;
-  
-  // Determine which preferred date delete handler to use
-  const handleDeletePreferredDate = onDeletePreferredDate || ((dayId: string, requestId: string) => {
-    console.log("No preferred date delete handler provided", dayId, requestId);
-  });
-
-  return (
-    <Card className="relative">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-4 right-4 h-8 w-8 text-gray-500 hover:text-red-600"
-        onClick={handleDelete}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
-      
-      <CardHeader>
-        <CardTitle className="text-lg">
-          <ShiftHeader shift={request.originalShift} />
-        </CardTitle>
+        <CardDescription>
+          Original date: {shiftDate}
+        </CardDescription>
       </CardHeader>
-      
-      <CardContent>
-        <div className="space-y-4">
-          <OriginalShiftInfo shift={request.originalShift} />
-          <PreferredDatesSection 
-            request={request}
-            onDeletePreferredDate={handleDeletePreferredDate}
-          />
-        </div>
-      </CardContent>
-
-      <CardFooter className="bg-secondary/20 border-t px-6">
-        <div className="flex justify-between items-center w-full py-2">
-          <div className="text-sm">Status:</div>
-          <div className="px-3 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
-            Pending
+      <CardContent className="pt-1">
+        <div className="space-y-2">
+          <div>
+            <h4 className="text-sm font-medium">Requested date:</h4>
+            <p className="text-sm">{wantedDate}</p>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-medium">My shift type:</h4>
+            <div className="mt-1">
+              <ShiftTypeBadge type={shiftType} />
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-medium">Accepted shift types:</h4>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {acceptedTypes.map((type: string) => (
+                <ShiftTypeBadge key={type} type={type} />
+              ))}
+            </div>
           </div>
         </div>
+      </CardContent>
+      <CardFooter className="pt-1">
+        <p className="text-xs text-muted-foreground">
+          Status: <span className="capitalize">{request.status}</span>
+        </p>
       </CardFooter>
     </Card>
   );

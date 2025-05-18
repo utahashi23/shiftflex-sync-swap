@@ -2,25 +2,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../useAuth';
 import { useSwapMatches } from '../swap-matches';
-import { SwapMatch } from '../swap-matches/types';
 import { toast } from '../use-toast';
-import { useFetchSwapRequests } from './useFetchSwapRequests';
-import { useDeleteSwapRequest } from './useDeleteSwapRequest';
 import { createSwapRequestApi } from './createSwapRequest';
-import { SwapRequest } from './types';
-
-export type ConfirmDialogState = {
-  isOpen: boolean;
-  matchId: string | null;
-};
+import { supabase } from '@/integrations/supabase/client';
 
 export function useSwapRequests() {
-  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
-    isOpen: false,
-    matchId: null
-  });
-  
   const [isLoading, setIsLoading] = useState(false);
+  const [swapRequests, setSwapRequests] = useState<any[]>([]);
   const { user } = useAuth();
   const { 
     matches: activeMatches,
@@ -32,92 +20,94 @@ export function useSwapRequests() {
     completeMatch
   } = useSwapMatches();
 
-  // Use the fetch hook to get swap requests
-  const {
-    swapRequests, 
-    setSwapRequests, 
-    isLoading: requestsLoading, 
-    fetchSwapRequests
-  } = useFetchSwapRequests(user);
-
-  // Use the delete hook for handling deletions
-  const {
-    handleDeleteSwapRequest: deleteSwapRequest,
-    handleDeletePreferredDay: deletePreferredDay
-  } = useDeleteSwapRequest(setSwapRequests, setIsLoading);
-
   const matches = activeMatches || [];
-
-  // Debug logging for matches visibility
-  useEffect(() => {
-    if (matches && matches.length > 0) {
-      console.log(`useSwapRequests: Found ${matches.length} matches with statuses:`, 
-        matches.map(m => ({ id: m.id, status: m.status })));
-      
-      // Log specific statuses for debugging
-      const acceptedMatches = matches.filter(m => m.status === 'accepted');
-      const otherAcceptedMatches = matches.filter(m => m.status === 'other_accepted');
-      
-      console.log(`useSwapRequests: Found ${acceptedMatches.length} 'accepted' matches`);
-      console.log(`useSwapRequests: Found ${otherAcceptedMatches.length} 'other_accepted' matches`);
-    }
-  }, [matches]);
   
-  const refreshMatches = async () => {
+  const fetchSwapRequests = useCallback(async () => {
     if (!user) return;
-    // Important: Set userInitiatorOnly to false to get all matches including other_accepted ones
-    await fetchMatches(true, false); 
-  };
-  
-  const handleAcceptSwap = async (matchId: string) => {
-    if (!matchId || !user) return;
     
-    // Check if this match has been accepted by someone else
-    const matchToAccept = matches.find(match => match.id === matchId);
-    if (matchToAccept && matchToAccept.status === 'other_accepted') {
-      toast({
-        title: "Cannot Accept Swap",
-        description: "This swap has already been accepted by another user.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    const success = await acceptMatch(matchId);
-    
-    if (success) {
-      toast({
-        title: "Swap Accepted",
-        description: "You have successfully accepted the swap.",
-      });
-      
-      // After accepting, refresh to get updated statuses
-      await refreshMatches();
-    }
-  };
-  
-  const handleCancelSwap = async (matchId: string) => {
-    if (!matchId || !user) return;
-    
-    await cancelMatch(matchId);
-    
-    // After canceling, refresh to get updated statuses
-    await refreshMatches();
-  };
-  
-  const handleMarkComplete = async (matchId: string) => {
-    if (!matchId || !user) return;
-    
-    await completeMatch(matchId);
-    
-    // After completing, refresh to get updated statuses
-    await refreshMatches();
-  };
-  
-  const createSwapRequest = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
+    setIsLoading(true);
     try {
-      console.log("useSwapRequests: Creating swap request with", { shiftIds, wantedDates, acceptedTypes });
+      console.log("useSwapRequests: Fetching swap requests for user", user.id);
+      
+      // Query directly from improved_shift_swaps table
+      const { data, error } = await supabase
+        .from('improved_shift_swaps')
+        .select(`
+          *,
+          shifts(*)
+        `)
+        .eq('requester_id', user.id)
+        .eq('status', 'pending');
+        
+      if (error) {
+        throw error;
+      }
+      
+      console.log("useSwapRequests: Got swap requests:", data?.length || 0);
+      setSwapRequests(data || []);
+      return data;
+      
+    } catch (error) {
+      console.error("Error fetching swap requests:", error);
+      toast({
+        title: "Error",
+        description: "Could not load swap requests",
+        variant: "destructive",
+      });
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+  
+  const deleteSwapRequest = useCallback(async (requestId: string) => {
+    if (!user) return false;
+    
+    try {
       setIsLoading(true);
+      console.log("useSwapRequests: Deleting swap request", requestId);
+      
+      // Delete from improved_shift_swaps first
+      const { error } = await supabase
+        .from('improved_shift_swaps')
+        .delete()
+        .eq('id', requestId);
+        
+      if (error) throw error;
+      
+      // Also delete related wanted dates
+      const { error: datesError } = await supabase
+        .from('improved_swap_wanted_dates')
+        .delete()
+        .eq('swap_id', requestId);
+        
+      if (datesError) {
+        console.warn("Could not delete related wanted dates:", datesError);
+      }
+      
+      // Update local state
+      setSwapRequests(prev => prev.filter(r => r.id !== requestId));
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting swap request:", error);
+      toast({
+        title: "Error",
+        description: "Could not delete swap request",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+  
+  const createSwapRequest = useCallback(async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
+    if (!user) return false;
+    
+    try {
+      setIsLoading(true);
+      console.log("useSwapRequests: Creating swap request", { shiftIds, wantedDates, acceptedTypes });
       
       // Format dates for API
       const preferredDates = wantedDates.map(date => ({
@@ -127,11 +117,8 @@ export function useSwapRequests() {
       
       const result = await createSwapRequestApi(shiftIds, preferredDates);
       
-      console.log("useSwapRequests: Creation result:", result);
-      
-      // Refresh swap requests after successful creation
+      // Refresh the list after creating
       if (result.success) {
-        console.log("useSwapRequests: Refreshing swap requests after creation");
         await fetchSwapRequests();
       }
       
@@ -142,32 +129,32 @@ export function useSwapRequests() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, fetchSwapRequests]);
   
-  // Initial fetch of matches
+  // Initial fetch when component mounts
   useEffect(() => {
     if (user) {
-      console.log("useSwapRequests: Initial fetch of matches and requests");
-      refreshMatches();
       fetchSwapRequests();
     }
-  }, [user]);
+  }, [user, fetchSwapRequests]);
+  
+  const refreshMatches = useCallback(() => {
+    if (user) {
+      fetchMatches();
+    }
+  }, [user, fetchMatches]);
   
   return {
+    swapRequests,
     matches,
     pastMatches,
-    confirmDialog,
-    setConfirmDialog,
-    isLoading: isLoading || requestsLoading || matchesLoading,
-    handleAcceptSwap,
-    handleCancelSwap,
-    handleMarkComplete,
-    refreshMatches,
-    // Add these properties that are being used by components
-    swapRequests,
+    isLoading: isLoading || matchesLoading,
     fetchSwapRequests,
     deleteSwapRequest,
-    deletePreferredDay,
-    createSwapRequest
+    createSwapRequest,
+    refreshMatches,
+    handleAcceptSwap: acceptMatch,
+    handleCancelSwap: cancelMatch,
+    handleMarkComplete: completeMatch
   };
 }

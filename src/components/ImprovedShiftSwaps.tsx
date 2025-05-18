@@ -60,6 +60,7 @@ const ImprovedShiftSwaps = () => {
     setIsLoading(true);
     try {
       console.log("Fetching user swap requests for user:", user.id);
+      // Query the improved_shift_swaps table instead of shift_swap_requests
       const { data, error } = await supabase
         .from("improved_shift_swaps")
         .select("*, shifts(*)")
@@ -145,12 +146,19 @@ const ImprovedShiftSwaps = () => {
   // Handle delete request
   const handleDeleteRequest = async (requestId: string) => {
     try {
+      // Delete from the improved_shift_swaps table
       const { error } = await supabase
         .from("improved_shift_swaps")
         .delete()
         .eq("id", requestId);
         
       if (error) throw error;
+      
+      // Also delete related records from improved_swap_wanted_dates
+      await supabase
+        .from("improved_swap_wanted_dates")
+        .delete()
+        .eq("swap_id", requestId);
       
       // First update the local state for immediate UI feedback
       setUserRequests(userRequests.filter(request => request.id !== requestId));
