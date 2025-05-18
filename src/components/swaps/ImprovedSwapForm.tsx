@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
 import { Button } from "@/components/ui/button";
-import { format, addMonths, subMonths } from "date-fns";
+import { format } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { MultiSelect } from "@/components/swaps/MultiSelect";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { X, Truck, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ShiftIconBadge from "./ShiftIconBadge";
 import { getShiftType } from "@/utils/shiftUtils";
@@ -25,33 +25,23 @@ interface ImprovedSwapFormProps {
   onClose: () => void;
   onSubmit: (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => Promise<boolean>;
   isDialog?: boolean;
-  currentDate?: Date;
 }
 
 export const ImprovedSwapForm = ({
   isOpen,
   onClose,
   onSubmit,
-  isDialog = true,
-  currentDate = new Date()
+  isDialog = true
 }: ImprovedSwapFormProps) => {
   const [step, setStep] = useState(1);
-  const [selectedShifts, setSelectedShifts] = useState<any[]>([]);
+  const [selectedShifts, setSelectedShifts] = useState<any[]>([]); // Now an array for multiple selection
   const [userShifts, setUserShifts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [calendarCurrentMonth, setCalendarCurrentMonth] = useState(currentDate);
   
   const { user } = useAuth();
-  
-  // Update internal calendar month when prop changes
-  useEffect(() => {
-    if (currentDate) {
-      setCalendarCurrentMonth(currentDate);
-    }
-  }, [currentDate]);
   
   // Fetch user shifts
   useEffect(() => {
@@ -138,17 +128,6 @@ export const ImprovedSwapForm = ({
     if (selectedShifts.length > 0) {
       handleNextStep();
     }
-  };
-
-  // Methods for month navigation - these will be controlled by parent in non-dialog mode
-  const handlePrevMonth = () => {
-    if (!isDialog) return; // Don't handle navigation in non-dialog mode
-    setCalendarCurrentMonth(prevMonth => subMonths(prevMonth, 1));
-  };
-
-  const handleNextMonth = () => {
-    if (!isDialog) return; // Don't handle navigation in non-dialog mode
-    setCalendarCurrentMonth(prevMonth => addMonths(prevMonth, 1));
   };
 
   const renderContent = () => {
@@ -249,29 +228,12 @@ export const ImprovedSwapForm = ({
               <p className="text-sm text-muted-foreground mb-4">
                 Choose dates when you would like to work instead
               </p>
-              
-              {/* Month navigation */}
-              <div className="flex justify-between items-center mb-4">
-                <Button variant="outline" size="sm" onClick={handlePrevMonth}>
-                  <ChevronLeft className="h-4 w-4 mr-2" />
-                  Previous Month
-                </Button>
-                <h2 className="text-lg font-medium">
-                  {format(calendarCurrentMonth, 'MMMM yyyy')}
-                </h2>
-                <Button variant="outline" size="sm" onClick={handleNextMonth}>
-                  Next Month
-                  <ChevronRight className="h-4 w-4 ml-2" />
-                </Button>
-              </div>
-              
               <div className="border rounded-lg p-3">
                 <CalendarComponent
                   mode="multiple"
                   selected={selectedDates}
                   onSelect={(dates) => setSelectedDates(dates || [])}
                   className="rounded-md"
-                  month={calendarCurrentMonth}
                   disabled={(date) => {
                     // Disable dates before today
                     return date < new Date(new Date().setHours(0, 0, 0, 0));
