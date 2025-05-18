@@ -8,11 +8,12 @@ import RequestedSwaps from '@/components/RequestedSwaps';
 import MatchedSwaps from '@/components/MatchedSwaps';
 import ImprovedShiftSwaps from '@/components/ImprovedShiftSwaps';
 import { useAuth } from '@/hooks/useAuth';
+import { Separator } from '@/components/ui/separator';
 
 const ShiftSwaps = () => {
   useAuthRedirect({ protectedRoute: true });
   const { user, isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState('improved');
+  const [activeTab, setActiveTab] = useState('calendar');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Force tab refresh when coming back to this page or after finding matches
@@ -40,8 +41,17 @@ const ShiftSwaps = () => {
         </p>
       </div>
 
+      {/* Improved System Section */}
+      <div className="mb-10">
+        <h2 className="text-2xl font-semibold mb-4">Improved Swap System</h2>
+        <ImprovedShiftSwaps />
+      </div>
+
+      <Separator className="my-8" />
+
+      <h2 className="text-2xl font-semibold mb-4">Legacy Swap System</h2>
       <Tabs 
-        defaultValue="improved" 
+        defaultValue="calendar" 
         value={activeTab}
         onValueChange={(value) => {
           setActiveTab(value);
@@ -52,20 +62,13 @@ const ShiftSwaps = () => {
         }}
         className="w-full"
       >
-        <TabsList className="grid grid-cols-4 mb-8">
-          <TabsTrigger value="improved">Improved System</TabsTrigger>
+        <TabsList className="grid grid-cols-3 mb-8">
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="requested">Requested Swaps</TabsTrigger>
           <TabsTrigger value="matched">Matched Swaps</TabsTrigger>
         </TabsList>
         
         {/* Use React.lazy/suspense pattern to lazily load tab content only when active */}
-        {activeTab === 'improved' && (
-          <TabsContent value="improved">
-            <ImprovedShiftSwaps />
-          </TabsContent>
-        )}
-        
         {activeTab === 'calendar' && (
           <TabsContent value="calendar">
             <ShiftSwapCalendar key={`calendar-${refreshTrigger}`} />
