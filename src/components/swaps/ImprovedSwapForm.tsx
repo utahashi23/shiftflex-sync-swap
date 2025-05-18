@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { ShiftSwapDialog } from './ShiftSwapDialog';
@@ -50,10 +49,10 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
   const [areas, setAreas] = useState<any[]>([]);
   const [userPreferences, setUserPreferences] = useState<any>(null);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(false);
-  const [showPreferencesAlert, setShowPreferencesAlert] = useState(true);
+  const [showPreferencesAlert, setShowPreferencesAlert] = useState(false);
   const { user } = useAuth();
 
-  const { control, register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormValues>({
+  const { control, register, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm<FormValues>({
     defaultValues: {
       shiftId: '',
       wantedDates: [],
@@ -117,6 +116,7 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
         if (regionsError) throw regionsError;
         
         setRegions(regionsData || []);
+        console.log('Fetched regions:', regionsData?.length || 0);
         
         // Fetch areas
         const { data: areasData, error: areasError } = await supabase
@@ -127,6 +127,7 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
         if (areasError) throw areasError;
         
         setAreas(areasData || []);
+        console.log('Fetched areas:', areasData?.length || 0);
       } catch (err) {
         console.error('Error fetching regions/areas:', err);
       }
@@ -137,13 +138,26 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
     }
   }, [isOpen]);
 
+  // Reset form when dialog opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      // Keep default values when opening
+    } else {
+      // Reset form when closing
+      reset();
+      setShowPreferencesAlert(false);
+    }
+  }, [isOpen, reset]);
+
   // Fetch user preferences
   useEffect(() => {
     const fetchUserPreferences = async () => {
-      if (!user) return;
+      if (!user || !isOpen) return;
       
       setIsLoadingPreferences(true);
       try {
+        console.log('Fetching user preferences for:', user.id);
+        
         // Check for user's saved preferences first
         const { data: userPrefsData, error: userPrefsError } = await supabase
           .from('shift_swap_preferences')
@@ -183,6 +197,7 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
                 
                 console.log('Setting user preferences from saved data:', prefsToSet);
                 setValue('regionPreferences', prefsToSet);
+                setShowPreferencesAlert(false); // Don't show alert for user's own preferences
               }
             }
           }
@@ -202,34 +217,23 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
           const { data: systemPrefsData, error: systemPrefsError } = await supabase
             .rpc('get_user_swap_preferences', { p_user_id: user.id });
           
-          if (!systemPrefsError && systemPrefsData && systemPrefsData.length > 0) {
-            console.log('Found system default preferences:', systemPrefsData);
-            
-            // Extract unique regions and areas
-            const regionIds = new Set<string>();
-            const prefsToSet: { regionId: string; areaId?: string }[] = [];
-            
-            systemPrefsData.forEach((pref: any) => {
-              // Add region preference
-              if (pref.region_id) {
-                regionIds.add(pref.region_id);
-                if (!pref.area_id) {
-                  prefsToSet.push({ regionId: pref.region_id });
-                }
-              }
+          console.log('System preferences data:', systemPrefsData);
+          console.log('System preferences error:', systemPrefsError);
+          
+          if (systemPrefsError) {
+            console.error('Error fetching system preferences:', systemPrefsError);
+            // Try direct query as fallback
+            const { data: directPrefsData, error: directPrefsError } = await supabase
+              .from('user_swap_preferences')
+              .select('*');
               
-              // Add area preference (with parent region)
-              if (pref.area_id && pref.region_id) {
-                prefsToSet.push({
-                  regionId: pref.region_id,
-                  areaId: pref.area_id
-                });
-              }
-            });
-            
-            console.log('Setting region preferences from system defaults:', prefsToSet);
-            setValue('regionPreferences', prefsToSet);
-            setShowPreferencesAlert(true);
+            if (!directPrefsError && directPrefsData && directPrefsData.length > 0) {
+              processSystemDefaults(directPrefsData);
+            }
+          } else if (systemPrefsData && systemPrefsData.length > 0) {
+            processSystemDefaults(systemPrefsData);
+          } else {
+            console.log('No system default preferences found');
           }
         }
       } catch (err) {
@@ -237,6 +241,37 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
       } finally {
         setIsLoadingPreferences(false);
       }
+    };
+    
+    // Helper function to process system defaults
+    const processSystemDefaults = (systemPrefsData: any[]) => {
+      console.log('Found system default preferences:', systemPrefsData);
+      
+      // Extract unique regions and areas
+      const regionIds = new Set<string>();
+      const prefsToSet: { regionId: string; areaId?: string }[] = [];
+      
+      systemPrefsData.forEach((pref: any) => {
+        // Add region preference
+        if (pref.region_id) {
+          regionIds.add(pref.region_id);
+          if (!pref.area_id) {
+            prefsToSet.push({ regionId: pref.region_id });
+          }
+        }
+        
+        // Add area preference (with parent region)
+        if (pref.area_id && pref.region_id) {
+          prefsToSet.push({
+            regionId: pref.region_id,
+            areaId: pref.area_id
+          });
+        }
+      });
+      
+      console.log('Setting region preferences from system defaults:', prefsToSet);
+      setValue('regionPreferences', prefsToSet);
+      setShowPreferencesAlert(true);
     };
     
     if (isOpen && user) {
@@ -305,6 +340,9 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
     currentPreferences.splice(index, 1);
     setValue('regionPreferences', currentPreferences);
   };
+
+  console.log('Current region preferences:', regionPreferences);
+  console.log('Is showing preferences alert:', showPreferencesAlert);
 
   return (
     <ShiftSwapDialog
@@ -453,7 +491,7 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
           <Label>Region/Area Preferences</Label>
           
           {/* Information alert about pre-populated preferences */}
-          {showPreferencesAlert && regionPreferences.length > 0 && (
+          {showPreferencesAlert && regionPreferences && regionPreferences.length > 0 && (
             <Alert className="mb-3">
               <Info className="h-4 w-4" />
               <AlertDescription>
@@ -536,9 +574,7 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
                 <span className="text-sm text-muted-foreground">Loading preferences...</span>
               </div>
-            ) : regionPreferences.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">No region/area preferences selected</p>
-            ) : (
+            ) : regionPreferences && regionPreferences.length > 0 ? (
               regionPreferences.map((pref, index) => {
                 const region = regions.find(r => r.id === pref.regionId);
                 const area = pref.areaId ? areas.find(a => a.id === pref.areaId) : null;
@@ -560,6 +596,8 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
                   </Badge>
                 );
               })
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No region/area preferences selected</p>
             )}
           </div>
         </div>
