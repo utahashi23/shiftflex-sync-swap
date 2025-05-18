@@ -135,7 +135,7 @@ export const SwapCard = ({
               <div className="flex items-center mt-1">
                 <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
                 <span className="text-sm" data-testid="my-colleague-type">
-                  {swap.myShift.colleagueType}
+                  {swap.myShift.colleagueType || ""}
                 </span>
               </div>
 
@@ -181,7 +181,7 @@ export const SwapCard = ({
               <div className="flex items-center mt-1">
                 <UserCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
                 <span className="text-sm" data-testid="other-colleague-type">
-                  {swap.otherShift.colleagueType}
+                  {swap.otherShift.colleagueType || ""}
                 </span>
               </div>
 

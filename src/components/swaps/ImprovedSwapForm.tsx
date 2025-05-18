@@ -150,6 +150,10 @@ export const ImprovedSwapForm = ({
               <div className="grid gap-2">
                 {userShifts.map(shift => {
                   const isSelected = selectedShifts.some(s => s.id === shift.id);
+                  
+                  // Determine shift type label - avoid "Unknown Shift"
+                  const shiftTypeLabel = shift.shift_type ? shift.shift_type : "";
+                  
                   return (
                     <div 
                       key={shift.id}
@@ -171,9 +175,11 @@ export const ImprovedSwapForm = ({
                         )}
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="text-sm px-2 py-1 bg-primary/10 rounded">
-                          {shift.shift_type || "Unknown Shift"}
-                        </div>
+                        {shiftTypeLabel && (
+                          <div className="text-sm px-2 py-1 bg-primary/10 rounded">
+                            {shiftTypeLabel}
+                          </div>
+                        )}
                         <Checkbox checked={isSelected} />
                       </div>
                     </div>
