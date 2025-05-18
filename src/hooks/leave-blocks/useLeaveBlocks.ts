@@ -24,7 +24,21 @@ export const useLeaveBlocks = () => {
       
       if (error) throw error;
       
-      setLeaveBlocks(data || []);
+      // Transform the data to match our UserLeaveBlock type
+      const transformedData: UserLeaveBlock[] = data?.map(item => ({
+        id: item.id,
+        user_id: item.user_id,
+        leave_block_id: item.leave_block_id,
+        block_number: item.leave_block.block_number,
+        start_date: item.leave_block.start_date,
+        end_date: item.leave_block.end_date,
+        status: item.status,
+        created_at: item.created_at,
+        split_designation: item.leave_block.split_designation,
+        original_block_id: item.leave_block.original_block_id
+      })) || [];
+      
+      setLeaveBlocks(transformedData);
     } catch (error) {
       console.error('Error fetching leave blocks:', error);
       toast({
@@ -46,6 +60,7 @@ export const useLeaveBlocks = () => {
         .insert({
           requester_id: user.id,
           requester_leave_block_id: leaveBlockId,
+          requested_leave_block_id: null, // This will be set when matching
           status: 'pending'
         })
         .select();
@@ -69,6 +84,88 @@ export const useLeaveBlocks = () => {
     }
   }, [user]);
 
+  const splitLeaveBlock = useCallback(async (blockId: string) => {
+    if (!user) return false;
+    
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase.functions.invoke('split_leave_block', {
+        body: { user_leave_block_id: blockId, user_id: user.id }
+      });
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        toast({
+          title: "Block Split",
+          description: "Your leave block has been split into two equal parts"
+        });
+        
+        await fetchLeaveBlocks();
+        return true;
+      } else {
+        throw new Error(data.error || 'Failed to split block');
+      }
+      
+    } catch (error) {
+      console.error('Error splitting leave block:', error);
+      toast({
+        title: "Error",
+        description: typeof error === 'object' && error !== null && 'message' in error 
+          ? error.message as string 
+          : "Failed to split leave block",
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, fetchLeaveBlocks]);
+
+  const joinLeaveBlocks = useCallback(async (blockAId: string, blockBId: string) => {
+    if (!user) return false;
+    
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase.functions.invoke('join_leave_blocks', {
+        body: { 
+          block_a_id: blockAId, 
+          block_b_id: blockBId,
+          user_id: user.id 
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        toast({
+          title: "Blocks Joined",
+          description: "Your leave blocks have been successfully joined"
+        });
+        
+        await fetchLeaveBlocks();
+        return true;
+      } else {
+        throw new Error(data.error || 'Failed to join blocks');
+      }
+      
+    } catch (error) {
+      console.error('Error joining leave blocks:', error);
+      toast({
+        title: "Error",
+        description: typeof error === 'object' && error !== null && 'message' in error 
+          ? error.message as string 
+          : "Failed to join leave blocks",
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, fetchLeaveBlocks]);
+
   // Load leave blocks on mount and when user changes
   useEffect(() => {
     if (user) {
@@ -80,6 +177,8 @@ export const useLeaveBlocks = () => {
     leaveBlocks,
     isLoading,
     refreshLeaveBlocks: fetchLeaveBlocks,
-    createLeaveSwapRequest
+    createLeaveSwapRequest,
+    splitLeaveBlock,
+    joinLeaveBlocks
   };
 };
