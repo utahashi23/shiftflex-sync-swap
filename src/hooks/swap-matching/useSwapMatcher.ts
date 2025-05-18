@@ -15,8 +15,8 @@ export type MatchingStatus =
   | 'error';
 
 export function useSwapMatcher() {
-  // Using only the available methods from useSwapRequests
-  const { fetchSwapRequests } = useSwapRequests();
+  // We'll use refreshMatches instead of fetchSwapRequests
+  const { refreshMatches } = useSwapRequests();
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [matchResults, setMatchResults] = useState<any[]>([]);

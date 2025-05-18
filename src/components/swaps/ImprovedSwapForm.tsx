@@ -1,15 +1,20 @@
 
-// Update the ImprovedSwapForm component to work in both dialog and inline mode
 import { useState, useEffect } from "react";
 import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { MultiSelect } from "@/components/swaps/MultiSelect";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+
+// Define shift types directly since we don't have a shift_types table
+const SHIFT_TYPES = [
+  { value: "day", label: "Day Shift" },
+  { value: "afternoon", label: "Afternoon Shift" },
+  { value: "night", label: "Night Shift" }
+];
 
 interface ImprovedSwapFormProps {
   isOpen: boolean;
@@ -30,7 +35,6 @@ export const ImprovedSwapForm = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [shiftTypes, setShiftTypes] = useState<{ value: string; label: string; }[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   
   const { user } = useAuth();
@@ -46,7 +50,7 @@ export const ImprovedSwapForm = ({
           .from('shifts')
           .select('*')
           .eq('user_id', user.id)
-          .gte('shift_date', new Date().toISOString().split('T')[0]);
+          .gte('date', new Date().toISOString().split('T')[0]);
           
         if (error) throw error;
         
@@ -58,30 +62,7 @@ export const ImprovedSwapForm = ({
       }
     };
     
-    // Fetch shift types
-    const fetchShiftTypes = async () => {
-      if (!isOpen) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('shift_types')
-          .select('*');
-          
-        if (error) throw error;
-        
-        const formattedTypes = data.map(type => ({
-          value: type.id,
-          label: type.name
-        }));
-        
-        setShiftTypes(formattedTypes);
-      } catch (err) {
-        console.error('Error fetching shift types:', err);
-      }
-    };
-    
     fetchUserShifts();
-    fetchShiftTypes();
     
     // Reset form when opened
     setStep(1);
@@ -151,13 +132,13 @@ export const ImprovedSwapForm = ({
                     onClick={() => handleSelectShift(shift)}
                   >
                     <div>
-                      <p className="font-medium">{format(new Date(shift.shift_date), 'EEEE, MMM d, yyyy')}</p>
+                      <p className="font-medium">{format(new Date(shift.date), 'EEEE, MMM d, yyyy')}</p>
                       <p className="text-sm text-muted-foreground">
                         {shift.start_time} - {shift.end_time}
                       </p>
                     </div>
                     <div className="text-sm px-2 py-1 bg-primary/10 rounded">
-                      {shift.shift_type}
+                      {shift.shift_type || "Unknown Shift"}
                     </div>
                   </div>
                 ))}
@@ -207,7 +188,7 @@ export const ImprovedSwapForm = ({
             <div>
               <h3 className="text-lg font-medium mb-2">Select acceptable shift types</h3>
               <MultiSelect
-                options={shiftTypes}
+                options={SHIFT_TYPES}
                 selected={selectedTypes}
                 onChange={setSelectedTypes}
                 placeholder="Select shift types"

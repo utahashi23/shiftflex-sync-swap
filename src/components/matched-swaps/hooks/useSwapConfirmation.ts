@@ -30,7 +30,9 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
   
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { fetchSwapRequests } = useSwapRequests();
+  
+  // Fix: We'll access the refreshMatches function instead of fetchSwapRequests
+  const { refreshMatches } = useSwapRequests();
   
   // Handlers for dialog opening
   const handleAcceptClick = useCallback((matchId: string) => {
@@ -74,7 +76,7 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
       });
       
       // Refresh swap requests to reflect changes
-      await fetchSwapRequests();
+      await refreshMatches();
       
       // Call success callback if provided
       if (onSuccess) onSuccess();
@@ -90,7 +92,7 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
       setIsLoading(false);
       setConfirmDialog({ isOpen: false, matchId: null });
     }
-  }, [confirmDialog.matchId, toast, onSuccess, fetchSwapRequests]);
+  }, [confirmDialog.matchId, toast, onSuccess, refreshMatches]);
   
   // Finalize swap action
   const handleFinalizeSwap = useCallback(async () => {
@@ -123,7 +125,7 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
       });
       
       // Refresh swap requests to reflect changes
-      await fetchSwapRequests();
+      await refreshMatches();
       
       // Call success callback if provided
       if (onSuccess) onSuccess();
@@ -139,7 +141,7 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
       setIsLoading(false);
       setFinalizeDialog({ isOpen: false, matchId: null });
     }
-  }, [finalizeDialog.matchId, toast, onSuccess, fetchSwapRequests]);
+  }, [finalizeDialog.matchId, toast, onSuccess, refreshMatches]);
   
   // Cancel swap action
   const handleCancelSwap = useCallback(async (matchId: string) => {
@@ -172,7 +174,7 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
       });
       
       // Refresh swap requests to reflect changes
-      await fetchSwapRequests();
+      await refreshMatches();
       
       // Call success callback if provided
       if (onSuccess) onSuccess();
@@ -187,7 +189,7 @@ export const useSwapConfirmation = (onSuccess?: () => void) => {
     } finally {
       setIsLoading(false);
     }
-  }, [toast, onSuccess, fetchSwapRequests]);
+  }, [toast, onSuccess, refreshMatches]);
   
   // Resend email action
   const handleResendEmail = useCallback(async (matchId: string) => {

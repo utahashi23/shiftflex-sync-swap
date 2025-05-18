@@ -10,6 +10,29 @@ import SwapRequestCard from "./swaps/SwapRequestCard";
 import { useEffect } from "react";
 import { useSwapRequests } from "@/hooks/swap-requests";
 import { MatchedSwapsTabs } from "./matched-swaps/MatchedSwapsTabs";
+import { SwapMatch as ComponentSwapMatch } from "./matched-swaps/types";
+import { SwapMatch as HookSwapMatch } from "@/hooks/swap-matches/types";
+
+// Adapter function to convert between swap match types
+function adaptSwapMatches(matches: HookSwapMatch[]): ComponentSwapMatch[] {
+  return matches.map(match => ({
+    ...match,
+    myShift: {
+      ...match.myShift,
+      truckName: match.myShift.truckName || null, // Ensure truckName is not undefined
+      // Ensure type is one of the allowed types
+      type: (match.myShift.type === 'day' || match.myShift.type === 'afternoon' || 
+             match.myShift.type === 'night') ? match.myShift.type : 'unknown'
+    },
+    otherShift: {
+      ...match.otherShift,
+      truckName: match.otherShift.truckName || null, // Ensure truckName is not undefined
+      // Ensure type is one of the allowed types
+      type: (match.otherShift.type === 'day' || match.otherShift.type === 'afternoon' || 
+             match.otherShift.type === 'night') ? match.otherShift.type : 'unknown'
+    }
+  }));
+}
 
 const ImprovedShiftSwaps = () => {
   const [activeTab, setActiveTab] = useState("create");
@@ -18,7 +41,17 @@ const ImprovedShiftSwaps = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
-  const { matches, pastMatches, isLoading: isMatchesLoading, refreshMatches } = useSwapRequests();
+  const { 
+    matches: hookMatches, 
+    pastMatches: hookPastMatches, 
+    isLoading: isMatchesLoading, 
+    refreshMatches,
+    createSwapRequest 
+  } = useSwapRequests();
+
+  // Convert hook match types to component match types
+  const matches = adaptSwapMatches(hookMatches || []);
+  const pastMatches = adaptSwapMatches(hookPastMatches || []);
 
   // Fetch user's swap requests
   useEffect(() => {
@@ -54,37 +87,31 @@ const ImprovedShiftSwaps = () => {
   const handleCreateSwap = async (shiftId: string, wantedDates: string[], acceptedTypes: string[]) => {
     setIsSubmitting(true);
     try {
-      // For now, we'll just create one swap request per wanted date
-      for (const date of wantedDates) {
-        const { error } = await supabase.from("improved_shift_swaps").insert({
-          requester_id: user?.id,
-          requester_shift_id: shiftId,
-          wanted_date: date,
-          accepted_shift_types: acceptedTypes,
+      const success = await createSwapRequest(shiftId, wantedDates, acceptedTypes);
+      
+      if (success) {
+        toast({
+          title: "Success",
+          description: "Swap request created successfully",
         });
         
+        // Reload the user's swap requests
+        const { data, error } = await supabase
+          .from("improved_shift_swaps")
+          .select("*, shifts(*)")
+          .eq("requester_id", user?.id);
+          
         if (error) throw error;
+        
+        setUserRequests(data || []);
+        
+        // Switch to the "My Swaps" tab after creating a swap
+        setActiveTab("mySwaps");
+      } else {
+        throw new Error("Failed to create swap request");
       }
       
-      toast({
-        title: "Success",
-        description: "Swap request created successfully",
-      });
-      
-      // Reload the user's swap requests
-      const { data, error } = await supabase
-        .from("improved_shift_swaps")
-        .select("*, shifts(*)")
-        .eq("requester_id", user?.id);
-        
-      if (error) throw error;
-      
-      setUserRequests(data || []);
-      
-      // Switch to the "My Swaps" tab after creating a swap
-      setActiveTab("mySwaps");
-      
-      return true;
+      return success;
     } catch (err: any) {
       console.error("Error creating swap request:", err);
       toast({
@@ -122,26 +149,6 @@ const ImprovedShiftSwaps = () => {
         variant: "destructive",
       });
     }
-  };
-
-  const handleAcceptSwap = async (matchId: string) => {
-    // This function would be implemented as needed
-    console.log("Accept swap:", matchId);
-  };
-
-  const handleFinalizeSwap = async (matchId: string) => {
-    // This function would be implemented as needed
-    console.log("Finalize swap:", matchId);
-  };
-
-  const handleCancelSwap = async (matchId: string) => {
-    // This function would be implemented as needed
-    console.log("Cancel swap:", matchId);
-  };
-
-  const handleResendEmail = async (matchId: string) => {
-    // This function would be implemented as needed
-    console.log("Resend email for swap:", matchId);
   };
 
   return (
@@ -193,10 +200,10 @@ const ImprovedShiftSwaps = () => {
             setActiveTab={() => {}}
             matches={matches}
             pastMatches={pastMatches}
-            onAcceptSwap={handleAcceptSwap}
-            onFinalizeSwap={handleFinalizeSwap}
-            onCancelSwap={handleCancelSwap}
-            onResendEmail={handleResendEmail}
+            onAcceptSwap={(matchId) => console.log("Accept swap:", matchId)}
+            onFinalizeSwap={(matchId) => console.log("Finalize swap:", matchId)}
+            onCancelSwap={(matchId) => console.log("Cancel swap:", matchId)}
+            onResendEmail={(matchId) => console.log("Resend email for swap:", matchId)}
             onRefresh={refreshMatches}
             isLoading={isMatchesLoading}
           />

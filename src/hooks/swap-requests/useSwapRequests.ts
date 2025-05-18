@@ -1,9 +1,13 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../useAuth';
 import { useSwapMatches } from '../swap-matches';
 import { SwapMatch } from '../swap-matches/types';
 import { toast } from '../use-toast';
+import { useFetchSwapRequests } from './useFetchSwapRequests';
+import { useDeleteSwapRequest } from './useDeleteSwapRequest';
+import { createSwapRequestApi } from './createSwapRequest';
+import { SwapRequest } from './types';
 
 export type ConfirmDialogState = {
   isOpen: boolean;
@@ -16,16 +20,31 @@ export function useSwapRequests() {
     matchId: null
   });
   
+  const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
   const { 
     matches: activeMatches,
     pastMatches,
-    isLoading,
+    isLoading: matchesLoading,
     fetchMatches,
     acceptMatch,
     cancelMatch,
     completeMatch
   } = useSwapMatches();
+
+  // Use the fetch hook to get swap requests
+  const {
+    swapRequests, 
+    setSwapRequests, 
+    isLoading: requestsLoading, 
+    fetchSwapRequests
+  } = useFetchSwapRequests(user);
+
+  // Use the delete hook for handling deletions
+  const {
+    handleDeleteSwapRequest: deleteSwapRequest,
+    handleDeletePreferredDay: deletePreferredDay
+  } = useDeleteSwapRequest(setSwapRequests, setIsLoading);
 
   const matches = activeMatches || [];
 
@@ -95,10 +114,35 @@ export function useSwapRequests() {
     await refreshMatches();
   };
   
+  const createSwapRequest = async (shiftId: string, wantedDates: string[], acceptedTypes: string[]) => {
+    try {
+      setIsLoading(true);
+      
+      // Format dates for API
+      const preferredDates = wantedDates.map(date => ({
+        date,
+        acceptedTypes
+      }));
+      
+      const result = await createSwapRequestApi(shiftId, preferredDates);
+      
+      // Refresh swap requests
+      await fetchSwapRequests();
+      
+      return result.success;
+    } catch (error) {
+      console.error("Error creating swap request:", error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   // Initial fetch of matches
   useEffect(() => {
     if (user) {
       refreshMatches();
+      fetchSwapRequests();
     }
   }, [user]);
   
@@ -107,10 +151,16 @@ export function useSwapRequests() {
     pastMatches,
     confirmDialog,
     setConfirmDialog,
-    isLoading,
+    isLoading: isLoading || requestsLoading || matchesLoading,
     handleAcceptSwap,
     handleCancelSwap,
     handleMarkComplete,
-    refreshMatches
+    refreshMatches,
+    // Add these properties that are being used by components
+    swapRequests,
+    fetchSwapRequests,
+    deleteSwapRequest,
+    deletePreferredDay,
+    createSwapRequest
   };
 }
