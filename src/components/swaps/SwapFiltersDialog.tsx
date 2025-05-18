@@ -186,11 +186,11 @@ export function SwapFiltersDialog({
           <div className="space-y-2">
             <Label>Truck Name</Label>
             <Select
-              value={localFilters.truckName || ""}
+              value={localFilters.truckName || "all-trucks"}
               onValueChange={(value) =>
                 setLocalFilters(prev => ({
                   ...prev,
-                  truckName: value === "" ? null : value
+                  truckName: value === "all-trucks" ? null : value
                 }))
               }
             >
@@ -212,11 +212,11 @@ export function SwapFiltersDialog({
           <div className="space-y-2">
             <Label>Shift Type</Label>
             <Select
-              value={localFilters.shiftType || ""}
+              value={localFilters.shiftType || "all-types"}
               onValueChange={(value) =>
                 setLocalFilters(prev => ({
                   ...prev,
-                  shiftType: value === "" ? null : value
+                  shiftType: value === "all-types" ? null : value
                 }))
               }
             >
