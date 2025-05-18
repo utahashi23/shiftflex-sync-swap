@@ -1,10 +1,9 @@
 
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useSwapRequests } from '../../swap-requests';
 import { useFindSwapMatches } from './useFindSwapMatches';
-import { useProcessState } from './useProcessState'; // Updated import
-import { fetchAllData } from '../operations/fetchAllData';
-import { toast } from '@/hooks/use-toast';
+import { useProcessState } from './useProcessState';
+import { fetchAllData } from './operations/fetchData';
 
 export type MatchingStatus =
   | 'idle'
@@ -16,27 +15,100 @@ export type MatchingStatus =
   | 'error';
 
 export function useSwapMatcher() {
-  // Using only the available methods from useSwapRequests
-  const { fetchSwapRequests } = useSwapRequests();
+  // We'll use refreshMatches instead of fetchSwapRequests
+  const { refreshMatches } = useSwapRequests();
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [matchResults, setMatchResults] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
+  const [initialFetchCompleted, setInitialFetchCompleted] = useState(false);
+  const [requestInProgress, setRequestInProgress] = useState(false);
+  
+  // Use a ref to track if a request is already in flight
+  const requestInFlightRef = useRef(false);
 
   const { 
     status,
     progress, 
     message,
     startProcessing,
-    updateProgress 
+    updateProgress,
+    isProcessing 
   } = useProcessState();
 
-  const { findSwapMatches } = useFindSwapMatches();
+  const { findSwapMatches: findMatches } = useFindSwapMatches(setRequestInProgress);
 
-  const runMatcher = async () => {
-    if (isRunning) return;
+  /**
+   * Optimized function to find matches that prevents duplicate/excessive requests
+   */
+  const findSwapMatches = useCallback(async (
+    userId?: string, 
+    forceCheck: boolean = false,
+    verbose: boolean = false
+  ) => {
+    // Skip if already in progress
+    if (requestInProgress || requestInFlightRef.current) {
+      console.log('Match finding operation already in progress, skipping');
+      return { success: false, message: 'Operation already in progress' };
+    }
+    
+    requestInFlightRef.current = true;
+    setRequestInProgress(true);
+    
+    try {
+      console.log('Finding potential matches for user');
+      updateProgress('finding-matches', 'Finding potential matches');
+      
+      // Use userId if provided, otherwise expect it to be included in the findSwapMatches function
+      const matchData = await findMatches(
+        userId || '',
+        forceCheck,
+        verbose
+      );
+      
+      if (matchData) {
+        setMatches(matchData);
+        console.log(`Found ${matchData.length} potential matches`);
+        updateProgress('complete', `Found ${matchData.length} potential matches`);
+      } else {
+        console.log('No matches found or empty response received');
+        setMatches([]);
+        updateProgress('complete', 'No matches found');
+      }
+      
+      return { 
+        success: true, 
+        matches: matchData || [] 
+      };
+    } catch (error: any) {
+      console.error('Error finding matches:', error);
+      setError(error.message);
+      updateProgress('error', error.message);
+      return { 
+        success: false, 
+        message: error.message, 
+        matches: [] 
+      };
+    } finally {
+      setRequestInProgress(false);
+      // Reset the in-flight ref after a short delay to prevent rapid successive calls
+      setTimeout(() => {
+        requestInFlightRef.current = false;
+      }, 500);
+    }
+  }, [findMatches, requestInProgress, updateProgress]);
+
+  /**
+   * Run the matcher with proper request throttling
+   */
+  const runMatcher = useCallback(async () => {
+    if (isRunning || requestInProgress || requestInFlightRef.current) {
+      console.log('Matcher is already running, skipping duplicate request');
+      return;
+    }
     
     setIsRunning(true);
+    requestInFlightRef.current = true;
     setError(null);
     setMatches([]);
     setMatchResults([]);
@@ -51,10 +123,12 @@ export function useSwapMatcher() {
       
       updateProgress('analyzing-data', 'Analyzing shift swaps and preferred dates');
       
-      // Pass the data object to findSwapMatches 
+      // Now use the findMatches function correctly with a string userId
+      const userId = ''; // This should come from auth context in a real app
       const matchResponse = await findSwapMatches(
-        dataResponse, 
-        'Finding potential matches'
+        userId,
+        true, // forceCheck as boolean
+        true  // verbose as boolean
       );
       
       if (!matchResponse.success) {
@@ -62,29 +136,26 @@ export function useSwapMatcher() {
       }
       
       setMatches(matchResponse.matches || []);
-      setMatchResults(matchResponse.results || []);
+      setMatchResults(matchResponse.matches || []); // Changed to use matches instead of results
       updateProgress('complete', `Found ${matchResponse.matches?.length || 0} potential matches`);
-      
-      toast({
-        title: 'Matching Complete',
-        description: `Found ${matchResponse.matches?.length || 0} potential matches`,
-      });
       
     } catch (error: any) {
       updateProgress('error', error.message);
       setError(error.message);
-      toast({
-        title: 'Error Running Matcher',
-        description: error.message,
-        variant: 'destructive',
-      });
     } finally {
       setIsRunning(false);
+      setInitialFetchCompleted(true);
+      // Reset the in-flight ref after a short delay
+      setTimeout(() => {
+        requestInFlightRef.current = false;
+      }, 500);
     }
-  };
+  }, [findSwapMatches, isRunning, requestInProgress, startProcessing, updateProgress]);
 
   return {
     runMatcher,
+    findSwapMatches,
+    findMatches,
     isRunning,
     status,
     progress,
@@ -92,5 +163,7 @@ export function useSwapMatcher() {
     error,
     matches,
     matchResults,
+    initialFetchCompleted,
+    isProcessing: isRunning || requestInProgress,
   };
 }

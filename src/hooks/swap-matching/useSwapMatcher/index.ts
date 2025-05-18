@@ -16,13 +16,13 @@ function useSwapMatcher() {
   
   const { 
     findSwapMatches, 
-    isProcessing, 
+    isProcessing: isMatchProcessing, 
     matchResults 
   } = useFindSwapMatches();
 
   return {
     findSwapMatches,
-    isProcessing,
+    isProcessing: isMatchProcessing,
     status,
     progress,
     message,

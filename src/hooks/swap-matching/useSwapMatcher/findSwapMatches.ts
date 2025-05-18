@@ -6,8 +6,17 @@ import { toast } from '@/hooks/use-toast';
 /**
  * Enhanced function to find swap matches - fixed to work for all users including demo1@maildrop.cc
  */
-export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => void) => {
+export const useFindSwapMatches = (setIsProcessing?: (isProcessing: boolean) => void) => {
+  const [isProcessing, setInternalIsProcessing] = useState(false);
   const [matchResults, setMatchResults] = useState<any>(null);
+
+  // Use the provided setIsProcessing function or fallback to the internal one
+  const setProcessingStatus = (status: boolean) => {
+    if (setIsProcessing) {
+      setIsProcessing(status);
+    }
+    setInternalIsProcessing(status);
+  };
 
   /**
    * Find potential matches for swap requests
@@ -22,7 +31,7 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
   ) => {
     try {
       console.log(`Finding swap matches for ${userId} (force: ${forceCheck}, verbose: ${verbose}, user perspective only: ${userPerspectiveOnly}, user initiator only: ${userInitiatorOnly})`);
-      setIsProcessing(true);
+      setProcessingStatus(true);
       
       // First try direct database approach for user's pending requests
       const { data: pendingRequests, error: requestsError } = await supabase
@@ -68,12 +77,13 @@ export const useFindSwapMatches = (setIsProcessing: (isProcessing: boolean) => v
       console.error('Error in findSwapMatches:', error);
       throw error;
     } finally {
-      setIsProcessing(false);
+      setProcessingStatus(false);
     }
   };
 
   return {
     findSwapMatches,
-    matchResults
+    matchResults,
+    isProcessing
   };
 };
