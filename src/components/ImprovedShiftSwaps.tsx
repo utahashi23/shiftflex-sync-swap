@@ -428,20 +428,15 @@ const ImprovedShiftSwaps = () => {
           
           <div className="grid gap-4 md:grid-cols-2">
             {filteredAndSortedRequests.map((request) => (
-              <div key={request.id} className="flex items-start space-x-2">
-                <Checkbox 
-                  id={`select-${request.id}`}
-                  checked={selectedRequests.includes(request.id)}
-                  onCheckedChange={() => toggleRequestSelection(request.id)}
-                  className="mt-2"
+              <div key={request.id} className="flex-1">
+                <SwapRequestCard
+                  key={request.id}
+                  request={request}
+                  onDelete={() => handleDeleteRequest(request.id)}
+                  showCheckbox={true}
+                  isSelected={selectedRequests.includes(request.id)}
+                  onToggleSelect={() => toggleRequestSelection(request.id)}
                 />
-                <div className="flex-1">
-                  <SwapRequestCard
-                    key={request.id}
-                    request={request}
-                    onDelete={() => handleDeleteRequest(request.id)}
-                  />
-                </div>
               </div>
             ))}
             

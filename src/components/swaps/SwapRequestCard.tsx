@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,14 +5,25 @@ import { Button } from "@/components/ui/button";
 import { TrashIcon, Truck, Clock } from "lucide-react";
 import ShiftIconBadge from './ShiftIconBadge';
 import { getShiftType } from '@/utils/shiftUtils';
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface SwapRequestCardProps {
   request: any;
   onDelete: () => void;
   onDeletePreferredDate?: (dayId: string, requestId: string) => void;
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-const SwapRequestCard = ({ request, onDelete, onDeletePreferredDate }: SwapRequestCardProps) => {
+const SwapRequestCard = ({ 
+  request, 
+  onDelete, 
+  onDeletePreferredDate,
+  showCheckbox = false,
+  isSelected = false,
+  onToggleSelect
+}: SwapRequestCardProps) => {
   // Debug log to see the request structure
   console.log("Rendering SwapRequestCard with request:", request);
   
@@ -56,10 +66,20 @@ const SwapRequestCard = ({ request, onDelete, onDeletePreferredDate }: SwapReque
               <span className="text-[0.85rem]">{shiftDate}</span>
             </CardDescription>
           </div>
-          <Button variant="ghost" size="sm" onClick={onDelete} className="h-8 w-8 p-0">
-            <TrashIcon className="h-4 w-4" />
-            <span className="sr-only">Delete</span>
-          </Button>
+          <div className="flex items-center">
+            {showCheckbox && (
+              <Checkbox 
+                id={`select-${request.id}`}
+                checked={isSelected}
+                onCheckedChange={onToggleSelect}
+                className="mr-2 border-black"
+              />
+            )}
+            <Button variant="ghost" size="sm" onClick={onDelete} className="h-8 w-8 p-0">
+              <TrashIcon className="h-4 w-4" />
+              <span className="sr-only">Delete</span>
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-1">
