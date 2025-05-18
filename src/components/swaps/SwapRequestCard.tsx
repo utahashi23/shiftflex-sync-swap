@@ -54,11 +54,11 @@ const SwapRequestCard = ({ request, onDelete, onDeletePreferredDate }: SwapReque
             <CardDescription className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
               <span>{shiftDate}</span>
-              {/* Make the shift type badge more visible with specific styling */}
-              <div className="ml-2">
-                <ShiftTypeBadge type={shiftType} size="sm" showLabel={true} />
-              </div>
             </CardDescription>
+            {/* Add a more prominent shift type badge with higher visibility */}
+            <div className="mt-1.5">
+              <ShiftTypeBadge type={shiftType} showLabel={true} />
+            </div>
           </div>
           <Button variant="ghost" size="sm" onClick={onDelete} className="h-8 w-8 p-0">
             <TrashIcon className="h-4 w-4" />
