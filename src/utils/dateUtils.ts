@@ -43,6 +43,11 @@ export const normalizeDate = (date: string): string => {
   if (!date) return '';
   
   try {
+    // Check if already in YYYY-MM-DD format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return date;
+    }
+    
     // Handle various date formats
     const parsedDate = new Date(date);
     
@@ -52,11 +57,27 @@ export const normalizeDate = (date: string): string => {
     }
     
     // Format to YYYY-MM-DD
-    return parsedDate.toISOString().split('T')[0];
+    const year = parsedDate.getFullYear();
+    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(parsedDate.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
   } catch (error) {
     console.error('Error normalizing date:', error);
     return date; // Return original if processing fails
   }
+};
+
+/**
+ * Compare two dates for equality (ignoring time)
+ */
+export const areDatesEqual = (date1: string | undefined, date2: string | undefined): boolean => {
+  if (!date1 || !date2) return false;
+  
+  const normalizedDate1 = normalizeDate(date1);
+  const normalizedDate2 = normalizeDate(date2);
+  
+  return normalizedDate1 === normalizedDate2;
 };
 
 /**
@@ -85,4 +106,3 @@ export const formatTime = (timeStr: string): string => {
     return timeStr;
   }
 };
-

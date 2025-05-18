@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { normalizeDate } from '@/utils/dateUtils';
 
 /**
  * Check if two swap requests are compatible.
@@ -32,22 +33,49 @@ export const checkMatchCompatibility = (
   
   // Log the actual preferred dates for debugging
   if (user1PreferredDates.length > 0) {
-    console.log('User 1 preferred dates:', user1PreferredDates.map(pd => pd.date));
+    console.log('User 1 preferred dates:', user1PreferredDates.map(pd => ({
+      date: pd.date,
+      normalizedDate: normalizeDate(pd.date)
+    })));
   }
   
   if (user2PreferredDates.length > 0) {
-    console.log('User 2 preferred dates:', user2PreferredDates.map(pd => pd.date));
+    console.log('User 2 preferred dates:', user2PreferredDates.map(pd => ({
+      date: pd.date,
+      normalizedDate: normalizeDate(pd.date)
+    })));
   }
   
+  // Log the shifts that need to match
+  console.log('Shift 1 date we need to match:', {
+    original: requestShift.date,
+    normalized: requestShift.normalizedDate || normalizeDate(requestShift.date)
+  });
+  
+  console.log('Shift 2 date we need to match:', {
+    original: otherRequestShift.date,
+    normalized: otherRequestShift.normalizedDate || normalizeDate(otherRequestShift.date)
+  });
+  
+  // Ensure we have normalized dates to work with
+  const shift1NormalizedDate = requestShift.normalizedDate || normalizeDate(requestShift.date);
+  const shift2NormalizedDate = otherRequestShift.normalizedDate || normalizeDate(otherRequestShift.date);
+  
   // CRITICAL: Check if User A wants User B's date
-  const user1WantsUser2Date = user1PreferredDates.some(pd => 
-    pd.date === otherRequestShift.normalizedDate || pd.date === otherRequestShift.date
-  );
+  const user1WantsUser2Date = user1PreferredDates.some(pd => {
+    const pdNormalized = normalizeDate(pd.date);
+    const matches = pdNormalized === shift2NormalizedDate;
+    console.log(`Comparing User 1 preferred date ${pdNormalized} with Shift 2 date ${shift2NormalizedDate}: ${matches}`);
+    return matches;
+  });
   
   // CRITICAL: Check if User B wants User A's date
-  const user2WantsUser1Date = user2PreferredDates.some(pd => 
-    pd.date === requestShift.normalizedDate || pd.date === requestShift.date
-  );
+  const user2WantsUser1Date = user2PreferredDates.some(pd => {
+    const pdNormalized = normalizeDate(pd.date);
+    const matches = pdNormalized === shift1NormalizedDate;
+    console.log(`Comparing User 2 preferred date ${pdNormalized} with Shift 1 date ${shift1NormalizedDate}: ${matches}`);
+    return matches;
+  });
   
   console.log(`User 1 wants User 2's date (${otherRequestShift.normalizedDate}): ${user1WantsUser2Date}`);
   console.log(`User 2 wants User 1's date (${requestShift.normalizedDate}): ${user2WantsUser1Date}`);
