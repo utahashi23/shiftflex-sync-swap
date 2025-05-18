@@ -54,33 +54,37 @@ const ImprovedShiftSwaps = () => {
   const pastMatches = adaptSwapMatches(hookPastMatches || []);
 
   // Fetch user's swap requests
-  useEffect(() => {
-    const fetchUserRequests = async () => {
-      if (!user) return;
-      
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from("improved_shift_swaps")
-          .select("*, shifts(*)")
-          .eq("requester_id", user.id);
-          
-        if (error) throw error;
-        
-        setUserRequests(data || []);
-      } catch (err: any) {
-        console.error("Error fetching swap requests:", err);
-        toast({
-          title: "Error",
-          description: "Failed to load your swap requests",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchUserRequests = async () => {
+    if (!user) return;
     
-    fetchUserRequests();
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("improved_shift_swaps")
+        .select("*, shifts(*)")
+        .eq("requester_id", user.id);
+        
+      if (error) throw error;
+      
+      console.log("Fetched user swap requests:", data);
+      setUserRequests(data || []);
+    } catch (err: any) {
+      console.error("Error fetching swap requests:", err);
+      toast({
+        title: "Error",
+        description: "Failed to load your swap requests",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Fetch requests when the component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      fetchUserRequests();
+    }
   }, [user]);
 
   // Handle creating a swap request
@@ -103,15 +107,8 @@ const ImprovedShiftSwaps = () => {
           description: "Swap request created successfully",
         });
         
-        // Reload the user's swap requests
-        const { data, error } = await supabase
-          .from("improved_shift_swaps")
-          .select("*, shifts(*)")
-          .eq("requester_id", user?.id);
-          
-        if (error) throw error;
-        
-        setUserRequests(data || []);
+        // Reload the user's swap requests immediately after creation
+        await fetchUserRequests();
         
         // Switch to the "My Swaps" tab after creating a swap
         setActiveTab("mySwaps");

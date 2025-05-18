@@ -30,6 +30,7 @@ const RequestedSwaps = () => {
   
   // Fetch swap requests when component mounts
   useEffect(() => {
+    console.log("RequestedSwaps - Fetching swap requests on mount");
     fetchSwapRequests();
   }, [fetchSwapRequests]);
   
@@ -70,12 +71,13 @@ const RequestedSwaps = () => {
         // Type-safe check if this was the last date and the entire request was deleted
         if (result && 'requestDeleted' in result && result.requestDeleted) {
           // Refresh the list
-          fetchSwapRequests();
+          await fetchSwapRequests();
         }
       } else {
         // Delete the entire swap request
         await deleteSwapRequest(deleteDialog.requestId);
-        // Request list will be updated in the useDeleteSwapRequest hook
+        // Refresh the list explicitly to ensure UI is updated
+        await fetchSwapRequests();
       }
       
       setDeleteDialog({ isOpen: false, requestId: null, dayId: null, isDeleting: false });
