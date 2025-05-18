@@ -1,111 +1,116 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { SwapRequest } from './types';
-import { fetchUserSwapRequestsSafe } from '@/utils/rls-helpers';
-import { useDeleteSwapRequest } from './useDeleteSwapRequest';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../useAuth';
+import { useSwapMatches } from '../swap-matches';
+import { SwapMatch } from '../swap-matches/types';
+import { toast } from '../use-toast';
 
-/**
- * Hook for managing user swap requests
- * Using RPC functions to avoid RLS recursion issues
- */
-export const useSwapRequests = () => {
-  const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
+export type ConfirmDialogState = {
+  isOpen: boolean;
+  matchId: string | null;
+};
+
+export function useSwapRequests() {
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
+    isOpen: false,
+    matchId: null
+  });
   
-  // Get the delete handler functions
+  const { user } = useAuth();
   const { 
-    handleDeleteSwapRequest, 
-    handleDeletePreferredDay 
-  } = useDeleteSwapRequest(setSwapRequests, setIsLoading);
+    matches: activeMatches,
+    pastMatches,
+    isLoading,
+    fetchMatches,
+    acceptMatch,
+    cancelMatch,
+    completeMatch
+  } = useSwapMatches();
 
-  /**
-   * Fetch swap requests for the current user using the safe RPC function
-   */
-  const fetchSwapRequests = useCallback(async () => {
-    if (!user) {
-      console.log('No user available, skipping fetch');
-      return;
+  const matches = activeMatches || [];
+
+  // Debug logging for matches visibility
+  useEffect(() => {
+    if (matches && matches.length > 0) {
+      console.log(`useSwapRequests: Found ${matches.length} matches with statuses:`, 
+        matches.map(m => ({ id: m.id, status: m.status })));
+      
+      // Log specific statuses for debugging
+      const acceptedMatches = matches.filter(m => m.status === 'accepted');
+      const otherAcceptedMatches = matches.filter(m => m.status === 'other_accepted');
+      
+      console.log(`useSwapRequests: Found ${acceptedMatches.length} 'accepted' matches`);
+      console.log(`useSwapRequests: Found ${otherAcceptedMatches.length} 'other_accepted' matches`);
     }
-
-    setIsLoading(true);
+  }, [matches]);
+  
+  const refreshMatches = async () => {
+    if (!user) return;
+    // Important: Set userInitiatorOnly to false to get all matches including other_accepted ones
+    await fetchMatches(true, false); 
+  };
+  
+  const handleAcceptSwap = async (matchId: string) => {
+    if (!matchId || !user) return;
     
-    try {
-      console.log('Fetching swap requests for user:', user.id);
-      
-      // Use our safe function that won't cause RLS recursion
-      const { data, error } = await fetchUserSwapRequestsSafe(user.id, 'pending');
-      
-      if (error) throw error;
-      
-      if (!data || data.length === 0) {
-        console.log('No pending swap requests found');
-        setSwapRequests([]);
-        return;
-      }
-      
-      console.log('Received swap requests data:', data);
-      
-      // Format the received data into SwapRequest objects
-      const formattedRequests: SwapRequest[] = data.map((item: any) => {
-        const shift = item.shift;
-        const preferredDates = item.preferred_dates || [];
-        
-        if (!shift) return null;
-        
-        // Format preferred dates
-        const formattedDates = preferredDates.map((date: any) => ({
-          id: date.id,
-          date: date.date,
-          acceptedTypes: date.accepted_types as ("day" | "afternoon" | "night")[]
-        }));
-        
-        return {
-          id: item.id,
-          requesterId: item.requester_id,
-          status: item.status,
-          originalShift: {
-            id: shift.id,
-            date: shift.date,
-            title: shift.truckName || `Shift-${shift.id.substring(0, 5)}`,
-            startTime: shift.startTime.substring(0, 5),
-            endTime: shift.endTime.substring(0, 5),
-            type: shift.type
-          },
-          preferredDates: formattedDates
-        };
-      }).filter(Boolean) as SwapRequest[];
-      
-      console.log('Formatted requests:', formattedRequests);
-      setSwapRequests(formattedRequests);
-      
-    } catch (err) {
-      console.error('Error fetching swap requests:', err);
+    // Check if this match has been accepted by someone else
+    const matchToAccept = matches.find(match => match.id === matchId);
+    if (matchToAccept && matchToAccept.status === 'other_accepted') {
       toast({
-        title: "Error",
-        description: "Failed to load swap requests. Please try again.",
+        title: "Cannot Accept Swap",
+        description: "This swap has already been accepted by another user.",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
+      return;
     }
-  }, [user]);
-
-  // Load swap requests on mount or when user changes
+    
+    const success = await acceptMatch(matchId);
+    
+    if (success) {
+      toast({
+        title: "Swap Accepted",
+        description: "You have successfully accepted the swap.",
+      });
+      
+      // After accepting, refresh to get updated statuses
+      await refreshMatches();
+    }
+  };
+  
+  const handleCancelSwap = async (matchId: string) => {
+    if (!matchId || !user) return;
+    
+    await cancelMatch(matchId);
+    
+    // After canceling, refresh to get updated statuses
+    await refreshMatches();
+  };
+  
+  const handleMarkComplete = async (matchId: string) => {
+    if (!matchId || !user) return;
+    
+    await completeMatch(matchId);
+    
+    // After completing, refresh to get updated statuses
+    await refreshMatches();
+  };
+  
+  // Initial fetch of matches
   useEffect(() => {
     if (user) {
-      fetchSwapRequests();
+      refreshMatches();
     }
-  }, [user, fetchSwapRequests]);
-
+  }, [user]);
+  
   return {
-    swapRequests,
+    matches,
+    pastMatches,
+    confirmDialog,
+    setConfirmDialog,
     isLoading,
-    fetchSwapRequests,
-    deleteSwapRequest: handleDeleteSwapRequest,
-    deletePreferredDay: handleDeletePreferredDay
+    handleAcceptSwap,
+    handleCancelSwap,
+    handleMarkComplete,
+    refreshMatches
   };
-};
+}

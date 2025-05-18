@@ -1,607 +1,273 @@
-import { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { ShiftSwapDialog } from './ShiftSwapDialog';
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  Loader2, 
-  Sunrise, 
-  Sun, 
-  Moon,
-  X,
-  Info
-} from "lucide-react";
-import { format, isValid } from "date-fns";
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { ShiftDateField } from '@/components/shift-form/ShiftDateField';
-import { toast } from '@/hooks/use-toast';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { getShiftType, formatDate, formatTime } from '@/utils/shiftUtils';
 
-type FormValues = {
-  shiftId: string;
-  wantedDates: Date[];
-  acceptedTypes: {
-    day: boolean;
-    afternoon: boolean;
-    night: boolean;
-  };
-  regionPreferences: {
-    regionId: string;
-    areaId?: string;
-  }[];
-};
+// Update the ImprovedSwapForm component to work in both dialog and inline mode
+import { useState, useEffect } from "react";
+import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "lucide-react";
+import { format } from "date-fns";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { MultiSelect } from "@/components/swaps/MultiSelect";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ImprovedSwapFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (shiftId: string, wantedDates: string[], acceptedTypes: string[]) => Promise<boolean>;
+  isDialog?: boolean;
 }
 
-export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapFormProps) => {
-  const [shifts, setShifts] = useState<any[]>([]);
+export const ImprovedSwapForm = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  isDialog = true
+}: ImprovedSwapFormProps) => {
+  const [step, setStep] = useState(1);
+  const [selectedShift, setSelectedShift] = useState<any>(null);
+  const [userShifts, setUserShifts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [regions, setRegions] = useState<any[]>([]);
-  const [areas, setAreas] = useState<any[]>([]);
-  const [userPreferences, setUserPreferences] = useState<any>(null);
-  const [isLoadingPreferences, setIsLoadingPreferences] = useState(false);
-  const [showPreferencesAlert, setShowPreferencesAlert] = useState(false);
-  const { user } = useAuth();
-
-  const { control, register, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm<FormValues>({
-    defaultValues: {
-      shiftId: '',
-      wantedDates: [],
-      acceptedTypes: {
-        day: true,
-        afternoon: true,
-        night: true
-      },
-      regionPreferences: []
-    }
-  });
-
-  const selectedShiftId = watch('shiftId');
-  const wantedDates = watch('wantedDates');
-  const acceptedTypes = watch('acceptedTypes');
-  const regionPreferences = watch('regionPreferences');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [shiftTypes, setShiftTypes] = useState<{ value: string; label: string; }[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   
-  // Fetch user's shifts
+  const { user } = useAuth();
+  
+  // Fetch user shifts
   useEffect(() => {
-    const fetchShifts = async () => {
-      if (!user) return;
+    const fetchUserShifts = async () => {
+      if (!user || !isOpen) return;
       
       setIsLoading(true);
       try {
-        // Call the RPC function to get shifts
         const { data, error } = await supabase
-          .rpc('get_all_shifts')
-          .eq('status', 'scheduled');
+          .from('shifts')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('shift_date', new Date().toISOString().split('T')[0]);
           
         if (error) throw error;
         
-        console.log(`Loaded ${data?.length || 0} shifts for form`);
-        setShifts(data || []);
+        setUserShifts(data || []);
       } catch (err) {
         console.error('Error fetching shifts:', err);
-        toast({
-          title: "Failed to load shifts",
-          description: "There was a problem loading your shifts. Please try again.",
-          variant: "destructive"
-        });
       } finally {
         setIsLoading(false);
       }
     };
     
-    if (isOpen) {
-      fetchShifts();
-    }
+    // Fetch shift types
+    const fetchShiftTypes = async () => {
+      if (!isOpen) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('shift_types')
+          .select('*');
+          
+        if (error) throw error;
+        
+        const formattedTypes = data.map(type => ({
+          value: type.id,
+          label: type.name
+        }));
+        
+        setShiftTypes(formattedTypes);
+      } catch (err) {
+        console.error('Error fetching shift types:', err);
+      }
+    };
+    
+    fetchUserShifts();
+    fetchShiftTypes();
+    
+    // Reset form when opened
+    setStep(1);
+    setSelectedShift(null);
+    setSelectedDates([]);
+    setSelectedTypes([]);
+    
   }, [user, isOpen]);
-
-  // Fetch regions and areas
-  useEffect(() => {
-    const fetchRegionsAndAreas = async () => {
-      try {
-        // Fetch regions
-        const { data: regionsData, error: regionsError } = await supabase
-          .from('regions')
-          .select('*')
-          .eq('status', 'active');
-          
-        if (regionsError) throw regionsError;
-        
-        setRegions(regionsData || []);
-        console.log('Fetched regions:', regionsData?.length || 0);
-        
-        // Fetch areas
-        const { data: areasData, error: areasError } = await supabase
-          .from('areas')
-          .select('*')
-          .eq('status', 'active');
-          
-        if (areasError) throw areasError;
-        
-        setAreas(areasData || []);
-        console.log('Fetched areas:', areasData?.length || 0);
-      } catch (err) {
-        console.error('Error fetching regions/areas:', err);
-      }
-    };
-    
-    if (isOpen) {
-      fetchRegionsAndAreas();
-    }
-  }, [isOpen]);
-
-  // Reset form when dialog opens/closes
-  useEffect(() => {
-    if (isOpen) {
-      // Keep default values when opening
-    } else {
-      // Reset form when closing
-      reset();
-      setShowPreferencesAlert(false);
-    }
-  }, [isOpen, reset]);
-
-  // Fetch user preferences
-  useEffect(() => {
-    const fetchUserPreferences = async () => {
-      if (!user || !isOpen) return;
-      
-      setIsLoadingPreferences(true);
-      try {
-        console.log('Fetching user preferences for:', user.id);
-        
-        // Check for user's saved preferences first
-        const { data: userPrefsData, error: userPrefsError } = await supabase
-          .from('shift_swap_preferences')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        if (userPrefsError && userPrefsError.code !== 'PGRST116') {
-          throw userPrefsError;
-        }
-        
-        // If user preferences exist, use them
-        if (userPrefsData) {
-          console.log('User has saved preferences:', userPrefsData);
-          setUserPreferences(userPrefsData);
-          
-          // Set region preferences
-          if (userPrefsData.preferred_areas && userPrefsData.preferred_areas.length > 0) {
-            // Convert area IDs to region+area preferences
-            const prefsToSet: { regionId: string; areaId?: string }[] = [];
-            
-            // We need to fetch the corresponding regions for these areas
-            const areaIds = userPrefsData.preferred_areas;
-            if (areaIds.length > 0) {
-              const { data: areasWithRegions, error: areasError } = await supabase
-                .from('areas')
-                .select('id, region_id')
-                .in('id', areaIds);
-                
-              if (!areasError && areasWithRegions) {
-                areasWithRegions.forEach(area => {
-                  prefsToSet.push({
-                    regionId: area.region_id,
-                    areaId: area.id
-                  });
-                });
-                
-                console.log('Setting user preferences from saved data:', prefsToSet);
-                setValue('regionPreferences', prefsToSet);
-                setShowPreferencesAlert(false); // Don't show alert for user's own preferences
-              }
-            }
-          }
-          
-          // Set accepted shift types
-          if (userPrefsData.acceptable_shift_types) {
-            setValue('acceptedTypes', {
-              day: userPrefsData.acceptable_shift_types.includes('day'),
-              afternoon: userPrefsData.acceptable_shift_types.includes('afternoon'),
-              night: userPrefsData.acceptable_shift_types.includes('night')
-            });
-          }
-        } else {
-          // If no user preferences, fetch system defaults from user_swap_preferences
-          console.log('No user preferences found, checking system defaults');
-          
-          const { data: systemPrefsData, error: systemPrefsError } = await supabase
-            .rpc('get_user_swap_preferences', { p_user_id: user.id });
-          
-          console.log('System preferences data:', systemPrefsData);
-          console.log('System preferences error:', systemPrefsError);
-          
-          if (systemPrefsError) {
-            console.error('Error fetching system preferences:', systemPrefsError);
-            // Try direct query as fallback
-            const { data: directPrefsData, error: directPrefsError } = await supabase
-              .from('user_swap_preferences')
-              .select('*');
-              
-            if (!directPrefsError && directPrefsData && directPrefsData.length > 0) {
-              processSystemDefaults(directPrefsData);
-            }
-          } else if (systemPrefsData && systemPrefsData.length > 0) {
-            processSystemDefaults(systemPrefsData);
-          } else {
-            console.log('No system default preferences found');
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching user preferences:', err);
-      } finally {
-        setIsLoadingPreferences(false);
-      }
-    };
-    
-    // Helper function to process system defaults
-    const processSystemDefaults = (systemPrefsData: any[]) => {
-      console.log('Found system default preferences:', systemPrefsData);
-      
-      // Extract unique regions and areas
-      const regionIds = new Set<string>();
-      const prefsToSet: { regionId: string; areaId?: string }[] = [];
-      
-      systemPrefsData.forEach((pref: any) => {
-        // Add region preference
-        if (pref.region_id) {
-          regionIds.add(pref.region_id);
-          if (!pref.area_id) {
-            prefsToSet.push({ regionId: pref.region_id });
-          }
-        }
-        
-        // Add area preference (with parent region)
-        if (pref.area_id && pref.region_id) {
-          prefsToSet.push({
-            regionId: pref.region_id,
-            areaId: pref.area_id
-          });
-        }
-      });
-      
-      console.log('Setting region preferences from system defaults:', prefsToSet);
-      setValue('regionPreferences', prefsToSet);
-      setShowPreferencesAlert(true);
-    };
-    
-    if (isOpen && user) {
-      fetchUserPreferences();
-    }
-  }, [isOpen, user, setValue]);
-
-  const onFormSubmit = async (data: FormValues) => {
-    if (!data.shiftId || data.wantedDates.length === 0) return;
-    
-    const acceptedTypesArray: string[] = [];
-    if (data.acceptedTypes.day) acceptedTypesArray.push('day');
-    if (data.acceptedTypes.afternoon) acceptedTypesArray.push('afternoon');
-    if (data.acceptedTypes.night) acceptedTypesArray.push('night');
-    
-    if (acceptedTypesArray.length === 0) {
-      toast({
-        title: "Selection required",
-        description: "Please select at least one shift type",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Format dates to ISO strings (YYYY-MM-DD)
-    const formattedDates = data.wantedDates
-      .filter(date => date && isValid(date))
-      .map(date => format(date, 'yyyy-MM-dd'));
-    
-    setIsLoading(true);
-    try {
-      const success = await onSubmit(data.shiftId, formattedDates, acceptedTypesArray);
-      
-      // If the swap request was created successfully, also save region preferences
-      if (success && data.regionPreferences.length > 0) {
-        // Note: Saving preferences would need backend support - implement in future update
-        console.log('Would save region preferences:', data.regionPreferences);
-      }
-      
-      if (success) {
-        onClose();
-      }
-    } finally {
-      setIsLoading(false);
-    }
+  
+  const handleNextStep = () => {
+    setStep(prev => prev + 1);
   };
-
-  const selectedShift = shifts.find(shift => shift.id === selectedShiftId);
-
-  const handleAddRegionPreference = (regionId: string, areaId?: string) => {
-    const currentPreferences = [...(regionPreferences || [])];
+  
+  const handlePrevStep = () => {
+    setStep(prev => prev - 1);
+  };
+  
+  const handleSubmit = async () => {
+    if (!selectedShift) return;
     
-    // Check if this preference already exists
-    const alreadyExists = currentPreferences.some(
-      pref => pref.regionId === regionId && pref.areaId === areaId
+    setIsSubmitting(true);
+    
+    // Format dates
+    const formattedDates = selectedDates.map(date => 
+      format(date, 'yyyy-MM-dd')
     );
     
-    if (!alreadyExists) {
-      currentPreferences.push({ regionId, areaId });
-      setValue('regionPreferences', currentPreferences);
+    // Submit the form
+    const success = await onSubmit(
+      selectedShift.id,
+      formattedDates,
+      selectedTypes
+    );
+    
+    setIsSubmitting(false);
+    
+    if (success && isDialog) {
+      onClose();
+    }
+  };
+  
+  const handleSelectShift = (shift: any) => {
+    setSelectedShift(shift);
+    handleNextStep();
+  };
+
+  const renderContent = () => {
+    switch (step) {
+      case 1:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Select a shift to swap</h3>
+            {isLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : userShifts.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground">No upcoming shifts found.</p>
+              </div>
+            ) : (
+              <div className="grid gap-2">
+                {userShifts.map(shift => (
+                  <div 
+                    key={shift.id}
+                    className="border rounded-lg p-3 hover:bg-muted cursor-pointer flex justify-between items-center"
+                    onClick={() => handleSelectShift(shift)}
+                  >
+                    <div>
+                      <p className="font-medium">{format(new Date(shift.shift_date), 'EEEE, MMM d, yyyy')}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {shift.start_time} - {shift.end_time}
+                      </p>
+                    </div>
+                    <div className="text-sm px-2 py-1 bg-primary/10 rounded">
+                      {shift.shift_type}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      
+      case 2:
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium mb-2">Select preferred dates</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Choose dates when you would like to work instead
+              </p>
+              <div className="border rounded-lg p-3">
+                <CalendarComponent
+                  mode="multiple"
+                  selected={selectedDates}
+                  onSelect={(dates) => setSelectedDates(dates || [])}
+                  className="rounded-md"
+                  disabled={(date) => {
+                    // Disable dates before today
+                    return date < new Date(new Date().setHours(0, 0, 0, 0));
+                  }}
+                />
+              </div>
+              
+              {selectedDates.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-sm font-medium mb-1">Selected dates:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedDates.map((date, index) => (
+                      <div 
+                        key={index} 
+                        className="text-xs px-2 py-1 bg-primary/10 rounded-full flex items-center gap-1"
+                      >
+                        {format(date, 'MMM d, yyyy')}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-medium mb-2">Select acceptable shift types</h3>
+              <MultiSelect
+                options={shiftTypes}
+                selected={selectedTypes}
+                onChange={setSelectedTypes}
+                placeholder="Select shift types"
+              />
+            </div>
+          </div>
+        );
+      
+      default:
+        return null;
     }
   };
 
-  const handleRemoveRegionPreference = (index: number) => {
-    const currentPreferences = [...(regionPreferences || [])];
-    currentPreferences.splice(index, 1);
-    setValue('regionPreferences', currentPreferences);
-  };
-
-  console.log('Current region preferences:', regionPreferences);
-  console.log('Is showing preferences alert:', showPreferencesAlert);
-
-  return (
-    <ShiftSwapDialog
-      open={isOpen}
-      onOpenChange={onClose}
-      title="Create Shift Swap Request"
-      description="Select the shift you want to swap and specify your preferences."
-      onConfirm={handleSubmit(onFormSubmit)}
-      isLoading={isLoading}
-      confirmLabel="Create Swap Request"
-      cancelLabel="Cancel"
-      preventAutoClose={true}
-    >
-      <form className="grid gap-4 py-2">
-        {/* Shift Selection */}
-        <div className="space-y-2">
-          <Label htmlFor="shiftId">Select Your Shift</Label>
-          <Controller
-            name="shiftId"
-            control={control}
-            render={({ field }) => (
-              <Select 
-                onValueChange={field.onChange}
-                value={field.value}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={isLoading ? "Loading shifts..." : "Select a shift to swap"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {isLoading ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : shifts.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">No shifts available</div>
-                  ) : (
-                    shifts.map(shift => (
-                      <SelectItem key={shift.id} value={shift.id}>
-                        {format(new Date(shift.date), 'MMM d, yyyy')} - {shift.truck_name || 'Unknown location'}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </div>
-        
-        {/* Selected Shift Details */}
-        {selectedShift && (
-          <div className="p-3 border rounded-md bg-secondary/20">
-            <p className="text-sm font-medium">Selected Shift</p>
-            <p className="text-base">{format(new Date(selectedShift.date), 'PPPP')}</p>
-            <p className="text-sm">
-              {selectedShift.start_time.substring(0, 5)} - {selectedShift.end_time.substring(0, 5)}
-            </p>
-            <p className="text-sm text-gray-500">{selectedShift.truck_name}</p>
-          </div>
-        )}
-        
-        {/* Multiple Wanted Dates with calendar */}
-        <div className="space-y-2">
-          <Controller
-            name="wantedDates"
-            control={control}
-            render={({ field }) => (
-              <ShiftDateField
-                value=""
-                onChange={() => {}}
-                multiSelect={true}
-                selectedDates={field.value}
-                onMultiDateChange={(dates) => field.onChange(dates)}
-              />
-            )}
-          />
-          
-          {/* Warning if no dates selected */}
-          {(!wantedDates || wantedDates.length === 0) && (
-            <p className="text-sm text-yellow-600">
-              Please select at least one preferred date
-            </p>
-          )}
-        </div>
-        
-        {/* Accepted Shift Types */}
-        <div className="space-y-2">
-          <Label>Acceptable Shift Types</Label>
-          <p className="text-sm text-muted-foreground mb-2">
-            Select what types of shifts you're willing to accept on your wanted dates.
-          </p>
-          
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="day-shift"
-                checked={acceptedTypes.day}
-                onCheckedChange={(checked) => {
-                  setValue('acceptedTypes.day', checked === true);
-                }}
-              />
-              <Label htmlFor="day-shift" className="flex items-center">
-                <div className="bg-yellow-100 text-yellow-800 p-1 rounded-md mr-2">
-                  <Sunrise className="h-4 w-4" />
-                </div>
-                <span>Day Shift</span>
-              </Label>
+  // Render the component based on isDialog prop
+  if (isDialog) {
+    return (
+      <ShiftSwapDialog
+        open={isOpen}
+        onOpenChange={onClose}
+        title="Create Swap Request"
+        description={step === 1 ? "Select the shift you want to swap" : "Select your preferences"}
+        onConfirm={step === 1 ? () => {} : handleSubmit}
+        onCancel={step === 1 ? undefined : handlePrevStep}
+        confirmLabel={step === 1 ? "Select" : "Create Request"}
+        cancelLabel={step === 1 ? "Cancel" : "Back"}
+        isLoading={isSubmitting}
+        preventAutoClose={true}
+      >
+        {renderContent()}
+      </ShiftSwapDialog>
+    );
+  } else {
+    // Render inline version for tabs
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{step === 1 ? "Select Shift to Swap" : "Set Your Preferences"}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {renderContent()}
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          {step === 1 ? (
+            <div className="w-full flex justify-end">
+              {/* No back button on first step when inline */}
             </div>
-            
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="afternoon-shift"
-                checked={acceptedTypes.afternoon}
-                onCheckedChange={(checked) => {
-                  setValue('acceptedTypes.afternoon', checked === true);
-                }}
-              />
-              <Label htmlFor="afternoon-shift" className="flex items-center">
-                <div className="bg-orange-100 text-orange-800 p-1 rounded-md mr-2">
-                  <Sun className="h-4 w-4" />
-                </div>
-                <span>Afternoon Shift</span>
-              </Label>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="night-shift"
-                checked={acceptedTypes.night}
-                onCheckedChange={(checked) => {
-                  setValue('acceptedTypes.night', checked === true);
-                }}
-              />
-              <Label htmlFor="night-shift" className="flex items-center">
-                <div className="bg-blue-100 text-blue-800 p-1 rounded-md mr-2">
-                  <Moon className="h-4 w-4" />
-                </div>
-                <span>Night Shift</span>
-              </Label>
-            </div>
-          </div>
-        </div>
-        
-        {/* Region/Area Preferences */}
-        <div className="space-y-2">
-          <Label>Region/Area Preferences</Label>
-          
-          {/* Information alert about pre-populated preferences */}
-          {showPreferencesAlert && regionPreferences && regionPreferences.length > 0 && (
-            <Alert className="mb-3">
-              <Info className="h-4 w-4" />
-              <AlertDescription>
-                Your region preferences have been pre-populated from system settings. You can modify them below.
-              </AlertDescription>
-            </Alert>
+          ) : (
+            <Button variant="outline" onClick={handlePrevStep} disabled={isSubmitting}>
+              Back
+            </Button>
           )}
           
-          <p className="text-sm text-muted-foreground mb-2">
-            Select regions or specific areas you prefer for your swap.
-          </p>
-          
-          {/* Region selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Select 
-              onValueChange={(value) => handleAddRegionPreference(value)}
-              disabled={regions.length === 0 || isLoadingPreferences}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={isLoadingPreferences ? "Loading..." : "Select a region"} />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoadingPreferences ? (
-                  <div className="flex items-center justify-center py-2">
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    <span>Loading regions...</span>
-                  </div>
-                ) : (
-                  regions.map(region => (
-                    <SelectItem key={region.id} value={region.id}>
-                      {region.name}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-            
-            <Select
-              onValueChange={(value) => {
-                const [regionId, areaId] = value.split('|');
-                handleAddRegionPreference(regionId, areaId);
-              }}
-              disabled={areas.length === 0 || isLoadingPreferences}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={isLoadingPreferences ? "Loading..." : "Select an area"} />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoadingPreferences ? (
-                  <div className="flex items-center justify-center py-2">
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    <span>Loading areas...</span>
-                  </div>
-                ) : (
-                  <>
-                    {regions.map(region => (
-                      <SelectItem key={`region-group-${region.id}`} value={region.id} disabled>
-                        {region.name}
-                      </SelectItem>
-                    ))}
-                    {areas.map(area => (
-                      <SelectItem 
-                        key={area.id} 
-                        value={`${area.region_id}|${area.id}`}
-                        className="pl-6"
-                      >
-                        {area.name}
-                      </SelectItem>
-                    ))}
-                  </>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Display selected preferences */}
-          <div className="flex flex-wrap gap-2 mt-3">
-            {isLoadingPreferences ? (
-              <div className="w-full flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                <span className="text-sm text-muted-foreground">Loading preferences...</span>
-              </div>
-            ) : regionPreferences && regionPreferences.length > 0 ? (
-              regionPreferences.map((pref, index) => {
-                const region = regions.find(r => r.id === pref.regionId);
-                const area = pref.areaId ? areas.find(a => a.id === pref.areaId) : null;
-                
-                return (
-                  <Badge 
-                    key={index}
-                    variant="outline"
-                    className="flex items-center gap-1 px-3 py-1"
-                  >
-                    {region?.name || 'Unknown'} {area && `- ${area.name}`}
-                    <button 
-                      type="button" 
-                      onClick={() => handleRemoveRegionPreference(index)}
-                      className="ml-1 text-gray-500 hover:text-gray-700"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                );
-              })
-            ) : (
-              <p className="text-sm text-muted-foreground italic">No region/area preferences selected</p>
-            )}
-          </div>
-        </div>
-      </form>
-    </ShiftSwapDialog>
-  );
+          {step === 2 && (
+            <Button onClick={handleSubmit} disabled={selectedDates.length === 0 || selectedTypes.length === 0 || isSubmitting}>
+              {isSubmitting && <div className="mr-2 animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
+              Create Request
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
+    );
+  }
 };
