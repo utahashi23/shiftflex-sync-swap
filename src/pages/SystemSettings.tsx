@@ -10,6 +10,7 @@ import { AreaSettings } from '@/components/system-settings/AreaSettings';
 import { TruckNameSettings } from '@/components/system-settings/TruckNameSettings';
 import { ColleagueTypeSettings } from '@/components/system-settings/ColleagueTypeSettings';
 import { SwapPreferences } from '@/components/settings/SwapPreferences';
+import { LeaveBlockSettings } from '@/components/system-settings/LeaveBlockSettings';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect } from 'react';
 
@@ -72,6 +73,7 @@ const SystemSettings = () => {
           <TabsTrigger value="truck-names">Truck Names</TabsTrigger>
           <TabsTrigger value="colleague-types">Colleague Types</TabsTrigger>
           <TabsTrigger value="swap-preferences">Swap Preferences</TabsTrigger>
+          <TabsTrigger value="leave-blocks">Leave Blocks</TabsTrigger>
         </TabsList>
 
         <TabsContent value="shift-lengths">
@@ -149,6 +151,19 @@ const SystemSettings = () => {
             </div>
             <Separator />
             <SwapPreferences />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="leave-blocks">
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium">Leave Block Management</h3>
+              <p className="text-sm text-muted-foreground">
+                Manage annual leave blocks for staff allocation
+              </p>
+            </div>
+            <Separator />
+            <LeaveBlockSettings />
           </div>
         </TabsContent>
       </Tabs>
