@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { normalizeDate, areDatesEqual } from '@/utils/dateUtils';
+import { normalizeDate, areDatesEqual, parseDateSafely } from '@/utils/dateUtils';
 
 /**
  * Check if two shifts are compatible for swapping based on the mutual swap dates logic:
@@ -16,7 +16,12 @@ export const checkSwapCompatibility = (
 ): { isCompatible: boolean; reason?: string } => {
   console.log('== CHECKING SWAP COMPATIBILITY ==');
   console.log(`Between request ${request1.id.substring(0, 6)} and ${request2.id.substring(0, 6)}`);
-  console.log(`Request 1 shift date: ${shift1.normalizedDate || shift1.date}, Request 2 shift date: ${shift2.normalizedDate || shift2.date}`);
+  
+  // Ensure we have normalized dates for both shifts
+  const shift1Date = shift1.normalizedDate || normalizeDate(shift1.date);
+  const shift2Date = shift2.normalizedDate || normalizeDate(shift2.date);
+  
+  console.log(`Request 1 shift date: ${shift1Date}, Request 2 shift date: ${shift2Date}`);
   
   // 1. Check for mutual swap dates (User A wants B's date and User B wants A's date)
   const mutualDatesResult = checkMutualSwapDates(
@@ -73,18 +78,20 @@ const checkMutualSwapDates = (
 
   // Log all preferred dates for debugging
   console.log('User 1 preferred dates:', user1PreferredDates.map(pd => {
+    const normalized = normalizeDate(pd.date);
     return {
       original: pd.date,
-      normalized: normalizeDate(pd.date),
-      matchesShift2: normalizeDate(pd.date) === shift2Date
+      normalized,
+      matchesShift2: normalized === shift2Date
     };
   }));
   
   console.log('User 2 preferred dates:', user2PreferredDates.map(pd => {
+    const normalized = normalizeDate(pd.date);
     return {
       original: pd.date,
-      normalized: normalizeDate(pd.date), 
-      matchesShift1: normalizeDate(pd.date) === shift1Date
+      normalized, 
+      matchesShift1: normalized === shift1Date
     };
   }));
   
@@ -163,3 +170,28 @@ export const recordShiftMatch = async (request1: any, request2: any, initiatorId
     return { success: false, error };
   }
 };
+
+/**
+ * Determine shift type based on start time
+ */
+export function determineShiftType(startTime: string): 'day' | 'afternoon' | 'night' {
+  if (!startTime) return 'day'; // Default
+  
+  try {
+    const [hoursStr] = startTime.split(':');
+    const startHour = parseInt(hoursStr, 10);
+    
+    if (isNaN(startHour)) return 'day'; // Default if parsing fails
+    
+    if (startHour <= 8) {
+      return 'day';
+    } else if (startHour > 8 && startHour < 16) {
+      return 'afternoon';
+    } else {
+      return 'night';
+    }
+  } catch (error) {
+    console.error('Error determining shift type:', error);
+    return 'day'; // Default if an error occurs
+  }
+}

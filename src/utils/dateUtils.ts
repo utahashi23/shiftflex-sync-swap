@@ -38,22 +38,47 @@ export const getMonthDateRange = (date: Date) => {
 /**
  * Normalize a date string to YYYY-MM-DD format
  * Handles different date formats and ensures consistency
+ * IMPROVED: More robust handling for various date formats
  */
-export const normalizeDate = (date: string): string => {
+export const normalizeDate = (date: string | Date): string => {
   if (!date) return '';
   
   try {
+    // Handle Date objects
+    if (date instanceof Date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    // For string inputs
+    const dateStr = String(date).trim();
+    
     // Check if already in YYYY-MM-DD format
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return date;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      // Validate the date is actually valid
+      const parts = dateStr.split('-');
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+      const day = parseInt(parts[2], 10);
+      
+      const dateObj = new Date(year, month, day);
+      if (
+        dateObj.getFullYear() === year &&
+        dateObj.getMonth() === month &&
+        dateObj.getDate() === day
+      ) {
+        return dateStr; // Valid date in correct format
+      }
     }
     
     // Handle various date formats
-    const parsedDate = new Date(date);
+    const parsedDate = new Date(dateStr);
     
     if (isNaN(parsedDate.getTime())) {
-      console.error('Invalid date format:', date);
-      return date; // Return original if parsing fails
+      console.error('Invalid date format:', dateStr);
+      return dateStr; // Return original if parsing fails
     }
     
     // Format to YYYY-MM-DD
@@ -64,7 +89,7 @@ export const normalizeDate = (date: string): string => {
     return `${year}-${month}-${day}`;
   } catch (error) {
     console.error('Error normalizing date:', error);
-    return date; // Return original if processing fails
+    return typeof date === 'string' ? date : ''; // Return original if processing fails
   }
 };
 
@@ -104,5 +129,40 @@ export const formatTime = (timeStr: string): string => {
   } catch (e) {
     console.error('Error formatting time:', e);
     return timeStr;
+  }
+};
+
+/**
+ * Parse date in any format and convert to Date object
+ * This is a utility function to ensure consistent date handling
+ */
+export const parseDateSafely = (date: any): Date | null => {
+  if (!date) return null;
+  
+  try {
+    // If already a Date object
+    if (date instanceof Date) return date;
+    
+    // Handle string formats
+    if (typeof date === 'string') {
+      const normalized = normalizeDate(date);
+      // Try to create a date from normalized format
+      const result = new Date(normalized);
+      if (!isNaN(result.getTime())) {
+        return result;
+      }
+    }
+    
+    // Last attempt with native parsing
+    const fallback = new Date(date);
+    if (!isNaN(fallback.getTime())) {
+      return fallback;
+    }
+    
+    console.error('Could not parse date:', date);
+    return null;
+  } catch (e) {
+    console.error('Error parsing date:', e, date);
+    return null;
   }
 };

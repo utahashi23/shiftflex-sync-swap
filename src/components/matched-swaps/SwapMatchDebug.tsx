@@ -18,6 +18,73 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
   const [debugError, setDebugError] = useState<string | null>(null);
   const [showDebugOutput, setShowDebugOutput] = useState(false);
 
+  const runDirectApiCall = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication required",
+        description: "You must be logged in to access this functionality.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setDebugResults(null);
+    setDebugError(null);
+    setShowDebugOutput(true);
+    
+    try {
+      toast({
+        title: "Direct API Call",
+        description: "Calling get_user_matches edge function directly...",
+      });
+      
+      const response = await fetch(`https://ponhfgbpxehsdlxjpszg.supabase.co/functions/v1/get_user_matches`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvbmhmZ2JweGVoc2RseGpwc3pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5ODM0NDcsImV4cCI6MjA2MTU1OTQ0N30.-n7sUFjxDJUCpMMA0AGnXlQCkaVt31dER91ZQLO3jDs`
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          bypass_rls: true,
+          verbose: true,
+          user_initiator_only: false
+        })
+      });
+      
+      const result = await response.json();
+      
+      setDebugResults(result);
+      console.log("Direct API call result:", result);
+      
+      if (result.success) {
+        const matchCount = result.matches?.length || 0;
+        toast({
+          title: `Direct API call: Found ${matchCount} matches`,
+          description: matchCount > 0 
+            ? "Check the debug panel for details." 
+            : "No matches found. Check the debug panel for details.",
+          variant: matchCount > 0 ? "default" : "destructive"
+        });
+      } else {
+        setDebugError(result.error || "API error with no specific message");
+        toast({
+          title: "API Error",
+          description: result.error || "An error occurred with the direct API call.",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error("Error during direct API call:", error);
+      setDebugError(error.message || "Unknown error occurred");
+      toast({
+        title: "API Error",
+        description: error.message || "Failed to make direct API call.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const runFindMatches = async () => {
     if (!user?.id) {
       toast({
@@ -72,7 +139,7 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
       setDebugError(error.message || "Unknown error occurred");
       toast({
         title: "Error finding matches",
-        description: "There was a problem finding potential matches.",
+        description: error.message || "There was a problem finding potential matches.",
         variant: "destructive"
       });
     }
@@ -90,8 +157,7 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
         <CardContent className="pt-0">
           <div className="flex flex-col space-y-4">
             <p className="text-sm text-amber-800">
-              Run this tool to find potential swap matches based on mutual dates.
-              Enables detailed logging for troubleshooting matching issues.
+              Run these tools to find potential swap matches or diagnose issues.
             </p>
             <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3">
               <Button
@@ -102,6 +168,20 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
               >
                 {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Find Potential Matches
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={runDirectApiCall}
+                className="text-amber-900 border-amber-300"
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Bug className="mr-2 h-4 w-4" />
+                )}
+                Direct API Call
               </Button>
               
               {showDebugOutput && (
@@ -161,8 +241,18 @@ export function SwapMatchDebug({ onRefreshMatches }: SwapMatchDebugProps) {
                           <li>There are no other users with compatible swap requests</li>
                           <li>The dates requested don't align with others' offerings</li>
                           <li>There's an issue with the matching algorithm</li>
+                          <li>RLS policies may be blocking access to necessary data</li>
                         </ul>
                       </p>
+                    )}
+                    
+                    {debugResults.rawApiData && (
+                      <div className="mt-4">
+                        <p className="text-sm font-medium">Raw API data:</p>
+                        <pre className="bg-gray-50 p-2 rounded mt-1 text-xs overflow-auto h-32">
+                          {JSON.stringify(debugResults.rawApiData, null, 2)}
+                        </pre>
+                      </div>
                     )}
                   </div>
                 )}
