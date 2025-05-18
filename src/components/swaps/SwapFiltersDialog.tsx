@@ -80,7 +80,7 @@ export function SwapFiltersDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] bg-white">
         <DialogHeader>
           <DialogTitle>Swap Filters</DialogTitle>
         </DialogHeader>
@@ -128,7 +128,7 @@ export function SwapFiltersDialog({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white" align="start">
+                <PopoverContent className="w-auto p-0 bg-white z-50" align="start">
                   <CalendarComponent
                     mode="single"
                     selected={localFilters.dateRange.from}
@@ -139,7 +139,6 @@ export function SwapFiltersDialog({
                       }))
                     }
                     initialFocus
-                    className={cn("p-3 pointer-events-auto")}
                   />
                 </PopoverContent>
               </Popover>
@@ -161,7 +160,7 @@ export function SwapFiltersDialog({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white" align="start">
+                <PopoverContent className="w-auto p-0 bg-white z-50" align="start">
                   <CalendarComponent
                     mode="single"
                     selected={localFilters.dateRange.to}
@@ -172,7 +171,6 @@ export function SwapFiltersDialog({
                       }))
                     }
                     initialFocus
-                    className={cn("p-3 pointer-events-auto")}
                     fromDate={localFilters.dateRange.from}
                   />
                 </PopoverContent>
@@ -195,7 +193,7 @@ export function SwapFiltersDialog({
               <SelectTrigger className="bg-white">
                 <SelectValue placeholder="All trucks" />
               </SelectTrigger>
-              <SelectContent className="bg-white">
+              <SelectContent className="bg-white z-50">
                 <SelectItem value="">All trucks</SelectItem>
                 {availableTrucks.map((truck) => (
                   <SelectItem key={truck} value={truck}>
@@ -221,7 +219,7 @@ export function SwapFiltersDialog({
               <SelectTrigger className="bg-white">
                 <SelectValue placeholder="All shift types" />
               </SelectTrigger>
-              <SelectContent className="bg-white">
+              <SelectContent className="bg-white z-50">
                 <SelectItem value="">All shift types</SelectItem>
                 <SelectItem value="day">Day</SelectItem>
                 <SelectItem value="afternoon">Afternoon</SelectItem>
