@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Map } from "lucide-react";
+import { Map as MapIcon } from "lucide-react"; // Change here to match the renamed import
 import { Button } from "@/components/ui/button";
 import { RegionPreferencesDialog } from "./RegionPreferencesDialog";
 
@@ -14,7 +14,7 @@ export const RegionPreferencesButton = () => {
         onClick={() => setIsDialogOpen(true)}
         className="flex items-center gap-2"
       >
-        <Map className="h-4 w-4" />
+        <MapIcon className="h-4 w-4" />
         Region/Area Preferences
       </Button>
       

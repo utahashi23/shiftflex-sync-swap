@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from "react";
-import { Map } from "lucide-react";
+import { Map as MapIcon } from "lucide-react"; // Renamed import to avoid conflict
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -61,7 +62,7 @@ export const RegionPreferencesDialog = ({
         if (regionsError) throw regionsError;
         
         // Transform the data structure
-        const regionsDataMap = new Map(); // Using a regular JavaScript Map without type parameters
+        const regionsDataMap = new Map(); // JavaScript's built-in Map
         
         // First pass: Create regions
         if (regionsAndAreas && Array.isArray(regionsAndAreas)) {
