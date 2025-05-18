@@ -26,14 +26,14 @@ export const useSwapCalendarState = () => {
   // When a shift is selected, set the corresponding shift type to true
   useEffect(() => {
     if (selectedShift) {
-      // Default to enabling the same shift type as the selected shift
+      // Enable all shift types by default to support multi-selection
       setAcceptableShiftTypes({
-        day: selectedShift.type === 'day',
-        afternoon: selectedShift.type === 'afternoon',
-        night: selectedShift.type === 'night',
+        day: true,
+        afternoon: true,
+        night: true,
       });
       
-      console.log(`Setting initial acceptableShiftTypes based on selected shift type: ${selectedShift.type}`);
+      console.log(`Keeping all shift types enabled for better multi-selection experience`);
     }
   }, [selectedShift]);
 

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
 import { Button } from "@/components/ui/button";
@@ -187,6 +186,7 @@ export const ImprovedSwapForm = ({
             
             <div>
               <h3 className="text-lg font-medium mb-2">Select acceptable shift types</h3>
+              <p className="text-sm text-muted-foreground mb-2">You can select multiple shift types that you're willing to accept</p>
               <MultiSelect
                 options={SHIFT_TYPES}
                 selected={selectedTypes}

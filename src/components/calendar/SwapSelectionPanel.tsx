@@ -101,7 +101,7 @@ export const SwapSelectionPanel = ({
                     Important: Select which shift types you're willing to accept in exchange
                   </p>
                   <p className="text-xs text-amber-600">
-                    Only shifts of these types will be considered for matching
+                    You can select multiple shift types that you're willing to accept
                   </p>
                 </div>
                 
@@ -163,7 +163,7 @@ export const SwapSelectionPanel = ({
                 
                 <div className="mt-4">
                   <p className="text-sm text-amber-600">
-                    Select days you'd like to swap for on the calendar. You can only select days where you are not already rostered.
+                    Select days you'd like to swap for on the calendar. You can select multiple dates.
                   </p>
                   {selectedSwapDates.length > 0 && (
                     <div className="mt-2">
