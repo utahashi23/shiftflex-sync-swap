@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.23.0";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -80,7 +81,8 @@ serve(async (req) => {
     console.log(`Found ${userRequests?.length || 0} pending requests for user ${user_id}`);
 
     // Fetch all potential matches for this user
-    const { data: potentialMatches, error: matchesError } = await supabaseAdmin
+    // FIX: Fixing the OR condition syntax in the query
+    let query = supabaseAdmin
       .from('shift_swap_potential_matches')
       .select(`
         id,
@@ -96,12 +98,18 @@ serve(async (req) => {
         requester:requester_request_id(requester_id, status),
         acceptor:acceptor_request_id(requester_id, status)
       `)
-      .or(
-        user_initiator_only
-          ? `requester.requester_id.eq.${user_id}`  
-          : `requester.requester_id.eq.${user_id},acceptor.requester_id.eq.${user_id}`
-      )
       .neq('status', 'cancelled');
+      
+    // Apply the correct filter using .or() method
+    if (user_initiator_only) {
+      // Only find matches where the user is the requester
+      query = query.filter('requester.requester_id', 'eq', user_id);
+    } else {
+      // Find matches where the user is either the requester or the acceptor
+      query = query.or(`requester.requester_id.eq.${user_id},acceptor.requester_id.eq.${user_id}`);
+    }
+    
+    const { data: potentialMatches, error: matchesError } = await query;
 
     if (matchesError) {
       console.error('Error fetching potential matches:', matchesError);
