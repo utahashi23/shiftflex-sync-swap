@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Checkbox } from "@/components/ui/checkbox";
 import { X, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import ShiftTypeBadge from "./ShiftTypeBadge";
+import { getShiftType } from "@/utils/shiftUtils";
 
 // Define shift types directly since we don't have a shift_types table
 const SHIFT_TYPES = [
@@ -151,8 +152,8 @@ export const ImprovedSwapForm = ({
                 {userShifts.map(shift => {
                   const isSelected = selectedShifts.some(s => s.id === shift.id);
                   
-                  // Determine shift type label - avoid "Unknown Shift"
-                  const shiftTypeLabel = shift.shift_type ? shift.shift_type : "";
+                  // Determine shift type
+                  const shiftType = getShiftType(shift.start_time);
                   
                   return (
                     <div 
@@ -163,7 +164,10 @@ export const ImprovedSwapForm = ({
                       onClick={() => toggleShiftSelection(shift)}
                     >
                       <div className="flex-1">
-                        <p className="font-medium">{format(new Date(shift.date), 'EEEE, MMM d, yyyy')}</p>
+                        <div className="flex justify-between items-center mb-2">
+                          <p className="font-medium">{format(new Date(shift.date), 'EEEE, MMM d, yyyy')}</p>
+                          <ShiftTypeBadge type={shiftType} showLabel={true} />
+                        </div>
                         <p className="text-sm text-muted-foreground">
                           {shift.start_time} - {shift.end_time}
                         </p>
@@ -174,12 +178,7 @@ export const ImprovedSwapForm = ({
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-3">
-                        {shiftTypeLabel && (
-                          <div className="text-sm px-2 py-1 bg-primary/10 rounded">
-                            {shiftTypeLabel}
-                          </div>
-                        )}
+                      <div className="ml-3">
                         <Checkbox checked={isSelected} />
                       </div>
                     </div>
@@ -303,7 +302,6 @@ export const ImprovedSwapForm = ({
       </ShiftSwapDialog>
     );
   } else {
-    // Render inline version for tabs
     return (
       <Card>
         <CardHeader>
