@@ -14,7 +14,7 @@ const ShiftIconBadge = ({ type, showLabel = false, className = "" }: ShiftIconBa
     return type.charAt(0).toUpperCase() + type.slice(1);
   };
 
-  // Get color based on shift type
+  // Get color based on shift type (for the icon only)
   const getShiftTypeColor = (type: string) => {
     switch(type) {
       case 'day':
@@ -46,7 +46,6 @@ const ShiftIconBadge = ({ type, showLabel = false, className = "" }: ShiftIconBa
   return (
     <div className={cn(
       "inline-flex items-center gap-1",
-      getShiftTypeColor(type),
       className
     )}>
       {renderIcon()}
