@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedSwapForm } from "./swaps/ImprovedSwapForm";
@@ -10,7 +11,6 @@ import { useSwapRequests } from "@/hooks/swap-requests";
 import { MatchedSwapsTabs } from "./matched-swaps/MatchedSwapsTabs";
 import { SwapMatch as ComponentSwapMatch } from "./matched-swaps/types";
 import { SwapMatch as HookSwapMatch } from "@/hooks/swap-matches/types";
-import SwapCalendar from "./SwapCalendar";
 import { 
   format, 
   addMonths, 
@@ -61,7 +61,7 @@ const ImprovedShiftSwaps = () => {
     fetchSwapRequests: hookFetchSwapRequests
   } = useSwapRequests();
 
-  // New state for month-based navigation
+  // New state for month-based navigation - now used for both tabs
   const [currentMonth, setCurrentMonth] = useState(new Date());
   
   // New state for selected requests (for multiple deletion)
@@ -336,6 +336,31 @@ const ImprovedShiftSwaps = () => {
   // Check if any requests are selected
   const hasSelectedRequests = selectedRequests.length > 0;
 
+  // Month navigation component that can be reused
+  const MonthNavigation = () => (
+    <div className="flex items-center space-x-2">
+      <Button 
+        variant="outline" 
+        size="icon" 
+        onClick={goToPreviousMonth}
+      >
+        <ChevronLeft className="h-4 w-4" />
+        <span className="sr-only">Previous Month</span>
+      </Button>
+      <h2 className="text-[0.85rem] font-medium">
+        {format(currentMonth, 'MMMM yyyy')}
+      </h2>
+      <Button 
+        variant="outline" 
+        size="icon" 
+        onClick={goToNextMonth}
+      >
+        <ChevronRight className="h-4 w-4" />
+        <span className="sr-only">Next Month</span>
+      </Button>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-end mb-4">
@@ -350,45 +375,25 @@ const ImprovedShiftSwaps = () => {
         </TabsList>
         
         <TabsContent value="create" className="mt-6 space-y-4">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div>
-              <SwapCalendar />
-            </div>
-            <div>
-              <ImprovedSwapForm
-                isOpen={true}
-                onClose={() => {}}
-                onSubmit={handleCreateSwap}
-                isDialog={false}
-              />
-            </div>
+          {/* Added month navigation to Create Swap tab (matching the My Swaps tab) */}
+          <div className="flex items-center justify-between mb-4">
+            <MonthNavigation />
+          </div>
+          
+          <div className="grid gap-6">
+            <ImprovedSwapForm
+              isOpen={true}
+              onClose={() => {}}
+              onSubmit={handleCreateSwap}
+              isDialog={false}
+            />
           </div>
         </TabsContent>
         
         <TabsContent value="mySwaps" className="mt-6">
           {/* Month navigation and controls */}
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToPreviousMonth}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                <span className="sr-only">Previous Month</span>
-              </Button>
-              <h2 className="text-[0.85rem] font-medium">
-                {format(currentMonth, 'MMMM yyyy')}
-              </h2>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToNextMonth}
-              >
-                <ChevronRight className="h-4 w-4" />
-                <span className="sr-only">Next Month</span>
-              </Button>
-            </div>
+            <MonthNavigation />
             
             <div className="flex items-center space-x-2">
               <Button
