@@ -1,311 +1,282 @@
 
-// This is just an example update to ensure the useLeaveSwapMatches hook returns matches with all required fields
-// The actual implementation would be part of the hooks/leave-blocks directory
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { LeaveSwapMatch } from '@/types/leave-blocks';
-import { useToast } from '@/hooks/use-toast';
 
-export function useLeaveSwapMatches() {
+interface LeaveSwapMatchState {
+  activeMatches: LeaveSwapMatch[];
+  pastMatches: LeaveSwapMatch[];
+  isLoadingMatches: boolean;
+  matchesError: Error | null;
+  hasActiveRequests: boolean;
+}
+
+export const useLeaveSwapMatches = () => {
+  const [state, setState] = useState<LeaveSwapMatchState>({
+    activeMatches: [],
+    pastMatches: [],
+    isLoadingMatches: false,
+    matchesError: null,
+    hasActiveRequests: false
+  });
+  
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [activeMatches, setActiveMatches] = useState<LeaveSwapMatch[]>([]);
-  const [pastMatches, setPassMatches] = useState<LeaveSwapMatch[]>([]);
-  const [hasActiveRequests, setHasActiveRequests] = useState(false);
-  const [isLoadingMatches, setIsLoadingMatches] = useState(true);
-  const [matchesError, setMatchesError] = useState<Error | null>(null);
-  const [isFindingMatches, setIsFindingMatches] = useState(false);
-  const [isAcceptingMatch, setIsAcceptingMatch] = useState(false);
-  const [isFinalizingMatch, setIsFinalizingMatch] = useState(false);
-  const [isCancellingMatch, setIsCancellingMatch] = useState(false);
-
-  // Fetch matches from the database
-  const fetchMatches = async () => {
-    if (!user) return;
+  
+  // Check if the user has any active leave swap requests
+  const checkForActiveRequests = useCallback(async () => {
+    if (!user) return false;
     
     try {
-      setIsLoadingMatches(true);
-      setMatchesError(null);
-      
-      // Check if the user has any active swap requests
-      const { data: requestsData, error: requestsError } = await supabase
+      const { data: requests, error } = await supabase
         .from('leave_swap_requests')
         .select('id')
         .eq('requester_id', user.id)
-        .eq('status', 'pending');
+        .eq('status', 'pending')
+        .limit(1);
       
-      if (requestsError) throw requestsError;
-      
-      setHasActiveRequests(requestsData && requestsData.length > 0);
-      
-      // Get user profile data for displaying names
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('first_name, last_name, employee_id')
-        .eq('id', user.id)
-        .single();
-        
-      if (profileError && profileError.code !== 'PGRST116') throw profileError;
-      
-      // Fetch all matches for the user (only as the current user)
-      // The RPC function already filters from the user's perspective
-      const { data: matchesData, error: matchesError } = await supabase.rpc('get_user_leave_swap_matches', {
-        p_user_id: user.id
-      });
-      
-      if (matchesError) throw matchesError;
-
-      if (matchesData) {
-        console.log("Raw matches data:", matchesData);
-        
-        // Fetch other users' profiles for their employee IDs
-        // Make sure we have a unique list of other user IDs
-        const otherUserIds = [...new Set(matchesData.map(match => match.other_user_id))];
-        const { data: otherProfilesData, error: otherProfilesError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, employee_id')
-          .in('id', otherUserIds);
-          
-        if (otherProfilesError) throw otherProfilesError;
-        
-        // Create a map for quick lookup of other user profiles
-        const otherProfilesMap = new Map();
-        if (otherProfilesData) {
-          otherProfilesData.forEach(profile => {
-            otherProfilesMap.set(profile.id, {
-              name: `${profile.first_name} ${profile.last_name}`,
-              employee_id: profile.employee_id || 'N/A'
-            });
-          });
-        }
-        
-        // Transform to ensure all required fields are present
-        const transformedMatches = matchesData.map((match: any) => {
-          const otherProfile = otherProfilesMap.get(match.other_user_id) || { name: 'Unknown User', employee_id: 'N/A' };
-          
-          // Create complete match object with all required properties
-          const transformedMatch: LeaveSwapMatch = {
-            match_id: match.match_id,
-            match_status: match.match_status,
-            created_at: match.created_at,
-            my_leave_block_id: match.my_leave_block_id,
-            my_block_number: match.my_block_number,
-            my_start_date: match.my_start_date,
-            my_end_date: match.my_end_date,
-            other_leave_block_id: match.other_leave_block_id,
-            other_block_number: match.other_block_number,
-            other_start_date: match.other_start_date,
-            other_end_date: match.other_end_date,
-            other_user_id: match.other_user_id,
-            other_user_name: otherProfile.name,
-            other_employee_id: otherProfile.employee_id,
-            is_requester: match.is_requester,
-            my_user_name: profileData ? `${profileData.first_name} ${profileData.last_name}` : 'Current User',
-            my_employee_id: profileData?.employee_id || 'N/A',
-            // We need to explicitly check if these properties exist and provide defaults
-            split_designation: match.split_designation || null,
-            original_block_id: match.original_block_id || null
-          };
-          
-          return transformedMatch;
-        });
-
-        console.log("Transformed matches:", transformedMatches);
-
-        // Create a unique key for each match based on the combination of blocks and other user
-        // This ensures we truly deduplicate based on the actual swap relationship
-        const getUniqueMatchKey = (match: LeaveSwapMatch) => {
-          // Sort the IDs to ensure consistency regardless of which side the user is on
-          const blockIds = [match.my_leave_block_id, match.other_leave_block_id].sort().join('_');
-          return `${blockIds}_${match.other_user_id}`;
-        };
-        
-        // Use Maps with our custom unique keys for deduplication
-        const activeMatchesMap = new Map<string, LeaveSwapMatch>();
-        const pastMatchesMap = new Map<string, LeaveSwapMatch>();
-        
-        transformedMatches.forEach(match => {
-          const uniqueKey = getUniqueMatchKey(match);
-          
-          if (['pending', 'accepted'].includes(match.match_status)) {
-            // If we already have this match and the current one is from the user's perspective as requester, prioritize it
-            if (!activeMatchesMap.has(uniqueKey) || match.is_requester) {
-              activeMatchesMap.set(uniqueKey, match);
-            }
-          } else if (['completed', 'cancelled'].includes(match.match_status)) {
-            if (!pastMatchesMap.has(uniqueKey) || match.is_requester) {
-              pastMatchesMap.set(uniqueKey, match);
-            }
-          }
-        });
-        
-        setActiveMatches(Array.from(activeMatchesMap.values()));
-        setPassMatches(Array.from(pastMatchesMap.values()));
-      }
+      return !error && requests && requests.length > 0;
     } catch (error) {
-      console.error('Error fetching leave swap matches:', error);
-      setMatchesError(error as Error);
-    } finally {
-      setIsLoadingMatches(false);
+      console.error('Error checking for active requests:', error);
+      return false;
     }
-  };
-
-  // Find potential matches for the user's swap requests
-  const findMatches = async () => {
+  }, [user]);
+  
+  // Fetch all leave swap matches for the user
+  const fetchMatches = useCallback(async () => {
     if (!user) return;
     
+    setState(prev => ({ ...prev, isLoadingMatches: true, matchesError: null }));
+    
     try {
-      setIsFindingMatches(true);
+      // Check if user has active requests
+      const hasRequests = await checkForActiveRequests();
       
-      const { data, error } = await supabase.functions.invoke('find_leave_swap_matches', {
-        body: { user_id: user.id }
+      // Fetch matches data from the database
+      const { data, error } = await supabase.functions.invoke('get_leave_swap_matches', {
+        body: { 
+          user_id: user.id
+        }
       });
       
       if (error) throw error;
       
-      toast({
-        title: "Search complete",
-        description: data?.matchesFound > 0 
-          ? `Found ${data.matchesFound} potential leave swaps.` 
-          : "No new matches found at this time.",
+      const matches = data?.matches || [];
+      
+      // Separate active and past matches
+      const activeMatches = matches.filter((match: LeaveSwapMatch) => 
+        match.match_status === 'pending' || 
+        match.match_status === 'accepted' ||
+        match.match_status === 'other_accepted'
+      );
+      
+      const pastMatches = matches.filter((match: LeaveSwapMatch) => 
+        match.match_status === 'completed' || 
+        match.match_status === 'cancelled'
+      );
+      
+      setState({
+        activeMatches,
+        pastMatches,
+        isLoadingMatches: false,
+        matchesError: null,
+        hasActiveRequests: hasRequests
       });
       
-      // Refresh the matches list
-      fetchMatches();
+    } catch (error) {
+      console.error('Error fetching leave swap matches:', error);
+      setState(prev => ({ 
+        ...prev, 
+        isLoadingMatches: false,
+        matchesError: error as Error
+      }));
+      
+      toast({
+        title: "Failed to load matches",
+        description: "There was a problem loading your leave swap matches",
+        variant: "destructive"
+      });
+    }
+  }, [user, checkForActiveRequests]);
+  
+  // Find potential matches for the user's leave swap requests
+  const findMatches = useCallback(async () => {
+    if (!user) return;
+    
+    setState(prev => ({ ...prev, isLoadingMatches: true }));
+    
+    try {
+      // Call the find matches function
+      const { data, error } = await supabase.functions.invoke('find_leave_swap_matches', {
+        body: {
+          user_id: user.id
+        }
+      });
+      
+      if (error) throw error;
+      
+      // Refresh matches after finding
+      await fetchMatches();
+      
+      if (data.matches_created > 0) {
+        toast({
+          title: "Matches Found!",
+          description: `Found ${data.matches_created} potential leave block matches.`
+        });
+      } else {
+        toast({
+          title: "No Matches Found",
+          description: "No potential leave block matches were found at this time."
+        });
+      }
       
     } catch (error) {
       console.error('Error finding matches:', error);
+      setState(prev => ({ ...prev, isLoadingMatches: false }));
+      
       toast({
-        title: "Error finding matches",
-        description: "There was a problem searching for leave swap matches.",
-        variant: "destructive",
+        title: "Failed to find matches",
+        description: "There was a problem searching for leave block matches",
+        variant: "destructive"
       });
-    } finally {
-      setIsFindingMatches(false);
     }
-  };
-
-  // Accept a leave swap match
-  const acceptMatch = async ({ matchId }: { matchId: string }) => {
-    if (!user || !matchId) return;
+  }, [user, fetchMatches]);
+  
+  // Accept a match
+  const acceptMatch = useCallback(async ({ matchId }: { matchId: string }) => {
+    if (!user || !matchId) return false;
     
     try {
-      setIsAcceptingMatch(true);
+      setState(prev => ({ ...prev, isAcceptingMatch: true }));
       
-      const { data, error } = await supabase.functions.invoke('accept_leave_swap', {
-        body: { match_id: matchId }
+      const { error } = await supabase.functions.invoke('accept_leave_swap', {
+        body: {
+          match_id: matchId,
+          user_id: user.id
+        }
       });
       
       if (error) throw error;
       
+      // Refresh matches after accepting
+      await fetchMatches();
+      
       toast({
-        title: "Swap accepted",
-        description: "You have successfully accepted the leave swap.",
+        title: "Swap Accepted",
+        description: "You have accepted the leave block swap."
       });
       
-      // Refresh the matches list
-      fetchMatches();
-      
+      return true;
     } catch (error) {
-      console.error('Error accepting match:', error);
+      console.error('Error accepting leave swap:', error);
+      
       toast({
-        title: "Error accepting swap",
-        description: "There was a problem accepting the leave swap.",
-        variant: "destructive",
+        title: "Failed to accept swap",
+        description: "There was a problem accepting the leave block swap",
+        variant: "destructive"
       });
-    } finally {
-      setIsAcceptingMatch(false);
+      
+      setState(prev => ({ ...prev, isAcceptingMatch: false }));
+      return false;
     }
-  };
-
-  // Finalize a leave swap match
-  const finalizeMatch = async ({ matchId }: { matchId: string }) => {
-    if (!user || !matchId) return;
+  }, [user, fetchMatches]);
+  
+  // Cancel a match
+  const cancelMatch = useCallback(async ({ matchId }: { matchId: string }) => {
+    if (!user || !matchId) return false;
     
     try {
-      setIsFinalizingMatch(true);
+      setState(prev => ({ ...prev, isCancellingMatch: true }));
       
-      const { data, error } = await supabase.functions.invoke('finalize_leave_swap', {
-        body: { match_id: matchId }
+      const { error } = await supabase.functions.invoke('cancel_leave_swap', {
+        body: {
+          match_id: matchId,
+          user_id: user.id
+        }
       });
       
       if (error) throw error;
       
+      // Refresh matches after cancelling
+      await fetchMatches();
+      
       toast({
-        title: "Swap finalized",
-        description: "The leave swap has been successfully finalized.",
+        title: "Swap Cancelled",
+        description: "The leave block swap has been cancelled."
       });
       
-      // Refresh the matches list
-      fetchMatches();
-      
+      return true;
     } catch (error) {
-      console.error('Error finalizing match:', error);
+      console.error('Error cancelling leave swap:', error);
+      
       toast({
-        title: "Error finalizing swap",
-        description: "There was a problem finalizing the leave swap.",
-        variant: "destructive",
+        title: "Failed to cancel swap",
+        description: "There was a problem cancelling the leave block swap",
+        variant: "destructive"
       });
-    } finally {
-      setIsFinalizingMatch(false);
+      
+      setState(prev => ({ ...prev, isCancellingMatch: false }));
+      return false;
     }
-  };
-
-  // Cancel a leave swap match
-  const cancelMatch = async ({ matchId }: { matchId: string }) => {
-    if (!user || !matchId) return;
+  }, [user, fetchMatches]);
+  
+  // Finalize a match
+  const finalizeMatch = useCallback(async ({ matchId }: { matchId: string }) => {
+    if (!user || !matchId) return false;
     
     try {
-      setIsCancellingMatch(true);
+      setState(prev => ({ ...prev, isFinalizingMatch: true }));
       
-      const { data, error } = await supabase.functions.invoke('cancel_leave_swap', {
-        body: { match_id: matchId }
+      const { error } = await supabase.functions.invoke('finalize_leave_swap', {
+        body: {
+          match_id: matchId,
+          user_id: user.id
+        }
       });
       
       if (error) throw error;
       
+      // Refresh matches after finalizing
+      await fetchMatches();
+      
       toast({
-        title: "Swap cancelled",
-        description: "The leave swap has been cancelled.",
+        title: "Swap Finalized",
+        description: "The leave block swap has been finalized and calendars updated."
       });
       
-      // Refresh the matches list
-      fetchMatches();
-      
+      return true;
     } catch (error) {
-      console.error('Error cancelling match:', error);
+      console.error('Error finalizing leave swap:', error);
+      
       toast({
-        title: "Error cancelling swap",
-        description: "There was a problem cancelling the leave swap.",
-        variant: "destructive",
+        title: "Failed to finalize swap",
+        description: "There was a problem finalizing the leave block swap",
+        variant: "destructive"
       });
-    } finally {
-      setIsCancellingMatch(false);
+      
+      setState(prev => ({ ...prev, isFinalizingMatch: false }));
+      return false;
     }
-  };
-
-  // Fetch matches when the user changes or the component mounts
+  }, [user, fetchMatches]);
+  
+  // Initial fetch when the component mounts
   useEffect(() => {
     if (user) {
       fetchMatches();
     }
-  }, [user]);
-
+  }, [user, fetchMatches]);
+  
   return {
-    activeMatches,
-    pastMatches,
-    hasActiveRequests,
-    isLoadingMatches,
-    matchesError,
+    ...state,
+    isFindingMatches: state.isLoadingMatches,
+    isAcceptingMatch: false,
+    isFinalizingMatch: false,
+    isCancellingMatch: false,
     findMatches,
-    isFindingMatches,
     acceptMatch,
-    isAcceptingMatch,
-    finalizeMatch,
-    isFinalizingMatch,
     cancelMatch,
-    isCancellingMatch,
+    finalizeMatch,
     refetchMatches: fetchMatches
   };
-}
+};

@@ -1,154 +1,92 @@
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 import { LeaveSwapRequest } from '@/types/leave-blocks';
-import { useToast } from '@/hooks/use-toast';
 
 export const useLeaveSwapRequests = () => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [requests, setRequests] = useState<LeaveSwapRequest[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
 
-  // Fetch user's leave swap requests
-  const {
-    data: swapRequests,
-    isLoading: isLoadingRequests,
-    error: requestsError,
-    refetch: refetchRequests
-  } = useQuery({
-    queryKey: ['leave-swap-requests'],
-    queryFn: async () => {
-      const currentUser = await supabase.auth.getUser();
-      const userId = currentUser.data.user?.id;
-      
-      if (!userId) throw new Error('User not authenticated');
-      
+  const fetchRequests = useCallback(async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    
+    try {
       const { data, error } = await supabase
         .from('leave_swap_requests')
-        .select('*, requester_leave_block:leave_blocks!requester_leave_block_id(*), requested_leave_block:leave_blocks!requested_leave_block_id(*)')
-        .eq('requester_id', userId);
+        .select(`
+          *,
+          requester_leave_block:requester_leave_block_id(*),
+          requested_leave_block:requested_leave_block_id(*)
+        `)
+        .eq('requester_id', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
       
       if (error) throw error;
       
-      return data as LeaveSwapRequest[];
-    }
-  });
-
-  // Create a new leave swap request
-  const createRequestMutation = useMutation({
-    mutationFn: async ({ requesterLeaveBlockId, requestedLeaveBlockId }: { 
-      requesterLeaveBlockId: string, 
-      requestedLeaveBlockId: string 
-    }) => {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      
-      const userId = userData.user?.id;
-      if (!userId) throw new Error('User not authenticated');
-      
-      const { data, error } = await supabase
-        .from('leave_swap_requests')
-        .insert({
-          requester_id: userId,
-          requester_leave_block_id: requesterLeaveBlockId,
-          requested_leave_block_id: requestedLeaveBlockId,
-          status: 'pending'
-        })
-        .select();
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
+      setRequests(data || []);
+    } catch (error) {
+      console.error('Error fetching leave swap requests:', error);
       toast({
-        title: 'Request created',
-        description: 'Your leave block swap request has been created successfully.',
+        title: "Error",
+        description: "Failed to load leave swap requests",
+        variant: "destructive"
       });
-      queryClient.invalidateQueries({ queryKey: ['leave-swap-requests'] });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error creating request',
-        description: error.message,
-        variant: 'destructive',
-      });
+    } finally {
+      setIsLoading(false);
     }
-  });
+  }, [user]);
 
-  // Delete a leave swap request (now allowing matched requests to be deleted)
-  const deleteRequestMutation = useMutation({
-    mutationFn: async ({ requestId }: { requestId: string }) => {
-      // First check if this request is part of a match
-      const { data: matchData, error: matchError } = await supabase
-        .from('leave_swap_matches')
-        .select('id, status')
-        .or(`requester_leave_block_id.eq.${requestId},acceptor_leave_block_id.eq.${requestId}`);
+  const cancelRequest = useCallback(async (requestId: string) => {
+    try {
+      setIsLoading(true);
       
-      if (matchError) throw matchError;
-      
-      // If there's a match and it's not completed, handle it appropriately
-      if (matchData && matchData.length > 0) {
-        // Only cancel the match if it's not already completed
-        const match = matchData[0];
-        if (match.status !== 'completed') {
-          const { error: cancelError } = await supabase
-            .from('leave_swap_matches')
-            .update({ status: 'cancelled' })
-            .eq('id', match.id);
-          
-          if (cancelError) throw cancelError;
-        }
-      }
-      
-      // Now delete the request
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('leave_swap_requests')
-        .delete()
+        .update({ status: 'cancelled' })
         .eq('id', requestId)
-        .select();
+        .eq('requester_id', user?.id);
       
       if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
+      
+      // Update local state
+      setRequests(prev => prev.filter(req => req.id !== requestId));
+      
       toast({
-        title: 'Request deleted',
-        description: 'Your leave block swap request has been deleted.',
+        title: "Request Cancelled",
+        description: "Your leave swap request has been cancelled"
       });
-      queryClient.invalidateQueries({ queryKey: ['leave-swap-requests'] });
-    },
-    onError: (error) => {
+      
+      return true;
+    } catch (error) {
+      console.error('Error cancelling request:', error);
       toast({
-        title: 'Error deleting request',
-        description: error.message,
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to cancel leave swap request",
+        variant: "destructive"
       });
+      return false;
+    } finally {
+      setIsLoading(false);
     }
-  });
+  }, [user]);
 
-  // Separate pending and matched requests
-  const pendingRequests = swapRequests?.filter(
-    request => request.status === 'pending'
-  ) || [];
-  
-  const matchedRequests = swapRequests?.filter(
-    request => request.status === 'matched'
-  ) || [];
-  
-  const completedRequests = swapRequests?.filter(
-    request => ['completed', 'cancelled'].includes(request.status)
-  ) || [];
+  // Load requests on mount and when user changes
+  useEffect(() => {
+    if (user) {
+      fetchRequests();
+    }
+  }, [user, fetchRequests]);
 
   return {
-    swapRequests,
-    pendingRequests,
-    matchedRequests,
-    completedRequests,
-    isLoadingRequests,
-    requestsError,
-    createRequest: createRequestMutation.mutate,
-    isCreatingRequest: createRequestMutation.isPending,
-    deleteRequest: deleteRequestMutation.mutate,
-    isDeletingRequest: deleteRequestMutation.isPending,
-    refetchRequests
+    requests,
+    isLoading,
+    refreshRequests: fetchRequests,
+    cancelRequest
   };
 };
