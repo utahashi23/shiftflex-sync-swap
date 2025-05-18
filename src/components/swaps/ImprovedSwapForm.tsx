@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
 import { Button } from "@/components/ui/button";
@@ -133,7 +134,6 @@ export const ImprovedSwapForm = ({
       case 1:
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-medium">Select shifts to swap</h3>
             <p className="text-sm text-muted-foreground mb-2">
               You can select multiple shifts that you want to swap
             </p>
@@ -215,15 +215,6 @@ export const ImprovedSwapForm = ({
                 </div>
               </div>
             )}
-            
-            <div className="pt-4 flex justify-end">
-              <Button 
-                onClick={handleContinue}
-                disabled={selectedShifts.length === 0}
-              >
-                Continue
-              </Button>
-            </div>
           </div>
         );
       
