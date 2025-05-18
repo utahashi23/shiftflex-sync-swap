@@ -22,10 +22,7 @@ const Dashboard = () => {
   useAuthRedirect({ protectedRoute: true });
   const { user } = useAuth();
   const { stats, isLoading } = useDashboardData(user);
-  const { 
-    totalUsers, 
-    isLoadingUsers 
-  } = useDashboardSummary();
+  const { totalUsers, isLoadingUsers } = useDashboardSummary();
 
   return (
     <AppLayout>

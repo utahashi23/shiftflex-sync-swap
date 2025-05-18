@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/auth';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface DashboardSummary {
@@ -34,7 +34,6 @@ export const useDashboardSummary = () => {
         if (error) {
           console.error('Error fetching user count:', error);
         } else {
-          console.log('Total profiles count:', count);
           setTotalUsers(count || 0);
           fetchedRef.current = true;
         }
