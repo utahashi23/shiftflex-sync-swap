@@ -53,7 +53,7 @@ const SwapRequestCard = ({ request, onDelete, onDeletePreferredDate }: SwapReque
             </CardTitle>
             <CardDescription className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              <span>{shiftDate}</span>
+              <span className="text-[0.85rem]">{shiftDate}</span>
             </CardDescription>
           </div>
           <Button variant="ghost" size="sm" onClick={onDelete} className="h-8 w-8 p-0">
@@ -66,7 +66,7 @@ const SwapRequestCard = ({ request, onDelete, onDeletePreferredDate }: SwapReque
         <div className="space-y-2">
           <div>
             <h4 className="text-sm font-medium">Requested date:</h4>
-            <p className="text-sm">{wantedDate}</p>
+            <p className="text-sm text-[0.85rem]">{wantedDate}</p>
           </div>
           
           <div>
