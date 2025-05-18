@@ -87,6 +87,14 @@ const ImprovedShiftSwaps = () => {
   const handleCreateSwap = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
     setIsSubmitting(true);
     try {
+      // Format dates for API
+      const preferredDates = wantedDates.map(date => ({
+        date,
+        acceptedTypes
+      }));
+      
+      console.log("Creating swap request with: ", { shiftIds, preferredDates });
+      
       const success = await createSwapRequest(shiftIds, wantedDates, acceptedTypes);
       
       if (success) {

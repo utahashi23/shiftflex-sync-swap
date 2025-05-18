@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 /**
- * Create a new swap request using the edge function
+ * Create new swap requests using the edge function
  */
 export const createSwapRequestApi = async (
   shiftIds: string[], 
@@ -14,7 +14,7 @@ export const createSwapRequestApi = async (
   }
   
   try {
-    console.log('Creating swap request for shifts:', shiftIds);
+    console.log('Creating swap requests for shifts:', shiftIds);
     console.log('With preferred dates:', preferredDates);
     
     // Call the Supabase edge function
@@ -32,7 +32,7 @@ export const createSwapRequestApi = async (
     
     toast({
       title: "Swap Request Created",
-      description: "Your shift swap request has been saved.",
+      description: `${data.request_ids.length} swap request(s) have been saved.`,
       variant: "default"
     });
     
