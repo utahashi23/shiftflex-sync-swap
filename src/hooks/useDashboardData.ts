@@ -91,7 +91,7 @@ export const useDashboardData = (user: ExtendedUser | null) => {
         console.log('Found potential matches:', matches);
         
         // Count matched swaps (both 'accepted' and 'other_accepted' status)
-        const matchedSwapsCount = matches?.filter(match => 
+        const matchedSwapsCount = matches?.matches?.filter((match: any) => 
           match.match_status === 'accepted' || 
           match.match_status === 'other_accepted'
         ).length || 0;
@@ -105,12 +105,12 @@ export const useDashboardData = (user: ExtendedUser | null) => {
         
         // Determine active swap requests by filtering out any that are in accepted matches
         const matchedRequestIds = new Set(
-          (matches || [])
-            .filter(match => 
+          (matches?.matches || [])
+            .filter((match: any) => 
               match.match_status === 'accepted' || 
               match.match_status === 'other_accepted'
             )
-            .flatMap(match => [match.my_request_id, match.other_request_id])
+            .flatMap((match: any) => [match.my_request_id, match.other_request_id])
         );
         
         // Count active swaps (pending requests that have preferred dates and aren't matched yet)

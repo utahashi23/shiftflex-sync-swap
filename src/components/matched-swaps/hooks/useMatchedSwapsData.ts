@@ -146,7 +146,8 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       }
       
       // Explicitly request colleague types inclusion
-      const matchesData = await findSwapMatches(user.id, true, true);
+      const result = await findSwapMatches(user.id, true, true);
+      const matchesData = result?.matches;
       console.log('Raw match data received from function:', matchesData);
       
       if (!matchesData || matchesData.length === 0) {

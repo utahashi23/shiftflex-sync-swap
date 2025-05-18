@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useSwapRequests } from '../swap-requests';
 import { useFindSwapMatches } from './useFindSwapMatches';
 import { useProcessState } from './useProcessState';
-import { fetchAllData } from '../operations/fetchData';
+import { fetchAllData } from './operations/fetchData';
 
 export type MatchingStatus =
   | 'idle'
@@ -33,12 +33,18 @@ export function useSwapMatcher() {
     isProcessing 
   } = useProcessState();
 
-  const { findSwapMatches } = useFindSwapMatches(setRequestInProgress);
+  const { findSwapMatches: findMatches } = useFindSwapMatches(setRequestInProgress);
 
   /**
    * Optimized function to find matches that prevents duplicate/excessive requests
    */
-  const findMatches = async (userId?: string) => {
+  const findSwapMatches = async (
+    userId?: string, 
+    forceCheck: boolean = false,
+    verbose: boolean = false,
+    userPerspectiveOnly: boolean = true,
+    userInitiatorOnly: boolean = true
+  ) => {
     if (requestInProgress) {
       console.log('Match finding operation already in progress, skipping');
       return;
@@ -50,10 +56,10 @@ export function useSwapMatcher() {
       updateProgress('finding-matches', 'Finding potential matches');
       
       // Use userId if provided, otherwise expect it to be included in the findSwapMatches function
-      const matchData = await findSwapMatches(
+      const matchData = await findMatches(
         userId || '',
-        true,
-        false
+        forceCheck,
+        verbose
       );
       
       if (matchData) {
@@ -108,9 +114,10 @@ export function useSwapMatcher() {
       
       updateProgress('analyzing-data', 'Analyzing shift swaps and preferred dates');
       
-      // Pass the data object to findSwapMatches 
-      const matchResponse = await findSwapMatches(
+      // Pass the data object to findSwapMatches - fixed type issue here
+      const matchResponse = await findMatches(
         dataResponse, 
+        true, // Changed from string to boolean
         'Finding potential matches'
       );
       
@@ -133,6 +140,7 @@ export function useSwapMatcher() {
 
   return {
     runMatcher,
+    findSwapMatches,
     findMatches,
     isRunning,
     status,

@@ -1,5 +1,5 @@
 
-import { useSwapMatcher } from '@/hooks/swap-matching/useSwapMatcher';
+import { useSwapMatcher } from '@/hooks/swap-matching';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Loader2 } from 'lucide-react';
