@@ -19,7 +19,7 @@ const ImprovedShiftSwaps = () => {
   
   const {
     createSwapRequest,
-    isLoading: isCreatingSwapRequest, // Renamed to use the isLoading property from useSwapRequests
+    isLoading: isCreatingSwapRequest, // Using isLoading property from useSwapRequests
   } = useSwapRequests();
   
   const handleSwapSubmit = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
