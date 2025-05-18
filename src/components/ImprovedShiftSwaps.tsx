@@ -72,7 +72,7 @@ const ImprovedShiftSwaps = () => {
   // New state for selected requests (for multiple deletion)
   const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
   
-  // Replace sortDirection with filters state
+  // Filters state - now shared between both tabs
   const [filters, setFilters] = useState<SwapFilters>({
     sortDirection: 'asc',
     dateRange: { from: undefined, to: undefined },
@@ -80,8 +80,10 @@ const ImprovedShiftSwaps = () => {
     shiftType: null
   });
   
-  // State for filter dialog
+  // State for filter dialog - now used for both tabs
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  // Add new state to track which tab is using the filter dialog
+  const [filteringTab, setFilteringTab] = useState<'create' | 'mySwaps'>('mySwaps');
   
   // State to track available truck names for filtering
   const [availableTrucks, setAvailableTrucks] = useState<string[]>([]);
@@ -242,6 +244,12 @@ const ImprovedShiftSwaps = () => {
   // Apply filters
   const handleApplyFilters = (newFilters: SwapFilters) => {
     setFilters(newFilters);
+  };
+
+  // Open filter dialog - update to handle different tabs
+  const openFiltersDialog = (tab: 'create' | 'mySwaps') => {
+    setFilteringTab(tab);
+    setIsFiltersOpen(true);
   };
 
   // Open delete dialog for multiple requests
@@ -439,9 +447,28 @@ const ImprovedShiftSwaps = () => {
         </TabsList>
         
         <TabsContent value="create" className="mt-6 space-y-4">
-          {/* Added month navigation to Create Swap tab (matching the My Swaps tab) */}
+          {/* Updated Create Swap tab with filter button */}
           <div className="flex items-center justify-between mb-4">
             <MonthNavigation />
+            
+            {/* Add Filter button to Create Swap tab */}
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openFiltersDialog('create')}
+                className={cn(
+                  "flex items-center space-x-1",
+                  hasActiveFilters ? "bg-blue-50 text-blue-700" : ""
+                )}
+              >
+                <Filter className="h-3 w-3 mr-1" />
+                <span className="text-[0.85rem]">Filter</span>
+                {hasActiveFilters && (
+                  <span className="ml-1 h-2 w-2 rounded-full bg-blue-500"></span>
+                )}
+              </Button>
+            </div>
           </div>
           
           <div className="grid gap-6">
@@ -450,7 +477,8 @@ const ImprovedShiftSwaps = () => {
               onClose={() => {}}
               onSubmit={handleCreateSwap}
               isDialog={false}
-              currentMonth={currentMonth} // Pass the currentMonth to filter shifts
+              currentMonth={currentMonth}
+              filters={filters} // Pass filters to the form
             />
           </div>
         </TabsContent>
@@ -464,7 +492,7 @@ const ImprovedShiftSwaps = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsFiltersOpen(true)}
+                onClick={() => openFiltersDialog('mySwaps')}
                 className={cn(
                   "flex items-center space-x-1",
                   hasActiveFilters ? "bg-blue-50 text-blue-700" : ""
@@ -493,6 +521,7 @@ const ImprovedShiftSwaps = () => {
             </div>
           </div>
           
+          {/* Keep existing code for My Swaps tab */}
           <div className="grid gap-4 md:grid-cols-2">
             {filteredAndSortedRequests.map((request) => (
               <div key={request.id} className="flex-1">
@@ -542,6 +571,7 @@ const ImprovedShiftSwaps = () => {
         </TabsContent>
         
         <TabsContent value="matches" className="mt-6">
+          {/* ... keep existing code (matches tab) */}
           <MatchedSwapsTabs
             activeTab="active"
             setActiveTab={() => {}}
@@ -557,6 +587,7 @@ const ImprovedShiftSwaps = () => {
         </TabsContent>
       </Tabs>
       
+      {/* ... keep existing code (delete dialog) */}
       <SwapDeleteDialog
         isOpen={deleteDialog.isOpen}
         isLoading={deleteDialog.isDeleting}
@@ -573,6 +604,7 @@ const ImprovedShiftSwaps = () => {
         selectionCount={selectedRequests.length}
       />
       
+      {/* Filter dialog - now used by both tabs */}
       <SwapFiltersDialog
         isOpen={isFiltersOpen}
         onOpenChange={setIsFiltersOpen}

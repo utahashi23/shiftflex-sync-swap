@@ -143,6 +143,7 @@ export function SwapFiltersDialog({
                       }))
                     }
                     initialFocus
+                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -176,6 +177,7 @@ export function SwapFiltersDialog({
                     }
                     initialFocus
                     fromDate={localFilters.dateRange.from}
+                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>

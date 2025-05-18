@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, isAfter, isEqual, isBefore } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { MultiSelect } from "@/components/swaps/MultiSelect";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,6 +12,7 @@ import { X, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ShiftIconBadge from "./ShiftIconBadge";
 import { getShiftType } from "@/utils/shiftUtils";
+import { SwapFilters } from "./SwapFiltersDialog";
 
 // Define shift types directly since we don't have a shift_types table
 const SHIFT_TYPES = [
@@ -26,6 +27,7 @@ interface ImprovedSwapFormProps {
   onSubmit: (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => Promise<boolean>;
   isDialog?: boolean;
   currentMonth?: Date; // Add prop for current month
+  filters?: SwapFilters; // Add filters prop
 }
 
 export const ImprovedSwapForm = ({
@@ -33,7 +35,8 @@ export const ImprovedSwapForm = ({
   onClose,
   onSubmit,
   isDialog = true,
-  currentMonth = new Date() // Default to current date if not provided
+  currentMonth = new Date(), // Default to current date if not provided
+  filters // Optional filters
 }: ImprovedSwapFormProps) => {
   const [step, setStep] = useState(1);
   const [selectedShifts, setSelectedShifts] = useState<any[]>([]); // Now an array for multiple selection
@@ -79,7 +82,7 @@ export const ImprovedSwapForm = ({
     
   }, [user, isOpen]);
   
-  // Filter shifts based on currentMonth
+  // Filter shifts based on currentMonth and filters
   useEffect(() => {
     if (!userShifts.length) {
       setFilteredShifts([]);
@@ -94,13 +97,63 @@ export const ImprovedSwapForm = ({
     const startStr = startOfMonth.toISOString().split('T')[0];
     const endStr = endOfMonth.toISOString().split('T')[0];
     
-    // Filter shifts that fall in the selected month
-    const shiftsInMonth = userShifts.filter(shift => {
+    // First filter shifts that fall in the selected month
+    let shiftsInMonth = userShifts.filter(shift => {
       const shiftDate = shift.date;
       return shiftDate >= startStr && shiftDate <= endStr;
     });
     
+    // Apply additional filters if provided
+    if (filters) {
+      // Filter by date range
+      if (filters.dateRange.from || filters.dateRange.to) {
+        shiftsInMonth = shiftsInMonth.filter(shift => {
+          const shiftDate = new Date(shift.date);
+          
+          if (filters.dateRange.from && filters.dateRange.to) {
+            return (
+              (isEqual(shiftDate, filters.dateRange.from) || isAfter(shiftDate, filters.dateRange.from)) &&
+              (isEqual(shiftDate, filters.dateRange.to) || isBefore(shiftDate, filters.dateRange.to))
+            );
+          } else if (filters.dateRange.from) {
+            return isEqual(shiftDate, filters.dateRange.from) || isAfter(shiftDate, filters.dateRange.from);
+          } else if (filters.dateRange.to) {
+            return isEqual(shiftDate, filters.dateRange.to) || isBefore(shiftDate, filters.dateRange.to);
+          }
+          
+          return true;
+        });
+      }
+      
+      // Filter by truck name
+      if (filters.truckName) {
+        shiftsInMonth = shiftsInMonth.filter(shift => 
+          shift.truck_name === filters.truckName
+        );
+      }
+      
+      // Filter by shift type
+      if (filters.shiftType) {
+        shiftsInMonth = shiftsInMonth.filter(shift => {
+          const shiftType = getShiftType(shift.start_time);
+          return shiftType === filters.shiftType;
+        });
+      }
+    }
+    
     console.log(`Filtered ${shiftsInMonth.length} shifts for month ${format(currentMonth, 'MMMM yyyy')}`);
+    
+    // Sort shifts by date
+    shiftsInMonth.sort((a: any, b: any) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      
+      if (filters?.sortDirection === 'desc') {
+        return dateB.getTime() - dateA.getTime();
+      }
+      return dateA.getTime() - dateB.getTime();
+    });
+    
     setFilteredShifts(shiftsInMonth);
     
     // Clear selected shifts that are no longer in the filtered list
@@ -109,7 +162,7 @@ export const ImprovedSwapForm = ({
         shiftsInMonth.some(shift => shift.id === selected.id)
       )
     );
-  }, [userShifts, currentMonth]);
+  }, [userShifts, currentMonth, filters]);
   
   const handleNextStep = () => {
     setStep(prev => prev + 1);
@@ -183,7 +236,9 @@ export const ImprovedSwapForm = ({
                 <p className="text-muted-foreground">
                   {userShifts.length === 0 
                     ? "No upcoming shifts found." 
-                    : `No shifts found for ${format(currentMonth, 'MMMM yyyy')}.`}
+                    : filters && (filters.dateRange.from || filters.dateRange.to || filters.truckName || filters.shiftType)
+                      ? "No shifts match the current filters."
+                      : `No shifts found for ${format(currentMonth, 'MMMM yyyy')}.`}
                 </p>
               </div>
             ) : (
@@ -272,7 +327,7 @@ export const ImprovedSwapForm = ({
                   mode="multiple"
                   selected={selectedDates}
                   onSelect={(dates) => setSelectedDates(dates || [])}
-                  className="rounded-md"
+                  className="rounded-md pointer-events-auto"
                   disabled={(date) => {
                     // Disable dates before today
                     return date < new Date(new Date().setHours(0, 0, 0, 0));
