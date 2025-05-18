@@ -10,7 +10,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Checkbox } from "@/components/ui/checkbox";
 import { X, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import ShiftTypeBadge from "./ShiftTypeBadge";
+import ShiftIconBadge from "./ShiftIconBadge";
 import { getShiftType } from "@/utils/shiftUtils";
 
 // Define shift types directly since we don't have a shift_types table
@@ -164,9 +164,11 @@ export const ImprovedSwapForm = ({
                       onClick={() => toggleShiftSelection(shift)}
                     >
                       <div className="flex-1">
-                        <div className="flex justify-between items-center mb-2">
-                          <p className="font-medium">{format(new Date(shift.date), 'EEEE, MMM d, yyyy')}</p>
-                          <ShiftTypeBadge type={shiftType} showLabel={true} />
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{format(new Date(shift.date), 'EEEE, MMM d, yyyy')}</p>
+                            <ShiftIconBadge type={shiftType} />
+                          </div>
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {shift.start_time} - {shift.end_time}
@@ -198,6 +200,7 @@ export const ImprovedSwapForm = ({
                       className="flex items-center gap-1 px-2 py-1"
                     >
                       {format(new Date(shift.date), 'MMM d')} 
+                      <ShiftIconBadge type={getShiftType(shift.start_time)} className="mx-1" />
                       {shift.truck_name && <span>({shift.truck_name})</span>}
                       <button 
                         type="button" 
