@@ -116,6 +116,7 @@ export function useSwapRequests() {
   
   const createSwapRequest = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
     try {
+      console.log("useSwapRequests: Creating swap request with", { shiftIds, wantedDates, acceptedTypes });
       setIsLoading(true);
       
       // Format dates for API
@@ -126,8 +127,13 @@ export function useSwapRequests() {
       
       const result = await createSwapRequestApi(shiftIds, preferredDates);
       
-      // Refresh swap requests
-      await fetchSwapRequests();
+      console.log("useSwapRequests: Creation result:", result);
+      
+      // Refresh swap requests after successful creation
+      if (result.success) {
+        console.log("useSwapRequests: Refreshing swap requests after creation");
+        await fetchSwapRequests();
+      }
       
       return result.success;
     } catch (error) {
@@ -141,6 +147,7 @@ export function useSwapRequests() {
   // Initial fetch of matches
   useEffect(() => {
     if (user) {
+      console.log("useSwapRequests: Initial fetch of matches and requests");
       refreshMatches();
       fetchSwapRequests();
     }

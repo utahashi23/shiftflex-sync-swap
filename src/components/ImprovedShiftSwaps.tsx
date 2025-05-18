@@ -59,6 +59,7 @@ const ImprovedShiftSwaps = () => {
     
     setIsLoading(true);
     try {
+      console.log("Fetching user swap requests for user:", user.id);
       const { data, error } = await supabase
         .from("improved_shift_swaps")
         .select("*, shifts(*)")
@@ -80,13 +81,21 @@ const ImprovedShiftSwaps = () => {
     }
   };
   
-  // Fetch requests when the component mounts or user changes
+  // Fetch requests when the component mounts, user changes, or active tab changes to "mySwaps"
   useEffect(() => {
     if (user) {
       fetchUserRequests();
     }
   }, [user]);
 
+  // Refresh user requests when the "mySwaps" tab becomes active
+  useEffect(() => {
+    if (activeTab === "mySwaps" && user) {
+      console.log("mySwaps tab activated, refreshing requests");
+      fetchUserRequests();
+    }
+  }, [activeTab, user]);
+  
   // Handle creating a swap request
   const handleCreateSwap = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
     setIsSubmitting(true);
@@ -146,6 +155,9 @@ const ImprovedShiftSwaps = () => {
         title: "Success",
         description: "Swap request deleted successfully",
       });
+      
+      // Refresh the requests list to ensure UI is in sync with database
+      await fetchUserRequests();
     } catch (err: any) {
       console.error("Error deleting swap request:", err);
       toast({
@@ -194,6 +206,12 @@ const ImprovedShiftSwaps = () => {
                 <p className="text-sm text-muted-foreground">
                   You haven't created any swap requests yet. Go to the "Create Swap Request" tab to get started.
                 </p>
+              </div>
+            )}
+            
+            {isLoading && (
+              <div className="col-span-2 flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
             )}
           </div>
