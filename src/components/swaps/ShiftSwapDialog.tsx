@@ -1,4 +1,3 @@
-
 import {
   Dialog,
   DialogContent,
@@ -22,6 +21,7 @@ interface ShiftSwapDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   children: React.ReactNode;
+  preventAutoClose?: boolean;  // New prop to prevent automatic closing
 }
 
 export const ShiftSwapDialog = ({
@@ -34,10 +34,22 @@ export const ShiftSwapDialog = ({
   isLoading = false,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
-  children
+  children,
+  preventAutoClose = false  // Default to false for backward compatibility
 }: ShiftSwapDialogProps) => {
+  // Wrapper function to handle dialog closing with validation
+  const handleOpenChange = (newOpenState: boolean) => {
+    // If closing the dialog and preventAutoClose is true, we'll ignore the automatic close attempt
+    if (!newOpenState && preventAutoClose) {
+      return;
+    }
+    
+    // Otherwise, honor the requested open change
+    onOpenChange(newOpenState);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] flex flex-col" onPointerDownOutside={(e) => {
         // Prevent dialog from closing when clicking inside the calendar
         if ((e.target as HTMLElement).closest('.rdp')) {

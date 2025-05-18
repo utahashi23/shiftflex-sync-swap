@@ -188,6 +188,7 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
       isLoading={isLoading}
       confirmLabel="Create Swap Request"
       cancelLabel="Cancel"
+      preventAutoClose={true}
     >
       <form className="grid gap-4 py-2">
         {/* Shift Selection */}

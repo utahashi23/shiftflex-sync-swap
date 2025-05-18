@@ -34,6 +34,29 @@ export const ShiftDateField = ({
 }: ShiftDateFieldProps) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [tempSelectedDates, setTempSelectedDates] = useState<Date[]>([]);
+
+  // Initialize temp dates with the current selected dates when dialog opens
+  const handleOpenDialog = () => {
+    if (selectedDates) {
+      setTempSelectedDates([...selectedDates]);
+    }
+    setIsDialogOpen(true);
+  };
+
+  // Apply the temp selection when confirming
+  const handleConfirmSelection = () => {
+    if (onMultiDateChange && tempSelectedDates) {
+      onMultiDateChange(tempSelectedDates);
+    }
+    setIsDialogOpen(false);
+  };
+
+  // Discard changes when cancelling
+  const handleCancelSelection = () => {
+    setTempSelectedDates([]);
+    setIsDialogOpen(false);
+  };
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
@@ -97,7 +120,7 @@ export const ShiftDateField = ({
           <Button
             variant="outline"
             className="w-full justify-start text-left font-normal"
-            onClick={() => setIsDialogOpen(true)}
+            onClick={handleOpenDialog}
           >
             {selectedDates.length > 0 
               ? `${selectedDates.length} date${selectedDates.length !== 1 ? 's' : ''} selected` 
@@ -109,17 +132,19 @@ export const ShiftDateField = ({
             onOpenChange={setIsDialogOpen}
             title="Select Dates"
             description="Choose one or more dates for your shift swap"
-            onConfirm={() => setIsDialogOpen(false)}
+            onConfirm={handleConfirmSelection}
+            onCancel={handleCancelSelection}
             confirmLabel="Done"
             cancelLabel="Cancel"
+            preventAutoClose={true}
           >
             <div className="p-2">
               <Calendar
                 mode="multiple"
-                selected={selectedDates}
+                selected={tempSelectedDates}
                 onSelect={(dates) => {
-                  if (onMultiDateChange && dates) {
-                    onMultiDateChange(dates);
+                  if (dates) {
+                    setTempSelectedDates(dates);
                   }
                 }}
                 initialFocus
