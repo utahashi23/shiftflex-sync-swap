@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { X } from "lucide-react";
+import { X, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 // Define shift types directly since we don't have a shift_types table
@@ -164,6 +163,12 @@ export const ImprovedSwapForm = ({
                         <p className="text-sm text-muted-foreground">
                           {shift.start_time} - {shift.end_time}
                         </p>
+                        {shift.truck_name && (
+                          <div className="flex items-center mt-1 text-xs text-muted-foreground">
+                            <Truck className="h-3 w-3 mr-1" />
+                            <span>{shift.truck_name}</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="text-sm px-2 py-1 bg-primary/10 rounded">
@@ -187,7 +192,8 @@ export const ImprovedSwapForm = ({
                       variant="outline"
                       className="flex items-center gap-1 px-2 py-1"
                     >
-                      {format(new Date(shift.date), 'MMM d')} ({shift.shift_type || "Unknown"})
+                      {format(new Date(shift.date), 'MMM d')} 
+                      {shift.truck_name && <span>({shift.truck_name})</span>}
                       <button 
                         type="button" 
                         onClick={(e) => {

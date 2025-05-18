@@ -3,7 +3,7 @@ import React from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrashIcon } from "lucide-react";
+import { TrashIcon, Truck } from "lucide-react";
 import ShiftTypeBadge from './ShiftTypeBadge';
 
 interface SwapRequestCardProps {
@@ -49,15 +49,20 @@ const SwapRequestCard = ({ request, onDelete, onDeletePreferredDate }: SwapReque
     <Card className="w-full">
       <CardHeader className="pb-2">
         <div className="flex justify-between">
-          <CardTitle className="text-lg">Shift: {truckName}</CardTitle>
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Truck className="h-4 w-4 text-primary" />
+              {truckName}
+            </CardTitle>
+            <CardDescription>
+              Original date: {shiftDate}
+            </CardDescription>
+          </div>
           <Button variant="ghost" size="sm" onClick={onDelete} className="h-8 w-8 p-0">
             <TrashIcon className="h-4 w-4" />
             <span className="sr-only">Delete</span>
           </Button>
         </div>
-        <CardDescription>
-          Original date: {shiftDate}
-        </CardDescription>
       </CardHeader>
       <CardContent className="pt-1">
         <div className="space-y-2">
