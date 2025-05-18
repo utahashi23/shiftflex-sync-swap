@@ -128,7 +128,7 @@ export function SwapFiltersDialog({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 bg-white" align="start">
                   <CalendarComponent
                     mode="single"
                     selected={localFilters.dateRange.from}
@@ -161,7 +161,7 @@ export function SwapFiltersDialog({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 bg-white" align="start">
                   <CalendarComponent
                     mode="single"
                     selected={localFilters.dateRange.to}
@@ -192,10 +192,10 @@ export function SwapFiltersDialog({
                 }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="bg-white">
                 <SelectValue placeholder="All trucks" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white">
                 <SelectItem value="">All trucks</SelectItem>
                 {availableTrucks.map((truck) => (
                   <SelectItem key={truck} value={truck}>
@@ -218,10 +218,10 @@ export function SwapFiltersDialog({
                 }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="bg-white">
                 <SelectValue placeholder="All shift types" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white">
                 <SelectItem value="">All shift types</SelectItem>
                 <SelectItem value="day">Day</SelectItem>
                 <SelectItem value="afternoon">Afternoon</SelectItem>
