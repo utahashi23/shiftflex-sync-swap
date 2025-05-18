@@ -10,7 +10,8 @@ import {
   Sunrise, 
   Sun, 
   Moon,
-  X
+  X,
+  Info
 } from "lucide-react";
 import { format, isValid } from "date-fns";
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +20,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ShiftDateField } from '@/components/shift-form/ShiftDateField';
 import { toast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { getShiftType, formatDate, formatTime } from '@/utils/shiftUtils';
 
 type FormValues = {
   shiftId: string;
@@ -45,6 +48,9 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
   const [isLoading, setIsLoading] = useState(false);
   const [regions, setRegions] = useState<any[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
+  const [userPreferences, setUserPreferences] = useState<any>(null);
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(false);
+  const [showPreferencesAlert, setShowPreferencesAlert] = useState(true);
   const { user } = useAuth();
 
   const { control, register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormValues>({
@@ -130,6 +136,111 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
       fetchRegionsAndAreas();
     }
   }, [isOpen]);
+
+  // Fetch user preferences
+  useEffect(() => {
+    const fetchUserPreferences = async () => {
+      if (!user) return;
+      
+      setIsLoadingPreferences(true);
+      try {
+        // Check for user's saved preferences first
+        const { data: userPrefsData, error: userPrefsError } = await supabase
+          .from('shift_swap_preferences')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (userPrefsError && userPrefsError.code !== 'PGRST116') {
+          throw userPrefsError;
+        }
+        
+        // If user preferences exist, use them
+        if (userPrefsData) {
+          console.log('User has saved preferences:', userPrefsData);
+          setUserPreferences(userPrefsData);
+          
+          // Set region preferences
+          if (userPrefsData.preferred_areas && userPrefsData.preferred_areas.length > 0) {
+            // Convert area IDs to region+area preferences
+            const prefsToSet: { regionId: string; areaId?: string }[] = [];
+            
+            // We need to fetch the corresponding regions for these areas
+            const areaIds = userPrefsData.preferred_areas;
+            if (areaIds.length > 0) {
+              const { data: areasWithRegions, error: areasError } = await supabase
+                .from('areas')
+                .select('id, region_id')
+                .in('id', areaIds);
+                
+              if (!areasError && areasWithRegions) {
+                areasWithRegions.forEach(area => {
+                  prefsToSet.push({
+                    regionId: area.region_id,
+                    areaId: area.id
+                  });
+                });
+                
+                setValue('regionPreferences', prefsToSet);
+              }
+            }
+          }
+          
+          // Set accepted shift types
+          if (userPrefsData.acceptable_shift_types) {
+            setValue('acceptedTypes', {
+              day: userPrefsData.acceptable_shift_types.includes('day'),
+              afternoon: userPrefsData.acceptable_shift_types.includes('afternoon'),
+              night: userPrefsData.acceptable_shift_types.includes('night')
+            });
+          }
+        } else {
+          // If no user preferences, fetch system defaults from user_swap_preferences
+          console.log('No user preferences found, checking system defaults');
+          
+          const { data: systemPrefsData, error: systemPrefsError } = await supabase
+            .rpc('get_user_swap_preferences', { p_user_id: user.id });
+          
+          if (!systemPrefsError && systemPrefsData && systemPrefsData.length > 0) {
+            console.log('Found system default preferences:', systemPrefsData);
+            
+            // Extract unique regions and areas
+            const regionIds = new Set<string>();
+            const prefsToSet: { regionId: string; areaId?: string }[] = [];
+            
+            systemPrefsData.forEach((pref: any) => {
+              // Add region preference
+              if (pref.region_id) {
+                regionIds.add(pref.region_id);
+                if (!pref.area_id) {
+                  prefsToSet.push({ regionId: pref.region_id });
+                }
+              }
+              
+              // Add area preference (with parent region)
+              if (pref.area_id && pref.region_id) {
+                prefsToSet.push({
+                  regionId: pref.region_id,
+                  areaId: pref.area_id
+                });
+              }
+            });
+            
+            setValue('regionPreferences', prefsToSet);
+            setShowPreferencesAlert(true);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user preferences:', err);
+      } finally {
+        setIsLoadingPreferences(false);
+      }
+    };
+    
+    if (isOpen && user) {
+      fetchUserPreferences();
+    }
+  }, [isOpen, user, setValue]);
 
   const onFormSubmit = async (data: FormValues) => {
     if (!data.shiftId || data.wantedDates.length === 0) return;
@@ -338,6 +449,17 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
         {/* Region/Area Preferences */}
         <div className="space-y-2">
           <Label>Region/Area Preferences</Label>
+          
+          {/* Information alert about pre-populated preferences */}
+          {showPreferencesAlert && regionPreferences.length > 0 && (
+            <Alert className="mb-3">
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Your region preferences have been pre-populated from system settings. You can modify them below.
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <p className="text-sm text-muted-foreground mb-2">
             Select regions or specific areas you prefer for your swap.
           </p>
@@ -346,17 +468,24 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Select 
               onValueChange={(value) => handleAddRegionPreference(value)}
-              disabled={regions.length === 0}
+              disabled={regions.length === 0 || isLoadingPreferences}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a region" />
+                <SelectValue placeholder={isLoadingPreferences ? "Loading..." : "Select a region"} />
               </SelectTrigger>
               <SelectContent>
-                {regions.map(region => (
-                  <SelectItem key={region.id} value={region.id}>
-                    {region.name}
-                  </SelectItem>
-                ))}
+                {isLoadingPreferences ? (
+                  <div className="flex items-center justify-center py-2">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span>Loading regions...</span>
+                  </div>
+                ) : (
+                  regions.map(region => (
+                    <SelectItem key={region.id} value={region.id}>
+                      {region.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
             
@@ -365,53 +494,71 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
                 const [regionId, areaId] = value.split('|');
                 handleAddRegionPreference(regionId, areaId);
               }}
-              disabled={areas.length === 0}
+              disabled={areas.length === 0 || isLoadingPreferences}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select an area" />
+                <SelectValue placeholder={isLoadingPreferences ? "Loading..." : "Select an area"} />
               </SelectTrigger>
               <SelectContent>
-                {regions.map(region => (
-                  <SelectItem key={`region-group-${region.id}`} value={region.id} disabled>
-                    {region.name}
-                  </SelectItem>
-                ))}
-                {areas.map(area => (
-                  <SelectItem 
-                    key={area.id} 
-                    value={`${area.region_id}|${area.id}`}
-                    className="pl-6"
-                  >
-                    {area.name}
-                  </SelectItem>
-                ))}
+                {isLoadingPreferences ? (
+                  <div className="flex items-center justify-center py-2">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span>Loading areas...</span>
+                  </div>
+                ) : (
+                  <>
+                    {regions.map(region => (
+                      <SelectItem key={`region-group-${region.id}`} value={region.id} disabled>
+                        {region.name}
+                      </SelectItem>
+                    ))}
+                    {areas.map(area => (
+                      <SelectItem 
+                        key={area.id} 
+                        value={`${area.region_id}|${area.id}`}
+                        className="pl-6"
+                      >
+                        {area.name}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
           
           {/* Display selected preferences */}
           <div className="flex flex-wrap gap-2 mt-3">
-            {(regionPreferences || []).map((pref, index) => {
-              const region = regions.find(r => r.id === pref.regionId);
-              const area = pref.areaId ? areas.find(a => a.id === pref.areaId) : null;
-              
-              return (
-                <Badge 
-                  key={index}
-                  variant="outline"
-                  className="flex items-center gap-1 px-3 py-1"
-                >
-                  {region?.name || 'Unknown'} {area && `- ${area.name}`}
-                  <button 
-                    type="button" 
-                    onClick={() => handleRemoveRegionPreference(index)}
-                    className="ml-1 text-gray-500 hover:text-gray-700"
+            {isLoadingPreferences ? (
+              <div className="w-full flex items-center justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                <span className="text-sm text-muted-foreground">Loading preferences...</span>
+              </div>
+            ) : regionPreferences.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No region/area preferences selected</p>
+            ) : (
+              regionPreferences.map((pref, index) => {
+                const region = regions.find(r => r.id === pref.regionId);
+                const area = pref.areaId ? areas.find(a => a.id === pref.areaId) : null;
+                
+                return (
+                  <Badge 
+                    key={index}
+                    variant="outline"
+                    className="flex items-center gap-1 px-3 py-1"
                   >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              );
-            })}
+                    {region?.name || 'Unknown'} {area && `- ${area.name}`}
+                    <button 
+                      type="button" 
+                      onClick={() => handleRemoveRegionPreference(index)}
+                      className="ml-1 text-gray-500 hover:text-gray-700"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                );
+              })
+            )}
           </div>
         </div>
       </form>
