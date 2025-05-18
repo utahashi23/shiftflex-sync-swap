@@ -23,17 +23,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Calendar, Trash2, Plus } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface LeaveBlock {
-  id: string;
-  block_number: number;
-  start_date: string;
-  end_date: string;
-  status: string;
-  created_at: string;
-  split_designation?: 'A' | 'B' | null;
-  original_block_id?: string | null;
-}
+import { LeaveBlock } from '@/types/leave-blocks';
 
 export const LeaveBlockSettings = () => {
   const [leaveBlocks, setLeaveBlocks] = useState<LeaveBlock[]>([]);
@@ -56,7 +46,15 @@ export const LeaveBlockSettings = () => {
       
       if (error) throw error;
       
-      setLeaveBlocks(data || []);
+      // Transform the data to ensure split_designation has the correct type
+      const transformedData: LeaveBlock[] = (data || []).map(block => ({
+        ...block,
+        // Convert split_designation to the correct union type
+        split_designation: block.split_designation === 'A' ? 'A' : 
+                           block.split_designation === 'B' ? 'B' : null
+      }));
+      
+      setLeaveBlocks(transformedData);
     } catch (error) {
       console.error('Error fetching leave blocks:', error);
       toast({
