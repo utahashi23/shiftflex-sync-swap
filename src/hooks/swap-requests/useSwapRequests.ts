@@ -114,7 +114,7 @@ export function useSwapRequests() {
     await refreshMatches();
   };
   
-  const createSwapRequest = async (shiftId: string, wantedDates: string[], acceptedTypes: string[]) => {
+  const createSwapRequest = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
     try {
       setIsLoading(true);
       
@@ -124,7 +124,7 @@ export function useSwapRequests() {
         acceptedTypes
       }));
       
-      const result = await createSwapRequestApi(shiftId, preferredDates);
+      const result = await createSwapRequestApi(shiftIds, preferredDates);
       
       // Refresh swap requests
       await fetchSwapRequests();

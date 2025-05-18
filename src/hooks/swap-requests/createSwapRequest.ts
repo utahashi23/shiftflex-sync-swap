@@ -6,20 +6,21 @@ import { toast } from '@/hooks/use-toast';
  * Create a new swap request using the edge function
  */
 export const createSwapRequestApi = async (
-  shiftId: string, 
+  shiftIds: string[], 
   preferredDates: { date: string, acceptedTypes: string[] }[]
 ) => {
-  if (!shiftId || !preferredDates || preferredDates.length === 0) {
+  if (!shiftIds || shiftIds.length === 0 || !preferredDates || preferredDates.length === 0) {
     throw new Error('Missing required parameters for swap request');
   }
   
   try {
-    console.log('Creating swap request with preferred dates:', preferredDates);
+    console.log('Creating swap request for shifts:', shiftIds);
+    console.log('With preferred dates:', preferredDates);
     
     // Call the Supabase edge function
     const { data, error } = await supabase.functions.invoke('create_swap_request', {
       body: { 
-        shift_id: shiftId,
+        shift_ids: shiftIds,
         preferred_dates: preferredDates
       }
     });
@@ -35,7 +36,7 @@ export const createSwapRequestApi = async (
       variant: "default"
     });
     
-    return { success: true, requestId: data.request_id };
+    return { success: true, requestIds: data.request_ids };
     
   } catch (error) {
     console.error('Error creating swap request:', error);

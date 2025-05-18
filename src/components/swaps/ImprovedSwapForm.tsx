@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,9 @@ import { MultiSelect } from "@/components/swaps/MultiSelect";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 // Define shift types directly since we don't have a shift_types table
 const SHIFT_TYPES = [
@@ -18,7 +22,7 @@ const SHIFT_TYPES = [
 interface ImprovedSwapFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (shiftId: string, wantedDates: string[], acceptedTypes: string[]) => Promise<boolean>;
+  onSubmit: (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => Promise<boolean>;
   isDialog?: boolean;
 }
 
@@ -29,7 +33,7 @@ export const ImprovedSwapForm = ({
   isDialog = true
 }: ImprovedSwapFormProps) => {
   const [step, setStep] = useState(1);
-  const [selectedShift, setSelectedShift] = useState<any>(null);
+  const [selectedShifts, setSelectedShifts] = useState<any[]>([]); // Now an array for multiple selection
   const [userShifts, setUserShifts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,7 +69,7 @@ export const ImprovedSwapForm = ({
     
     // Reset form when opened
     setStep(1);
-    setSelectedShift(null);
+    setSelectedShifts([]);
     setSelectedDates([]);
     setSelectedTypes([]);
     
@@ -80,7 +84,7 @@ export const ImprovedSwapForm = ({
   };
   
   const handleSubmit = async () => {
-    if (!selectedShift) return;
+    if (selectedShifts.length === 0) return;
     
     setIsSubmitting(true);
     
@@ -89,9 +93,12 @@ export const ImprovedSwapForm = ({
       format(date, 'yyyy-MM-dd')
     );
     
+    // Get shift IDs
+    const shiftIds = selectedShifts.map(shift => shift.id);
+    
     // Submit the form
     const success = await onSubmit(
-      selectedShift.id,
+      shiftIds,
       formattedDates,
       selectedTypes
     );
@@ -103,9 +110,23 @@ export const ImprovedSwapForm = ({
     }
   };
   
-  const handleSelectShift = (shift: any) => {
-    setSelectedShift(shift);
-    handleNextStep();
+  const toggleShiftSelection = (shift: any) => {
+    // Check if shift is already selected
+    const isSelected = selectedShifts.some(s => s.id === shift.id);
+    
+    if (isSelected) {
+      // Remove from selection
+      setSelectedShifts(selectedShifts.filter(s => s.id !== shift.id));
+    } else {
+      // Add to selection
+      setSelectedShifts([...selectedShifts, shift]);
+    }
+  };
+  
+  const handleContinue = () => {
+    if (selectedShifts.length > 0) {
+      handleNextStep();
+    }
   };
 
   const renderContent = () => {
@@ -113,7 +134,11 @@ export const ImprovedSwapForm = ({
       case 1:
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-medium">Select a shift to swap</h3>
+            <h3 className="text-lg font-medium">Select shifts to swap</h3>
+            <p className="text-sm text-muted-foreground mb-2">
+              You can select multiple shifts that you want to swap
+            </p>
+            
             {isLoading ? (
               <div className="flex justify-center py-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -124,25 +149,69 @@ export const ImprovedSwapForm = ({
               </div>
             ) : (
               <div className="grid gap-2">
-                {userShifts.map(shift => (
-                  <div 
-                    key={shift.id}
-                    className="border rounded-lg p-3 hover:bg-muted cursor-pointer flex justify-between items-center"
-                    onClick={() => handleSelectShift(shift)}
-                  >
-                    <div>
-                      <p className="font-medium">{format(new Date(shift.date), 'EEEE, MMM d, yyyy')}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {shift.start_time} - {shift.end_time}
-                      </p>
+                {userShifts.map(shift => {
+                  const isSelected = selectedShifts.some(s => s.id === shift.id);
+                  return (
+                    <div 
+                      key={shift.id}
+                      className={`border rounded-lg p-3 hover:bg-muted cursor-pointer flex justify-between items-center ${
+                        isSelected ? 'bg-secondary border-primary' : ''
+                      }`}
+                      onClick={() => toggleShiftSelection(shift)}
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium">{format(new Date(shift.date), 'EEEE, MMM d, yyyy')}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {shift.start_time} - {shift.end_time}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm px-2 py-1 bg-primary/10 rounded">
+                          {shift.shift_type || "Unknown Shift"}
+                        </div>
+                        <Checkbox checked={isSelected} />
+                      </div>
                     </div>
-                    <div className="text-sm px-2 py-1 bg-primary/10 rounded">
-                      {shift.shift_type || "Unknown Shift"}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
+            
+            {selectedShifts.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm font-medium mb-2">Selected shifts ({selectedShifts.length})</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedShifts.map((shift, index) => (
+                    <Badge 
+                      key={index} 
+                      variant="outline"
+                      className="flex items-center gap-1 px-2 py-1"
+                    >
+                      {format(new Date(shift.date), 'MMM d')} ({shift.shift_type || "Unknown"})
+                      <button 
+                        type="button" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleShiftSelection(shift);
+                        }}
+                        className="ml-1 text-gray-500 hover:text-gray-700"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="pt-4 flex justify-end">
+              <Button 
+                onClick={handleContinue}
+                disabled={selectedShifts.length === 0}
+              >
+                Continue
+              </Button>
+            </div>
           </div>
         );
       
@@ -172,12 +241,22 @@ export const ImprovedSwapForm = ({
                   <p className="text-sm font-medium mb-1">Selected dates:</p>
                   <div className="flex flex-wrap gap-2">
                     {selectedDates.map((date, index) => (
-                      <div 
+                      <Badge 
                         key={index} 
-                        className="text-xs px-2 py-1 bg-primary/10 rounded-full flex items-center gap-1"
+                        variant="secondary"
+                        className="flex items-center gap-1 px-3 py-1"
                       >
                         {format(date, 'MMM d, yyyy')}
-                      </div>
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setSelectedDates(selectedDates.filter((_, i) => i !== index));
+                          }}
+                          className="ml-1 text-gray-500 hover:text-gray-700"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
                     ))}
                   </div>
                 </div>
@@ -209,10 +288,10 @@ export const ImprovedSwapForm = ({
         open={isOpen}
         onOpenChange={onClose}
         title="Create Swap Request"
-        description={step === 1 ? "Select the shift you want to swap" : "Select your preferences"}
-        onConfirm={step === 1 ? () => {} : handleSubmit}
+        description={step === 1 ? "Select the shifts you want to swap" : "Select your preferences"}
+        onConfirm={step === 1 ? handleContinue : handleSubmit}
         onCancel={step === 1 ? undefined : handlePrevStep}
-        confirmLabel={step === 1 ? "Select" : "Create Request"}
+        confirmLabel={step === 1 ? "Continue" : "Create Request"}
         cancelLabel={step === 1 ? "Cancel" : "Back"}
         isLoading={isSubmitting}
         preventAutoClose={true}
@@ -225,7 +304,7 @@ export const ImprovedSwapForm = ({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{step === 1 ? "Select Shift to Swap" : "Set Your Preferences"}</CardTitle>
+          <CardTitle>{step === 1 ? "Select Shifts to Swap" : "Set Your Preferences"}</CardTitle>
         </CardHeader>
         <CardContent>
           {renderContent()}
@@ -233,19 +312,18 @@ export const ImprovedSwapForm = ({
         <CardFooter className="flex justify-between">
           {step === 1 ? (
             <div className="w-full flex justify-end">
-              {/* No back button on first step when inline */}
+              <Button onClick={handleContinue} disabled={selectedShifts.length === 0}>Continue</Button>
             </div>
           ) : (
-            <Button variant="outline" onClick={handlePrevStep} disabled={isSubmitting}>
-              Back
-            </Button>
-          )}
-          
-          {step === 2 && (
-            <Button onClick={handleSubmit} disabled={selectedDates.length === 0 || selectedTypes.length === 0 || isSubmitting}>
-              {isSubmitting && <div className="mr-2 animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
-              Create Request
-            </Button>
+            <>
+              <Button variant="outline" onClick={handlePrevStep} disabled={isSubmitting}>
+                Back
+              </Button>
+              <Button onClick={handleSubmit} disabled={selectedDates.length === 0 || selectedTypes.length === 0 || isSubmitting}>
+                {isSubmitting && <div className="mr-2 animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
+                Create Request
+              </Button>
+            </>
           )}
         </CardFooter>
       </Card>

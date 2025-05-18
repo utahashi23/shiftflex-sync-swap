@@ -84,10 +84,10 @@ const ImprovedShiftSwaps = () => {
   }, [user]);
 
   // Handle creating a swap request
-  const handleCreateSwap = async (shiftId: string, wantedDates: string[], acceptedTypes: string[]) => {
+  const handleCreateSwap = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
     setIsSubmitting(true);
     try {
-      const success = await createSwapRequest(shiftId, wantedDates, acceptedTypes);
+      const success = await createSwapRequest(shiftIds, wantedDates, acceptedTypes);
       
       if (success) {
         toast({
