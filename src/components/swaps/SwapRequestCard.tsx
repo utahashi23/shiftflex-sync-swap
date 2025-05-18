@@ -24,8 +24,8 @@ const SwapRequestCard = ({ request, onDelete, onDeletePreferredDate }: SwapReque
     ? format(new Date(shift.date), 'dd MMM yyyy')
     : 'Unknown date';
     
-  // Get the truck name or a fallback
-  const truckName = shift?.truck_name || 'Unknown';
+  // Get the truck name or leave it empty
+  const truckName = shift?.truck_name || '';
   
   // Get wanted date from the request itself
   const wantedDateStr = request.wanted_date || 'Unknown date';
@@ -52,7 +52,7 @@ const SwapRequestCard = ({ request, onDelete, onDeletePreferredDate }: SwapReque
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
               <Truck className="h-4 w-4 text-primary" />
-              {truckName}
+              {truckName || 'Shift'}
             </CardTitle>
             <CardDescription>
               Original date: {shiftDate}
