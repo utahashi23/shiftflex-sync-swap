@@ -181,6 +181,7 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
                   });
                 });
                 
+                console.log('Setting user preferences from saved data:', prefsToSet);
                 setValue('regionPreferences', prefsToSet);
               }
             }
@@ -226,6 +227,7 @@ export const ImprovedSwapForm = ({ isOpen, onClose, onSubmit }: ImprovedSwapForm
               }
             });
             
+            console.log('Setting region preferences from system defaults:', prefsToSet);
             setValue('regionPreferences', prefsToSet);
             setShowPreferencesAlert(true);
           }
