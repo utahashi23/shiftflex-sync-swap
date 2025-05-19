@@ -29,6 +29,18 @@ import SwapDeleteDialog from "./swaps/SwapDeleteDialog";
 import { SwapFiltersDialog, SwapFilters } from "./swaps/SwapFiltersDialog";
 import { getShiftType } from "@/utils/shiftUtils";
 
+// Interface for grouped swap requests - new interface to better handle grouping
+interface GroupedSwapRequest {
+  shiftDate: string;
+  shiftId: string;
+  requests: any[];
+  truckName?: string;
+  startTime?: string;
+  endTime?: string;
+  colleagueType?: string;
+  shiftType?: string;
+}
+
 // Adapter function to convert between swap match types
 function adaptSwapMatches(matches: HookSwapMatch[]): ComponentSwapMatch[] {
   return matches.map(match => ({
@@ -66,13 +78,13 @@ const ImprovedShiftSwaps = () => {
     fetchSwapRequests: hookFetchSwapRequests
   } = useSwapRequests();
 
-  // New state for month-based navigation - now used for both tabs
+  // State for month-based navigation
   const [currentMonth, setCurrentMonth] = useState(new Date());
   
-  // New state for selected requests (for multiple deletion)
+  // State for selected requests (for multiple deletion)
   const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
   
-  // Filters state - now shared between both tabs
+  // Filters state
   const [filters, setFilters] = useState<SwapFilters>({
     sortDirection: 'asc',
     dateRange: { from: undefined, to: undefined },
@@ -80,23 +92,25 @@ const ImprovedShiftSwaps = () => {
     shiftType: null
   });
   
-  // State for filter dialog - now used for both tabs
+  // State for filter dialog
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  // Add new state to track which tab is using the filter dialog
+  // State to track which tab is using the filter dialog
   const [filteringTab, setFilteringTab] = useState<'create' | 'mySwaps'>('mySwaps');
   
   // State to track available truck names for filtering
   const [availableTrucks, setAvailableTrucks] = useState<string[]>([]);
   
-  // New state for delete dialog
+  // State for delete dialog
   const [deleteDialog, setDeleteDialog] = useState<{ 
     isOpen: boolean, 
     requestId: string | null,
+    dayId: string | null,
     isMultiple: boolean,
     isDeleting: boolean
   }>({
     isOpen: false,
     requestId: null,
+    dayId: null,
     isMultiple: false,
     isDeleting: false
   });
@@ -104,7 +118,7 @@ const ImprovedShiftSwaps = () => {
   // Convert hook match types to component match types
   const matches = adaptSwapMatches(hookMatches || []);
   const pastMatches = adaptSwapMatches(hookPastMatches || []);
-  
+
   // Add extra logging to help diagnose match issues
   useEffect(() => {
     if (hookMatches) {
@@ -124,7 +138,7 @@ const ImprovedShiftSwaps = () => {
     setIsLoading(true);
     try {
       console.log("Fetching user swap requests for user:", user.id);
-      // Query the improved_shift_swaps table instead of shift_swap_requests
+      // Query the improved_shift_swaps table
       const { data, error } = await supabase
         .from("improved_shift_swaps")
         .select("*, shifts(*)")
@@ -158,7 +172,7 @@ const ImprovedShiftSwaps = () => {
     }
   };
   
-  // Fetch requests when the component mounts, user changes, or active tab changes to "mySwaps"
+  // Fetch requests when the component mounts or user changes
   useEffect(() => {
     if (user) {
       fetchUserRequests();
@@ -259,6 +273,7 @@ const ImprovedShiftSwaps = () => {
     setDeleteDialog({
       isOpen: true,
       requestId: null,
+      dayId: null,
       isMultiple: true,
       isDeleting: false
     });
@@ -270,6 +285,19 @@ const ImprovedShiftSwaps = () => {
     setDeleteDialog({
       isOpen: true,
       requestId,
+      dayId: null,
+      isMultiple: false,
+      isDeleting: false
+    });
+  };
+
+  // Handle delete preferred date
+  const handleDeletePreferredDate = async (dayId: string, requestId: string) => {
+    // Open delete dialog for a single preferred date
+    setDeleteDialog({
+      isOpen: true,
+      requestId,
+      dayId,
       isMultiple: false,
       isDeleting: false
     });
@@ -301,33 +329,68 @@ const ImprovedShiftSwaps = () => {
         // Clear selected requests
         setSelectedRequests([]);
       } else if (deleteDialog.requestId) {
-        // Delete a single request
-        const { error } = await supabase
-          .from("improved_shift_swaps")
-          .delete()
-          .eq("id", deleteDialog.requestId);
+        if (deleteDialog.dayId) {
+          // Delete a single preferred date
+          const { error } = await supabase
+            .from("improved_swap_wanted_dates")
+            .delete()
+            .eq("id", deleteDialog.dayId);
+            
+          if (error) throw error;
           
-        if (error) throw error;
-        
-        // Also delete related records from improved_swap_wanted_dates
-        await supabase
-          .from("improved_swap_wanted_dates")
-          .delete()
-          .eq("swap_id", deleteDialog.requestId);
+          // Check if this was the last preferred date for this request
+          const { data: remainingDates, error: checkError } = await supabase
+            .from("improved_swap_wanted_dates")
+            .select("id")
+            .eq("swap_id", deleteDialog.requestId);
+            
+          if (checkError) throw checkError;
+          
+          if (!remainingDates || remainingDates.length === 0) {
+            // This was the last date, delete the entire request
+            const { error: deleteError } = await supabase
+              .from("improved_shift_swaps")
+              .delete()
+              .eq("id", deleteDialog.requestId);
+              
+            if (deleteError) throw deleteError;
+          }
+        } else {
+          // Delete a single request
+          const { error } = await supabase
+            .from("improved_shift_swaps")
+            .delete()
+            .eq("id", deleteDialog.requestId);
+            
+          if (error) throw error;
+          
+          // Also delete related records from improved_swap_wanted_dates
+          await supabase
+            .from("improved_swap_wanted_dates")
+            .delete()
+            .eq("swap_id", deleteDialog.requestId);
+        }
       }
       
       // First update the local state for immediate UI feedback
       if (deleteDialog.isMultiple) {
         setUserRequests(userRequests.filter(request => !selectedRequests.includes(request.id)));
       } else if (deleteDialog.requestId) {
-        setUserRequests(userRequests.filter(request => request.id !== deleteDialog.requestId));
+        if (deleteDialog.dayId) {
+          // If deleting a single date, we need to refetch to see if the request was deleted
+          await fetchUserRequests();
+        } else {
+          setUserRequests(userRequests.filter(request => request.id !== deleteDialog.requestId));
+        }
       }
       
       toast({
         title: "Success",
-        description: deleteDialog.isMultiple 
-          ? `${selectedRequests.length} swap requests deleted successfully`
-          : "Swap request deleted successfully",
+        description: deleteDialog.dayId
+          ? "Date removed successfully"
+          : deleteDialog.isMultiple 
+            ? `${selectedRequests.length} swap requests deleted successfully`
+            : "Swap request deleted successfully",
       });
       
       // Then refresh both data sources to ensure consistency
@@ -345,58 +408,89 @@ const ImprovedShiftSwaps = () => {
         variant: "destructive",
       });
     } finally {
-      setDeleteDialog({ isOpen: false, requestId: null, isMultiple: false, isDeleting: false });
+      setDeleteDialog({ isOpen: false, requestId: null, dayId: null, isMultiple: false, isDeleting: false });
     }
   };
 
-  // Filter and sort requests based on all filters
-  const filteredAndSortedRequests = userRequests
-    .filter(request => {
-      const shiftDate = request.shifts?.date ? new Date(request.shifts.date) : null;
-      if (!shiftDate) return false;
+  // Group swap requests by shift date - this is the main function that groups the requests
+  const groupedSwapRequests = (() => {
+    // First filter and sort all swap requests
+    const filteredRequests = userRequests
+      .filter(request => {
+        const shiftDate = request.shifts?.date ? new Date(request.shifts.date) : null;
+        if (!shiftDate) return false;
+        
+        // Month filter (always applied)
+        const monthStart = startOfMonth(currentMonth);
+        const monthEnd = endOfMonth(currentMonth);
+        const isInCurrentMonth = shiftDate >= monthStart && shiftDate <= monthEnd;
+        if (!isInCurrentMonth) return false;
+        
+        // Date range filter
+        if (filters.dateRange.from && filters.dateRange.to) {
+          const isInDateRange = 
+            (isEqual(shiftDate, filters.dateRange.from) || isAfter(shiftDate, filters.dateRange.from)) &&
+            (isEqual(shiftDate, filters.dateRange.to) || isBefore(shiftDate, filters.dateRange.to));
+          if (!isInDateRange) return false;
+        } else if (filters.dateRange.from) {
+          if (isBefore(shiftDate, filters.dateRange.from)) return false;
+        } else if (filters.dateRange.to) {
+          if (isAfter(shiftDate, filters.dateRange.to)) return false;
+        }
+        
+        // Truck name filter
+        if (filters.truckName && request.shifts?.truck_name !== filters.truckName) {
+          return false;
+        }
+        
+        // Shift type filter
+        if (filters.shiftType) {
+          const shiftType = request.shifts?.start_time
+            ? getShiftType(request.shifts.start_time)
+            : 'day';
+          if (shiftType !== filters.shiftType) return false;
+        }
+        
+        return true;
+      })
+      .sort((a, b) => {
+        const dateA = a.shifts?.date ? new Date(a.shifts.date) : new Date(0);
+        const dateB = b.shifts?.date ? new Date(b.shifts.date) : new Date(0);
+        
+        return filters.sortDirection === 'asc' 
+          ? dateA.getTime() - dateB.getTime() 
+          : dateB.getTime() - dateA.getTime();
+      });
       
-      // Month filter (always applied)
-      const monthStart = startOfMonth(currentMonth);
-      const monthEnd = endOfMonth(currentMonth);
-      const isInCurrentMonth = shiftDate >= monthStart && shiftDate <= monthEnd;
-      if (!isInCurrentMonth) return false;
+    // Group requests by shift date
+    const groupedByDate: Record<string, GroupedSwapRequest> = {};
+    
+    filteredRequests.forEach(request => {
+      if (!request.shifts?.date) return;
       
-      // Date range filter
-      if (filters.dateRange.from && filters.dateRange.to) {
-        // Ensure dates are at the start of day for accurate comparison
-        const isInDateRange = 
-          (isEqual(shiftDate, filters.dateRange.from) || isAfter(shiftDate, filters.dateRange.from)) &&
-          (isEqual(shiftDate, filters.dateRange.to) || isBefore(shiftDate, filters.dateRange.to));
-        if (!isInDateRange) return false;
-      } else if (filters.dateRange.from) {
-        if (isBefore(shiftDate, filters.dateRange.from)) return false;
-      } else if (filters.dateRange.to) {
-        if (isAfter(shiftDate, filters.dateRange.to)) return false;
+      const shiftDate = request.shifts.date;
+      
+      if (!groupedByDate[shiftDate]) {
+        groupedByDate[shiftDate] = {
+          shiftDate,
+          shiftId: request.shifts.id,
+          requests: [],
+          truckName: request.shifts?.truck_name,
+          startTime: request.shifts?.start_time,
+          endTime: request.shifts?.end_time,
+          colleagueType: request.shifts?.colleagueType,
+          shiftType: request.shifts?.start_time
+            ? getShiftType(request.shifts.start_time)
+            : 'day'
+        };
       }
       
-      // Truck name filter
-      if (filters.truckName && request.shifts?.truck_name !== filters.truckName) {
-        return false;
-      }
-      
-      // Shift type filter
-      if (filters.shiftType) {
-        const shiftType = request.shifts?.start_time
-          ? getShiftType(request.shifts.start_time)
-          : 'day';
-        if (shiftType !== filters.shiftType) return false;
-      }
-      
-      return true;
-    })
-    .sort((a, b) => {
-      const dateA = a.shifts?.date ? new Date(a.shifts.date) : new Date(0);
-      const dateB = b.shifts?.date ? new Date(b.shifts.date) : new Date(0);
-      
-      return filters.sortDirection === 'asc' 
-        ? dateA.getTime() - dateB.getTime() 
-        : dateB.getTime() - dateA.getTime();
+      groupedByDate[shiftDate].requests.push(request);
     });
+    
+    // Convert the grouped object to an array for rendering
+    return Object.values(groupedByDate);
+  })();
 
   // Check if any requests are selected
   const hasSelectedRequests = selectedRequests.length > 0;
@@ -466,11 +560,9 @@ const ImprovedShiftSwaps = () => {
         </TabsList>
         
         <TabsContent value="create" className="mt-6 space-y-4">
-          {/* Updated Create Swap tab with filter button */}
+          {/* Create Swap tab with filter button */}
           <div className="flex items-center justify-between mb-4">
             <MonthNavigation />
-            
-            {/* Add Filter button to Create Swap tab - Using the FilterButton component */}
             <div className="flex items-center space-x-2">
               <FilterButton tab="create" />
             </div>
@@ -483,7 +575,7 @@ const ImprovedShiftSwaps = () => {
               onSubmit={handleCreateSwap}
               isDialog={false}
               currentMonth={currentMonth}
-              filters={filters} // Pass filters to the form
+              filters={filters}
             />
           </div>
         </TabsContent>
@@ -512,22 +604,15 @@ const ImprovedShiftSwaps = () => {
             </div>
           </div>
           
-          {/* Keep existing code for My Swaps tab */}
+          {/* My Swaps Tab Content */}
           <div className="grid gap-4 md:grid-cols-2">
-            {filteredAndSortedRequests.map((request) => (
-              <div key={request.id} className="flex-1">
-                <SwapRequestCard
-                  key={request.id}
-                  request={request}
-                  onDelete={() => handleDeleteRequest(request.id)}
-                  showCheckbox={true}
-                  isSelected={selectedRequests.includes(request.id)}
-                  onToggleSelect={() => toggleRequestSelection(request.id)}
-                />
-              </div>
-            ))}
-            
-            {filteredAndSortedRequests.length === 0 && !isLoading && (
+            {isLoading ? (
+              // Loading skeleton
+              Array(4).fill(0).map((_, i) => (
+                <div key={`skeleton-${i}`} className="bg-muted/30 p-6 h-48 rounded-lg animate-pulse" />
+              ))
+            ) : groupedSwapRequests.length === 0 ? (
+              // Empty state
               <div className="col-span-2 bg-muted/30 p-6 rounded-lg text-center">
                 <h3 className="font-medium mb-2">No Swap Requests</h3>
                 <p className="text-sm text-muted-foreground">
@@ -551,18 +636,42 @@ const ImprovedShiftSwaps = () => {
                   </Button>
                 )}
               </div>
-            )}
-            
-            {isLoading && (
-              <div className="col-span-2 flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
+            ) : (
+              // Grouped swap requests
+              groupedSwapRequests.map((group) => (
+                <div key={`${group.shiftDate}-${group.shiftId}`} className="flex items-start space-x-2">
+                  <Checkbox 
+                    id={`select-group-${group.shiftId}`}
+                    checked={group.requests.every(req => selectedRequests.includes(req.id))}
+                    onCheckedChange={() => {
+                      // If all requests in the group are selected, unselect them all
+                      // Otherwise, select all requests in the group
+                      const allSelected = group.requests.every(req => selectedRequests.includes(req.id));
+                      if (allSelected) {
+                        setSelectedRequests(prev => prev.filter(id => !group.requests.some(req => req.id === id)));
+                      } else {
+                        const requestIds = group.requests.map(req => req.id);
+                        setSelectedRequests(prev => [...new Set([...prev, ...requestIds])]);
+                      }
+                    }}
+                    className="mt-2"
+                  />
+                  <div className="flex-1">
+                    <SwapRequestCard 
+                      groupedRequests={group.requests}
+                      onDelete={handleDeleteRequest}
+                      onDeletePreferredDate={handleDeletePreferredDate}
+                      showCheckbox={false}
+                    />
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </TabsContent>
         
         <TabsContent value="matches" className="mt-6">
-          {/* ... keep existing code (matches tab) */}
+          {/* Matches tab */}
           <MatchedSwapsTabs
             activeTab="active"
             setActiveTab={() => {}}
@@ -578,24 +687,24 @@ const ImprovedShiftSwaps = () => {
         </TabsContent>
       </Tabs>
       
-      {/* ... keep existing code (delete dialog and filter dialog) */}
+      {/* Delete dialog */}
       <SwapDeleteDialog
         isOpen={deleteDialog.isOpen}
         isLoading={deleteDialog.isDeleting}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            setDeleteDialog({ isOpen: false, requestId: null, isMultiple: false, isDeleting: false });
+            setDeleteDialog({ isOpen: false, requestId: null, dayId: null, isMultiple: false, isDeleting: false });
           } else {
             setDeleteDialog(prev => ({ ...prev, isOpen: true }));
           }
         }}
         onDelete={handleConfirmDelete}
-        isDateOnly={false}
+        isDateOnly={!!deleteDialog.dayId}
         isMultiDelete={deleteDialog.isMultiple}
         selectionCount={selectedRequests.length}
       />
       
-      {/* Filter dialog - now used by both tabs */}
+      {/* Filter dialog */}
       <SwapFiltersDialog
         isOpen={isFiltersOpen}
         onOpenChange={setIsFiltersOpen}
