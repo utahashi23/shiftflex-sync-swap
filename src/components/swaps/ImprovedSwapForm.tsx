@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
 import { Button } from "@/components/ui/button";
-import { format, isAfter, isEqual, isBefore } from "date-fns";
+import { format } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { MultiSelect } from "@/components/swaps/MultiSelect";
 import { useAuth } from "@/hooks/useAuth";
@@ -206,22 +206,13 @@ export const ImprovedSwapForm = ({
     }
   };
   
-  const toggleShiftSelection = (shift: any) => {
-    // Check if shift is already selected
+  const toggleShift = (shift: any) => {
     const isSelected = selectedShifts.some(s => s.id === shift.id);
     
     if (isSelected) {
-      // Remove from selection
       setSelectedShifts(selectedShifts.filter(s => s.id !== shift.id));
     } else {
-      // Add to selection
       setSelectedShifts([...selectedShifts, shift]);
-    }
-  };
-  
-  const handleContinue = () => {
-    if (selectedShifts.length > 0) {
-      handleNextStep();
     }
   };
 
@@ -237,7 +228,7 @@ export const ImprovedSwapForm = ({
         return (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground mb-2">
-              You can select multiple shifts that you want to swap
+              Select the shift(s) you want to swap
             </p>
             
             {isLoading ? (
@@ -258,8 +249,6 @@ export const ImprovedSwapForm = ({
               <div className="grid gap-2">
                 {filteredShifts.map(shift => {
                   const isSelected = selectedShifts.some(s => s.id === shift.id);
-                  
-                  // Determine shift type
                   const shiftType = getShiftType(shift.start_time);
                   
                   return (
@@ -268,15 +257,10 @@ export const ImprovedSwapForm = ({
                       className={`border rounded-lg p-3 hover:bg-muted cursor-pointer flex justify-between items-center ${
                         isSelected ? 'bg-secondary border-primary' : ''
                       }`}
-                      onClick={() => toggleShiftSelection(shift)}
+                      onClick={() => toggleShift(shift)}
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{format(new Date(shift.date), 'EEEE, MMM d, yyyy')}</p>
-                            <ShiftIconBadge type={shiftType} />
-                          </div>
-                        </div>
+                      <div>
+                        <p className="font-medium">{format(new Date(shift.date), 'EEEE, MMM d, yyyy')}</p>
                         <p className="text-sm text-muted-foreground">
                           {shift.start_time} - {shift.end_time}
                         </p>
@@ -298,22 +282,20 @@ export const ImprovedSwapForm = ({
             
             {selectedShifts.length > 0 && (
               <div className="mt-4">
-                <p className="text-sm font-medium mb-2">Selected shifts ({selectedShifts.length})</p>
+                <p className="text-sm font-medium mb-2">Selected shifts: {selectedShifts.length}</p>
                 <div className="flex flex-wrap gap-2">
-                  {selectedShifts.map((shift, index) => (
+                  {selectedShifts.map(shift => (
                     <Badge 
-                      key={index} 
+                      key={shift.id} 
                       variant="outline"
                       className="flex items-center gap-1 px-2 py-1"
                     >
-                      {format(new Date(shift.date), 'MMM d')} 
-                      <ShiftIconBadge type={getShiftType(shift.start_time)} className="mx-1" />
-                      {shift.truck_name && <span>({shift.truck_name})</span>}
+                      {format(new Date(shift.date), 'MMM d')} ({shift.start_time} - {shift.end_time})
                       <button 
                         type="button" 
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleShiftSelection(shift);
+                          toggleShift(shift);
                         }}
                         className="ml-1 text-gray-500 hover:text-gray-700"
                       >
@@ -500,7 +482,7 @@ export const ImprovedSwapForm = ({
         onOpenChange={onClose}
         title={stepInfo.title}
         description={stepInfo.description}
-        onConfirm={step === 1 ? handleContinue : (step === 2 ? handleNextStep : handleSubmit)}
+        onConfirm={step === 1 ? handleNextStep : (step === 2 ? handleNextStep : handleSubmit)}
         onCancel={step === 1 ? undefined : handlePrevStep}
         confirmLabel={stepInfo.confirmLabel}
         cancelLabel={stepInfo.cancelLabel}
@@ -522,7 +504,7 @@ export const ImprovedSwapForm = ({
         <CardFooter className="flex justify-between">
           {step === 1 ? (
             <div className="w-full flex justify-end">
-              <Button onClick={handleContinue} disabled={selectedShifts.length === 0}>Continue</Button>
+              <Button onClick={handleNextStep} disabled={selectedShifts.length === 0}>Continue</Button>
             </div>
           ) : (
             <>
