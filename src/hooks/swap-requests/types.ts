@@ -27,7 +27,15 @@ export interface SwapRequest {
   updated_at?: string;
   updatedAt?: string;
   preferredDates: PreferredDate[];
-  shifts?: Shift; // Add this to fix the property access errors
+  shifts?: Shift; // Needed for accessing the shift property
+  originalShift?: {
+    id: string;
+    date: string;
+    title?: string;
+    startTime?: string;
+    endTime?: string;
+    type?: string;
+  };
 }
 
 export interface GetSwapRequestsResult {
@@ -40,7 +48,6 @@ export interface DeleteSwapRequestResult {
   error?: string;
 }
 
-// Updated to explicitly include the requestDeleted property
 export interface DeletePreferredDateResult {
   success: boolean;
   requestDeleted?: boolean;

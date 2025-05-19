@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedSwapForm } from "./swaps/ImprovedSwapForm";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +28,6 @@ import { cn } from "@/lib/utils";
 import SwapDeleteDialog from "./swaps/SwapDeleteDialog";
 import { SwapFiltersDialog, SwapFilters } from "./swaps/SwapFiltersDialog";
 import { getShiftType } from "@/utils/shiftUtils";
-// Import the type from deletePreferredDate.ts
 import { DeletePreferredDateResult } from "@/hooks/swap-requests/types";
 
 // Interface for grouped swap requests - new interface to better handle grouping
@@ -48,15 +48,13 @@ function adaptSwapMatches(matches: HookSwapMatch[]): ComponentSwapMatch[] {
     ...match,
     myShift: {
       ...match.myShift,
-      truckName: match.myShift.truckName || null, // Ensure truckName is not undefined
-      // Ensure type is one of the allowed types
+      truckName: match.myShift.truckName || null,
       type: (match.myShift.type === 'day' || match.myShift.type === 'afternoon' || 
              match.myShift.type === 'night') ? match.myShift.type : 'unknown'
     },
     otherShift: {
       ...match.otherShift,
-      truckName: match.otherShift.truckName || null, // Ensure truckName is not undefined
-      // Ensure type is one of the allowed types
+      truckName: match.otherShift.truckName || null,
       type: (match.otherShift.type === 'day' || match.otherShift.type === 'afternoon' || 
              match.otherShift.type === 'night') ? match.otherShift.type : 'unknown'
     }
@@ -71,16 +69,18 @@ const ImprovedShiftSwaps = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // Fix the destructuring to match the properties returned by useSwapRequests
+  // Get the hook data
   const { 
     requests,
     isLoading: isMatchesLoading, 
     fetchRequests,
-    deleteRequest: deleteSwapRequest,
-    deletePreferredDay,
+    deleteRequest,
+    deletePreferredDate,
     createSwapRequest,
-    fetchRequests: fetchSwapRequests,
-    refreshMatches
+    fetchSwapRequests,
+    refreshMatches,
+    deleteSwapRequest,
+    deletePreferredDay
   } = useSwapRequests();
 
   // Get matches data directly from the requests based on status
@@ -122,6 +122,68 @@ const ImprovedShiftSwaps = () => {
     dayId: null,
     isDeleting: false
   });
+
+  // Group swap requests by shift date - using useMemo to compute this derived state
+  const groupedSwapRequests = useMemo(() => {
+    if (!userRequests || userRequests.length === 0) {
+      return [];
+    }
+    
+    // First filter and sort the requests based on current filters
+    const filteredRequests = userRequests
+      .filter(request => {
+        // Check if the request has shift data
+        if (!request.shifts?.date) {
+          return false;
+        }
+        
+        const shiftDate = new Date(request.shifts.date);
+        
+        // Filter by current month
+        const monthStart = startOfMonth(currentMonth);
+        const monthEnd = endOfMonth(currentMonth);
+        
+        return shiftDate >= monthStart && shiftDate <= monthEnd;
+      })
+      .sort((a, b) => {
+        // Sort by shift date
+        const dateA = a.shifts?.date ? new Date(a.shifts.date) : new Date(0);
+        const dateB = b.shifts?.date ? new Date(b.shifts.date) : new Date(0);
+        
+        return filters.sortDirection === 'asc' 
+          ? dateA.getTime() - dateB.getTime() 
+          : dateB.getTime() - dateA.getTime();
+      });
+      
+    // Group requests by shift date
+    const groupedByDate: Record<string, GroupedSwapRequest> = {};
+    
+    filteredRequests.forEach(request => {
+      if (!request.shifts?.date) return;
+      
+      const shiftDate = request.shifts.date;
+      
+      if (!groupedByDate[shiftDate]) {
+        groupedByDate[shiftDate] = {
+          shiftDate,
+          shiftId: request.shifts.id,
+          requests: [],
+          truckName: request.shifts?.truck_name,
+          startTime: request.shifts?.start_time,
+          endTime: request.shifts?.end_time,
+          colleagueType: request.shifts?.colleagueType,
+          shiftType: request.shifts?.start_time
+            ? getShiftType(request.shifts.start_time)
+            : 'day'
+        };
+      }
+      
+      groupedByDate[shiftDate].requests.push(request);
+    });
+    
+    // Convert the grouped object to an array for rendering
+    return Object.values(groupedByDate);
+  }, [userRequests, currentMonth, filters.sortDirection]);
 
   // Add extra logging to help diagnose match issues
   useEffect(() => {
@@ -196,7 +258,7 @@ const ImprovedShiftSwaps = () => {
       console.log("matches tab activated, refreshing matches");
       refreshMatches();
     }
-  }, [activeTab, user, fetchUserRequests, fetchRequests, refreshMatches]);
+  }, [activeTab, user, fetchRequests, refreshMatches]);
   
   // Handle creating a swap request
   const handleCreateSwap = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
@@ -298,8 +360,10 @@ const ImprovedShiftSwaps = () => {
           throw new Error("Failed to delete preferred date");
         }
         
-        // Now TypeScript knows that result has the correct type with requestDeleted property
-        if (result.requestDeleted === true) {
+        // Need to check safely if requestDeleted exists to avoid TypeScript error
+        const isRequestDeleted = 'requestDeleted' in result && result.requestDeleted === true;
+        
+        if (isRequestDeleted) {
           toast({
             title: "Success",
             description: "This was the last preferred date, so the entire request has been removed.",
@@ -314,7 +378,7 @@ const ImprovedShiftSwaps = () => {
         // Delete an entire request
         console.log("Deleting swap request:", deleteDialog.requestId);
         
-        const success = await deleteSwapRequest(deleteDialog.requestId);
+        const success = await deleteRequest(deleteDialog.requestId);
         
         if (!success) {
           throw new Error("Failed to delete swap request");

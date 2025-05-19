@@ -1,11 +1,10 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { SwapRequest, PreferredDate } from './types';
-import { getUserSwapRequestsApi } from './getUserSwapRequests';
+import { SwapRequest, PreferredDate, DeletePreferredDateResult } from './types';
+import { getUserSwapRequestsApi } from './api';
 import { deleteSwapRequest } from './deleteSwapRequest';
-import { deletePreferredDate, DeletePreferredDateResult } from './deletePreferredDate';
+import { deletePreferredDate } from './deletePreferredDate';
 
 export const useSwapRequests = (defaultStatus: string = 'pending') => {
   const [requests, setRequests] = useState<SwapRequest[]>([]);
@@ -32,13 +31,13 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
       setError(null);
       console.log(`Fetching swap requests for user ${user.id} with status: ${requestStatus}`);
       
-      const result = await getUserSwapRequests(user.id, requestStatus);
+      const result = await getUserSwapRequestsApi(requestStatus);
       
       if (result.error) {
         throw new Error(result.error);
       }
       
-      setRequests(result.requests || []);
+      setRequests(result || []);
     } catch (err: any) {
       console.error('Error fetching swap requests:', err);
       setError(err);
@@ -86,7 +85,7 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
     }
   };
 
-  const handleDeletePreferredDate = async (dayId: string, requestId: string) => {
+  const handleDeletePreferredDate = async (dayId: string, requestId: string): Promise<DeletePreferredDateResult> => {
     if (!user) return { success: false };
     
     try {

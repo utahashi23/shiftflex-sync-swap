@@ -1,7 +1,9 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { format as formatDate } from 'date-fns';
 
 // Define the filters type
 export interface SwapRequestFilters {
@@ -63,35 +65,50 @@ export const useSwapList = () => {
     setError(null);
 
     try {
-      // Build the query
+      // For now, let's use shifts table directly since available_swaps is causing issues
       let query = supabase
-        .from('available_swaps')
-        .select('*, preferrer:user_profiles(id, name, employeeId)', { count: 'exact' })
-        .eq('available', true)
+        .from('shifts')
+        .select('*, user_profiles:user_id(id, name, employeeId)', { count: 'exact' })
+        .gt('date', new Date().toISOString().split('T')[0])
         .order('date', { ascending: true });
 
       // Apply filters
       if (filters.day) {
-        query = query.eq('day', filters.day);
+        // Extract the day from the date and filter
+        query = query.filter('date', 'ilike', `%-${filters.day.toString().padStart(2, '0')}%`);
       }
+      
       if (filters.month) {
-        query = query.eq('month', filters.month);
+        // Extract the month from the date and filter
+        query = query.filter('date', 'ilike', `%-${filters.month.toString().padStart(2, '0')}-%`);
       }
+      
       if (filters.specificDate) {
-        const formattedDate = format(filters.specificDate, 'yyyy-MM-dd');
+        const formattedDate = formatDate(filters.specificDate, 'yyyy-MM-dd');
         query = query.eq('date', formattedDate);
       }
+      
       if (filters.shiftType) {
-        query = query.eq('type', filters.shiftType);
+        // This is a simplified approach - in a real app, you might need a more sophisticated 
+        // query based on start_time to determine shift type
+        if (filters.shiftType === 'day') {
+          query = query.lt('start_time', '12:00:00');
+        } else if (filters.shiftType === 'afternoon') {
+          query = query.gte('start_time', '12:00:00').lt('start_time', '18:00:00');
+        } else if (filters.shiftType === 'night') {
+          query = query.gte('start_time', '18:00:00');
+        }
       }
+      
       if (filters.colleagueType) {
         query = query.eq('colleagueType', filters.colleagueType);
       }
 
       // Initial fetch to get total count
       const { count, error: countError } = await supabase
-        .from('available_swaps')
-        .select('*', { count: 'exact', head: true });
+        .from('shifts')
+        .select('*', { count: 'exact', head: true })
+        .gt('date', new Date().toISOString().split('T')[0]);
 
       if (countError) {
         throw countError;
@@ -111,14 +128,18 @@ export const useSwapList = () => {
       // Map the data to the SwapListItem interface
       const mappedData: SwapListItem[] = (data || []).map(item => ({
         id: item.id,
-        preferrer: item.preferrer,
+        preferrer: {
+          id: item.user_id,
+          name: item.user_profiles?.name || 'Unknown User',
+          employeeId: item.user_profiles?.employeeId
+        },
         originalShift: {
           id: item.id,
           date: item.date,
-          startTime: item.startTime,
-          endTime: item.endTime,
-          type: item.type,
-          title: item.truck,
+          startTime: item.start_time,
+          endTime: item.end_time,
+          type: determineShiftType(item.start_time),
+          title: item.truck_name,
           colleagueType: item.colleagueType,
         },
       }));
@@ -141,6 +162,16 @@ export const useSwapList = () => {
       setIsLoadingMore(false);
     }
   }, [user, filters, page, limit, toast]);
+
+  // Helper function to determine shift type based on start time
+  function determineShiftType(startTime?: string): string {
+    if (!startTime) return 'day';
+    
+    const hour = parseInt(startTime.split(':')[0], 10);
+    if (hour < 12) return 'day';
+    if (hour < 18) return 'afternoon';
+    return 'night';
+  }
 
   useEffect(() => {
     setPage(1); // Reset page to 1 when filters change

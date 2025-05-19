@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { Filter } from 'lucide-react';
@@ -17,7 +16,15 @@ import {
   SelectTrigger,
   SelectValue 
 } from '@/components/ui/select';
-import { SwapFilters } from '@/hooks/useSwapList';
+
+// Move SwapFilters interface from useSwapList directly into this file
+interface SwapFilters {
+  day: string | null;
+  month: string | null;
+  specificDate: Date | null; 
+  shiftType: string | null;
+  colleagueType: string | null;
+}
 
 interface SwapRequestFiltersProps {
   filters: SwapFilters;
@@ -44,7 +51,7 @@ const SwapRequestFilters = ({ filters, setFilters }: SwapRequestFiltersProps) =>
   const handleDateChange = (date: string) => {
     setFilters(prev => ({
       ...prev,
-      specificDate: date || null
+      specificDate: date ? new Date(date) : null
     }));
   };
   
@@ -149,7 +156,7 @@ const SwapRequestFilters = ({ filters, setFilters }: SwapRequestFiltersProps) =>
               <Input 
                 id="specific-date" 
                 type="date" 
-                value={filters.specificDate || ''}
+                value={filters.specificDate ? format(filters.specificDate, 'yyyy-MM-dd') : ''}
                 onChange={(e) => handleDateChange(e.target.value)}
               />
             </div>

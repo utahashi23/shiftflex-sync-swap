@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useRef } from 'react';
 import { useSwapRequests } from '../swap-requests';
 import { useFindSwapMatches } from './useFindSwapMatches';
@@ -75,10 +76,10 @@ export function useSwapMatcher() {
         updateProgress('complete', 'No matches found');
       }
       
+      // Return with empty results array so TypeScript doesn't complain
       return { 
         success: true, 
         matches: matchData || [],
-        // Initialize an empty results array to avoid the TypeScript error
         results: [] 
       };
     } catch (error: any) {
@@ -89,7 +90,6 @@ export function useSwapMatcher() {
         success: false, 
         message: error.message, 
         matches: [],
-        // Initialize an empty results array to avoid the TypeScript error
         results: [] 
       };
     } finally {
@@ -140,6 +140,7 @@ export function useSwapMatcher() {
       }
       
       setMatches(matchResponse.matches || []);
+      // Access the results property safely
       setMatchResults(matchResponse.results || []);
       updateProgress('complete', `Found ${matchResponse.matches?.length || 0} potential matches`);
       
@@ -154,7 +155,7 @@ export function useSwapMatcher() {
         requestInFlightRef.current = false;
       }, 500);
     }
-  }, [findMatches, isRunning, requestInProgress, startProcessing, updateProgress]);
+  }, [findSwapMatches, isRunning, requestInProgress, startProcessing, updateProgress]);
 
   return {
     runMatcher,
