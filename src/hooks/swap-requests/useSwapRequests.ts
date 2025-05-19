@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { 
   getUserSwapRequestsApi, 
@@ -44,8 +43,14 @@ export const useSwapRequests = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Fixed: Pass wantedDates as array rather than string
-      const result = await createSwapRequestApi(shiftIds[0], wantedDates);
+      // Update this line to correctly format the wanted dates as expected by the API
+      // The API expects an array of objects with date and acceptedTypes
+      const formattedDates = wantedDates.map(date => ({
+        date,
+        acceptedTypes: acceptedTypes || ['day', 'afternoon', 'night']
+      }));
+      
+      const result = await createSwapRequestApi(shiftIds[0], formattedDates);
       await fetchSwapRequests();
       return true;
     } catch (err) {
