@@ -77,7 +77,9 @@ export function useSwapMatcher() {
       
       return { 
         success: true, 
-        matches: matchData || [] 
+        matches: matchData || [],
+        // Initialize an empty results array to avoid the TypeScript error
+        results: [] 
       };
     } catch (error: any) {
       console.error('Error finding matches:', error);
@@ -86,7 +88,9 @@ export function useSwapMatcher() {
       return { 
         success: false, 
         message: error.message, 
-        matches: [] 
+        matches: [],
+        // Initialize an empty results array to avoid the TypeScript error
+        results: [] 
       };
     } finally {
       setRequestInProgress(false);

@@ -23,19 +23,19 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
   
   // Fix: Use state to store the swap requests directly
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
-  const { fetchRequests: fetchSwapRequests } = useSwapRequests();
+  const { fetchRequests } = useSwapRequests();
   
-  // Function to fetch swap requests
-  const fetchSwapRequests = useCallback(async () => {
+  // Function to fetch swap requests - rename to avoid collision
+  const loadSwapRequests = useCallback(async () => {
     try {
       // Using the useSwapRequests hook to fetch data
-      await fetchSwapRequests();
+      await fetchRequests();
       // Note: This is a workaround since we can't directly access the swapRequests
       // In a real implementation, we should refactor to avoid this pattern
     } catch (error) {
       console.error('Error fetching swap requests:', error);
     }
-  }, [fetchSwapRequests]);
+  }, [fetchRequests]);
 
   // Auto-fetch matches on component mount - but only once per user session
   useEffect(() => {
@@ -45,7 +45,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       userIdRef.current = user.id;
       // Set a timeout to prevent immediate loading on page render
       const timer = setTimeout(() => {
-        fetchSwapRequests().then(() => {
+        loadSwapRequests().then(() => {
           fetchMatches();
         });
         // Mark initial fetch as done to prevent further auto-fetches
@@ -54,7 +54,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       
       return () => clearTimeout(timer);
     }
-  }, [user, initialFetchDone, fetchSwapRequests]);
+  }, [user, initialFetchDone, loadSwapRequests]);
 
   /**
    * Process matches data from API response and filter by user's active requests
@@ -148,7 +148,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
       console.log('Finding matches for user:', user.id);
       
       // First ensure we have the latest swap requests data
-      await fetchSwapRequests();
+      await loadSwapRequests();
       
       // Check if user has any active swap requests - simple check since we don't have direct access
       if (swapRequests.length === 0) {
@@ -248,7 +248,7 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
         fetchInProgressRef.current = false;
       }, 500);
     }
-  }, [user, isLoading, fetchSwapRequests, swapRequests, findMatches, processMatchesData, activeTab, setRefreshTrigger]);
+  }, [user, isLoading, loadSwapRequests, swapRequests, findMatches, processMatchesData, activeTab, setRefreshTrigger]);
 
   return {
     matches,

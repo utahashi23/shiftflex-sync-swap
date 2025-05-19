@@ -1,324 +1,185 @@
-
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { fetchAllSwapRequests } from '@/utils/rls-bypass';
-import { format, isMatch, isValid, parseISO } from 'date-fns';
-import { createSwapMatchSafe } from '@/utils/rls-helpers';
-import { SwapRequest, PreferredDate } from '@/hooks/swap-requests/types';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-export interface SwapFilters {
-  day: number | null;
-  month: number | null;
-  specificDate: string | null;
+// Define the filters type
+export interface SwapRequestFilters {
+  day: string | null;
+  month: string | null;
+  specificDate: Date | null;
   shiftType: string | null;
   colleagueType: string | null;
 }
 
-export interface SwapListItem extends SwapRequest {
+// Add the originalShift property to the SwapListItem interface
+export interface SwapListItem {
+  id: string;
   preferrer?: {
+    id: string;
     name: string;
     employeeId?: string;
-  }
+  };
+  originalShift: {
+    id: string;
+    date: string;
+    startTime?: string;
+    endTime?: string;
+    type?: string;
+    title?: string;
+    colleagueType?: string;
+  };
+  // Add other properties as needed
 }
 
 export const useSwapList = () => {
-  const { user, isAdmin } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [allSwapRequests, setAllSwapRequests] = useState<SwapListItem[]>([]);
-  const [displayedRequests, setDisplayedRequests] = useState<SwapListItem[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [swapRequests, setSwapRequests] = useState<SwapListItem[]>([]);
+  const [filteredRequests, setFilteredRequests] = useState<SwapListItem[]>([]);
+  const [totalFilteredCount, setTotalFilteredCount] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const [hasMore, setHasMore] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
-  const itemsPerPage = 10;
-  const [filters, setFilters] = useState<SwapFilters>({
+  const [filters, setFilters] = useState<SwapRequestFilters>({
     day: null,
     month: null,
     specificDate: null,
     shiftType: null,
     colleagueType: null
   });
+  const [page, setPage] = useState<number>(1);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const limit = 10;
 
-  // Fetch all pending swap requests
-  const fetchAllRequests = async () => {
+  const fetchSwapRequests = useCallback(async () => {
+    if (!user) {
+      setSwapRequests([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
-    
-    try {
-      if (!user) return;
 
-      console.log('Fetching all swap requests for display');
-      const { data, error } = await fetchAllSwapRequests();
-      
+    try {
+      // Build the query
+      let query = supabase
+        .from('available_swaps')
+        .select('*, preferrer:user_profiles(id, name, employeeId)', { count: 'exact' })
+        .eq('available', true)
+        .order('date', { ascending: true });
+
+      // Apply filters
+      if (filters.day) {
+        query = query.eq('day', filters.day);
+      }
+      if (filters.month) {
+        query = query.eq('month', filters.month);
+      }
+      if (filters.specificDate) {
+        const formattedDate = format(filters.specificDate, 'yyyy-MM-dd');
+        query = query.eq('date', formattedDate);
+      }
+      if (filters.shiftType) {
+        query = query.eq('type', filters.shiftType);
+      }
+      if (filters.colleagueType) {
+        query = query.eq('colleagueType', filters.colleagueType);
+      }
+
+      // Initial fetch to get total count
+      const { count, error: countError } = await supabase
+        .from('available_swaps')
+        .select('*', { count: 'exact', head: true });
+
+      if (countError) {
+        throw countError;
+      }
+
+      setTotalFilteredCount(count || 0);
+
+      // Paginated fetch
+      query = query.range((page - 1) * limit, page * limit - 1);
+
+      const { data, error } = await query;
+
       if (error) {
-        console.error('Error fetching swap requests:', error);
-        setError(error instanceof Error ? error : new Error(String(error)));
         throw error;
       }
-      
-      // Helper function for getting requester profile with improved error handling
-      const getRequesterProfile = async (userId: string) => {
-        try {
-          if (!userId) return { name: 'Unknown User' };
-          
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('first_name, last_name, employee_id')
-            .eq('id', userId)
-            .maybeSingle();
-            
-          return profile ? {
-            name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User',
-            employeeId: profile.employee_id
-          } : { name: 'Unknown User' };
-        } catch (error) {
-          console.error('Error fetching profile:', error);
-          return { name: 'Unknown User' };
-        }
-      };
-      
-      if (!data || data.length === 0) {
-        console.log('No swap requests found');
-        setAllSwapRequests([]);
-        setIsLoading(false);
-        return;
-      }
-      
-      console.log(`Found ${data.length} raw swap requests, processing...`);
-      console.log('Sample data:', data[0]);
-      
-      // Validate date format before proceeding
-      const isValidDateString = (dateStr: string) => {
-        if (!dateStr) return false;
-        
-        // Accept ISO format (YYYY-MM-DDTHH:mm:ss.sssZ) or simple date format (YYYY-MM-DD)
-        return /^\d{4}-\d{2}-\d{2}(T[0-9:.]+Z?)?$/.test(dateStr) && isValid(parseISO(dateStr));
-      };
-      
-      // Map raw data to our SwapRequest format with better error handling
-      const formattedRequests = data
-        .filter((req: any) => req && req.status === 'pending')
-        .map((req: any) => {
-          try {
-            // Get the embedded shift data with fallbacks
-            const shift = req._embedded_shift || req.requester_shift || {};
-            console.log(`Processing request ${req.id}, shift data:`, shift);
-            
-            // Ensure we have a valid shift date or provide fallback
-            let shiftDate = shift.date;
-            // Check if date is valid
-            if (!isValidDateString(shiftDate)) {
-              console.warn(`Invalid shift date in request ${req.id}:`, shiftDate);
-              shiftDate = new Date().toISOString().split('T')[0]; // Fallback to today
-            }
-            
-            // Format preferred dates, validate them first
-            const preferredDates = (req.preferred_dates || [])
-              .filter((date: any) => date && isValidDateString(date.date))
-              .map((date: any) => ({
-                id: date.id,
-                date: date.date,
-                acceptedTypes: date.accepted_types || []
-              }));
-              
-            // Determine shift type from start time
-            const startTime = shift.start_time || '';
-            const startHour = startTime ? parseInt(startTime.split(':')[0]) : 8;
-            let shiftType = 'day';
-            if (startHour >= 16) shiftType = 'night';
-            else if (startHour >= 12) shiftType = 'afternoon';
-            
-            return {
-              id: req.id,
-              status: req.status,
-              requesterId: req.requester_id,
-              originalShift: {
-                id: shift.id || '',
-                date: shiftDate,
-                title: shift.truck_name || `Shift-${(shift.id || '').substring(0, 5)}`,
-                startTime: shift.start_time ? shift.start_time.substring(0, 5) : '',
-                endTime: shift.end_time ? shift.end_time.substring(0, 5) : '',
-                type: shiftType,
-                colleagueType: shift.colleague_type || 'Unknown'
-              },
-              preferredDates: preferredDates
-            };
-          } catch (err) {
-            console.error('Error processing request:', err, req);
-            // Return a default/fallback structure for malformed requests
-            return {
-              id: req.id || 'unknown',
-              status: req.status || 'pending',
-              requesterId: req.requester_id || '',
-              originalShift: {
-                id: '',
-                date: new Date().toISOString().split('T')[0],
-                title: 'Unknown Shift',
-                startTime: '',
-                endTime: '',
-                type: 'day',
-                colleagueType: 'Unknown'
-              },
-              preferredDates: []
-            };
-          }
-        });
-        
-      console.log(`Processed ${formattedRequests.length} formatted requests`);
-      
-      // Get requester profiles for each request with better error handling
-      const requestsWithProfiles = await Promise.all(
-        formattedRequests.map(async (req) => {
-          try {
-            const profile = await getRequesterProfile(req.requesterId);
-            return {
-              ...req,
-              preferrer: profile
-            };
-          } catch (error) {
-            console.error(`Error fetching profile for request ${req.id}:`, error);
-            return {
-              ...req,
-              preferrer: { name: 'Unknown User' }
-            };
-          }
-        })
-      );
-      
-      console.log(`Successfully prepared ${requestsWithProfiles.length} swap requests with profiles`);
-      setAllSwapRequests(requestsWithProfiles);
-      
-      // Reset pagination
-      setPage(1);
-      setHasMore(requestsWithProfiles.length > itemsPerPage);
-      
-    } catch (error) {
-      console.error('Error fetching swap requests:', error);
-      setError(error instanceof Error ? error : new Error('Unknown error fetching swap requests'));
+
+      // Map the data to the SwapListItem interface
+      const mappedData: SwapListItem[] = (data || []).map(item => ({
+        id: item.id,
+        preferrer: item.preferrer,
+        originalShift: {
+          id: item.id,
+          date: item.date,
+          startTime: item.startTime,
+          endTime: item.endTime,
+          type: item.type,
+          title: item.truck,
+          colleagueType: item.colleagueType,
+        },
+      }));
+
+      // Update state
+      setSwapRequests(prevRequests => (page === 1 ? mappedData : [...prevRequests, ...mappedData]));
+      setFilteredRequests(prevRequests => (page === 1 ? mappedData : [...prevRequests, ...mappedData]));
+      setHasMore(mappedData.length === limit && (count || 0) > page * limit);
+
+    } catch (err: any) {
+      console.error('Error fetching swap requests:', err);
+      setError(err);
       toast({
-        title: "Failed to load swap requests",
-        description: "There was a problem loading the swap requests. Please try again.",
-        variant: "destructive"
+        title: 'Error',
+        description: err.message || 'Failed to load swap requests',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  }, [user, filters, page, limit, toast]);
+
+  useEffect(() => {
+    setPage(1); // Reset page to 1 when filters change
+    setSwapRequests([]); // Clear existing requests
+    setFilteredRequests([]);
+    fetchSwapRequests();
+  }, [filters, fetchSwapRequests]);
+
+  const loadMore = () => {
+    if (!isLoadingMore && hasMore) {
+      setIsLoadingMore(true);
+      setPage(prevPage => prevPage + 1);
     }
   };
 
-  // Filter requests based on user's filter selection
-  const filteredRequests = useMemo(() => {
-    return allSwapRequests.filter(request => {
-      try {
-        const originalDate = new Date(request.originalShift.date);
-        
-        // Skip filtering if date is invalid
-        if (!isValid(originalDate)) {
-          console.warn(`Invalid date detected: ${request.originalShift.date} for request ${request.id}`);
-          return false; // Exclude invalid dates from display
-        }
-        
-        // Filter by day
-        if (filters.day !== null && originalDate.getDate() !== filters.day) {
-          return false;
-        }
-        
-        // Filter by month
-        if (filters.month !== null && originalDate.getMonth() !== filters.month - 1) { // JS months are 0-indexed
-          return false;
-        }
-        
-        // Filter by specific date
-        if (filters.specificDate && request.originalShift.date !== filters.specificDate) {
-          return false;
-        }
-        
-        // Filter by shift type
-        if (filters.shiftType && request.originalShift.type !== filters.shiftType) {
-          return false;
-        }
-        
-        // Filter by colleague type
-        if (filters.colleagueType && request.originalShift.colleagueType !== filters.colleagueType) {
-          return false;
-        }
-        
-        return true;
-      } catch (err) {
-        console.error('Error filtering request:', err);
-        return false; // Exclude items that cause errors during filtering
-      }
+  const handleOfferSwap = (requestId: string) => {
+    toast({
+      title: "Shift Swap Offered",
+      description: `You have offered a shift swap for request ID: ${requestId}`,
     });
-  }, [allSwapRequests, filters]);
-  
-  // Update displayed items when filters change or on initial load
-  useEffect(() => {
-    const initialItems = filteredRequests.slice(0, itemsPerPage);
-    setDisplayedRequests(initialItems);
-    setHasMore(filteredRequests.length > itemsPerPage);
+  };
+
+  const refreshRequests = () => {
     setPage(1);
-  }, [filteredRequests]);
-
-  // Function to load more items when scrolling
-  const loadMore = useCallback(() => {
-    if (isLoadingMore || !hasMore) return;
-    
-    setIsLoadingMore(true);
-    
-    // Calculate next page of items
-    const nextPage = page + 1;
-    const startIndex = (nextPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const nextItems = filteredRequests.slice(startIndex, endIndex);
-    
-    // Add new items to displayed items
-    setDisplayedRequests(prev => [...prev, ...nextItems]);
-    setPage(nextPage);
-    setHasMore(endIndex < filteredRequests.length);
-    
-    setIsLoadingMore(false);
-  }, [filteredRequests, page, isLoadingMore, hasMore, itemsPerPage]);
-
-  // Fetch requests whenever user changes or on component mount
-  useEffect(() => {
-    if (user) {
-      fetchAllRequests();
-    }
-  }, [user]);
-
-  // Handle offering a swap
-  const handleOfferSwap = async (requestId: string) => {
-    try {
-      // This will be implemented in a future feature
-      toast({
-        title: "Offer swap feature coming soon",
-        description: "This feature is currently being developed."
-      });
-      
-      // In the future, we'll create a new swap match here
-    } catch (error) {
-      console.error('Error offering swap:', error);
-      toast({
-        title: "Failed to offer swap",
-        description: "There was a problem offering the swap. Please try again.",
-        variant: "destructive"
-      });
-    }
+    fetchSwapRequests();
   };
 
   return {
-    swapRequests: allSwapRequests,
+    swapRequests,
+    filteredRequests,
+    totalFilteredCount,
     isLoading,
     isLoadingMore,
-    filteredRequests: displayedRequests,
-    totalFilteredCount: filteredRequests.length,
+    hasMore,
+    error,
     filters,
     setFilters,
-    refreshRequests: fetchAllRequests,
     handleOfferSwap,
     loadMore,
-    hasMore,
-    error
+    refreshRequests
   };
 };

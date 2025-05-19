@@ -39,3 +39,10 @@ export interface DeleteSwapRequestResult {
   success: boolean;
   error?: string;
 }
+
+// Updated to explicitly include the requestDeleted property
+export interface DeletePreferredDateResult {
+  success: boolean;
+  requestDeleted?: boolean;
+  error?: string;
+}

@@ -28,7 +28,7 @@ import SwapDeleteDialog from "./swaps/SwapDeleteDialog";
 import { SwapFiltersDialog, SwapFilters } from "./swaps/SwapFiltersDialog";
 import { getShiftType } from "@/utils/shiftUtils";
 // Import the type from deletePreferredDate.ts
-import { DeletePreferredDateResult } from "@/hooks/swap-requests/deletePreferredDate";
+import { DeletePreferredDateResult } from "@/hooks/swap-requests/types";
 
 // Interface for grouped swap requests - new interface to better handle grouping
 interface GroupedSwapRequest {
@@ -73,15 +73,23 @@ const ImprovedShiftSwaps = () => {
   
   // Fix the destructuring to match the properties returned by useSwapRequests
   const { 
-    matches,
-    pastMatches,
+    requests,
     isLoading: isMatchesLoading, 
-    refreshMatches,
+    fetchRequests,
+    deleteRequest: deleteSwapRequest,
+    deletePreferredDay,
     createSwapRequest,
-    fetchSwapRequests: hookFetchSwapRequests,
-    deleteSwapRequest,
-    deletePreferredDay
+    fetchRequests: fetchSwapRequests,
+    refreshMatches
   } = useSwapRequests();
+
+  // Get matches data directly from the requests based on status
+  const swapMatches = requests?.filter(r => r.status === 'matched' || r.status === 'accepted') || [];
+  const swapPastMatches = requests?.filter(r => r.status === 'completed') || [];
+  
+  // Convert to component match format
+  const componentMatches = adaptSwapMatches(swapMatches as any);
+  const componentPastMatches = adaptSwapMatches(swapPastMatches as any);
 
   // State for month-based navigation
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -115,21 +123,17 @@ const ImprovedShiftSwaps = () => {
     isDeleting: false
   });
 
-  // Convert hook match types to component match types
-  const matches = adaptSwapMatches(matches || []);
-  const pastMatches = adaptSwapMatches(pastMatches || []);
-
   // Add extra logging to help diagnose match issues
   useEffect(() => {
-    if (matches) {
-      console.log("Current match count:", matches.length);
-      if (matches.length > 0) {
-        console.log("Sample match:", matches[0]);
+    if (componentMatches) {
+      console.log("Current match count:", componentMatches.length);
+      if (componentMatches.length > 0) {
+        console.log("Sample match:", componentMatches[0]);
       } else {
         console.log("No matches found - check matching logic");
       }
     }
-  }, [matches]);
+  }, [componentMatches]);
 
   // Fetch user's swap requests
   const fetchUserRequests = async () => {
@@ -177,9 +181,9 @@ const ImprovedShiftSwaps = () => {
     if (user) {
       fetchUserRequests();
       // Also fetch from the hook to ensure both data sources are up to date
-      hookFetchSwapRequests();
+      fetchRequests();
     }
-  }, [user, hookFetchSwapRequests]);
+  }, [user, fetchRequests]);
 
   // Refresh user requests when the "mySwaps" tab becomes active
   useEffect(() => {
@@ -187,12 +191,12 @@ const ImprovedShiftSwaps = () => {
       console.log("mySwaps tab activated, refreshing requests");
       fetchUserRequests();
       // Also refresh from the hook
-      hookFetchSwapRequests();
+      fetchRequests();
     } else if (activeTab === "matches" && user) {
       console.log("matches tab activated, refreshing matches");
       refreshMatches();
     }
-  }, [activeTab, user, fetchUserRequests, hookFetchSwapRequests, refreshMatches]);
+  }, [activeTab, user, fetchUserRequests, fetchRequests, refreshMatches]);
   
   // Handle creating a swap request
   const handleCreateSwap = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
@@ -213,7 +217,7 @@ const ImprovedShiftSwaps = () => {
         // Reload the user's swap requests immediately after creation
         await Promise.all([
           fetchUserRequests(),
-          hookFetchSwapRequests()
+          fetchRequests()
         ]);
         
         // Switch to the "My Swaps" tab after creating a swap
@@ -279,7 +283,7 @@ const ImprovedShiftSwaps = () => {
     });
   };
 
-  // Handle confirm delete (for both single requests and preferred dates)
+  // Modify the handleConfirmDelete function to correctly handle deletePreferredDay result
   const handleConfirmDelete = async () => {
     try {
       setDeleteDialog(prev => ({ ...prev, isDeleting: true }));
@@ -294,7 +298,7 @@ const ImprovedShiftSwaps = () => {
           throw new Error("Failed to delete preferred date");
         }
         
-        // Now TypeScript knows that requestDeleted exists on the result
+        // Now TypeScript knows that result has the correct type with requestDeleted property
         if (result.requestDeleted === true) {
           toast({
             title: "Success",
@@ -325,7 +329,7 @@ const ImprovedShiftSwaps = () => {
       // Refresh both data sources to ensure consistency
       await Promise.all([
         fetchUserRequests(),
-        hookFetchSwapRequests()
+        fetchRequests()
       ]);
       
     } catch (err: any) {
@@ -344,86 +348,6 @@ const ImprovedShiftSwaps = () => {
       });
     }
   };
-
-  // Group swap requests by shift date - this is the main function that groups the requests
-  const groupedSwapRequests = (() => {
-    // First filter and sort all swap requests
-    const filteredRequests = userRequests
-      .filter(request => {
-        const shiftDate = request.shifts?.date ? new Date(request.shifts.date) : null;
-        if (!shiftDate) return false;
-        
-        // Month filter (always applied)
-        const monthStart = startOfMonth(currentMonth);
-        const monthEnd = endOfMonth(currentMonth);
-        const isInCurrentMonth = shiftDate >= monthStart && shiftDate <= monthEnd;
-        if (!isInCurrentMonth) return false;
-        
-        // Date range filter
-        if (filters.dateRange.from && filters.dateRange.to) {
-          const isInDateRange = 
-            (isEqual(shiftDate, filters.dateRange.from) || isAfter(shiftDate, filters.dateRange.from)) &&
-            (isEqual(shiftDate, filters.dateRange.to) || isBefore(shiftDate, filters.dateRange.to));
-          if (!isInDateRange) return false;
-        } else if (filters.dateRange.from) {
-          if (isBefore(shiftDate, filters.dateRange.from)) return false;
-        } else if (filters.dateRange.to) {
-          if (isAfter(shiftDate, filters.dateRange.to)) return false;
-        }
-        
-        // Truck name filter
-        if (filters.truckName && request.shifts?.truck_name !== filters.truckName) {
-          return false;
-        }
-        
-        // Shift type filter
-        if (filters.shiftType) {
-          const shiftType = request.shifts?.start_time
-            ? getShiftType(request.shifts.start_time)
-            : 'day';
-          if (shiftType !== filters.shiftType) return false;
-        }
-        
-        return true;
-      })
-      .sort((a, b) => {
-        const dateA = a.shifts?.date ? new Date(a.shifts.date) : new Date(0);
-        const dateB = b.shifts?.date ? new Date(b.shifts.date) : new Date(0);
-        
-        return filters.sortDirection === 'asc' 
-          ? dateA.getTime() - dateB.getTime() 
-          : dateB.getTime() - dateA.getTime();
-      });
-      
-    // Group requests by shift date
-    const groupedByDate: Record<string, GroupedSwapRequest> = {};
-    
-    filteredRequests.forEach(request => {
-      if (!request.shifts?.date) return;
-      
-      const shiftDate = request.shifts.date;
-      
-      if (!groupedByDate[shiftDate]) {
-        groupedByDate[shiftDate] = {
-          shiftDate,
-          shiftId: request.shifts.id,
-          requests: [],
-          truckName: request.shifts?.truck_name,
-          startTime: request.shifts?.start_time,
-          endTime: request.shifts?.end_time,
-          colleagueType: request.shifts?.colleagueType,
-          shiftType: request.shifts?.start_time
-            ? getShiftType(request.shifts.start_time)
-            : 'day'
-        };
-      }
-      
-      groupedByDate[shiftDate].requests.push(request);
-    });
-    
-    // Convert the grouped object to an array for rendering
-    return Object.values(groupedByDate);
-  })();
 
   // Check if any filters are applied beyond default sort
   const hasActiveFilters = 
@@ -573,8 +497,8 @@ const ImprovedShiftSwaps = () => {
           <MatchedSwapsTabs
             activeTab="active"
             setActiveTab={() => {}}
-            matches={matches}
-            pastMatches={pastMatches}
+            matches={componentMatches}
+            pastMatches={componentPastMatches}
             onAcceptSwap={(matchId) => console.log("Accept swap:", matchId)}
             onFinalizeSwap={(matchId) => console.log("Finalize swap:", matchId)}
             onCancelSwap={(matchId) => console.log("Cancel swap:", matchId)}

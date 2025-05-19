@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { SwapRequest, PreferredDate } from './types';
-import { getUserSwapRequests } from './getUserSwapRequests';
+import { getUserSwapRequestsApi } from './getUserSwapRequests';
 import { deleteSwapRequest } from './deleteSwapRequest';
 import { deletePreferredDate, DeletePreferredDateResult } from './deletePreferredDate';
 
