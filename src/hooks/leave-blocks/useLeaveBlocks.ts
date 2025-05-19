@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,24 +18,26 @@ export const useLeaveBlocks = () => {
       console.log('Fetching leave blocks for user:', user.id);
       
       // First get the current session to get the auth token
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
-      if (!sessionData.session) {
-        console.error('No active session found');
+      if (sessionError || !sessionData?.session) {
+        console.error('No active session found', sessionError);
         toast({
           title: "Authentication Error",
-          description: "You must be logged in to view leave blocks",
+          description: "Please log in again to view leave blocks",
           variant: "destructive"
         });
         throw new Error('Authentication required');
       }
 
+      const accessToken = sessionData.session.access_token;
+      
       // Use the edge function to bypass RLS issues
       const { data, error } = await supabase.functions.invoke('get_user_leave_blocks', {
         body: { user_id: user.id },
         // Explicitly add authorization header with bearer token
         headers: {
-          Authorization: `Bearer ${sessionData.session.access_token}`
+          Authorization: `Bearer ${accessToken}`
         }
       });
       
@@ -104,6 +105,7 @@ export const useLeaveBlocks = () => {
     }
   }, [user]);
 
+  // Other methods remain the same
   const createLeaveSwapRequest = useCallback(async (leaveBlockId: string) => {
     if (!user) return false;
     
@@ -113,7 +115,7 @@ export const useLeaveBlocks = () => {
         .insert({
           requester_id: user.id,
           requester_leave_block_id: leaveBlockId,
-          requested_leave_block_id: null, // Set to null initially since we don't know what block the user wants to swap with yet
+          requested_leave_block_id: null,
           status: 'pending'
         })
         .select();
@@ -143,8 +145,13 @@ export const useLeaveBlocks = () => {
     try {
       setIsLoading(true);
       
+      // Get the current session to get the auth token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
       const { data, error } = await supabase.functions.invoke('split_leave_block', {
-        body: { user_leave_block_id: blockId, user_id: user.id }
+        body: { user_leave_block_id: blockId, user_id: user.id },
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
       });
       
       if (error) throw error;
@@ -182,12 +189,17 @@ export const useLeaveBlocks = () => {
     try {
       setIsLoading(true);
       
+      // Get the current session to get the auth token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
       const { data, error } = await supabase.functions.invoke('join_leave_blocks', {
         body: { 
           block_a_id: blockAId, 
           block_b_id: blockBId,
           user_id: user.id 
-        }
+        },
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
       });
       
       if (error) throw error;

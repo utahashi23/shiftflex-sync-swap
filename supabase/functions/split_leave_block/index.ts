@@ -1,200 +1,124 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/cors.ts';
-
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+import { serve } from "https://deno.land/std@0.131.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { corsHeaders, getAuthToken } from '../_shared/cors.ts'
 
 serve(async (req) => {
-  // This is critical: handle CORS preflight requests
+  // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    // Create clients with service role key (bypasses RLS)
-    const supabaseAdmin = createClient(
-      supabaseUrl,
-      supabaseServiceKey
-    );
+    // Get the request parameters
+    const { user_leave_block_id, user_id } = await req.json()
     
-    // Get request body
-    const { user_leave_block_id, user_id } = await req.json();
+    // Validate required parameters
+    if (!user_leave_block_id) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'User leave block ID is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
     
-    if (!user_leave_block_id || !user_id) {
-      throw new Error('Missing required parameters: user_leave_block_id and user_id are required');
+    // Get the authorization token using our helper
+    const token = getAuthToken(req);
+    if (!token) {
+      console.error('Missing Authorization header');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authorization header is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      )
     }
 
-    console.log(`Starting split operation for user_leave_block_id: ${user_leave_block_id}, user_id: ${user_id}`);
-
-    // Get the user leave block details
-    const { data: userLeaveBlock, error: userLeaveBlockError } = await supabaseAdmin
-      .from('user_leave_blocks')
-      .select('*, leave_block:leave_blocks(*)')
-      .eq('id', user_leave_block_id)
-      .eq('user_id', user_id)
-      .single();
-    
-    if (userLeaveBlockError || !userLeaveBlock) {
-      console.error('Error fetching leave block:', userLeaveBlockError?.message);
-      throw new Error('Leave block not found or access denied');
-    }
-    
-    const leaveBlock = userLeaveBlock.leave_block;
-    if (!leaveBlock) {
-      throw new Error('Associated leave block not found');
-    }
-    
-    console.log(`Found leave block: ${leaveBlock.id}, block_number: ${leaveBlock.block_number}`);
-    
-    const startDate = new Date(leaveBlock.start_date);
-    const endDate = new Date(leaveBlock.end_date);
-    const daysDifference = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    // Calculate the middle point (half the days)
-    const halfDays = Math.floor(daysDifference / 2);
-    const midPoint = new Date(startDate);
-    midPoint.setDate(startDate.getDate() + halfDays);
-    
-    console.log(`Splitting block with dates ${startDate.toISOString()} to ${endDate.toISOString()}`);
-    console.log(`Middle point: ${midPoint.toISOString()}`);
-    
-    // Use the same block number but add a suffix
-    const originalBlockNumber = leaveBlock.block_number;
-    console.log(`Original block number: ${originalBlockNumber}`);
-    
-    // Before inserting, check if blocks with these designations already exist
-    const { data: existingBlocks, error: existingBlocksError } = await supabaseAdmin
-      .from('leave_blocks')
-      .select('id, split_designation')
-      .eq('block_number', originalBlockNumber)
-      .in('split_designation', ['A', 'B']);
-      
-    if (existingBlocksError) {
-      console.error('Error checking for existing split blocks:', existingBlocksError.message);
-    } else {
-      console.log(`Found ${existingBlocks.length} existing split blocks for block number ${originalBlockNumber}`);
-      if (existingBlocks.length > 0) {
-        const splitDesignations = existingBlocks.map(block => block.split_designation);
-        console.log(`Existing split designations: ${splitDesignations.join(', ')}`);
-        
-        // If both A and B already exist, we need a new approach
-        if (splitDesignations.includes('A') && splitDesignations.includes('B')) {
-          throw new Error(`Block ${originalBlockNumber} has already been split into A and B designations`);
+    // Create a Supabase client with the auth token
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { 
+        global: { headers: { Authorization: `Bearer ${token}` } },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
         }
       }
+    )
+
+    // Get the authenticated user
+    const { data: { user: authUser }, error: userError } = await supabaseClient.auth.getUser()
+    
+    if (userError || !authUser) {
+      console.error('User authentication error:', userError)
+      return new Response(
+        JSON.stringify({ success: false, error: 'User authentication failed' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      )
     }
+
+    // Verify request is from the user or an admin
+    const { data: isAdmin } = await supabaseClient.rpc('has_role', { 
+      _user_id: authUser.id,
+      _role: 'admin'
+    });
     
-    // Create the first half block (A)
-    const { data: blockA, error: blockAError } = await supabaseAdmin
-      .from('leave_blocks')
-      .insert({
-        block_number: originalBlockNumber,
-        start_date: startDate.toISOString().split('T')[0],
-        end_date: midPoint.toISOString().split('T')[0],
-        status: 'active',
-        split_designation: 'A',
-        original_block_id: leaveBlock.id
-      })
-      .select()
-      .single();
-    
-    if (blockAError) {
-      console.error('Error creating block A:', blockAError.message);
-      throw new Error(`Error creating split block A: ${blockAError.message}`);
+    if (authUser.id !== user_id && !isAdmin) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized: You can only split your own leave blocks' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      )
     }
-    
-    console.log(`Created block A: ${blockA.id}, with block_number: ${blockA.block_number}${blockA.split_designation}`);
-    
-    // Create the second half block (B)
-    const nextDay = new Date(midPoint);
-    nextDay.setDate(midPoint.getDate() + 1);
-    
-    const { data: blockB, error: blockBError } = await supabaseAdmin
-      .from('leave_blocks')
-      .insert({
-        block_number: originalBlockNumber,
-        start_date: nextDay.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0],
-        status: 'active',
-        split_designation: 'B',
-        original_block_id: leaveBlock.id
-      })
-      .select()
-      .single();
-    
-    if (blockBError) {
-      console.error('Error creating block B:', blockBError.message);
-      throw new Error(`Error creating split block B: ${blockBError.message}`);
-    }
-    
-    console.log(`Created block B: ${blockB.id}, with block_number: ${blockB.block_number}${blockB.split_designation}`);
-    
-    // Create user associations for the new blocks
-    const { error: userBlockAError } = await supabaseAdmin
+
+    // Get the user leave block
+    const { data: userLeaveBlock, error: userLeaveBlockError } = await supabaseClient
       .from('user_leave_blocks')
-      .insert({
-        user_id: user_id,
-        leave_block_id: blockA.id,
-      });
-    
-    if (userBlockAError) {
-      console.error('Error associating user with block A:', userBlockAError.message);
-      throw new Error(`Error associating user with block A: ${userBlockAError.message}`);
+      .select('*, leave_block:leave_block_id(*)')
+      .eq('id', user_leave_block_id)
+      .single()
+
+    if (userLeaveBlockError || !userLeaveBlock) {
+      console.error('Error fetching user leave block:', userLeaveBlockError)
+      return new Response(
+        JSON.stringify({ success: false, error: 'User leave block not found' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      )
     }
-    
-    const { error: userBlockBError } = await supabaseAdmin
-      .from('user_leave_blocks')
-      .insert({
-        user_id: user_id,
-        leave_block_id: blockB.id,
-      });
-    
-    if (userBlockBError) {
-      console.error('Error associating user with block B:', userBlockBError.message);
-      throw new Error(`Error associating user with block B: ${userBlockBError.message}`);
-    }
-    
-    console.log('Successfully created user associations for both blocks');
-    
-    // Remove the original user leave block
-    const { error: removeError } = await supabaseAdmin
-      .from('user_leave_blocks')
-      .delete()
-      .eq('id', user_leave_block_id);
-    
-    if (removeError) {
-      console.error('Error removing original user leave block:', removeError.message);
-      throw new Error(`Error removing original user leave block: ${removeError.message}`);
-    }
-    
-    console.log('Successfully removed original user leave block');
-    
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        blockA: blockA,
-        blockB: blockB
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
+
+    // Use the service role to bypass RLS
+    const adminClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
-    );
+    )
+
+    // Call the split_leave_block database function
+    const { data: result, error: splitError } = await adminClient.rpc(
+      'split_leave_block',
+      { block_id: userLeaveBlock.leave_block_id }
+    )
+
+    if (splitError) {
+      console.error('Error splitting leave block:', splitError)
+      return new Response(
+        JSON.stringify({ success: false, error: splitError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
+    }
+
+    return new Response(
+      JSON.stringify(result),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    )
+
   } catch (error) {
-    console.error('Error splitting leave block:', error.message);
-    
+    console.error('Unhandled error:', error)
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400 
-      }
-    );
+      JSON.stringify({ success: false, error: error.message || 'An unknown error occurred' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    )
   }
-});
+})
