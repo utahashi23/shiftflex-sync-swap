@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -184,10 +183,10 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
     return fetchRequests();
   }, [fetchRequests]);
 
-  // Enhanced createSwapRequest to handle multiple shift IDs
-  const createSwapRequest = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
+  // Enhanced createSwapRequest to handle multiple shift IDs and required skillset
+  const createSwapRequest = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[], requiredSkillset?: string[]) => {
     try {
-      console.log('Creating swap requests with params:', { shiftIds, wantedDates, acceptedTypes });
+      console.log('Creating swap requests with params:', { shiftIds, wantedDates, acceptedTypes, requiredSkillset });
       
       if (!shiftIds.length || !wantedDates.length || !acceptedTypes.length) {
         toast({
@@ -206,7 +205,7 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
       
       // Create a swap request for each shift
       for (const shiftId of shiftIds) {
-        await createSwapRequestApi(shiftId, preferredDates);
+        await createSwapRequestApi(shiftId, preferredDates, requiredSkillset);
       }
       
       // Refresh requests after creation

@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import ShiftIconBadge from "./ShiftIconBadge";
 import { getShiftType } from "@/utils/shiftUtils";
 import { SwapFilters } from "./SwapFiltersDialog";
+import { useColleagueTypes } from "@/hooks/useColleagueTypes";
 
 // Define shift types directly since we don't have a shift_types table
 const SHIFT_TYPES = [
@@ -25,7 +26,7 @@ const SHIFT_TYPES = [
 interface ImprovedSwapFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => Promise<boolean>;
+  onSubmit: (shiftIds: string[], wantedDates: string[], acceptedTypes: string[], requiredSkillset?: string[]) => Promise<boolean>;
   isDialog?: boolean;
   currentMonth?: Date;
   filters?: SwapFilters;
@@ -47,8 +48,16 @@ export const ImprovedSwapForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   
   const { user } = useAuth();
+  const { colleagueTypes, isLoading: isLoadingColleagueTypes } = useColleagueTypes();
+  
+  // Format colleague types for MultiSelect component
+  const colleagueTypeOptions = colleagueTypes.map(type => ({
+    value: type.id,
+    label: type.name
+  }));
   
   // Fetch user shifts
   useEffect(() => {
@@ -80,6 +89,7 @@ export const ImprovedSwapForm = ({
     setSelectedShifts([]);
     setSelectedDates([]);
     setSelectedTypes([]);
+    setSelectedSkills([]);
     
   }, [user, isOpen]);
   
@@ -190,7 +200,8 @@ export const ImprovedSwapForm = ({
     const success = await onSubmit(
       shiftIds,
       formattedDates,
-      selectedTypes
+      selectedTypes,
+      selectedSkills.length > 0 ? selectedSkills : undefined
     );
     
     setIsSubmitting(false);
@@ -376,10 +387,62 @@ export const ImprovedSwapForm = ({
           </div>
         );
       
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium mb-2">Required skillset (optional)</h3>
+              <p className="text-sm text-muted-foreground mb-2">
+                Specify if your swap requires specific colleague types/skills
+              </p>
+              {isLoadingColleagueTypes ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : (
+                <MultiSelect
+                  options={colleagueTypeOptions}
+                  selected={selectedSkills}
+                  onChange={setSelectedSkills}
+                  placeholder="Select required skillsets (optional)"
+                />
+              )}
+              <p className="text-xs text-muted-foreground mt-2">
+                This field is optional. Leave empty if no specific skills are required.
+              </p>
+            </div>
+          </div>
+        );
+      
       default:
         return null;
     }
   };
+
+  // Get the total number of steps
+  const totalSteps = 3;
+
+  // Determine action button labels based on current step
+  const getActionLabels = () => {
+    if (step === 1) {
+      return {
+        next: "Continue",
+        cancel: "Cancel"
+      };
+    } else if (step === totalSteps) {
+      return {
+        next: "Create Request",
+        cancel: "Back"
+      };
+    } else {
+      return {
+        next: "Continue",
+        cancel: "Back"
+      };
+    }
+  };
+
+  const actionLabels = getActionLabels();
 
   // Render the component based on isDialog prop
   if (isDialog) {
@@ -387,14 +450,22 @@ export const ImprovedSwapForm = ({
       <ShiftSwapDialog
         open={isOpen}
         onOpenChange={onClose}
-        title="Create Swap Request"
-        description={step === 1 ? "Select the shifts you want to swap" : "Select your preferences"}
-        onConfirm={step === 1 ? handleContinue : handleSubmit}
+        title={`Create Swap Request (${step}/${totalSteps})`}
+        description={
+          step === 1 ? "Select the shifts you want to swap" : 
+          step === 2 ? "Select your date and shift preferences" :
+          "Specify required skillset (optional)"
+        }
+        onConfirm={step === totalSteps ? handleSubmit : handleNextStep}
         onCancel={step === 1 ? undefined : handlePrevStep}
-        confirmLabel={step === 1 ? "Continue" : "Create Request"}
-        cancelLabel={step === 1 ? "Cancel" : "Back"}
+        confirmLabel={actionLabels.next}
+        cancelLabel={actionLabels.cancel}
         isLoading={isSubmitting}
         preventAutoClose={true}
+        confirmDisabled={
+          (step === 1 && selectedShifts.length === 0) ||
+          (step === 2 && (selectedDates.length === 0 || selectedTypes.length === 0))
+        }
       >
         {renderContent()}
       </ShiftSwapDialog>
@@ -403,7 +474,11 @@ export const ImprovedSwapForm = ({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{step === 1 ? "Select Shifts to Swap" : "Set Your Preferences"}</CardTitle>
+          <CardTitle>
+            {step === 1 ? "Select Shifts to Swap" : 
+             step === 2 ? "Set Your Preferences" :
+             "Required Skillset"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {renderContent()}
@@ -418,9 +493,14 @@ export const ImprovedSwapForm = ({
               <Button variant="outline" onClick={handlePrevStep} disabled={isSubmitting}>
                 Back
               </Button>
-              <Button onClick={handleSubmit} disabled={selectedDates.length === 0 || selectedTypes.length === 0 || isSubmitting}>
+              <Button 
+                onClick={step === totalSteps ? handleSubmit : handleNextStep} 
+                disabled={(step === 1 && selectedShifts.length === 0) || 
+                          (step === 2 && (selectedDates.length === 0 || selectedTypes.length === 0)) ||
+                          isSubmitting}
+              >
                 {isSubmitting && <div className="mr-2 animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
-                Create Request
+                {step === totalSteps ? "Create Request" : "Continue"}
               </Button>
             </>
           )}

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedSwapForm } from "./swaps/ImprovedSwapForm";
@@ -260,12 +261,12 @@ const ImprovedShiftSwaps = () => {
   }, [activeTab, user, fetchRequests, refreshMatches]);
   
   // Handle creating a swap request
-  const handleCreateSwap = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
+  const handleCreateSwap = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[], requiredSkillset?: string[]) => {
     setIsSubmitting(true);
     try {
-      console.log("Creating swap request with: ", { shiftIds, wantedDates, acceptedTypes });
+      console.log("Creating swap request with: ", { shiftIds, wantedDates, acceptedTypes, requiredSkillset });
       
-      const success = await createSwapRequest(shiftIds, wantedDates, acceptedTypes);
+      const success = await createSwapRequest(shiftIds, wantedDates, acceptedTypes, requiredSkillset);
       
       if (success) {
         toast({

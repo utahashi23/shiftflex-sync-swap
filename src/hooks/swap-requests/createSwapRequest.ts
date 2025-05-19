@@ -13,7 +13,8 @@ interface PreferredDate {
  */
 export const createSwapRequestApi = async (
   shiftId: string, 
-  preferredDates: PreferredDate[]
+  preferredDates: PreferredDate[],
+  requiredSkillset?: string[]
 ) => {
   if (!shiftId || !preferredDates || preferredDates.length === 0) {
     throw new Error('Missing required parameters for swap request');
@@ -22,6 +23,9 @@ export const createSwapRequestApi = async (
   try {
     console.log('Creating swap requests for shift:', shiftId);
     console.log('With preferred dates:', preferredDates);
+    if (requiredSkillset && requiredSkillset.length > 0) {
+      console.log('With required skillset:', requiredSkillset);
+    }
     
     // We'll directly create the swap request in the database instead of using the edge function
     // This ensures we're using the correct tables
@@ -44,7 +48,8 @@ export const createSwapRequestApi = async (
           requester_shift_id: shiftId,
           wanted_date: preferredDate.date,
           accepted_shift_types: preferredDate.acceptedTypes,
-          status: 'pending'
+          status: 'pending',
+          required_skillset: requiredSkillset && requiredSkillset.length > 0 ? requiredSkillset : null
         })
         .select('id')
         .single();

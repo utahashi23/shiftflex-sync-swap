@@ -1,55 +1,39 @@
 
-export interface PreferredDate {
-  id: string;
-  date: string;
-  accepted_types?: string[];
-  acceptedTypes?: string[];
-}
-
-export interface Shift {
-  id: string;
-  date?: string;
-  start_time?: string;
-  end_time?: string;
-  truck_name?: string;
-  colleagueType?: string;
-}
+// Type definitions for swap requests
 
 export interface SwapRequest {
   id: string;
-  requester_id?: string;
-  requesterId?: string;
-  requester_shift_id?: string;
-  requesterShiftId?: string;
-  status?: string;
-  created_at?: string;
-  createdAt?: string;
+  requester_id: string;
+  requester_shift_id: string;
+  status: string;
+  created_at: string;
   updated_at?: string;
-  updatedAt?: string;
-  preferredDates: PreferredDate[];
-  shifts?: Shift; // Needed for accessing the shift property
-  originalShift?: {
-    id: string;
-    date: string;
-    title?: string;
-    startTime?: string;
-    endTime?: string;
-    type?: string;
-  };
+  acceptor_id?: string;
+  acceptor_shift_id?: string;
+  preferred_dates?: PreferredDate[];
+  preferred_dates_count?: number;
+  required_skillset?: string[];
 }
 
-export interface GetSwapRequestsResult {
-  requests: SwapRequest[];
-  error?: string;
-}
-
-export interface DeleteSwapRequestResult {
-  success: boolean;
-  error?: string;
+export interface PreferredDate {
+  id: string;
+  date: string;
+  request_id?: string;
+  accepted_types?: string[];
 }
 
 export interface DeletePreferredDateResult {
   success: boolean;
-  requestDeleted?: boolean;
   error?: string;
+  requestDeleted?: boolean;
+  message?: string;
+}
+
+export interface CreateSwapRequestParams {
+  shiftId: string;
+  preferredDates: {
+    date: string;
+    acceptedTypes: string[];
+  }[];
+  requiredSkillset?: string[];
 }
