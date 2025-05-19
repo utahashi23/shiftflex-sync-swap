@@ -21,8 +21,8 @@ export async function deletePreferredDate(dayId: string, requestId: string): Pro
     
     console.log(`Deleting preferred date ${dayId} from request ${requestId}`);
 
-    // Call the edge function to delete the preferred date
-    const { data, error } = await supabase.functions.invoke('delete_preferred_date', {
+    // Call the edge function "delete_preferred_day" instead of "delete_preferred_date"
+    const { data, error } = await supabase.functions.invoke('delete_preferred_day', {
       body: {
         day_id: dayId,
         request_id: requestId
