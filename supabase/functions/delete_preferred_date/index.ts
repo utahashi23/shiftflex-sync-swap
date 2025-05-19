@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.131.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
-import { corsHeaders } from '../_shared/cors.ts'
+import { corsHeaders, getAuthToken } from '../_shared/cors.ts'
 
 serve(async (req) => {
   // Handle CORS preflight request
@@ -24,8 +24,8 @@ serve(async (req) => {
     console.log(`Processing deletion request for day_id: ${day_id}, request_id: ${request_id}`)
 
     // Extract authorization header
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
+    const token = getAuthToken(req);
+    if (!token) {
       console.log('Missing authorization header')
       return new Response(
         JSON.stringify({ success: false, message: 'Missing authorization header' }),
@@ -38,7 +38,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { 
-        global: { headers: { Authorization: authHeader } },
+        global: { headers: { Authorization: `Bearer ${token}` } },
         auth: {
           autoRefreshToken: false,
           persistSession: false
