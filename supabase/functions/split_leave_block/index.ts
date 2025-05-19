@@ -22,12 +22,27 @@ serve(async (req) => {
       )
     }
     
-    // Extract the authorization token using the shared helper
-    const token = getAuthToken(req);
-    if (!token) {
+    // Extract the authorization token
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
       console.error('Missing Authorization header');
-      return createUnauthorizedResponse('Authorization header is required');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authorization header is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
     }
+    
+    // Extract the token part (remove "Bearer " if present)
+    const token = authHeader.split(' ')[1] || authHeader;
+    if (!token) {
+      console.error('Invalid Authorization header format');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid Authorization header format' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    console.log('Auth token received, creating client');
 
     // Create a Supabase client with the auth token
     const supabaseClient = createClient(
@@ -47,7 +62,10 @@ serve(async (req) => {
     
     if (userError || !authUser) {
       console.error('User authentication error:', userError)
-      return createUnauthorizedResponse('User authentication failed');
+      return new Response(
+        JSON.stringify({ success: false, error: 'User authentication failed' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
     }
 
     // Verify request is from the user or an admin
@@ -105,7 +123,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify({ success: true, ...result }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
 

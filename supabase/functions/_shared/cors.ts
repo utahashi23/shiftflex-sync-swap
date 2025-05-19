@@ -19,7 +19,7 @@ export function getAuthToken(req: Request): string | null {
 
 export function createUnauthorizedResponse(message: string): Response {
   return new Response(
-    JSON.stringify({ error: message }),
+    JSON.stringify({ success: false, error: message }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
   );
 }

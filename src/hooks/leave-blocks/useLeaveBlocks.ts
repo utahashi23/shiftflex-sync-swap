@@ -227,6 +227,7 @@ export const useLeaveBlocks = () => {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError || !sessionData?.session?.access_token) {
+        console.error('Session error or missing token:', sessionError);
         throw new Error('Authentication required');
       }
       
@@ -236,8 +237,14 @@ export const useLeaveBlocks = () => {
       console.log('Auth token available:', accessToken ? 'Yes' : 'No');
       
       const { data, error } = await supabase.functions.invoke('split_leave_block', {
-        body: { user_leave_block_id: blockId, user_id: user.id },
-        headers: { Authorization: `Bearer ${accessToken}` }
+        body: { 
+          user_leave_block_id: blockId, 
+          user_id: user.id 
+        },
+        headers: { 
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
       });
       
       if (error) {
