@@ -26,17 +26,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { SafeSelect } from '@/components/ui/safe-select';
+import { MultiSelect } from '@/components/swaps/MultiSelect';
+import { useColleagueTypes } from '@/hooks/useColleagueTypes';
+import { useOrganizations } from '@/hooks/useOrganizations';
+import { useUserSkillsets } from '@/hooks/useUserSkillsets';
 
 const profileSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email address'),
-  employeeId: z.string().min(1, 'Employee service number is required')
-});
-
-const emailChangeSchema = z.object({
-  newEmail: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
+  employeeId: z.string().min(1, 'Employee service number is required'),
+  organization: z.string().optional(),
 });
 
 export const ProfileSettings = () => {
@@ -46,17 +47,12 @@ export const ProfileSettings = () => {
   const [profileData, setProfileData] = useState<any>(null);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [isEmailChangeLoading, setIsEmailChangeLoading] = useState(false);
+  const [selectedSkillsets, setSelectedSkillsets] = useState<string[]>([]);
   
-  const profileForm = useForm<z.infer<typeof profileSchema>>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      firstName: '',
-      lastName: '',
-      email: user?.email || '',
-      employeeId: ''
-    },
-  });
-
+  const { colleagueTypes, isLoading: isLoadingColleagueTypes } = useColleagueTypes();
+  const { organizations, isLoading: isLoadingOrgs } = useOrganizations();
+  const { userSkillsets, updateUserSkillsets } = useUserSkillsets();
+  
   const emailChangeForm = useForm<z.infer<typeof emailChangeSchema>>({
     resolver: zodResolver(emailChangeSchema),
     defaultValues: {
@@ -64,6 +60,17 @@ export const ProfileSettings = () => {
       password: '',
     },
     mode: 'onChange',
+  });
+
+  const profileForm = useForm<z.infer<typeof profileSchema>>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: user?.email || '',
+      employeeId: '',
+      organization: '',
+    },
   });
 
   // Load profile data from the database
@@ -91,7 +98,8 @@ export const ProfileSettings = () => {
             firstName: data.first_name || user?.user_metadata?.first_name || '',
             lastName: data.last_name || user?.user_metadata?.last_name || '',
             email: user?.email || '',
-            employeeId: data.employee_id || user?.user_metadata?.employee_id || ''
+            employeeId: data.employee_id || user?.user_metadata?.employee_id || '',
+            organization: data.organization || '',
           });
         }
       } catch (error: any) {
@@ -103,6 +111,14 @@ export const ProfileSettings = () => {
 
     fetchProfileData();
   }, [user]);
+
+  // Set initial selected skillsets based on user's existing skillsets
+  useEffect(() => {
+    if (userSkillsets.length > 0) {
+      const skillsetIds = userSkillsets.map(us => us.skillset_id);
+      setSelectedSkillsets(skillsetIds);
+    }
+  }, [userSkillsets]);
 
   const onProfileSubmit = async (data: z.infer<typeof profileSchema>) => {
     setProfileLoading(true);
@@ -124,11 +140,15 @@ export const ProfileSettings = () => {
           .update({
             first_name: data.firstName,
             last_name: data.lastName,
-            employee_id: data.employeeId
+            employee_id: data.employeeId,
+            organization: data.organization
           })
           .eq('id', user.id);
 
         if (profileError) throw new Error(profileError.message);
+        
+        // Update user skillsets
+        await updateUserSkillsets(selectedSkillsets);
       }
 
       toast({
@@ -146,6 +166,11 @@ export const ProfileSettings = () => {
       setProfileLoading(false);
     }
   };
+
+  const emailChangeSchema = z.object({
+    newEmail: z.string().email('Invalid email address'),
+    password: z.string().min(1, 'Password is required'),
+  });
 
   const onEmailChangeSubmit = async (data: z.infer<typeof emailChangeSchema>) => {
     setIsEmailChangeLoading(true);
@@ -179,6 +204,18 @@ export const ProfileSettings = () => {
       setIsEmailChangeLoading(false);
     }
   };
+
+  // Map colleague types to format needed for MultiSelect
+  const colleagueTypeOptions = colleagueTypes.map(type => ({
+    value: type.id,
+    label: type.name
+  }));
+
+  // Map organizations to format needed for SafeSelect
+  const organizationOptions = organizations.map((org, index) => ({
+    value: org,
+    label: org
+  }));
 
   return (
     <Card>
@@ -263,6 +300,41 @@ export const ProfileSettings = () => {
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={profileForm.control}
+                  name="organization"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Organization</FormLabel>
+                      <FormControl>
+                        <SafeSelect
+                          options={[
+                            { value: '', label: 'Select an organization' },
+                            ...organizationOptions
+                          ]}
+                          placeholder="Select your organization"
+                          value={field.value || ''}
+                          onValueChange={field.onChange}
+                          disabled={isLoadingOrgs}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div>
+                  <FormLabel>Skill Set</FormLabel>
+                  <div className="mt-1.5">
+                    <MultiSelect
+                      options={colleagueTypeOptions}
+                      selected={selectedSkillsets}
+                      onChange={setSelectedSkillsets}
+                      placeholder="Select your skills"
+                    />
+                  </div>
+                </div>
                 
                 <Button 
                   type="submit" 
