@@ -142,7 +142,7 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
             if (req.id === requestId) {
               return {
                 ...req,
-                preferredDates: req.preferredDates.filter(pd => pd.id !== dayId)
+                preferred_dates: req.preferred_dates?.filter(pd => pd.id !== dayId)
               };
             }
             return req;

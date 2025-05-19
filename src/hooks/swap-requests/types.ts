@@ -13,6 +13,7 @@ export interface SwapRequest {
   preferred_dates?: PreferredDate[];
   preferred_dates_count?: number;
   required_skillset?: string[];
+  shifts?: any; // Adding this to support the RequestedSwaps component
 }
 
 export interface PreferredDate {

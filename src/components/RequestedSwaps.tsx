@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import SwapRequestCard from './swaps/SwapRequestCard';
@@ -10,6 +11,7 @@ import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { ChevronLeft, ChevronRight, Trash2, ArrowDown, ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SwapRequest } from '@/hooks/swap-requests/types';
 
 // Interface for grouped swap requests
 interface GroupedSwapRequest {
@@ -59,6 +61,14 @@ const RequestedSwaps = () => {
     fetchSwapRequests();
   }, [fetchSwapRequests]);
   
+  // Helper function to determine shift type based on start time
+  function getShiftType(startTime: string): string {
+    const hour = parseInt(startTime.split(':')[0], 10);
+    if (hour <= 8) return 'day';
+    if (hour > 8 && hour < 16) return 'afternoon';
+    return 'night';
+  }
+  
   // Group swap requests by shift date
   const groupedSwapRequests = useMemo(() => {
     if (!requests || requests.length === 0) {
@@ -67,8 +77,11 @@ const RequestedSwaps = () => {
     
     console.log("Grouping swap requests:", requests);
     
+    // Extract requests that have shifts property
+    const requestsWithShifts = requests.filter(request => request.shifts?.date) as Array<SwapRequest & { shifts: any }>;
+    
     // First filter and sort the requests based on current filters
-    const filteredRequests = requests
+    const filteredRequests = requestsWithShifts
       .filter(request => {
         // Check if the request has shift data
         if (!request.shifts?.date) {

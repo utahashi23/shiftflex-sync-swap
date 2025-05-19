@@ -22,6 +22,7 @@ interface ShiftSwapDialogProps {
   cancelLabel?: string;
   children: React.ReactNode;
   preventAutoClose?: boolean;
+  confirmDisabled?: boolean;
 }
 
 export const ShiftSwapDialog = ({
@@ -35,7 +36,8 @@ export const ShiftSwapDialog = ({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   children,
-  preventAutoClose = false
+  preventAutoClose = false,
+  confirmDisabled = false
 }: ShiftSwapDialogProps) => {
   // Create a wrapped onOpenChange handler that respects preventAutoClose
   const handleOpenChange = (newOpenState: boolean) => {
@@ -96,7 +98,7 @@ export const ShiftSwapDialog = ({
           )}
           <Button
             onClick={onConfirm}
-            disabled={isLoading}
+            disabled={isLoading || confirmDisabled}
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {confirmLabel}
