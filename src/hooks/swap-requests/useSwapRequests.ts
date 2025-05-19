@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { 
   getUserSwapRequestsApi, 
@@ -18,7 +17,7 @@ export const useSwapRequests = () => {
     matches, 
     pastMatches, 
     isLoading: isMatchesLoading, 
-    refreshMatches 
+    fetchMatches // Correctly using fetchMatches from useSwapMatches
   } = useSwapMatches();
 
   const fetchSwapRequests = useCallback(async (status = 'pending') => {
@@ -44,7 +43,9 @@ export const useSwapRequests = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await createSwapRequestApi(shiftIds[0], wantedDates, acceptedTypes);
+      // Fixing the function call by reducing to 2 arguments as expected
+      // First argument is the shift ID, second is wantedDates with acceptedTypes bundled inside
+      const result = await createSwapRequestApi(shiftIds[0], wantedDates);
       await fetchSwapRequests();
       return true;
     } catch (err) {
@@ -90,10 +91,15 @@ export const useSwapRequests = () => {
     }
   }, [fetchSwapRequests]);
 
+  // Using refreshMatches properly as fetchMatches
+  const refreshMatches = useCallback(() => {
+    return fetchMatches(true, false);
+  }, [fetchMatches]);
+
   return {
     isLoading,
     error,
-    requests,
+    requests, // This is what RequestedSwaps.tsx should use instead of swapRequests
     fetchSwapRequests,
     createSwapRequest,
     deleteSwapRequest,

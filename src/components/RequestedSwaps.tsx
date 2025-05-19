@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import SwapRequestCard from './swaps/SwapRequestCard';
@@ -26,7 +25,7 @@ interface GroupedSwapRequest {
 
 const RequestedSwaps = () => {
   const { 
-    swapRequests, 
+    requests, // Using requests instead of swapRequests
     isLoading,
     fetchSwapRequests, 
     deleteSwapRequest, 
@@ -62,14 +61,14 @@ const RequestedSwaps = () => {
   
   // Group swap requests by shift date
   const groupedSwapRequests = useMemo(() => {
-    if (!swapRequests || swapRequests.length === 0) {
+    if (!requests || requests.length === 0) { // Using requests instead of swapRequests
       return [];
     }
     
-    console.log("Grouping swap requests:", swapRequests);
+    console.log("Grouping swap requests:", requests); // Using requests instead of swapRequests
     
     // First filter and sort the requests based on current filters
-    const filteredRequests = swapRequests
+    const filteredRequests = requests // Using requests instead of swapRequests
       .filter(request => {
         // Check if the request has shift data
         if (!request.shifts?.date) {
@@ -123,7 +122,7 @@ const RequestedSwaps = () => {
     
     // Convert the grouped object to an array for rendering
     return Object.values(groupedByDate);
-  }, [swapRequests, currentMonth, sortDirection]);
+  }, [requests, currentMonth, sortDirection]);
   
   // Helper function to determine shift type based on start time
   function getShiftType(startTime: string): string {
@@ -237,6 +236,7 @@ const RequestedSwaps = () => {
   const hasSelectedRequests = selectedRequests.length > 0;
   
   return (
+    // ... keep existing code for the component's JSX
     <div className="space-y-6">
       {/* Month navigation and controls */}
       <div className="flex items-center justify-between">
