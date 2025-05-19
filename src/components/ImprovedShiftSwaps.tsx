@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedSwapForm } from "./swaps/ImprovedSwapForm";
@@ -22,8 +23,7 @@ import {
   parseISO 
 } from 'date-fns';
 import { Button } from "./ui/button";
-import { Checkbox } from "./ui/checkbox";
-import { ChevronLeft, ChevronRight, Trash2, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import SwapDeleteDialog from "./swaps/SwapDeleteDialog";
 import { SwapFiltersDialog, SwapFilters } from "./swaps/SwapFiltersDialog";
@@ -81,9 +81,6 @@ const ImprovedShiftSwaps = () => {
   // State for month-based navigation
   const [currentMonth, setCurrentMonth] = useState(new Date());
   
-  // State for selected requests (for multiple deletion)
-  const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
-  
   // Filters state
   const [filters, setFilters] = useState<SwapFilters>({
     sortDirection: 'asc',
@@ -105,13 +102,11 @@ const ImprovedShiftSwaps = () => {
     isOpen: boolean, 
     requestId: string | null,
     dayId: string | null,
-    isMultiple: boolean,
     isDeleting: boolean
   }>({
     isOpen: false,
     requestId: null,
     dayId: null,
-    isMultiple: false,
     isDeleting: false
   });
 
@@ -246,15 +241,6 @@ const ImprovedShiftSwaps = () => {
     setCurrentMonth(prevMonth => addMonths(prevMonth, 1));
   };
 
-  // Toggle request selection
-  const toggleRequestSelection = (requestId: string) => {
-    setSelectedRequests(prev => 
-      prev.includes(requestId)
-        ? prev.filter(id => id !== requestId)
-        : [...prev, requestId]
-    );
-  };
-
   // Apply filters
   const handleApplyFilters = (newFilters: SwapFilters) => {
     setFilters(newFilters);
@@ -266,149 +252,94 @@ const ImprovedShiftSwaps = () => {
     setIsFiltersOpen(true);
   };
 
-  // Open delete dialog for multiple requests
-  const openDeleteMultipleDialog = () => {
-    if (selectedRequests.length === 0) return;
-    
-    setDeleteDialog({
-      isOpen: true,
-      requestId: null,
-      dayId: null,
-      isMultiple: true,
-      isDeleting: false
-    });
-  };
-
-  // Handle delete request
+  // Handle delete request - fixed implementation
   const handleDeleteRequest = async (requestId: string) => {
     // Open delete dialog for single request
     setDeleteDialog({
       isOpen: true,
       requestId,
       dayId: null,
-      isMultiple: false,
       isDeleting: false
     });
   };
 
-  // Handle delete preferred date
+  // Handle delete preferred date - fixed implementation
   const handleDeletePreferredDate = async (dayId: string, requestId: string) => {
     // Open delete dialog for a single preferred date
     setDeleteDialog({
       isOpen: true,
       requestId,
       dayId,
-      isMultiple: false,
       isDeleting: false
     });
   };
 
-  // Handle confirm delete (for both single and multiple)
+  // Handle confirm delete (for both single requests and preferred dates) - completely rewritten
   const handleConfirmDelete = async () => {
     try {
       setDeleteDialog(prev => ({ ...prev, isDeleting: true }));
       
-      if (deleteDialog.isMultiple) {
-        // Delete multiple requests
-        for (const requestId of selectedRequests) {
-          // Delete from the improved_shift_swaps table
-          const { error } = await supabase
-            .from("improved_shift_swaps")
-            .delete()
-            .eq("id", requestId);
-            
-          if (error) throw error;
-          
-          // Also delete related records from improved_swap_wanted_dates
-          await supabase
-            .from("improved_swap_wanted_dates")
-            .delete()
-            .eq("swap_id", requestId);
+      if (deleteDialog.dayId) {
+        // Delete a single preferred date
+        console.log("Deleting preferred date:", deleteDialog.dayId, "from request:", deleteDialog.requestId);
+        
+        // Using the deletePreferredDay function from the hooks directly instead of supabase queries
+        const { deletePreferredDay } = useSwapRequests();
+        const result = await deletePreferredDay(deleteDialog.dayId, deleteDialog.requestId!);
+        
+        if (!result.success) {
+          throw new Error("Failed to delete preferred date");
         }
         
-        // Clear selected requests
-        setSelectedRequests([]);
-      } else if (deleteDialog.requestId) {
-        if (deleteDialog.dayId) {
-          // Delete a single preferred date
-          const { error } = await supabase
-            .from("improved_swap_wanted_dates")
-            .delete()
-            .eq("id", deleteDialog.dayId);
-            
-          if (error) throw error;
-          
-          // Check if this was the last preferred date for this request
-          const { data: remainingDates, error: checkError } = await supabase
-            .from("improved_swap_wanted_dates")
-            .select("id")
-            .eq("swap_id", deleteDialog.requestId);
-            
-          if (checkError) throw checkError;
-          
-          if (!remainingDates || remainingDates.length === 0) {
-            // This was the last date, delete the entire request
-            const { error: deleteError } = await supabase
-              .from("improved_shift_swaps")
-              .delete()
-              .eq("id", deleteDialog.requestId);
-              
-            if (deleteError) throw deleteError;
-          }
+        if (result.requestDeleted) {
+          toast({
+            title: "Success",
+            description: "This was the last preferred date, so the entire request has been removed.",
+          });
         } else {
-          // Delete a single request
-          const { error } = await supabase
-            .from("improved_shift_swaps")
-            .delete()
-            .eq("id", deleteDialog.requestId);
-            
-          if (error) throw error;
-          
-          // Also delete related records from improved_swap_wanted_dates
-          await supabase
-            .from("improved_swap_wanted_dates")
-            .delete()
-            .eq("swap_id", deleteDialog.requestId);
+          toast({
+            title: "Success",
+            description: "The selected date has been removed from your swap request.",
+          });
         }
+      } else if (deleteDialog.requestId) {
+        // Delete an entire request
+        console.log("Deleting swap request:", deleteDialog.requestId);
+        
+        // Using the deleteSwapRequest function from the hooks directly instead of supabase queries
+        const { deleteSwapRequest } = useSwapRequests();
+        const success = await deleteSwapRequest(deleteDialog.requestId);
+        
+        if (!success) {
+          throw new Error("Failed to delete swap request");
+        }
+        
+        toast({
+          title: "Success",
+          description: "Swap request deleted successfully",
+        });
       }
       
-      // First update the local state for immediate UI feedback
-      if (deleteDialog.isMultiple) {
-        setUserRequests(userRequests.filter(request => !selectedRequests.includes(request.id)));
-      } else if (deleteDialog.requestId) {
-        if (deleteDialog.dayId) {
-          // If deleting a single date, we need to refetch to see if the request was deleted
-          await fetchUserRequests();
-        } else {
-          setUserRequests(userRequests.filter(request => request.id !== deleteDialog.requestId));
-        }
-      }
-      
-      toast({
-        title: "Success",
-        description: deleteDialog.dayId
-          ? "Date removed successfully"
-          : deleteDialog.isMultiple 
-            ? `${selectedRequests.length} swap requests deleted successfully`
-            : "Swap request deleted successfully",
-      });
-      
-      // Then refresh both data sources to ensure consistency
-      console.log("Swap(s) deleted, refreshing requests lists");
+      // Refresh both data sources to ensure consistency
       await Promise.all([
         fetchUserRequests(),
         hookFetchSwapRequests()
       ]);
       
     } catch (err: any) {
-      console.error("Error deleting swap request(s):", err);
+      console.error("Error during deletion:", err);
       toast({
         title: "Error",
-        description: "Failed to delete swap request(s)",
+        description: err.message || "Failed to process deletion",
         variant: "destructive",
       });
     } finally {
-      setDeleteDialog({ isOpen: false, requestId: null, dayId: null, isMultiple: false, isDeleting: false });
+      setDeleteDialog({
+        isOpen: false,
+        requestId: null,
+        dayId: null,
+        isDeleting: false
+      });
     }
   };
 
@@ -492,9 +423,6 @@ const ImprovedShiftSwaps = () => {
     return Object.values(groupedByDate);
   })();
 
-  // Check if any requests are selected
-  const hasSelectedRequests = selectedRequests.length > 0;
-  
   // Check if any filters are applied beyond default sort
   const hasActiveFilters = 
     filters.dateRange.from !== undefined || 
@@ -587,20 +515,6 @@ const ImprovedShiftSwaps = () => {
             
             <div className="flex items-center space-x-2">
               <FilterButton tab="mySwaps" />
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={openDeleteMultipleDialog}
-                disabled={!hasSelectedRequests}
-                className={cn(
-                  "flex items-center space-x-1",
-                  hasSelectedRequests ? "bg-red-50 hover:bg-red-100 text-red-700" : ""
-                )}
-              >
-                <Trash2 className="h-3 w-3 mr-1" />
-                <span className="text-[0.85rem]">Delete Selected</span>
-              </Button>
             </div>
           </div>
           
@@ -639,31 +553,13 @@ const ImprovedShiftSwaps = () => {
             ) : (
               // Grouped swap requests
               groupedSwapRequests.map((group) => (
-                <div key={`${group.shiftDate}-${group.shiftId}`} className="flex items-start space-x-2">
-                  <Checkbox 
-                    id={`select-group-${group.shiftId}`}
-                    checked={group.requests.every(req => selectedRequests.includes(req.id))}
-                    onCheckedChange={() => {
-                      // If all requests in the group are selected, unselect them all
-                      // Otherwise, select all requests in the group
-                      const allSelected = group.requests.every(req => selectedRequests.includes(req.id));
-                      if (allSelected) {
-                        setSelectedRequests(prev => prev.filter(id => !group.requests.some(req => req.id === id)));
-                      } else {
-                        const requestIds = group.requests.map(req => req.id);
-                        setSelectedRequests(prev => [...new Set([...prev, ...requestIds])]);
-                      }
-                    }}
-                    className="mt-2"
+                <div key={`${group.shiftDate}-${group.shiftId}`}>
+                  <SwapRequestCard 
+                    groupedRequests={group.requests}
+                    onDelete={handleDeleteRequest}
+                    onDeletePreferredDate={handleDeletePreferredDate}
+                    showCheckbox={false}
                   />
-                  <div className="flex-1">
-                    <SwapRequestCard 
-                      groupedRequests={group.requests}
-                      onDelete={handleDeleteRequest}
-                      onDeletePreferredDate={handleDeletePreferredDate}
-                      showCheckbox={false}
-                    />
-                  </div>
                 </div>
               ))
             )}
@@ -693,15 +589,15 @@ const ImprovedShiftSwaps = () => {
         isLoading={deleteDialog.isDeleting}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            setDeleteDialog({ isOpen: false, requestId: null, dayId: null, isMultiple: false, isDeleting: false });
+            setDeleteDialog({ isOpen: false, requestId: null, dayId: null, isDeleting: false });
           } else {
             setDeleteDialog(prev => ({ ...prev, isOpen: true }));
           }
         }}
         onDelete={handleConfirmDelete}
         isDateOnly={!!deleteDialog.dayId}
-        isMultiDelete={deleteDialog.isMultiple}
-        selectionCount={selectedRequests.length}
+        isMultiDelete={false} // Removed multi-delete functionality
+        selectionCount={0} // No longer needed since multi-delete is removed
       />
       
       {/* Filter dialog */}
