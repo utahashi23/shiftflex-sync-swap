@@ -11,15 +11,23 @@ serve(async (req) => {
   }
 
   try {
-    // Get the authorization header using our helper
-    const token = getAuthToken(req);
+    // Get the authorization header directly from request headers
+    const authHeader = req.headers.get('Authorization');
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('Authorization header missing or invalid');
+      return createUnauthorizedResponse('No bearer token provided');
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    
     if (!token) {
       console.error('Authorization token not found or invalid');
-      return createUnauthorizedResponse();
+      return createUnauthorizedResponse('Invalid authentication token');
     }
 
     // Get the request body
-    const { user_id } = await req.json()
+    const { user_id } = await req.json();
     
     // Validate required parameters
     if (!user_id) {
@@ -51,7 +59,7 @@ serve(async (req) => {
     const {
       data: { user },
       error: userError,
-    } = await supabaseClient.auth.getUser()
+    } = await supabaseClient.auth.getUser(token)
 
     if (userError || !user) {
       console.error('Auth error:', userError)

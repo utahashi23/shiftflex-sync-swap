@@ -74,6 +74,7 @@ export const useLeaveBlocks = () => {
           .from('user_leave_blocks')
           .select('*, leave_block:leave_block_id(*)')
           .eq('user_id', user.id)
+          .eq('status', 'active')
           .order('created_at', { ascending: true });
         
         if (directError) throw directError;
