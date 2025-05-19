@@ -96,16 +96,17 @@ const RequestedSwaps = () => {
       });
       
     // Group requests by shift date
-    const groupedByDate = filteredRequests.reduce<Record<string, GroupedSwapRequest>>((acc, request) => {
-      if (!request.shifts?.date) return acc;
+    const groupedByDate: Record<string, GroupedSwapRequest> = {};
+    
+    filteredRequests.forEach(request => {
+      if (!request.shifts?.date) return;
       
       const shiftDate = request.shifts.date;
-      const shiftId = request.shifts.id;
       
-      if (!acc[shiftDate]) {
-        acc[shiftDate] = {
+      if (!groupedByDate[shiftDate]) {
+        groupedByDate[shiftDate] = {
           shiftDate,
-          shiftId,
+          shiftId: request.shifts.id,
           requests: [],
           truckName: request.shifts?.truck_name,
           startTime: request.shifts?.start_time,
@@ -117,9 +118,8 @@ const RequestedSwaps = () => {
         };
       }
       
-      acc[shiftDate].requests.push(request);
-      return acc;
-    }, {});
+      groupedByDate[shiftDate].requests.push(request);
+    });
     
     // Convert the grouped object to an array for rendering
     return Object.values(groupedByDate);

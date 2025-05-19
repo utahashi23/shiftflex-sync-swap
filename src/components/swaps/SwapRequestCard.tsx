@@ -69,14 +69,13 @@ const SwapRequestCard = ({
     ? getShiftType(shift.start_time)
     : 'day'; // Default to day shift if no time available
   
-  // Get all wanted dates
+  // Get all wanted dates from all requests in the group
   const getWantedDates = () => {
     if (isGrouped) {
       // Collect all wanted dates from each request
       const allDates: { date: string, requestId: string, id?: string }[] = [];
       
       groupedRequests!.forEach(req => {
-        // For improved_shift_swaps, the wanted_date is directly in the request
         if (req.wanted_date) {
           allDates.push({
             date: req.wanted_date,
@@ -87,15 +86,13 @@ const SwapRequestCard = ({
       });
       
       return allDates;
-    } else {
+    } else if (request?.wanted_date) {
       // For a single request, just return its wanted date
-      if (request.wanted_date) {
-        return [{
-          date: request.wanted_date,
-          requestId: request.id,
-          id: request.id
-        }];
-      }
+      return [{
+        date: request.wanted_date,
+        requestId: request.id,
+        id: request.id
+      }];
     }
     
     return [];
