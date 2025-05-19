@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -23,8 +22,8 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { LeaveBlock, UserLeaveBlock } from '@/types/leave-blocks';
-import { useAuth } from '@/hooks/auth';
-import { useLeaveBlocks } from '@/hooks/leave-blocks';
+import { useAuth } from '@/hooks/useAuth';
+import { useLeaveBlocks } from '@/hooks/leave-blocks/useLeaveBlocks';
 import { Calendar, Trash2, Plus, Edit, PlusCircle } from 'lucide-react';
 
 export const LeaveBlockSettings = () => {
@@ -45,7 +44,7 @@ export const LeaveBlockSettings = () => {
   }, [user, refreshLeaveBlocks]);
 
   // Fetch all available leave blocks that the user can assign to themselves
-  const fetchAvailableLeaveBlocks = async () => {
+  const fetchAvailableLeaveBlocks = useCallback(async () => {
     if (!user) return;
     
     setIsLoadingAvailable(true);
@@ -77,7 +76,14 @@ export const LeaveBlockSettings = () => {
         block.split_designation === null // Only show non-split blocks for assignment
       ) || [];
       
-      setAvailableBlocks(available);
+      // Transform the data to ensure split_designation has the correct type
+      const transformedData: LeaveBlock[] = available.map(block => ({
+        ...block,
+        split_designation: block.split_designation === 'A' ? 'A' : 
+                           block.split_designation === 'B' ? 'B' : null
+      }));
+      
+      setAvailableBlocks(transformedData);
     } catch (error) {
       console.error('Error fetching available leave blocks:', error);
       toast({
@@ -88,7 +94,7 @@ export const LeaveBlockSettings = () => {
     } finally {
       setIsLoadingAvailable(false);
     }
-  };
+  }, [user]);
 
   const handleSplitBlock = async (blockId: string) => {
     if (confirm('Are you sure you want to split this leave block into two parts?')) {
