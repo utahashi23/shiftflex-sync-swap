@@ -34,13 +34,19 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
       
       const result = await getUserSwapRequestsApi(requestStatus);
       
-      // Check if result has error property - it's the result object, not an array
-      if (result && 'error' in result && result.error) {
-        throw new Error(result.error);
+      // Check if result is an object with an error property
+      if (result && typeof result === 'object' && 'error' in result && result.error) {
+        throw new Error(String(result.error));
       }
       
       // Set the requests from the result, ensuring we handle both array and object responses
-      setRequests(Array.isArray(result) ? result : (result.requests || []));
+      if (Array.isArray(result)) {
+        setRequests(result);
+      } else if (result && typeof result === 'object' && 'requests' in result) {
+        setRequests(result.requests || []);
+      } else {
+        setRequests([]);
+      }
     } catch (err: any) {
       console.error('Error fetching swap requests:', err);
       setError(err);
