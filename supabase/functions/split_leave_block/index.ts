@@ -1,11 +1,12 @@
 
 import { serve } from "https://deno.land/std@0.131.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
-import { corsHeaders, getAuthToken } from '../_shared/cors.ts'
+import { corsHeaders, getAuthToken, createUnauthorizedResponse } from '../_shared/cors.ts'
 
 serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS preflight request');
     return new Response(null, { headers: corsHeaders })
   }
 
@@ -21,14 +22,11 @@ serve(async (req) => {
       )
     }
     
-    // Get the authorization token using our helper
+    // Extract the authorization token using the shared helper
     const token = getAuthToken(req);
     if (!token) {
       console.error('Missing Authorization header');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Authorization header is required' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      )
+      return createUnauthorizedResponse('Authorization header is required');
     }
 
     // Create a Supabase client with the auth token
@@ -49,10 +47,7 @@ serve(async (req) => {
     
     if (userError || !authUser) {
       console.error('User authentication error:', userError)
-      return new Response(
-        JSON.stringify({ success: false, error: 'User authentication failed' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      )
+      return createUnauthorizedResponse('User authentication failed');
     }
 
     // Verify request is from the user or an admin
