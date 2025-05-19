@@ -1,13 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-
-// Export the result type for use in other components
-export interface DeletePreferredDateResult {
-  success: boolean;
-  requestDeleted?: boolean;
-  error?: string;
-}
+import { DeletePreferredDateResult } from './types';
 
 export async function deletePreferredDate(dayId: string, requestId: string): Promise<DeletePreferredDateResult> {
   try {
