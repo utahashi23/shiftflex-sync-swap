@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import SwapRequestCard from './swaps/SwapRequestCard';
 import SwapRequestSkeleton from './swaps/SwapRequestSkeleton';
@@ -12,6 +11,18 @@ import { Checkbox } from './ui/checkbox';
 import { ChevronLeft, ChevronRight, Trash2, ArrowDown, ArrowUp } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from './ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+
+// New interface for grouped swap requests
+interface GroupedSwapRequest {
+  shiftDate: string;
+  shiftId: string;
+  requests: any[];
+  truckName?: string;
+  startTime?: string;
+  endTime?: string;
+  colleagueType?: string;
+  shiftType?: string;
+}
 
 const RequestedSwaps = () => {
   const { 
@@ -48,6 +59,66 @@ const RequestedSwaps = () => {
     console.log("RequestedSwaps - Fetching swap requests on mount");
     fetchSwapRequests();
   }, [fetchSwapRequests]);
+  
+  // Group swap requests by shift date
+  const groupedSwapRequests = useMemo(() => {
+    // First filter and sort the requests based on current filters
+    const filteredRequests = swapRequests
+      .filter(request => {
+        const shiftDate = request.shifts?.date ? new Date(request.shifts.date) : null;
+        if (!shiftDate) return false;
+        
+        const monthStart = startOfMonth(currentMonth);
+        const monthEnd = endOfMonth(currentMonth);
+        
+        return shiftDate >= monthStart && shiftDate <= monthEnd;
+      })
+      .sort((a, b) => {
+        const dateA = a.shifts?.date ? new Date(a.shifts.date) : new Date(0);
+        const dateB = b.shifts?.date ? new Date(b.shifts.date) : new Date(0);
+        
+        return sortDirection === 'asc' 
+          ? dateA.getTime() - dateB.getTime() 
+          : dateB.getTime() - dateA.getTime();
+      });
+      
+    // Group requests by shift date
+    const groupedByDate = filteredRequests.reduce<Record<string, GroupedSwapRequest>>((acc, request) => {
+      if (!request.shifts?.date) return acc;
+      
+      const shiftDate = request.shifts.date;
+      const shiftId = request.shifts.id;
+      
+      if (!acc[shiftDate]) {
+        acc[shiftDate] = {
+          shiftDate,
+          shiftId,
+          requests: [],
+          truckName: request.shifts?.truck_name,
+          startTime: request.shifts?.start_time,
+          endTime: request.shifts?.end_time,
+          colleagueType: request.shifts?.colleagueType,
+          shiftType: request.shifts?.start_time
+            ? getShiftType(request.shifts.start_time)
+            : 'day'
+        };
+      }
+      
+      acc[shiftDate].requests.push(request);
+      return acc;
+    }, {});
+    
+    // Convert the grouped object to an array for rendering
+    return Object.values(groupedByDate);
+  }, [swapRequests, currentMonth, sortDirection]);
+  
+  // Helper function to determine shift type based on start time
+  function getShiftType(startTime: string): string {
+    const hour = parseInt(startTime.split(':')[0], 10);
+    if (hour <= 8) return 'day';
+    if (hour > 8 && hour < 16) return 'afternoon';
+    return 'night';
+  }
   
   // Handler for opening delete dialog for an entire swap request
   const onDeleteRequest = (requestId: string) => {
@@ -148,26 +219,6 @@ const RequestedSwaps = () => {
   const toggleSortDirection = () => {
     setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
   };
-
-  // Filter requests for current month and sort them
-  const filteredAndSortedRequests = swapRequests
-    .filter(request => {
-      const shiftDate = request.shifts?.date ? new Date(request.shifts.date) : null;
-      if (!shiftDate) return false;
-      
-      const monthStart = startOfMonth(currentMonth);
-      const monthEnd = endOfMonth(currentMonth);
-      
-      return shiftDate >= monthStart && shiftDate <= monthEnd;
-    })
-    .sort((a, b) => {
-      const dateA = a.shifts?.date ? new Date(a.shifts.date) : new Date(0);
-      const dateB = b.shifts?.date ? new Date(b.shifts.date) : new Date(0);
-      
-      return sortDirection === 'asc' 
-        ? dateA.getTime() - dateB.getTime() 
-        : dateB.getTime() - dateA.getTime();
-    });
   
   // Check if any requests are selected
   const hasSelectedRequests = selectedRequests.length > 0;
@@ -235,26 +286,39 @@ const RequestedSwaps = () => {
             <SwapRequestSkeleton key={index} />
           ))}
         </div>
-      ) : filteredAndSortedRequests.length === 0 ? (
+      ) : groupedSwapRequests.length === 0 ? (
         <EmptySwapRequests />
       ) : (
-        filteredAndSortedRequests.map(request => (
-          <div key={request.id} className="flex items-start space-x-2">
-            <Checkbox 
-              id={`select-${request.id}`}
-              checked={selectedRequests.includes(request.id)}
-              onCheckedChange={() => toggleRequestSelection(request.id)}
-              className="mt-2"
-            />
-            <div className="flex-1">
-              <SwapRequestCard 
-                request={request}
-                onDelete={() => onDeleteRequest(request.id)}
-                onDeletePreferredDate={onDeletePreferredDate}
+        <div className="space-y-4">
+          {groupedSwapRequests.map((group) => (
+            <div key={group.shiftDate} className="flex items-start space-x-2">
+              <Checkbox 
+                id={`select-group-${group.shiftDate}`}
+                checked={group.requests.every(req => selectedRequests.includes(req.id))}
+                onCheckedChange={() => {
+                  // If all requests in the group are selected, unselect them all
+                  // Otherwise, select all requests in the group
+                  const allSelected = group.requests.every(req => selectedRequests.includes(req.id));
+                  if (allSelected) {
+                    setSelectedRequests(prev => prev.filter(id => !group.requests.some(req => req.id === id)));
+                  } else {
+                    const requestIds = group.requests.map(req => req.id);
+                    setSelectedRequests(prev => [...new Set([...prev, ...requestIds])]);
+                  }
+                }}
+                className="mt-2"
               />
+              <div className="flex-1">
+                <SwapRequestCard 
+                  groupedRequests={group.requests}
+                  onDelete={onDeleteRequest}
+                  onDeletePreferredDate={onDeletePreferredDate}
+                  showCheckbox={false}
+                />
+              </div>
             </div>
-          </div>
-        ))
+          ))}
+        </div>
       )}
 
       <SwapDeleteDialog
