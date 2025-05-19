@@ -43,7 +43,9 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
       if (Array.isArray(result)) {
         setRequests(result);
       } else if (result && typeof result === 'object' && 'requests' in result) {
-        setRequests(result.requests || []);
+        // Use type assertion to tell TypeScript this is an object with a requests property
+        const resultWithRequests = result as { requests?: SwapRequest[] };
+        setRequests(resultWithRequests.requests || []);
       } else {
         setRequests([]);
       }

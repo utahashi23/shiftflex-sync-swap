@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -136,13 +137,15 @@ export const useSwapList = () => {
         // Try to safely extract user profile info if available
         if (item.user_profiles && typeof item.user_profiles === 'object') {
           // Check if user_profiles is not null and has name property
-          if (item.user_profiles && 'name' in item.user_profiles) {
-            userProfile.name = item.user_profiles.name || 'Unknown User';
+          if (item.user_profiles && typeof item.user_profiles === 'object' && 
+              'name' in (item.user_profiles as any)) {
+            userProfile.name = (item.user_profiles as any).name || 'Unknown User';
           }
           
           // Check if user_profiles is not null and has employeeId property  
-          if (item.user_profiles && 'employeeId' in item.user_profiles) {
-            userProfile.employeeId = item.user_profiles.employeeId;
+          if (item.user_profiles && typeof item.user_profiles === 'object' && 
+              'employeeId' in (item.user_profiles as any)) {
+            userProfile.employeeId = (item.user_profiles as any).employeeId;
           }
         }
         
