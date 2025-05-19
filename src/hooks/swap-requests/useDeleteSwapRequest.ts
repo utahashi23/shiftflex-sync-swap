@@ -1,7 +1,8 @@
+
 import { toast } from '@/hooks/use-toast';
 import { SwapRequest } from './types';
-import { deleteSwapRequestApi } from './deleteSwapRequest';
-import { deletePreferredDateApi } from './deletePreferredDate';
+import { deleteSwapRequest } from './deleteSwapRequest';
+import { deletePreferredDate } from './deletePreferredDate';
 import { useAuth } from '@/hooks/useAuth';
 
 export const useDeleteSwapRequest = (
@@ -27,7 +28,7 @@ export const useDeleteSwapRequest = (
       console.log('Deleting swap request:', requestId);
       
       // Call the API to delete the swap request
-      const result = await deleteSwapRequestApi(requestId);
+      const result = await deleteSwapRequest(requestId);
       
       if (result.success) {
         // Update local state after successful deletion
@@ -66,7 +67,7 @@ export const useDeleteSwapRequest = (
       console.log('Deleting preferred day with id:', dayId, 'from request:', requestId);
       
       // Call the API to delete the preferred date
-      const result = await deletePreferredDateApi(dayId, requestId);
+      const result = await deletePreferredDate(dayId, requestId);
       
       // If this was the last preferred date and the entire request was deleted
       if (result.requestDeleted) {

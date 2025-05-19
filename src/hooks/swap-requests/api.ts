@@ -1,6 +1,6 @@
 
 // Re-export all API functions from their dedicated files
 export { createSwapRequestApi } from './createSwapRequest';
-export { deleteSwapRequestApi } from './deleteSwapRequest';
-export { getUserSwapRequestsApi } from './getUserSwapRequests';
-export { deletePreferredDateApi } from './deletePreferredDate';
+export { deleteSwapRequest, deleteSwapRequest as deleteSwapRequestApi } from './deleteSwapRequest';
+export { getUserSwapRequestsApi, getUserSwapRequestsApi as getUserSwapRequests } from './getUserSwapRequests';
+export { deletePreferredDate, deletePreferredDate as deletePreferredDateApi } from './deletePreferredDate';

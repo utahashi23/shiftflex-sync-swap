@@ -70,9 +70,11 @@ const ImprovedShiftSwaps = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Fix the destructuring to match the properties returned by useSwapRequests
   const { 
-    matches: hookMatches, 
-    pastMatches: hookPastMatches, 
+    matches,
+    pastMatches,
     isLoading: isMatchesLoading, 
     refreshMatches,
     createSwapRequest,
@@ -114,20 +116,20 @@ const ImprovedShiftSwaps = () => {
   });
 
   // Convert hook match types to component match types
-  const matches = adaptSwapMatches(hookMatches || []);
-  const pastMatches = adaptSwapMatches(hookPastMatches || []);
+  const matches = adaptSwapMatches(matches || []);
+  const pastMatches = adaptSwapMatches(pastMatches || []);
 
   // Add extra logging to help diagnose match issues
   useEffect(() => {
-    if (hookMatches) {
-      console.log("Current match count:", hookMatches.length);
-      if (hookMatches.length > 0) {
-        console.log("Sample match:", hookMatches[0]);
+    if (matches) {
+      console.log("Current match count:", matches.length);
+      if (matches.length > 0) {
+        console.log("Sample match:", matches[0]);
       } else {
         console.log("No matches found - check matching logic");
       }
     }
-  }, [hookMatches]);
+  }, [matches]);
 
   // Fetch user's swap requests
   const fetchUserRequests = async () => {
@@ -177,7 +179,7 @@ const ImprovedShiftSwaps = () => {
       // Also fetch from the hook to ensure both data sources are up to date
       hookFetchSwapRequests();
     }
-  }, [user]);
+  }, [user, hookFetchSwapRequests]);
 
   // Refresh user requests when the "mySwaps" tab becomes active
   useEffect(() => {
@@ -190,7 +192,7 @@ const ImprovedShiftSwaps = () => {
       console.log("matches tab activated, refreshing matches");
       refreshMatches();
     }
-  }, [activeTab, user]);
+  }, [activeTab, user, fetchUserRequests, hookFetchSwapRequests, refreshMatches]);
   
   // Handle creating a swap request
   const handleCreateSwap = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {

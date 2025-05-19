@@ -1,10 +1,11 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { SwapRequest, PreferredDate } from './types';
 import { getUserSwapRequests } from './getUserSwapRequests';
 import { deleteSwapRequest } from './deleteSwapRequest';
-import { deletePreferredDate } from './deletePreferredDate';
+import { deletePreferredDate, DeletePreferredDateResult } from './deletePreferredDate';
 
 export const useSwapRequests = (defaultStatus: string = 'pending') => {
   const [requests, setRequests] = useState<SwapRequest[]>([]);
@@ -12,6 +13,8 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [status, setStatus] = useState<string>(defaultStatus);
+  const [matches, setMatches] = useState<any[]>([]);
+  const [pastMatches, setPastMatches] = useState<any[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -84,7 +87,7 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
   };
 
   const handleDeletePreferredDate = async (dayId: string, requestId: string) => {
-    if (!user) return false;
+    if (!user) return { success: false };
     
     try {
       setIsDeleting(true);
@@ -121,7 +124,7 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
         });
       }
       
-      return true;
+      return result;
     } catch (err: any) {
       console.error('Error deleting preferred date:', err);
       toast({
@@ -129,7 +132,7 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
         description: err.message || 'Failed to delete preferred date',
         variant: 'destructive',
       });
-      return false;
+      return { success: false, error: err.message };
     } finally {
       setIsDeleting(false);
     }
@@ -144,7 +147,26 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
     fetchRequests(newStatus);
   }, [fetchRequests]);
 
+  const refreshMatches = useCallback(() => {
+    // This function is used by other components to refresh matches
+    console.log('Refreshing matches');
+    return fetchRequests();
+  }, [fetchRequests]);
+
+  const createSwapRequest = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
+    console.log('Creating swap request (placeholder)');
+    // This is a placeholder for the actual implementation
+    return true;
+  };
+
+  const fetchSwapRequests = fetchRequests;
+
+  // Alias for consistent naming with other components
+  const deleteRequest = handleDeleteRequest;
+  const deletePreferredDay = handleDeletePreferredDate;
+
   return {
+    // Original properties
     requests,
     isLoading,
     isDeleting,
@@ -152,7 +174,16 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
     status,
     changeStatus,
     fetchRequests,
-    deleteRequest: handleDeleteRequest,
-    deletePreferredDate: handleDeletePreferredDate
+    deleteRequest,
+    deletePreferredDate: handleDeletePreferredDate,
+    
+    // Additional properties needed by components
+    matches,
+    pastMatches,
+    refreshMatches,
+    createSwapRequest,
+    fetchSwapRequests,
+    deleteSwapRequest: handleDeleteRequest,
+    deletePreferredDay
   };
 };

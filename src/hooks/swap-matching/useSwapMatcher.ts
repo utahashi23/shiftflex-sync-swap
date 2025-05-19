@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 import { useSwapRequests } from '../swap-requests';
 import { useFindSwapMatches } from './useFindSwapMatches';
@@ -15,7 +14,7 @@ export type MatchingStatus =
   | 'error';
 
 export function useSwapMatcher() {
-  // We'll use refreshMatches instead of fetchSwapRequests
+  // Fix: Access the refreshMatches function correctly
   const { refreshMatches } = useSwapRequests();
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -126,7 +125,7 @@ export function useSwapMatcher() {
       // Pass the userId instead of the whole data object to findMatches
       // Use auth.uid() or null if no user is authenticated
       const userId = ''; // This should come from auth context in a real app
-      const matchResponse = await findMatches(
+      const matchResponse = await findSwapMatches(
         userId,
         true, // forceCheck as boolean
         true  // verbose as boolean

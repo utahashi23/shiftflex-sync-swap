@@ -2,11 +2,14 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-export async function deletePreferredDate(dayId: string, requestId: string): Promise<{
+// Export the result type for use in other components
+export interface DeletePreferredDateResult {
   success: boolean;
   requestDeleted?: boolean;
   error?: string;
-}> {
+}
+
+export async function deletePreferredDate(dayId: string, requestId: string): Promise<DeletePreferredDateResult> {
   try {
     console.log(`Deleting preferred date ${dayId} from request ${requestId}`);
 
@@ -46,3 +49,6 @@ export async function deletePreferredDate(dayId: string, requestId: string): Pro
     };
   }
 }
+
+// Also export as API function for consistent naming
+export const deletePreferredDateApi = deletePreferredDate;

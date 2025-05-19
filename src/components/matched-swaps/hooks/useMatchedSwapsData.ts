@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/auth';
 import { SwapMatch } from '../types';
@@ -24,19 +23,19 @@ export const useMatchedSwapsData = (setRefreshTrigger?: React.Dispatch<React.Set
   
   // Fix: Use state to store the swap requests directly
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
-  const { fetchSwapRequests: fetchRequests } = useSwapRequests();
+  const { fetchRequests: fetchSwapRequests } = useSwapRequests();
   
   // Function to fetch swap requests
   const fetchSwapRequests = useCallback(async () => {
     try {
       // Using the useSwapRequests hook to fetch data
-      await fetchRequests();
+      await fetchSwapRequests();
       // Note: This is a workaround since we can't directly access the swapRequests
       // In a real implementation, we should refactor to avoid this pattern
     } catch (error) {
       console.error('Error fetching swap requests:', error);
     }
-  }, [fetchRequests]);
+  }, [fetchSwapRequests]);
 
   // Auto-fetch matches on component mount - but only once per user session
   useEffect(() => {

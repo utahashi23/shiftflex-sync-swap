@@ -25,11 +25,11 @@ interface GroupedSwapRequest {
 
 const RequestedSwaps = () => {
   const { 
-    requests, // Using requests instead of swapRequests
+    requests, 
     isLoading,
-    fetchSwapRequests, 
-    deleteSwapRequest, 
-    deletePreferredDay 
+    fetchRequests: fetchSwapRequests, 
+    deleteRequest: deleteSwapRequest, 
+    deletePreferredDate: deletePreferredDay 
   } = useSwapRequests();
   
   const [deleteDialog, setDeleteDialog] = useState<{ 
@@ -61,14 +61,14 @@ const RequestedSwaps = () => {
   
   // Group swap requests by shift date
   const groupedSwapRequests = useMemo(() => {
-    if (!requests || requests.length === 0) { // Using requests instead of swapRequests
+    if (!requests || requests.length === 0) {
       return [];
     }
     
-    console.log("Grouping swap requests:", requests); // Using requests instead of swapRequests
+    console.log("Grouping swap requests:", requests);
     
     // First filter and sort the requests based on current filters
-    const filteredRequests = requests // Using requests instead of swapRequests
+    const filteredRequests = requests
       .filter(request => {
         // Check if the request has shift data
         if (!request.shifts?.date) {
@@ -236,7 +236,7 @@ const RequestedSwaps = () => {
   const hasSelectedRequests = selectedRequests.length > 0;
   
   return (
-    // ... keep existing code for the component's JSX
+    
     <div className="space-y-6">
       {/* Month navigation and controls */}
       <div className="flex items-center justify-between">
