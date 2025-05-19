@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,26 +16,79 @@ export const useLeaveBlocks = () => {
     setIsLoading(true);
     
     try {
-      const { data, error } = await supabase
-        .from('user_leave_blocks')
-        .select('*, leave_block:leave_block_id(*)')
-        .eq('user_id', user.id)
-        .order('start_date', { ascending: true });
+      console.log('Fetching leave blocks for user:', user.id);
       
-      if (error) throw error;
+      // First get the current session to get the auth token
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) {
+        console.error('No active session found');
+        toast({
+          title: "Authentication Error",
+          description: "You must be logged in to view leave blocks",
+          variant: "destructive"
+        });
+        throw new Error('Authentication required');
+      }
+
+      // Use the edge function to bypass RLS issues
+      const { data, error } = await supabase.functions.invoke('get_user_leave_blocks', {
+        body: { user_id: user.id },
+        // Explicitly add authorization header with bearer token
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`
+        }
+      });
+      
+      if (error) {
+        console.error('Error fetching leave blocks via edge function:', error);
+        throw error;
+      }
+      
+      // Fallback to direct query if edge function fails or isn't deployed yet
+      if (!data) {
+        console.log('Fallback to direct query for leave blocks');
+        const { data: directData, error: directError } = await supabase
+          .from('user_leave_blocks')
+          .select('*, leave_block:leave_block_id(*)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true });
+        
+        if (directError) throw directError;
+        
+        // Transform the data to match our UserLeaveBlock type
+        const transformedData: UserLeaveBlock[] = directData?.map(item => ({
+          id: item.id,
+          user_id: item.user_id,
+          leave_block_id: item.leave_block_id,
+          block_number: item.leave_block.block_number,
+          start_date: item.leave_block.start_date,
+          end_date: item.leave_block.end_date,
+          status: item.status,
+          created_at: item.created_at,
+          split_designation: item.leave_block.split_designation as 'A' | 'B' | null | undefined,
+          original_block_id: item.leave_block.original_block_id
+        })) || [];
+        
+        setLeaveBlocks(transformedData);
+        return;
+      }
+      
+      // Edge function returned data, process it
+      console.log('Leave blocks data received:', data);
       
       // Transform the data to match our UserLeaveBlock type
       const transformedData: UserLeaveBlock[] = data?.map(item => ({
         id: item.id,
         user_id: item.user_id,
         leave_block_id: item.leave_block_id,
-        block_number: item.leave_block.block_number,
-        start_date: item.leave_block.start_date,
-        end_date: item.leave_block.end_date,
+        block_number: item.block_number,
+        start_date: item.start_date,
+        end_date: item.end_date,
         status: item.status,
         created_at: item.created_at,
-        split_designation: item.leave_block.split_designation as 'A' | 'B' | null | undefined,
-        original_block_id: item.leave_block.original_block_id
+        split_designation: item.split_designation as 'A' | 'B' | null | undefined,
+        original_block_id: item.original_block_id
       })) || [];
       
       setLeaveBlocks(transformedData);
