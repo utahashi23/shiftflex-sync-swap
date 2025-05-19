@@ -886,7 +886,9 @@ export type Database = {
         Returns: Json
       }
       delete_preferred_date_safe: {
-        Args: { p_day_id: string; p_request_id: string }
+        Args:
+          | { p_day_id: string; p_request_id: string }
+          | { p_day_id: string; p_request_id: string; p_user_id: string }
         Returns: Json
       }
       delete_swap_request_safe: {

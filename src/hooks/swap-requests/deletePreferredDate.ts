@@ -16,26 +16,17 @@ export const deletePreferredDateApi = async (dayId: string, requestId: string): 
   }
   
   try {
-    // Check if this is the last preferred date
-    const { data: preferredDates } = await supabase
-      .from('shift_swap_preferred_dates')
-      .select('id')
-      .eq('request_id', requestId);
-      
-    // If there's only one preferred date, return that the request should be deleted entirely
-    if (preferredDates && preferredDates.length <= 1) {
-      return { success: true, requestDeleted: true };
-    }
-    
-    // Delete the preferred date
-    const { error } = await supabase
-      .from('shift_swap_preferred_dates')
-      .delete()
-      .eq('id', dayId);
+    // Use the new RPC function which bypasses RLS issues
+    const { data, error } = await supabase
+      .rpc('delete_preferred_date_rpc', { 
+        p_day_id: dayId, 
+        p_request_id: requestId 
+      });
       
     if (error) throw error;
     
-    return { success: true, requestDeleted: false };
+    // Return the result from the RPC function
+    return data as DeletePreferredDateResult;
   } catch (error) {
     console.error('Error deleting preferred date:', error);
     toast({
