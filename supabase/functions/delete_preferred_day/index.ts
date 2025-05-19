@@ -1,38 +1,13 @@
 
 import { serve } from "https://deno.land/std@0.131.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
-import { corsHeaders } from '../_shared/cors.ts'
-
-const corsHeadersWithAuth = {
-  ...corsHeaders,
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-function getAuthToken(req: Request): string | null {
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) return null;
-  
-  // Extract the token part (remove "Bearer " if present)
-  const parts = authHeader.split(' ');
-  if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
-    return parts[1];
-  }
-  
-  return authHeader;  // Return as-is if no "Bearer " prefix
-}
-
-function createUnauthorizedResponse(message: string): Response {
-  return new Response(
-    JSON.stringify({ error: message }),
-    { headers: { ...corsHeadersWithAuth, 'Content-Type': 'application/json' }, status: 401 }
-  );
-}
+import { corsHeaders, getAuthToken, createUnauthorizedResponse } from '../_shared/cors.ts'
 
 serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
     console.log('Handling OPTIONS preflight request');
-    return new Response(null, { headers: corsHeadersWithAuth });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -47,11 +22,11 @@ serve(async (req) => {
           success: false, 
           error: 'Day ID and Request ID are required' 
         }),
-        { headers: { ...corsHeadersWithAuth, 'Content-Type': 'application/json' }, status: 400 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
     
-    // Extract authorization token
+    // Extract authorization token using the shared helper
     const token = getAuthToken(req);
     if (!token) {
       console.log('No authorization token provided');
@@ -95,7 +70,7 @@ serve(async (req) => {
           success: false, 
           error: 'Request not found' 
         }),
-        { headers: { ...corsHeadersWithAuth, 'Content-Type': 'application/json' }, status: 404 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       );
     }
     
@@ -114,7 +89,7 @@ serve(async (req) => {
           success: false, 
           error: 'Preferred date not found' 
         }),
-        { headers: { ...corsHeadersWithAuth, 'Content-Type': 'application/json' }, status: 404 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       );
     }
     
@@ -131,7 +106,7 @@ serve(async (req) => {
       console.error('Error calling delete_preferred_date_rpc:', deleteError);
       return new Response(
         JSON.stringify({ success: false, error: deleteError.message }),
-        { headers: { ...corsHeadersWithAuth, 'Content-Type': 'application/json' }, status: 500 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
 
@@ -139,14 +114,14 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify(result),
-      { headers: { ...corsHeadersWithAuth, 'Content-Type': 'application/json' }, status: 200 }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
     
   } catch (error) {
     console.error('Unhandled error:', error);
     return new Response(
       JSON.stringify({ success: false, error: error.message || 'An unknown error occurred' }),
-      { headers: { ...corsHeadersWithAuth, 'Content-Type': 'application/json' }, status: 500 }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });

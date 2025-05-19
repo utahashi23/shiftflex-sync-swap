@@ -4,11 +4,7 @@
 
 import { serve } from "https://deno.land/std@0.131.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders, getAuthToken, createUnauthorizedResponse } from '../_shared/cors.ts'
 
 serve(async (req) => {
   // Handle CORS preflight request
@@ -29,14 +25,11 @@ serve(async (req) => {
       )
     }
 
-    // Extract the authentication header directly
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      console.error('Missing Authorization header')
-      return new Response(
-        JSON.stringify({ error: 'Authorization header is required' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      )
+    // Extract the authentication token using the shared helper
+    const token = getAuthToken(req);
+    if (!token) {
+      console.log('No authorization token provided');
+      return createUnauthorizedResponse('No bearer token provided');
     }
 
     // Create a Supabase client with the auth token
@@ -44,13 +37,15 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { 
-        global: { 
-          headers: { Authorization: authHeader } 
-        } 
+        global: { headers: { Authorization: `Bearer ${token}` } },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
     )
 
-    // Get the user id from the auth token
+    // Get the authenticated user
     const {
       data: { user },
       error: userError,
@@ -58,10 +53,7 @@ serve(async (req) => {
 
     if (userError || !user) {
       console.error('Auth error:', userError)
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - Check authentication token' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      )
+      return createUnauthorizedResponse('Unauthorized - Check authentication token');
     }
 
     console.log('Authenticated user:', user.id)
