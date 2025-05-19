@@ -31,7 +31,7 @@ export async function deletePreferredDate(dayId: string, requestId: string): Pro
     
     console.log(`Deleting preferred date ${dayId} from request ${requestId}`);
 
-    // Call the edge function "delete_preferred_day"
+    // Call the edge function "delete_preferred_day" and pass the auth token in headers
     const { data, error } = await supabase.functions.invoke('delete_preferred_day', {
       body: {
         day_id: dayId,

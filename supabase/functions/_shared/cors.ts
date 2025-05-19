@@ -1,29 +1,25 @@
 
-// CORS headers for edge functions
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 };
 
-// Helper to extract authorization token from request
 export function getAuthToken(req: Request): string | null {
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
+  if (!authHeader) return null;
+  
+  // Extract the token part (remove "Bearer " if present)
+  const parts = authHeader.split(' ');
+  if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
+    return parts[1];
   }
-  return authHeader.substring(7); // Remove 'Bearer ' prefix
+  
+  return authHeader;  // Return as-is if no "Bearer " prefix
 }
 
-// Helper to create unauthorized response
-export function createUnauthorizedResponse(message: string = 'Unauthorized'): Response {
+export function createUnauthorizedResponse(message: string): Response {
   return new Response(
-    JSON.stringify({
-      error: message
-    }),
-    {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    }
+    JSON.stringify({ error: message }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
   );
 }
