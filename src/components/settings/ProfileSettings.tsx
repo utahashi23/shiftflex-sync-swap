@@ -40,6 +40,11 @@ const profileSchema = z.object({
   organization: z.string().optional(),
 });
 
+const emailChangeSchema = z.object({
+  newEmail: z.string().email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
 export const ProfileSettings = () => {
   const { user, updateUser } = useAuth();
   const [isProfileLoading, setProfileLoading] = useState(false);
@@ -166,11 +171,6 @@ export const ProfileSettings = () => {
       setProfileLoading(false);
     }
   };
-
-  const emailChangeSchema = z.object({
-    newEmail: z.string().email('Invalid email address'),
-    password: z.string().min(1, 'Password is required'),
-  });
 
   const onEmailChangeSubmit = async (data: z.infer<typeof emailChangeSchema>) => {
     setIsEmailChangeLoading(true);

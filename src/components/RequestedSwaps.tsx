@@ -34,7 +34,7 @@ const RequestedSwaps = ({
 
   // If there are no swap requests, show the empty state
   if (!swapRequests || swapRequests.length === 0) {
-    return <EmptySwapRequests isLoading={isLoading} />;
+    return <EmptySwapRequests loading={isLoading} />;
   }
 
   const confirmDelete = (request: SwapRequest) => {
@@ -55,9 +55,9 @@ const RequestedSwaps = ({
       </div>
 
       <SwapDeleteDialog
-        open={deleteConfirmOpen}
-        onOpenChange={setDeleteConfirmOpen}
-        onConfirmDelete={handleDeleteRequest}
+        isOpen={deleteConfirmOpen}
+        setIsOpen={setDeleteConfirmOpen}
+        onConfirm={handleDeleteRequest}
         isDeleting={isDeleting}
       />
     </div>
