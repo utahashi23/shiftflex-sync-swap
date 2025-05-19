@@ -283,15 +283,22 @@ const ImprovedShiftSwaps = () => {
         // Delete a single preferred date
         console.log("Deleting preferred date:", deleteDialog.dayId, "from request:", deleteDialog.requestId);
         
-        // Using the deletePreferredDay function from the hooks directly instead of supabase queries
+        // Import the useSwapRequests hook directly to access its functions
         const { deletePreferredDay } = useSwapRequests();
-        const result = await deletePreferredDay(deleteDialog.dayId, deleteDialog.requestId!);
+        
+        // Check if the deleteDialog.requestId is not null before using it
+        if (!deleteDialog.requestId) {
+          throw new Error("Missing request ID for date deletion");
+        }
+        
+        const result = await deletePreferredDay(deleteDialog.dayId, deleteDialog.requestId);
         
         if (!result.success) {
           throw new Error("Failed to delete preferred date");
         }
         
-        if (result.requestDeleted) {
+        // Type-safe check for requestDeleted property
+        if ('requestDeleted' in result && result.requestDeleted) {
           toast({
             title: "Success",
             description: "This was the last preferred date, so the entire request has been removed.",
@@ -306,7 +313,7 @@ const ImprovedShiftSwaps = () => {
         // Delete an entire request
         console.log("Deleting swap request:", deleteDialog.requestId);
         
-        // Using the deleteSwapRequest function from the hooks directly instead of supabase queries
+        // Import the useSwapRequests hook directly to access its functions
         const { deleteSwapRequest } = useSwapRequests();
         const success = await deleteSwapRequest(deleteDialog.requestId);
         
@@ -596,8 +603,8 @@ const ImprovedShiftSwaps = () => {
         }}
         onDelete={handleConfirmDelete}
         isDateOnly={!!deleteDialog.dayId}
-        isMultiDelete={false} // Removed multi-delete functionality
-        selectionCount={0} // No longer needed since multi-delete is removed
+        isMultiDelete={false}
+        selectionCount={0}
       />
       
       {/* Filter dialog */}
