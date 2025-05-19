@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 import SwapDeleteDialog from "./swaps/SwapDeleteDialog";
 import { SwapFiltersDialog, SwapFilters } from "./swaps/SwapFiltersDialog";
 import { getShiftType } from "@/utils/shiftUtils";
+// Import the type from deletePreferredDate.ts
+import { DeletePreferredDateResult } from "@/hooks/swap-requests/deletePreferredDate";
 
 // Interface for grouped swap requests - new interface to better handle grouping
 interface GroupedSwapRequest {
@@ -287,11 +289,11 @@ const ImprovedShiftSwaps = () => {
         
         const result = await deletePreferredDay(deleteDialog.dayId, deleteDialog.requestId);
         
-        if (!result || !result.success) {
+        if (!result.success) {
           throw new Error("Failed to delete preferred date");
         }
         
-        // Check if this deletion also removed the entire request
+        // Now TypeScript knows that requestDeleted always exists on the result
         if (result.requestDeleted === true) {
           toast({
             title: "Success",

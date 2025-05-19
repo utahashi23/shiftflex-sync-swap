@@ -2,7 +2,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-interface DeletePreferredDateResult {
+// Export the interface so it can be imported elsewhere
+export interface DeletePreferredDateResult {
   success: boolean;
   requestDeleted: boolean;
   message?: string;
