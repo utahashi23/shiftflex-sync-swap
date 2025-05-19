@@ -152,12 +152,10 @@ const Settings = () => {
           <ManualNotificationTrigger />
         </SettingsSection>
 
-        {/* Add the Leave Blocks section - only visible to admins */}
-        {isAdmin && (
-          <SettingsSection title="Leave Blocks">
-            <LeaveBlockSettings />
-          </SettingsSection>
-        )}
+        {/* Make Leave Blocks section visible to all users */}
+        <SettingsSection title="Leave Blocks">
+          <LeaveBlockSettings />
+        </SettingsSection>
       </div>
     </AppLayout>
   );
