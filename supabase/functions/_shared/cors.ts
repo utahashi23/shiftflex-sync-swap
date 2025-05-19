@@ -14,6 +14,12 @@ export const getAuthToken = (req: Request): string | null => {
   }
   
   // Extract token from "Bearer <token>"
-  const token = authHeader.replace('Bearer ', '');
+  const match = authHeader.match(/^Bearer\s+(.*)$/i);
+  if (!match) {
+    console.error('Invalid Authorization header format, expected Bearer token');
+    return null;
+  }
+  
+  const token = match[1];
   return token || null;
 }

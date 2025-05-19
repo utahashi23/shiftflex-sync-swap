@@ -14,6 +14,7 @@ serve(async (req) => {
     // Get the authorization header using our helper
     const token = getAuthToken(req);
     if (!token) {
+      console.error('Authorization token not found or invalid');
       return new Response(
         JSON.stringify({ error: 'Authorization header is required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
@@ -38,7 +39,11 @@ serve(async (req) => {
       { 
         global: { 
           headers: { Authorization: `Bearer ${token}` } 
-        } 
+        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
     )
 
@@ -71,8 +76,20 @@ serve(async (req) => {
       )
     }
     
+    // Use the service role key for admin access to bypass RLS
+    const adminClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { 
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
+    
     // Fetch user leave blocks with detailed information
-    const { data, error } = await supabaseClient
+    const { data, error } = await adminClient
       .from('user_leave_blocks')
       .select(`
         id,
@@ -95,7 +112,7 @@ serve(async (req) => {
       console.error('Error fetching leave blocks:', error)
       return new Response(
         JSON.stringify({ error: error.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       )
     }
     
@@ -122,8 +139,8 @@ serve(async (req) => {
     console.error('Error in get_user_leave_blocks function:', error)
     
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      JSON.stringify({ error: error.message || 'An unknown error occurred' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }
 })

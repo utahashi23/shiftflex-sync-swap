@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -46,9 +47,9 @@ export const useLeaveBlocks = () => {
         throw error;
       }
       
-      // Fallback to direct query if edge function fails or isn't deployed yet
       if (!data) {
-        console.log('Fallback to direct query for leave blocks');
+        console.warn('No data returned from edge function');
+        // Try direct query as fallback
         const { data: directData, error: directError } = await supabase
           .from('user_leave_blocks')
           .select('*, leave_block:leave_block_id(*)')
@@ -79,7 +80,7 @@ export const useLeaveBlocks = () => {
       console.log('Leave blocks data received:', data);
       
       // Transform the data to match our UserLeaveBlock type
-      const transformedData: UserLeaveBlock[] = data?.map(item => ({
+      const transformedData: UserLeaveBlock[] = data.map(item => ({
         id: item.id,
         user_id: item.user_id,
         leave_block_id: item.leave_block_id,
@@ -90,7 +91,7 @@ export const useLeaveBlocks = () => {
         created_at: item.created_at,
         split_designation: item.split_designation as 'A' | 'B' | null | undefined,
         original_block_id: item.original_block_id
-      })) || [];
+      }));
       
       setLeaveBlocks(transformedData);
     } catch (error) {
@@ -110,6 +111,9 @@ export const useLeaveBlocks = () => {
     if (!user) return false;
     
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
       const { data, error } = await supabase
         .from('leave_swap_requests')
         .insert({
@@ -149,9 +153,13 @@ export const useLeaveBlocks = () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
       
+      if (!accessToken) {
+        throw new Error('Authentication required');
+      }
+      
       const { data, error } = await supabase.functions.invoke('split_leave_block', {
         body: { user_leave_block_id: blockId, user_id: user.id },
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
+        headers: { Authorization: `Bearer ${accessToken}` }
       });
       
       if (error) throw error;
@@ -193,13 +201,17 @@ export const useLeaveBlocks = () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
       
+      if (!accessToken) {
+        throw new Error('Authentication required');
+      }
+      
       const { data, error } = await supabase.functions.invoke('join_leave_blocks', {
         body: { 
           block_a_id: blockAId, 
           block_b_id: blockBId,
           user_id: user.id 
         },
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
+        headers: { Authorization: `Bearer ${accessToken}` }
       });
       
       if (error) throw error;
@@ -235,6 +247,9 @@ export const useLeaveBlocks = () => {
   useEffect(() => {
     if (user) {
       fetchLeaveBlocks();
+    } else {
+      // Clear leave blocks when user logs out
+      setLeaveBlocks([]);
     }
   }, [user, fetchLeaveBlocks]);
 
