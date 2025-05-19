@@ -11,19 +11,12 @@ serve(async (req) => {
   }
 
   try {
-    // Get the authorization header directly from request headers
-    const authHeader = req.headers.get('Authorization');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('Authorization header missing or invalid');
-      return createUnauthorizedResponse('No bearer token provided');
-    }
-
-    const token = authHeader.replace('Bearer ', '');
+    // Get the authorization token from request headers
+    const token = getAuthToken(req);
     
     if (!token) {
-      console.error('Authorization token not found or invalid');
-      return createUnauthorizedResponse('Invalid authentication token');
+      console.error('No authorization token provided');
+      return createUnauthorizedResponse('No bearer token provided');
     }
 
     // Get the request body

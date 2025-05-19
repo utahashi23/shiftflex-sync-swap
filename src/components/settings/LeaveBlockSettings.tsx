@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -422,13 +423,13 @@ export const LeaveBlockSettings = () => {
     );
   }
   
-  function renderAdminLeaveBlocks() {
-    // This is the admin functionality, just a placeholder to maintain the interface
+  // Admin view for managing leave blocks
+  function AdminLeaveBlocksView() {
     const [leaveBlocks, setLeaveBlocks] = useState<LeaveBlock[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [showEditDialog, setShowEditDialog] = useState(false);
-    const [currentBlock, setCurrentBlockAdmin] = useState<LeaveBlock | null>(null);
+    const [currentBlockAdmin, setCurrentBlockAdmin] = useState<LeaveBlock | null>(null);
     const [formData, setFormData] = useState({
       block_number: '',
       start_date: '',
@@ -868,4 +869,13 @@ export const LeaveBlockSettings = () => {
       </div>
     );
   }
+
+  // Render either user view or admin view based on user role
+  return (
+    <div>
+      {isAdmin ? <AdminLeaveBlocksView /> : renderUserLeaveBlocks()}
+      <BlockDetailsDialog />
+      <AssignLeaveBlockDialog />
+    </div>
+  );
 };
