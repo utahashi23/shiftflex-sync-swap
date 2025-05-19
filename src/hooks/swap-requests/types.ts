@@ -16,7 +16,7 @@ export interface SwapRequest {
     startTime: string;
     endTime: string;
     type: string;
-    colleagueType: string; // Add this field to fix the type error
+    colleagueType?: string;
   };
   preferredDates: PreferredDate[];
 }

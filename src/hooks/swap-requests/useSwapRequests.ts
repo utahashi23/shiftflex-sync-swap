@@ -70,7 +70,6 @@ export const useSwapRequests = () => {
     }
   }, [fetchSwapRequests]);
 
-  // Update the return type to always be DeletePreferredDateResult
   const deletePreferredDay = useCallback(async (dayId: string, requestId: string): Promise<DeletePreferredDateResult> => {
     setIsLoading(true);
     setError(null);
@@ -101,7 +100,7 @@ export const useSwapRequests = () => {
     deletePreferredDay,
     matches,
     pastMatches,
-    isLoading: isMatchesLoading,
+    isMatchesLoading,
     refreshMatches
   };
 };

@@ -278,7 +278,6 @@ const ImprovedShiftSwaps = () => {
   };
 
   // Handle confirm delete (for both single requests and preferred dates)
-  // This is the function we're fixing to resolve the React error
   const handleConfirmDelete = async () => {
     try {
       setDeleteDialog(prev => ({ ...prev, isDeleting: true }));
@@ -293,7 +292,7 @@ const ImprovedShiftSwaps = () => {
           throw new Error("Failed to delete preferred date");
         }
         
-        // Now TypeScript knows that requestDeleted always exists on the result
+        // Now TypeScript knows that requestDeleted exists on the result
         if (result.requestDeleted === true) {
           toast({
             title: "Success",
