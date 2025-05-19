@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import EmptySwapRequests from '@/components/swaps/EmptySwapRequests';
 import { useDeleteSwapRequest } from '@/hooks/swap-requests/useDeleteSwapRequest';
 import { SwapRequest } from '@/hooks/swap-requests/types';
-import { useState as useStateBetter } from 'react';
 import SwapDeleteDialog from './swaps/SwapDeleteDialog';
 
 const RequestedSwaps = ({
@@ -56,9 +55,9 @@ const RequestedSwaps = ({
 
       <SwapDeleteDialog
         isOpen={deleteConfirmOpen}
-        setIsOpen={setDeleteConfirmOpen}
-        onConfirm={handleDeleteRequest}
-        isDeleting={isDeleting}
+        onOpenChange={setDeleteConfirmOpen}
+        onDelete={handleDeleteRequest}
+        isLoading={isDeleting}
       />
     </div>
   );

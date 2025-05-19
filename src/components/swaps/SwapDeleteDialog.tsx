@@ -14,9 +14,9 @@ import { Loader2 } from "lucide-react";
 
 interface SwapDeleteDialogProps {
   isOpen: boolean;
-  isLoading: boolean;
   onOpenChange: (open: boolean) => void;
   onDelete: () => void;
+  isLoading: boolean;
   isDateOnly?: boolean;
   isMultiDelete?: boolean;
   selectionCount?: number;
@@ -24,9 +24,9 @@ interface SwapDeleteDialogProps {
 
 const SwapDeleteDialog = ({
   isOpen,
-  isLoading,
   onOpenChange,
   onDelete,
+  isLoading,
   isDateOnly = false,
   isMultiDelete = false,
   selectionCount = 0
