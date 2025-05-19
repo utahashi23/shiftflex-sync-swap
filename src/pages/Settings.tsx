@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { Settings as SettingsIcon, Loader2 } from 'lucide-react';
 import { 
   Collapsible, 
   CollapsibleContent, 
@@ -66,12 +66,20 @@ const Settings = () => {
   useAuthRedirect({ protectedRoute: true });
   const { toast } = useToast();
   const { user, isLoading, isAdmin } = useAuth();
+  const [pageReady, setPageReady] = useState(false);
   
   // Check if user is the specific admin (this user is allowed to access system settings)
   const isSpecificAdmin = user?.id === '2e8fce25-0d63-4148-abd9-2653c31d9b0c';
   
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (isLoading) {
+      return; // Still loading, don't do anything yet
+    }
+    
+    // We're not loading anymore, so the page is ready
+    setPageReady(true);
+    
+    if (!user) {
       toast({
         title: "Authentication Required",
         description: "Please log in to access your settings.",
@@ -88,7 +96,18 @@ const Settings = () => {
         isSpecificAdmin: user.id === '2e8fce25-0d63-4148-abd9-2653c31d9b0c'
       });
     }
-  }, [user, isLoading]);
+  }, [user, isLoading, toast]);
+  
+  if (!pageReady) {
+    return (
+      <AppLayout>
+        <div className="flex justify-center items-center h-[calc(100vh-200px)]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Loading settings...</span>
+        </div>
+      </AppLayout>
+    );
+  }
   
   return (
     <AppLayout>
