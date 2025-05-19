@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -35,7 +34,7 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
       const result = await getUserSwapRequestsApi(requestStatus);
       
       // Check if result is an object with an error property
-      if (result && typeof result === 'object' && 'error' in result && result.error) {
+      if (result && typeof result === 'object' && 'error' in result) {
         throw new Error(String(result.error));
       }
       
@@ -64,10 +63,19 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
 
   const handleDeleteRequest = async (requestId: string) => {
     if (!user) return false;
+    if (!requestId) {
+      toast({
+        title: 'Error',
+        description: 'Invalid request ID',
+        variant: 'destructive',
+      });
+      return false;
+    }
     
     try {
       setIsDeleting(true);
       
+      console.log(`Deleting swap request with ID: ${requestId}`);
       const result = await deleteSwapRequest(requestId);
       
       if (!result.success) {
@@ -97,11 +105,20 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
   };
 
   const handleDeletePreferredDate = async (dayId: string, requestId: string): Promise<DeletePreferredDateResult> => {
-    if (!user) return { success: false };
+    if (!user) return { success: false, error: 'Authentication required' };
+    if (!dayId || !requestId) {
+      toast({
+        title: 'Error',
+        description: 'Missing day ID or request ID',
+        variant: 'destructive',
+      });
+      return { success: false, error: 'Missing required parameters' };
+    }
     
     try {
       setIsDeleting(true);
       
+      console.log(`Attempting to delete preferred date ${dayId} from request ${requestId}`);
       const result = await deletePreferredDate(dayId, requestId);
       
       if (!result.success) {
@@ -110,6 +127,7 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
       
       if (result.requestDeleted) {
         // If the entire request was deleted, update requests state
+        console.log('Last preferred date deleted, removing entire request');
         setRequests(prev => prev.filter(req => req.id !== requestId));
         toast({
           title: 'Success',
@@ -117,6 +135,7 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
         });
       } else {
         // Otherwise update the request's preferred dates
+        console.log('Preferred date removed, updating request');
         setRequests(prev => 
           prev.map(req => {
             if (req.id === requestId) {
@@ -142,7 +161,7 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
         description: err.message || 'Failed to delete preferred date',
         variant: 'destructive',
       });
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Failed to delete preferred date' };
     } finally {
       setIsDeleting(false);
     }

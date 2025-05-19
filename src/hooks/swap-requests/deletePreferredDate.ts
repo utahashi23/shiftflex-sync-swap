@@ -11,6 +11,14 @@ export interface DeletePreferredDateResult {
 
 export async function deletePreferredDate(dayId: string, requestId: string): Promise<DeletePreferredDateResult> {
   try {
+    if (!dayId || !requestId) {
+      console.error('Missing required parameters:', { dayId, requestId });
+      return {
+        success: false,
+        error: 'Missing required parameters: Both day ID and request ID are required'
+      };
+    }
+    
     console.log(`Deleting preferred date ${dayId} from request ${requestId}`);
 
     // Call the edge function to delete the preferred date
@@ -22,19 +30,20 @@ export async function deletePreferredDate(dayId: string, requestId: string): Pro
     });
 
     if (error) {
-      console.error('Error deleting preferred date:', error);
+      console.error('Error from edge function:', error);
       throw error;
     }
 
-    if (data.error) {
-      console.error('Server returned error:', data.error);
-      throw new Error(data.error);
+    // Check if data is an object with error property
+    if (!data || (typeof data === 'object' && 'error' in data && data.error)) {
+      console.error('Server returned error:', data?.error);
+      throw new Error(data?.error || 'Unknown error from server');
     }
 
     console.log('Delete preferred date result:', data);
     return {
       success: true,
-      requestDeleted: data.requestDeleted || false
+      requestDeleted: data?.requestDeleted || false
     };
   } catch (error: any) {
     console.error('Error in deletePreferredDate:', error);
