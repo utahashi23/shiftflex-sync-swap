@@ -25,8 +25,9 @@ export const deletePreferredDateApi = async (dayId: string, requestId: string): 
       
     if (error) throw error;
     
-    // Return the result from the RPC function
-    return data as DeletePreferredDateResult;
+    // Explicitly cast the data to match our expected structure
+    // First cast to unknown then to our interface to avoid TypeScript errors
+    return data as unknown as DeletePreferredDateResult;
   } catch (error) {
     console.error('Error deleting preferred date:', error);
     toast({
