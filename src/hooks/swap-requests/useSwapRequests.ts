@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { 
   getUserSwapRequestsApi, 
@@ -81,8 +80,31 @@ export const useSwapRequests = () => {
     setIsLoading(true);
     setError(null);
     try {
+      console.log('Calling deletePreferredDateApi for day:', dayId, 'request:', requestId);
       const result = await deletePreferredDateApi(dayId, requestId);
-      await fetchSwapRequests();
+      
+      console.log('Delete preferred date result:', result);
+      
+      if (result.success) {
+        if (result.requestDeleted) {
+          // If the entire request was deleted, remove it from the list
+          setRequests(prev => prev.filter(req => req.id !== requestId));
+        } else {
+          // Otherwise, update the preferred dates list
+          setRequests(prev => {
+            return prev.map(req => {
+              if (req.id === requestId) {
+                return {
+                  ...req,
+                  preferredDates: req.preferredDates.filter((date: any) => date.id !== dayId)
+                };
+              }
+              return req;
+            });
+          });
+        }
+      }
+      
       return result;
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Unknown error'));
@@ -95,7 +117,7 @@ export const useSwapRequests = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchSwapRequests]);
+  }, []);
 
   // Using refreshMatches properly as fetchMatches
   const refreshMatches = useCallback(() => {
