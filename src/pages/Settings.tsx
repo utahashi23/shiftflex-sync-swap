@@ -6,6 +6,7 @@ import { PasswordSettings } from '@/components/settings/PasswordSettings';
 import { CalendarIntegration } from '@/components/settings/CalendarIntegration';
 import { ManualNotificationTrigger } from '@/components/settings/ManualNotificationTrigger';
 import { SwapPreferences } from '@/components/settings/SwapPreferences';
+import { LeaveBlockSettings } from '@/components/settings/LeaveBlockSettings';
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -131,6 +132,12 @@ const Settings = () => {
         <SettingsSection title="Notifications">
           <ManualNotificationTrigger />
         </SettingsSection>
+
+        {isAdmin && (
+          <SettingsSection title="Leave Blocks">
+            <LeaveBlockSettings />
+          </SettingsSection>
+        )}
       </div>
     </AppLayout>
   );
