@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -5,6 +6,7 @@ import { SwapRequest, PreferredDate, DeletePreferredDateResult } from './types';
 import { getUserSwapRequestsApi } from './api';
 import { deleteSwapRequest } from './deleteSwapRequest';
 import { deletePreferredDate } from './deletePreferredDate';
+import { createSwapRequestApi } from './createSwapRequest';
 
 export const useSwapRequests = (defaultStatus: string = 'pending') => {
   const [requests, setRequests] = useState<SwapRequest[]>([]);
@@ -182,10 +184,45 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
     return fetchRequests();
   }, [fetchRequests]);
 
+  // Enhanced createSwapRequest to handle multiple shift IDs
   const createSwapRequest = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => {
-    console.log('Creating swap request (placeholder)');
-    // This is a placeholder for the actual implementation
-    return true;
+    try {
+      console.log('Creating swap requests with params:', { shiftIds, wantedDates, acceptedTypes });
+      
+      if (!shiftIds.length || !wantedDates.length || !acceptedTypes.length) {
+        toast({
+          title: 'Error',
+          description: 'Missing required parameters for swap request',
+          variant: 'destructive',
+        });
+        return false;
+      }
+      
+      // Create preferred dates array with accepted types
+      const preferredDates = wantedDates.map(date => ({
+        date,
+        acceptedTypes
+      }));
+      
+      // Create a swap request for each shift
+      for (const shiftId of shiftIds) {
+        await createSwapRequestApi(shiftId, preferredDates);
+      }
+      
+      // Refresh requests after creation
+      await fetchRequests();
+      
+      return true;
+      
+    } catch (err: any) {
+      console.error('Error in createSwapRequest:', err);
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to create swap request',
+        variant: 'destructive',
+      });
+      return false;
+    }
   };
 
   const fetchSwapRequests = fetchRequests;

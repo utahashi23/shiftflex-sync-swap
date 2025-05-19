@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ShiftSwapDialog } from "@/components/swaps/ShiftSwapDialog";
 import { Button } from "@/components/ui/button";
@@ -26,8 +27,8 @@ interface ImprovedSwapFormProps {
   onClose: () => void;
   onSubmit: (shiftIds: string[], wantedDates: string[], acceptedTypes: string[]) => Promise<boolean>;
   isDialog?: boolean;
-  currentMonth?: Date; // Add prop for current month
-  filters?: SwapFilters; // Add filters prop
+  currentMonth?: Date;
+  filters?: SwapFilters;
 }
 
 export const ImprovedSwapForm = ({
@@ -35,13 +36,13 @@ export const ImprovedSwapForm = ({
   onClose,
   onSubmit,
   isDialog = true,
-  currentMonth = new Date(), // Default to current date if not provided
-  filters // Optional filters
+  currentMonth = new Date(),
+  filters
 }: ImprovedSwapFormProps) => {
   const [step, setStep] = useState(1);
-  const [selectedShifts, setSelectedShifts] = useState<any[]>([]); // Now an array for multiple selection
+  const [selectedShifts, setSelectedShifts] = useState<any[]>([]);
   const [userShifts, setUserShifts] = useState<any[]>([]);
-  const [filteredShifts, setFilteredShifts] = useState<any[]>([]); // New state for filtered shifts
+  const [filteredShifts, setFilteredShifts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);

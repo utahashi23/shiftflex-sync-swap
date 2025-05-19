@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedSwapForm } from "./swaps/ImprovedSwapForm";
@@ -345,7 +344,6 @@ const ImprovedShiftSwaps = () => {
     });
   };
 
-  // Modify the handleConfirmDelete function to correctly handle deletePreferredDay result
   const handleConfirmDelete = async () => {
     try {
       setDeleteDialog(prev => ({ ...prev, isDeleting: true }));
