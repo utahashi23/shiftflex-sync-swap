@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './auth'; // Import from the main auth barrel file
+import { supabase } from '@/integrations/supabase/client';
 
 type UseAuthRedirectOptions = {
   protectedRoute?: boolean;
@@ -23,6 +24,22 @@ export const useAuthRedirect = ({
   useEffect(() => {
     // Wait until auth state is loaded
     if (isLoading) return;
+
+    // Check session status directly
+    const checkSession = async () => {
+      if (!user && (protectedRoute || adminRoute)) {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          // Store the current path to redirect back after login
+          navigate('/login', { 
+            state: { returnUrl: location.pathname },
+            replace: true  // Use replace to prevent back button issues
+          });
+        }
+      }
+    };
+
+    checkSession();
 
     // For routes requiring authentication (e.g., dashboard, settings)
     if (protectedRoute && !user) {

@@ -3,7 +3,7 @@
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 // Helper function to validate the authorization header
 export const getAuthToken = (req: Request): string | null => {
@@ -21,5 +21,21 @@ export const getAuthToken = (req: Request): string | null => {
   }
   
   const token = match[1];
-  return token || null;
-}
+  if (!token) {
+    console.error('Empty token in Authorization header');
+    return null;
+  }
+  
+  return token;
+};
+
+// Helper to create the unauthorized response
+export const createUnauthorizedResponse = (message = 'Authorization header is required') => {
+  return new Response(
+    JSON.stringify({ error: message }),
+    { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 401 
+    }
+  );
+};

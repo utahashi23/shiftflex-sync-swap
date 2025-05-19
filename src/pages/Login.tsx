@@ -26,6 +26,7 @@ import AuthLayout from '@/layouts/AuthLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required'),
@@ -78,14 +79,23 @@ const Login = () => {
         throw new Error(error.message);
       }
 
+      // Check if session is actually available
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !sessionData.session) {
+        throw new Error('Failed to establish session. Please try again.');
+      }
+      
       toast({
         title: "Login Successful",
         description: "You have successfully logged in.",
       });
       
+      console.log('Login successful, redirecting to:', returnUrl);
       navigate(returnUrl);
       
     } catch (error: any) {
+      console.error('Login error:', error);
       toast({
         title: "Login Failed",
         description: error.message || "Invalid email or password. Please try again.",

@@ -21,8 +21,18 @@ export const useLeaveBlocks = () => {
       // First get the current session to get the auth token
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
-      if (sessionError || !sessionData?.session) {
-        console.error('No active session found', sessionError);
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to view leave blocks",
+          variant: "destructive"
+        });
+        throw new Error('Authentication required');
+      }
+      
+      if (!sessionData?.session) {
+        console.error('No active session found');
         toast({
           title: "Authentication Error",
           description: "Please log in again to view leave blocks",
@@ -32,11 +42,21 @@ export const useLeaveBlocks = () => {
       }
 
       const accessToken = sessionData.session.access_token;
+      console.log('Got access token:', accessToken ? 'Valid token' : 'No token');
+      
+      if (!accessToken) {
+        console.error('No access token available');
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to view leave blocks",
+          variant: "destructive"
+        });
+        throw new Error('Invalid authentication token');
+      }
       
       // Use the edge function to bypass RLS issues
       const { data, error } = await supabase.functions.invoke('get_user_leave_blocks', {
         body: { user_id: user.id },
-        // Explicitly add authorization header with bearer token
         headers: {
           Authorization: `Bearer ${accessToken}`
         }
@@ -98,7 +118,7 @@ export const useLeaveBlocks = () => {
       console.error('Error fetching leave blocks:', error);
       toast({
         title: "Error",
-        description: "Failed to load leave blocks",
+        description: "Failed to load leave blocks. Please try again later.",
         variant: "destructive"
       });
     } finally {
@@ -150,12 +170,13 @@ export const useLeaveBlocks = () => {
       setIsLoading(true);
       
       // Get the current session to get the auth token
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
-      if (!accessToken) {
+      if (sessionError || !sessionData?.session?.access_token) {
         throw new Error('Authentication required');
       }
+      
+      const accessToken = sessionData.session.access_token;
       
       const { data, error } = await supabase.functions.invoke('split_leave_block', {
         body: { user_leave_block_id: blockId, user_id: user.id },
@@ -198,12 +219,13 @@ export const useLeaveBlocks = () => {
       setIsLoading(true);
       
       // Get the current session to get the auth token
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
-      if (!accessToken) {
+      if (sessionError || !sessionData?.session?.access_token) {
         throw new Error('Authentication required');
       }
+      
+      const accessToken = sessionData.session.access_token;
       
       const { data, error } = await supabase.functions.invoke('join_leave_blocks', {
         body: { 
