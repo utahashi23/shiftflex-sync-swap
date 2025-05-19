@@ -1,140 +1,158 @@
-import { useState, useCallback } from 'react';
-import { 
-  getUserSwapRequestsApi, 
-  createSwapRequestApi, 
-  deleteSwapRequestApi,
-  deletePreferredDateApi
-} from './api';
-import { useSwapMatches } from '../swap-matches';
-import type { DeletePreferredDateResult } from './deletePreferredDate';
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { SwapRequest, PreferredDate } from './types';
+import { getUserSwapRequests } from './getUserSwapRequests';
+import { deleteSwapRequest } from './deleteSwapRequest';
+import { deletePreferredDate } from './deletePreferredDate';
 
-export const useSwapRequests = () => {
-  const [isLoading, setIsLoading] = useState(false);
+export const useSwapRequests = (defaultStatus: string = 'pending') => {
+  const [requests, setRequests] = useState<SwapRequest[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
-  const [requests, setRequests] = useState<any[]>([]);
-  
-  const { 
-    matches, 
-    pastMatches, 
-    isLoading: isMatchesLoading, 
-    fetchMatches 
-  } = useSwapMatches();
+  const [status, setStatus] = useState<string>(defaultStatus);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  const fetchSwapRequests = useCallback(async (status = 'pending') => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await getUserSwapRequestsApi(status);
-      setRequests(data);
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Unknown error'));
-      return [];
-    } finally {
+  const fetchRequests = useCallback(async (newStatus?: string) => {
+    if (!user) {
+      setRequests([]);
       setIsLoading(false);
+      return;
     }
-  }, []);
 
-  const createSwapRequest = useCallback(async (
-    shiftIds: string[],
-    wantedDates: string[],
-    acceptedTypes: string[]
-  ) => {
-    setIsLoading(true);
-    setError(null);
+    const requestStatus = newStatus || status;
+    
     try {
-      // Update this line to correctly format the wanted dates as expected by the API
-      // The API expects an array of objects with date and acceptedTypes
-      const formattedDates = wantedDates.map(date => ({
-        date,
-        acceptedTypes: acceptedTypes || ['day', 'afternoon', 'night']
-      }));
+      setIsLoading(true);
+      setError(null);
+      console.log(`Fetching swap requests for user ${user.id} with status: ${requestStatus}`);
       
-      const result = await createSwapRequestApi(shiftIds[0], formattedDates);
-      await fetchSwapRequests();
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Unknown error'));
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchSwapRequests]);
-
-  const deleteSwapRequest = useCallback(async (requestId: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await deleteSwapRequestApi(requestId);
-      await fetchSwapRequests();
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Unknown error'));
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchSwapRequests]);
-
-  const deletePreferredDay = useCallback(async (dayId: string, requestId: string): Promise<DeletePreferredDateResult> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      console.log('Calling deletePreferredDateApi for day:', dayId, 'request:', requestId);
-      const result = await deletePreferredDateApi(dayId, requestId);
+      const result = await getUserSwapRequests(user.id, requestStatus);
       
-      console.log('Delete preferred date result:', result);
-      
-      if (result.success) {
-        if (result.requestDeleted) {
-          // If the entire request was deleted, remove it from the list
-          setRequests(prev => prev.filter(req => req.id !== requestId));
-        } else {
-          // Otherwise, update the preferred dates list
-          setRequests(prev => {
-            return prev.map(req => {
-              if (req.id === requestId) {
-                return {
-                  ...req,
-                  preferredDates: req.preferredDates.filter((date: any) => date.id !== dayId)
-                };
-              }
-              return req;
-            });
-          });
-        }
+      if (result.error) {
+        throw new Error(result.error);
       }
       
-      return result;
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Unknown error'));
-      // Return a properly typed error result
-      return {
-        success: false,
-        requestDeleted: false,
-        message: err instanceof Error ? err.message : 'Unknown error'
-      };
+      setRequests(result.requests || []);
+    } catch (err: any) {
+      console.error('Error fetching swap requests:', err);
+      setError(err);
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to load swap requests',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user, status, toast]);
 
-  // Using refreshMatches properly as fetchMatches
-  const refreshMatches = useCallback(() => {
-    return fetchMatches(true, false);
-  }, [fetchMatches]);
+  const handleDeleteRequest = async (requestId: string) => {
+    if (!user) return false;
+    
+    try {
+      setIsDeleting(true);
+      
+      const result = await deleteSwapRequest(requestId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete swap request');
+      }
+      
+      // Update the local state to remove the deleted request
+      setRequests(prev => prev.filter(req => req.id !== requestId));
+      
+      toast({
+        title: 'Success',
+        description: 'Swap request deleted successfully',
+      });
+      
+      return true;
+    } catch (err: any) {
+      console.error('Error deleting swap request:', err);
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to delete swap request',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeletePreferredDate = async (dayId: string, requestId: string) => {
+    if (!user) return false;
+    
+    try {
+      setIsDeleting(true);
+      
+      const result = await deletePreferredDate(dayId, requestId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete preferred date');
+      }
+      
+      if (result.requestDeleted) {
+        // If the entire request was deleted, update requests state
+        setRequests(prev => prev.filter(req => req.id !== requestId));
+        toast({
+          title: 'Success',
+          description: 'Request deleted as it had no remaining preferred dates',
+        });
+      } else {
+        // Otherwise update the request's preferred dates
+        setRequests(prev => 
+          prev.map(req => {
+            if (req.id === requestId) {
+              return {
+                ...req,
+                preferredDates: req.preferredDates.filter(pd => pd.id !== dayId)
+              };
+            }
+            return req;
+          })
+        );
+        toast({
+          title: 'Success',
+          description: 'Preferred date removed successfully',
+        });
+      }
+      
+      return true;
+    } catch (err: any) {
+      console.error('Error deleting preferred date:', err);
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to delete preferred date',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
+
+  const changeStatus = useCallback((newStatus: string) => {
+    setStatus(newStatus);
+    fetchRequests(newStatus);
+  }, [fetchRequests]);
 
   return {
+    requests,
     isLoading,
+    isDeleting,
     error,
-    requests, 
-    fetchSwapRequests,
-    createSwapRequest,
-    deleteSwapRequest,
-    deletePreferredDay,
-    matches,
-    pastMatches,
-    isMatchesLoading,
-    refreshMatches
+    status,
+    changeStatus,
+    fetchRequests,
+    deleteRequest: handleDeleteRequest,
+    deletePreferredDate: handleDeletePreferredDate
   };
 };

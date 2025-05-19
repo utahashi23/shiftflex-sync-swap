@@ -2,76 +2,47 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-// Define the result type for the deletePreferredDate function
-export interface DeletePreferredDateResult {
+export async function deletePreferredDate(dayId: string, requestId: string): Promise<{
   success: boolean;
-  requestDeleted: boolean;
-  message?: string;
-}
-
-// Function to delete a single preferred date
-export const deletePreferredDateApi = async (dayId: string, requestId: string): Promise<DeletePreferredDateResult> => {
-  if (!dayId || !requestId) {
-    throw new Error('Day ID and Request ID are required');
-  }
-  
+  requestDeleted?: boolean;
+  error?: string;
+}> {
   try {
-    console.log('Deleting preferred date:', { dayId, requestId });
-    
-    // First try to use the edge function which provides better security and avoids RLS issues
-    const { data: sessionData } = await supabase.auth.getSession();
-    
-    if (!sessionData.session) {
-      console.error('No active session found');
-      throw new Error('Authentication required');
-    }
-    
-    const token = sessionData.session.access_token;
-    
-    // Call the edge function with the auth token
+    console.log(`Deleting preferred date ${dayId} from request ${requestId}`);
+
+    // Call the edge function to delete the preferred date
     const { data, error } = await supabase.functions.invoke('delete_preferred_date', {
-      body: { day_id: dayId, request_id: requestId },
-      headers: {
-        Authorization: `Bearer ${token}`
+      body: {
+        day_id: dayId,
+        request_id: requestId
       }
     });
-    
+
     if (error) {
-      console.error('Edge function error:', error);
+      console.error('Error deleting preferred date:', error);
       throw error;
     }
-    
-    console.log('Edge function response:', data);
-    
-    // Fall back to RPC if needed
-    if (!data) {
-      console.log('Edge function returned no data, falling back to RPC');
-      // Use the new RPC function which bypasses RLS issues
-      const { data: rpcData, error: rpcError } = await supabase
-        .rpc('delete_preferred_date_rpc', { 
-          p_day_id: dayId, 
-          p_request_id: requestId 
-        });
-        
-      if (rpcError) throw rpcError;
-      
-      return rpcData as unknown as DeletePreferredDateResult;
+
+    if (data.error) {
+      console.error('Server returned error:', data.error);
+      throw new Error(data.error);
     }
-    
-    return data as DeletePreferredDateResult;
-  } catch (error) {
-    console.error('Error deleting preferred date:', error);
+
+    console.log('Delete preferred date result:', data);
+    return {
+      success: true,
+      requestDeleted: data.requestDeleted || false
+    };
+  } catch (error: any) {
+    console.error('Error in deletePreferredDate:', error);
     toast({
-      title: "Failed to delete date",
-      description: "There was a problem removing your preferred date",
-      variant: "destructive"
+      title: 'Error',
+      description: error.message || 'Failed to delete preferred date',
+      variant: 'destructive'
     });
-    
-    // Return a properly structured error result
-    return { 
-      success: false, 
-      requestDeleted: false,
-      message: error instanceof Error ? error.message : 'Unknown error'
+    return {
+      success: false,
+      error: error.message || 'Failed to delete preferred date'
     };
   }
-};
+}

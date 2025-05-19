@@ -1,14 +1,7 @@
 
-// Follow this setup guide to integrate the Supabase Edge Functions with your app:
-// https://supabase.com/docs/guides/functions/getting-started
-
 import { serve } from "https://deno.land/std@0.131.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders, getAuthToken, createUnauthorizedResponse } from '../_shared/cors.ts'
 
 serve(async (req) => {
   // Handle CORS preflight request
@@ -31,141 +24,70 @@ serve(async (req) => {
 
     console.log('Deleting request ID:', request_id);
 
-    // Get authorization header
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      console.log('Missing authorization header');
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      )
+    // Get authorization token using the shared helper
+    const token = getAuthToken(req);
+    if (!token) {
+      console.log('No authorization token provided');
+      return createUnauthorizedResponse('No bearer token provided');
     }
 
-    console.log('Auth header present, format:', authHeader.substring(0, 15) + '...');
+    console.log('Auth token present:', token.substring(0, 10) + '...');
     
-    // Extract the JWT token
-    const token = authHeader.replace('Bearer ', '');
-    
-    // Create a Supabase client with the auth token from the request
+    // Create a Supabase client with the auth token
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { 
         global: { 
-          headers: { Authorization: authHeader } 
+          headers: { Authorization: `Bearer ${token}` } 
         },
         auth: {
           autoRefreshToken: false,
-          persistSession: false,
+          persistSession: false
         }
       }
     )
 
-    // Get the user id from the auth token
+    // Get the user id from the auth token to verify identity
     const {
       data: { user },
       error: userError,
-    } = await supabaseClient.auth.getUser()
+    } = await supabaseClient.auth.getUser(token)
 
     if (userError || !user) {
-      console.error('Auth error:', userError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - Check authentication token', details: userError?.message || 'No user found' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      )
+      console.error('Auth error:', userError)
+      return createUnauthorizedResponse('Unauthorized - Invalid authentication token');
     }
 
     console.log('Authenticated user:', user.id);
     
-    // Create admin client to bypass RLS
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        }
-      }
+    // Use the RPC function we created for safely deleting swap requests
+    // This function handles all the permission checks internally
+    const { data: result, error: deleteError } = await supabaseClient.rpc(
+      'delete_swap_request_rpc',
+      { p_request_id: request_id }
     )
     
-    // Check if the user is an admin using the admin client
-    const { data: roleData } = await supabaseAdmin.rpc('has_role', { 
-      _user_id: user.id,
-      _role: 'admin'
-    })
-    
-    const isAdmin = !!roleData
-    console.log('User is admin:', isAdmin);
-    
-    // Check if the user owns the request
-    const { data: requestData, error: requestError } = await supabaseAdmin
-      .from('shift_swap_requests')
-      .select('requester_id')
-      .eq('id', request_id)
-      .single()
-    
-    if (requestError) {
-      console.error('Error finding request:', requestError);
-      return new Response(
-        JSON.stringify({ error: 'Request not found' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-      )
-    }
-    
-    // Verify the user has permission to delete this request
-    if (!isAdmin && requestData.requester_id !== user.id) {
-      console.log('Permission denied: User', user.id, 'trying to delete request owned by', requestData.requester_id);
-      return new Response(
-        JSON.stringify({ error: 'Permission denied: You can only delete your own swap requests' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
-      )
-    }
-    
-    console.log('Permission check passed, proceeding with deletion');
-    
-    // First, delete all preferred dates using the admin client
-    const { error: datesError } = await supabaseAdmin
-      .from('shift_swap_preferred_dates')
-      .delete()
-      .eq('request_id', request_id)
-    
-    if (datesError) {
-      console.error('Error deleting preferred dates:', datesError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to delete preferred dates' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      )
-    }
-    
-    console.log('Preferred dates deleted, now deleting the request');
-    
-    // Then delete the request using the admin client
-    const { error: deleteError } = await supabaseAdmin
-      .from('shift_swap_requests')
-      .delete()
-      .eq('id', request_id)
-    
     if (deleteError) {
-      console.error('Error deleting request:', deleteError);
+      console.error('Error deleting swap request:', deleteError);
       return new Response(
-        JSON.stringify({ error: deleteError.message }),
+        JSON.stringify({ success: false, error: deleteError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       )
     }
     
-    console.log('Request successfully deleted');
+    console.log('Delete operation result:', result);
     
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify(result),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
     
   } catch (error) {
-    console.error('Error in delete_swap_request function:', error);
+    console.error('Error in delete_swap_request function:', error)
     
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ success: false, error: error.message || 'An unknown error occurred' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }
