@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,20 +25,70 @@ import { format } from 'date-fns';
 import { LeaveBlock, UserLeaveBlock } from '@/types/leave-blocks';
 import { useAuth } from '@/hooks/auth';
 import { useLeaveBlocks } from '@/hooks/leave-blocks';
-import { Calendar, Trash2, Plus, Edit } from 'lucide-react';
+import { Calendar, Trash2, Plus, Edit, PlusCircle } from 'lucide-react';
 
 export const LeaveBlockSettings = () => {
   const { isAdmin, user } = useAuth();
   const { leaveBlocks, isLoading, refreshLeaveBlocks, splitLeaveBlock, joinLeaveBlocks } = useLeaveBlocks();
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [currentBlock, setCurrentBlock] = useState<UserLeaveBlock | null>(null);
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [availableBlocks, setAvailableBlocks] = useState<LeaveBlock[]>([]);
+  const [isLoadingAvailable, setIsLoadingAvailable] = useState(false);
 
   useEffect(() => {
     // When component mounts, fetch leave blocks
     if (user) {
       refreshLeaveBlocks();
+      fetchAvailableLeaveBlocks();
     }
   }, [user, refreshLeaveBlocks]);
+
+  // Fetch all available leave blocks that the user can assign to themselves
+  const fetchAvailableLeaveBlocks = async () => {
+    if (!user) return;
+    
+    setIsLoadingAvailable(true);
+    try {
+      // Fetch active leave blocks
+      const { data: allBlocks, error } = await supabase
+        .from('leave_blocks')
+        .select('*')
+        .eq('status', 'active')
+        .order('block_number', { ascending: true });
+      
+      if (error) throw error;
+
+      // Get the user's already assigned blocks
+      const { data: userBlocksData } = await supabase
+        .from('user_leave_blocks')
+        .select('leave_block_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active');
+      
+      // Create a set of already assigned block IDs
+      const assignedBlockIds = new Set(
+        userBlocksData?.map(item => item.leave_block_id) || []
+      );
+      
+      // Filter out blocks that the user already has
+      const available = allBlocks?.filter(block => 
+        !assignedBlockIds.has(block.id) && 
+        block.split_designation === null // Only show non-split blocks for assignment
+      ) || [];
+      
+      setAvailableBlocks(available);
+    } catch (error) {
+      console.error('Error fetching available leave blocks:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load available leave blocks",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingAvailable(false);
+    }
+  };
 
   const handleSplitBlock = async (blockId: string) => {
     if (confirm('Are you sure you want to split this leave block into two parts?')) {
@@ -62,6 +113,84 @@ export const LeaveBlockSettings = () => {
     setShowDetailsDialog(true);
   };
 
+  const assignLeaveBlock = async (blockId: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('user_leave_blocks')
+        .insert({
+          user_id: user.id,
+          leave_block_id: blockId,
+          status: 'active'
+        });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Block Assigned",
+        description: "Leave block has been assigned to you"
+      });
+      
+      // Refresh both lists
+      refreshLeaveBlocks();
+      fetchAvailableLeaveBlocks();
+      setShowAssignDialog(false);
+    } catch (error) {
+      console.error('Error assigning leave block:', error);
+      toast({
+        title: "Error",
+        description: "Failed to assign leave block",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRemoveBlock = async (blockId: string) => {
+    if (!user) return;
+    
+    if (confirm('Are you sure you want to remove this leave block from your assignments?')) {
+      try {
+        // Find the user_leave_blocks entry
+        const { data: userBlockData } = await supabase
+          .from('user_leave_blocks')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('leave_block_id', blockId)
+          .eq('status', 'active')
+          .single();
+        
+        if (!userBlockData) {
+          throw new Error('Leave block assignment not found');
+        }
+        
+        // Update the status to 'inactive'
+        const { error } = await supabase
+          .from('user_leave_blocks')
+          .update({ status: 'inactive' })
+          .eq('id', userBlockData.id);
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Block Removed",
+          description: "Leave block has been removed from your assignments"
+        });
+        
+        // Refresh both lists
+        refreshLeaveBlocks();
+        fetchAvailableLeaveBlocks();
+      } catch (error) {
+        console.error('Error removing leave block:', error);
+        toast({
+          title: "Error",
+          description: "Failed to remove leave block",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
   // For regular users, show their assigned leave blocks
   const renderUserLeaveBlocks = () => {
     if (isLoading) {
@@ -75,7 +204,15 @@ export const LeaveBlockSettings = () => {
     if (leaveBlocks.length === 0) {
       return (
         <div className="text-center py-6 text-muted-foreground">
-          No leave blocks assigned to you. Please contact your administrator.
+          <p className="mb-4">No leave blocks assigned to you.</p>
+          <Button 
+            onClick={() => setShowAssignDialog(true)}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Assign Leave Block
+          </Button>
         </div>
       );
     }
@@ -93,6 +230,17 @@ export const LeaveBlockSettings = () => {
 
     return (
       <div className="space-y-4">
+        <div className="flex justify-end">
+          <Button 
+            onClick={() => setShowAssignDialog(true)} 
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Assign Leave Block
+          </Button>
+        </div>
+        
         {Object.entries(blockGroups).map(([groupKey, blocks]) => (
           <Card key={groupKey} className="overflow-hidden">
             <CardContent className="p-0">
@@ -154,6 +302,14 @@ export const LeaveBlockSettings = () => {
                               <Plus className="h-4 w-4 rotate-45" />
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveBlock(block.leave_block_id)}
+                            title="Remove block"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -669,6 +825,61 @@ export const LeaveBlockSettings = () => {
     );
   };
 
+  // Dialog to assign new leave blocks
+  const AssignLeaveBlockDialog = () => {
+    return (
+      <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Leave Block</DialogTitle>
+            <DialogDescription>
+              Select a leave block to assign to yourself
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {isLoadingAvailable ? (
+              <div className="flex justify-center py-6">
+                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
+              </div>
+            ) : availableBlocks.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                No available leave blocks to assign
+              </div>
+            ) : (
+              <div className="max-h-[300px] overflow-y-auto space-y-2">
+                {availableBlocks.map((block) => (
+                  <div 
+                    key={block.id}
+                    className="border rounded-md p-3 hover:bg-muted/50 cursor-pointer"
+                    onClick={() => assignLeaveBlock(block.id)}
+                  >
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
+                      <div>
+                        <p className="font-medium">Block {block.block_number}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(block.start_date), 'MMM d, yyyy')} - {format(new Date(block.end_date), 'MMM d, yyyy')}
+                        </p>
+                      </div>
+                      <Button size="sm" variant="outline" className="w-full md:w-auto">
+                        <PlusCircle className="h-4 w-4 mr-2" />
+                        Assign
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAssignDialog(false)}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {isAdmin ? (
@@ -680,6 +891,7 @@ export const LeaveBlockSettings = () => {
           <h3 className="text-lg font-medium">Your Leave Blocks</h3>
           {renderUserLeaveBlocks()}
           <BlockDetailsDialog />
+          <AssignLeaveBlockDialog />
         </div>
       )}
     </div>
