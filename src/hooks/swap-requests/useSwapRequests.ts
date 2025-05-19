@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -33,11 +34,13 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
       
       const result = await getUserSwapRequestsApi(requestStatus);
       
-      if (result.error) {
+      // Check if result has error property - it's the result object, not an array
+      if (result && 'error' in result && result.error) {
         throw new Error(result.error);
       }
       
-      setRequests(result || []);
+      // Set the requests from the result, ensuring we handle both array and object responses
+      setRequests(Array.isArray(result) ? result : (result.requests || []));
     } catch (err: any) {
       console.error('Error fetching swap requests:', err);
       setError(err);

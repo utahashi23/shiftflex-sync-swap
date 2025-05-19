@@ -75,12 +75,12 @@ export const useSwapList = () => {
       // Apply filters
       if (filters.day) {
         // Extract the day from the date and filter
-        query = query.filter('date', 'ilike', `%-${filters.day.toString().padStart(2, '0')}%`);
+        query = query.filter('date', 'ilike', `%-${filters.day.padStart(2, '0')}%`);
       }
       
       if (filters.month) {
         // Extract the month from the date and filter
-        query = query.filter('date', 'ilike', `%-${filters.month.toString().padStart(2, '0')}-%`);
+        query = query.filter('date', 'ilike', `%-${filters.month.padStart(2, '0')}-%`);
       }
       
       if (filters.specificDate) {
@@ -101,7 +101,7 @@ export const useSwapList = () => {
       }
       
       if (filters.colleagueType) {
-        query = query.eq('colleagueType', filters.colleagueType);
+        query = query.eq('colleague_type', filters.colleagueType);
       }
 
       // Initial fetch to get total count
@@ -125,24 +125,40 @@ export const useSwapList = () => {
         throw error;
       }
 
-      // Map the data to the SwapListItem interface
-      const mappedData: SwapListItem[] = (data || []).map(item => ({
-        id: item.id,
-        preferrer: {
-          id: item.user_id,
-          name: item.user_profiles?.name || 'Unknown User',
-          employeeId: item.user_profiles?.employeeId
-        },
-        originalShift: {
+      // Map the data to the SwapListItem interface - safely handling the response
+      const mappedData: SwapListItem[] = (data || []).map(item => {
+        // Default user profile
+        const userProfile = {
+          id: item.user_id || '',
+          name: 'Unknown User',
+          employeeId: undefined
+        };
+        
+        // Try to safely extract user profile info if available
+        if (item.user_profiles && typeof item.user_profiles === 'object') {
+          if ('name' in item.user_profiles) {
+            userProfile.name = item.user_profiles.name || 'Unknown User';
+          }
+          
+          if ('employeeId' in item.user_profiles) {
+            userProfile.employeeId = item.user_profiles.employeeId;
+          }
+        }
+        
+        return {
           id: item.id,
-          date: item.date,
-          startTime: item.start_time,
-          endTime: item.end_time,
-          type: determineShiftType(item.start_time),
-          title: item.truck_name,
-          colleagueType: item.colleagueType,
-        },
-      }));
+          preferrer: userProfile,
+          originalShift: {
+            id: item.id,
+            date: item.date,
+            startTime: item.start_time,
+            endTime: item.end_time,
+            type: determineShiftType(item.start_time),
+            title: item.truck_name,
+            colleagueType: item.colleague_type,
+          },
+        };
+      });
 
       // Update state
       setSwapRequests(prevRequests => (page === 1 ? mappedData : [...prevRequests, ...mappedData]));

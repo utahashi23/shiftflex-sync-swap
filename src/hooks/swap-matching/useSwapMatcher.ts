@@ -49,7 +49,7 @@ export function useSwapMatcher() {
     // Skip if already in progress
     if (requestInProgress || requestInFlightRef.current) {
       console.log('Match finding operation already in progress, skipping');
-      return { success: false, message: 'Operation already in progress' };
+      return { success: false, message: 'Operation already in progress', matches: [], results: [] };
     }
     
     requestInFlightRef.current = true;
@@ -76,7 +76,7 @@ export function useSwapMatcher() {
         updateProgress('complete', 'No matches found');
       }
       
-      // Return with empty results array so TypeScript doesn't complain
+      // Return with empty results array for TypeScript compatibility
       return { 
         success: true, 
         matches: matchData || [],

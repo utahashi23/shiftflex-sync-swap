@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { Filter } from 'lucide-react';
@@ -17,7 +18,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 
-// Move SwapFilters interface from useSwapList directly into this file
+// Define interface locally to avoid import issues
 interface SwapFilters {
   day: string | null;
   month: string | null;
@@ -37,14 +38,14 @@ const SwapRequestFilters = ({ filters, setFilters }: SwapRequestFiltersProps) =>
   const handleDayChange = (day: string) => {
     setFilters(prev => ({
       ...prev,
-      day: day === 'any-day' ? null : parseInt(day)
+      day: day === 'any-day' ? null : day
     }));
   };
   
   const handleMonthChange = (month: string) => {
     setFilters(prev => ({
       ...prev,
-      month: month === 'any-month' ? null : parseInt(month)
+      month: month === 'any-month' ? null : month
     }));
   };
   
