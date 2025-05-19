@@ -232,24 +232,33 @@ export const useLeaveBlocks = () => {
       
       const accessToken = sessionData.session.access_token;
       
+      console.log('Splitting leave block with ID:', blockId);
+      console.log('Auth token available:', accessToken ? 'Yes' : 'No');
+      
       const { data, error } = await supabase.functions.invoke('split_leave_block', {
         body: { user_leave_block_id: blockId, user_id: user.id },
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       
-      if (error) throw error;
-      
-      if (data.success) {
-        toast({
-          title: "Block Split",
-          description: "Your leave block has been split into two equal parts"
-        });
-        
-        await fetchLeaveBlocks();
-        return true;
-      } else {
-        throw new Error(data.error || 'Failed to split block');
+      if (error) {
+        console.error('Error from edge function:', error);
+        throw error;
       }
+      
+      if (!data || !data.success) {
+        console.error('Unexpected response:', data);
+        throw new Error(data?.error || 'Failed to split block');
+      }
+      
+      console.log('Split block response:', data);
+      
+      toast({
+        title: "Block Split",
+        description: "Your leave block has been split into two equal parts"
+      });
+      
+      await fetchLeaveBlocks();
+      return true;
       
     } catch (error) {
       console.error('Error splitting leave block:', error);
