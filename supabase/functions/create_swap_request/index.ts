@@ -1,11 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.131.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders } from '../_shared/cors.ts'
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -17,7 +13,7 @@ serve(async (req) => {
 
   try {
     // Parse request data
-    const { shift_ids, preferred_dates } = await req.json();
+    const { shift_ids, preferred_dates, required_skillsets } = await req.json();
     
     // Validate inputs
     if (!shift_ids || !Array.isArray(shift_ids) || shift_ids.length === 0) {
@@ -64,11 +60,20 @@ serve(async (req) => {
       }
     }
     
+    // Validate required_skillsets if provided
+    if (required_skillsets && !Array.isArray(required_skillsets)) {
+      return new Response(
+        JSON.stringify({ error: 'Required skillsets must be an array' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+    
     console.log('Request validation passed. Creating swap request with:');
     console.log('- Shift IDs:', shift_ids);
     console.log('- Preferred dates:', preferred_dates.map(pd => 
       `${pd.date} (accepted types: ${pd.acceptedTypes.join(', ')})`
     ).join(', '));
+    console.log('- Required skillsets:', required_skillsets || 'None');
     
     // Create an admin client with service role to bypass RLS
     const supabaseAdmin = createClient(
@@ -110,7 +115,8 @@ serve(async (req) => {
         .insert({
           requester_id: userId,
           requester_shift_id: shift_id,
-          status: 'pending'
+          status: 'pending',
+          required_skillsets: required_skillsets || []
         })
         .select('id')
         .single();
@@ -161,7 +167,8 @@ serve(async (req) => {
         success: true,
         request_ids: request_ids,
         message: `Successfully created ${request_ids.length} swap requests`,
-        preferred_dates_count: preferred_dates.length
+        preferred_dates_count: preferred_dates.length,
+        required_skillsets: required_skillsets || []
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );

@@ -12,21 +12,20 @@ interface PreferredDate {
  * Create new swap requests using the edge function
  */
 export const createSwapRequestApi = async (
-  shiftId: string, 
-  preferredDates: PreferredDate[]
+  shiftIds: string[], 
+  preferredDates: PreferredDate[],
+  requiredSkillsets?: string[]
 ) => {
-  if (!shiftId || !preferredDates || preferredDates.length === 0) {
+  if (!shiftIds || shiftIds.length === 0 || !preferredDates || preferredDates.length === 0) {
     throw new Error('Missing required parameters for swap request');
   }
   
   try {
-    console.log('Creating swap requests for shift:', shiftId);
+    console.log('Creating swap requests for shifts:', shiftIds);
     console.log('With preferred dates:', preferredDates);
+    console.log('With required skillsets:', requiredSkillsets || 'None');
     
-    // We'll directly create the swap request in the database instead of using the edge function
-    // This ensures we're using the correct tables
-    
-    // First get the current user
+    // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       throw new Error('User not authenticated');
@@ -35,38 +34,42 @@ export const createSwapRequestApi = async (
     const requestIds = [];
     
     // For each shift, create a swap request
-    for (const preferredDate of preferredDates) {
-      // Create the swap request in improved_shift_swaps table
-      const { data: swapRequest, error } = await supabase
-        .from('improved_shift_swaps')
-        .insert({
-          requester_id: user.id,
-          requester_shift_id: shiftId,
-          wanted_date: preferredDate.date,
-          accepted_shift_types: preferredDate.acceptedTypes,
-          status: 'pending'
-        })
-        .select('id')
-        .single();
+    for (const shiftId of shiftIds) {
+      // Process each preferred date
+      for (const preferredDate of preferredDates) {
+        // Create the swap request in improved_shift_swaps table
+        const { data: swapRequest, error } = await supabase
+          .from('improved_shift_swaps')
+          .insert({
+            requester_id: user.id,
+            requester_shift_id: shiftId,
+            wanted_date: preferredDate.date,
+            accepted_shift_types: preferredDate.acceptedTypes,
+            required_skillsets: requiredSkillsets || [],
+            status: 'pending'
+          })
+          .select('id')
+          .single();
+          
+        if (error) {
+          console.error('Error creating swap request:', error);
+          continue;
+        }
         
-      if (error) {
-        console.error('Error creating swap request:', error);
-        continue;
-      }
-      
-      console.log(`Created swap request with ID: ${swapRequest.id}`);
-      requestIds.push(swapRequest.id);
-      
-      // Also create the wanted date in improved_swap_wanted_dates table
-      const { error: dateError } = await supabase
-        .from('improved_swap_wanted_dates')
-        .insert({
-          swap_id: swapRequest.id,
-          date: preferredDate.date
-        });
+        console.log(`Created swap request with ID: ${swapRequest.id}`);
+        requestIds.push(swapRequest.id);
         
-      if (dateError) {
-        console.error('Error adding wanted date:', dateError);
+        // Also create the wanted date in improved_swap_wanted_dates table
+        const { error: dateError } = await supabase
+          .from('improved_swap_wanted_dates')
+          .insert({
+            swap_id: swapRequest.id,
+            date: preferredDate.date
+          });
+          
+        if (dateError) {
+          console.error('Error adding wanted date:', dateError);
+        }
       }
     }
     
