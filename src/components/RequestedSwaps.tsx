@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import SwapRequestCard from './swaps/SwapRequestCard';
@@ -9,10 +10,9 @@ import { toast } from '@/hooks/use-toast';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { ChevronLeft, ChevronRight, Trash2, ArrowDown, ArrowUp } from 'lucide-react';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from './ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
-// New interface for grouped swap requests
+// Interface for grouped swap requests
 interface GroupedSwapRequest {
   shiftDate: string;
   shiftId: string;
@@ -45,13 +45,13 @@ const RequestedSwaps = () => {
     isDeleting: false
   });
 
-  // New state for month-based navigation
+  // State for month-based navigation
   const [currentMonth, setCurrentMonth] = useState(new Date());
   
-  // New state for selected requests (for multiple deletion)
+  // State for selected requests (for multiple deletion)
   const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
   
-  // New state for sort direction
+  // State for sort direction
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Fetch swap requests when component mounts
@@ -62,18 +62,31 @@ const RequestedSwaps = () => {
   
   // Group swap requests by shift date
   const groupedSwapRequests = useMemo(() => {
+    if (!swapRequests || swapRequests.length === 0) {
+      return [];
+    }
+    
+    console.log("Grouping swap requests:", swapRequests);
+    
     // First filter and sort the requests based on current filters
     const filteredRequests = swapRequests
       .filter(request => {
-        const shiftDate = request.shifts?.date ? new Date(request.shifts.date) : null;
-        if (!shiftDate) return false;
+        // Check if the request has shift data
+        if (!request.shifts?.date) {
+          console.warn("Request missing shift data:", request);
+          return false;
+        }
         
+        const shiftDate = new Date(request.shifts.date);
+        
+        // Filter by current month
         const monthStart = startOfMonth(currentMonth);
         const monthEnd = endOfMonth(currentMonth);
         
         return shiftDate >= monthStart && shiftDate <= monthEnd;
       })
       .sort((a, b) => {
+        // Sort by shift date
         const dateA = a.shifts?.date ? new Date(a.shifts.date) : new Date(0);
         const dateB = b.shifts?.date ? new Date(b.shifts.date) : new Date(0);
         
