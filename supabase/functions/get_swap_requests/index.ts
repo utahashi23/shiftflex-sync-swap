@@ -19,7 +19,7 @@ serve(async (req) => {
 
   try {
     // Get the request body
-    const { user_id, status = 'pending', auth_token } = await req.json()
+    const { user_id, status = 'pending' } = await req.json()
     
     // Validate required parameters
     if (!user_id) {
@@ -29,11 +29,12 @@ serve(async (req) => {
       )
     }
 
-    // Validate auth_token
-    if (!auth_token) {
-      console.error('Missing auth token')
+    // Extract the authentication header directly
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      console.error('Missing Authorization header')
       return new Response(
-        JSON.stringify({ error: 'Authentication token is required' }),
+        JSON.stringify({ error: 'Authorization header is required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       )
     }
@@ -44,7 +45,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { 
         global: { 
-          headers: { Authorization: `Bearer ${auth_token}` } 
+          headers: { Authorization: authHeader } 
         } 
       }
     )

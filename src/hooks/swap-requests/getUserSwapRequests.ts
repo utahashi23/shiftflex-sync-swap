@@ -9,9 +9,10 @@ import { SwapRequest } from './types';
 export const getUserSwapRequestsApi = async (status: string = 'pending'): Promise<SwapRequest[]> => {
   try {
     // Get the current session to pass the auth token
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: sessionData } = await supabase.auth.getSession();
     
-    if (!session) {
+    if (!sessionData.session) {
+      console.error('No active session found');
       toast({
         title: "Authentication Error",
         description: "You must be logged in to view swap requests.",
@@ -20,15 +21,18 @@ export const getUserSwapRequestsApi = async (status: string = 'pending'): Promis
       throw new Error('Authentication required');
     }
     
-    const authToken = session.access_token;
-    const userId = session.user.id;
+    const userId = sessionData.session.user.id;
     
-    // Use the edge function to safely get the user's swap requests
+    // Important: Use the invoke method without passing the auth_token in the body
+    // The token is automatically included in the request headers by the SDK
     const response = await supabase.functions.invoke('get_swap_requests', {
       body: { 
         user_id: userId,
-        status: status,
-        auth_token: authToken
+        status: status
+      },
+      // Explicitly add authorization header with bearer token
+      headers: {
+        Authorization: `Bearer ${sessionData.session.access_token}`
       }
     });
       
