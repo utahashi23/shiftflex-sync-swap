@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedSwapForm } from "./swaps/ImprovedSwapForm";
@@ -75,7 +74,9 @@ const ImprovedShiftSwaps = () => {
     isLoading: isMatchesLoading, 
     refreshMatches,
     createSwapRequest,
-    fetchSwapRequests: hookFetchSwapRequests
+    fetchSwapRequests: hookFetchSwapRequests,
+    deleteSwapRequest,
+    deletePreferredDay
   } = useSwapRequests();
 
   // State for month-based navigation
@@ -252,7 +253,7 @@ const ImprovedShiftSwaps = () => {
     setIsFiltersOpen(true);
   };
 
-  // Handle delete request - fixed implementation
+  // Handle delete request
   const handleDeleteRequest = async (requestId: string) => {
     // Open delete dialog for single request
     setDeleteDialog({
@@ -263,7 +264,7 @@ const ImprovedShiftSwaps = () => {
     });
   };
 
-  // Handle delete preferred date - fixed implementation
+  // Handle delete preferred date
   const handleDeletePreferredDate = async (dayId: string, requestId: string) => {
     // Open delete dialog for a single preferred date
     setDeleteDialog({
@@ -274,31 +275,24 @@ const ImprovedShiftSwaps = () => {
     });
   };
 
-  // Handle confirm delete (for both single requests and preferred dates) - completely rewritten
+  // Handle confirm delete (for both single requests and preferred dates)
+  // This is the function we're fixing to resolve the React error
   const handleConfirmDelete = async () => {
     try {
       setDeleteDialog(prev => ({ ...prev, isDeleting: true }));
       
-      if (deleteDialog.dayId) {
+      if (deleteDialog.dayId && deleteDialog.requestId) {
         // Delete a single preferred date
         console.log("Deleting preferred date:", deleteDialog.dayId, "from request:", deleteDialog.requestId);
         
-        // Import the useSwapRequests hook directly to access its functions
-        const { deletePreferredDay } = useSwapRequests();
-        
-        // Check if the deleteDialog.requestId is not null before using it
-        if (!deleteDialog.requestId) {
-          throw new Error("Missing request ID for date deletion");
-        }
-        
         const result = await deletePreferredDay(deleteDialog.dayId, deleteDialog.requestId);
         
-        if (!result.success) {
+        if (!result || !result.success) {
           throw new Error("Failed to delete preferred date");
         }
         
-        // Type-safe check for requestDeleted property
-        if ('requestDeleted' in result && result.requestDeleted) {
+        // Check if this deletion also removed the entire request
+        if (result.requestDeleted === true) {
           toast({
             title: "Success",
             description: "This was the last preferred date, so the entire request has been removed.",
@@ -313,8 +307,6 @@ const ImprovedShiftSwaps = () => {
         // Delete an entire request
         console.log("Deleting swap request:", deleteDialog.requestId);
         
-        // Import the useSwapRequests hook directly to access its functions
-        const { deleteSwapRequest } = useSwapRequests();
         const success = await deleteSwapRequest(deleteDialog.requestId);
         
         if (!success) {

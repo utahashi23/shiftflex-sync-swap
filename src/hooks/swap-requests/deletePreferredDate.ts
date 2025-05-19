@@ -2,10 +2,16 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
+interface DeletePreferredDateResult {
+  success: boolean;
+  requestDeleted: boolean;
+  message?: string;
+}
+
 /**
  * Delete a preferred date from a swap request
  */
-export const deletePreferredDateApi = async (dayId: string, requestId: string) => {
+export const deletePreferredDateApi = async (dayId: string, requestId: string): Promise<DeletePreferredDateResult> => {
   if (!dayId || !requestId) {
     throw new Error('Day ID and Request ID are required');
   }
@@ -96,6 +102,10 @@ export const deletePreferredDateApi = async (dayId: string, requestId: string) =
       description: "There was a problem removing the date from your swap request.",
       variant: "destructive"
     });
-    throw error;
+    return { 
+      success: false, 
+      requestDeleted: false,
+      message: error instanceof Error ? error.message : 'Unknown error'
+    };
   }
 };
