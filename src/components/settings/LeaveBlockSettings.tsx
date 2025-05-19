@@ -28,7 +28,15 @@ import { Calendar, Trash2, Plus, Edit, PlusCircle } from 'lucide-react';
 
 export const LeaveBlockSettings = () => {
   const { isAdmin, user } = useAuth();
-  const { leaveBlocks, isLoading, refreshLeaveBlocks, splitLeaveBlock, joinLeaveBlocks } = useLeaveBlocks();
+  const { 
+    leaveBlocks, 
+    isLoading, 
+    refreshLeaveBlocks, 
+    splitLeaveBlock, 
+    joinLeaveBlocks,
+    removeLeaveBlock
+  } = useLeaveBlocks();
+  
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [currentBlock, setCurrentBlock] = useState<UserLeaveBlock | null>(null);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
@@ -139,8 +147,8 @@ export const LeaveBlockSettings = () => {
       });
       
       // Refresh both lists
-      refreshLeaveBlocks();
-      fetchAvailableLeaveBlocks();
+      await refreshLeaveBlocks();
+      await fetchAvailableLeaveBlocks();
       setShowAssignDialog(false);
     } catch (error) {
       console.error('Error assigning leave block:', error);
@@ -157,35 +165,12 @@ export const LeaveBlockSettings = () => {
     
     if (confirm('Are you sure you want to remove this leave block from your assignments?')) {
       try {
-        // Find the user_leave_blocks entry
-        const { data: userBlockData } = await supabase
-          .from('user_leave_blocks')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('leave_block_id', blockId)
-          .eq('status', 'active')
-          .single();
+        const success = await removeLeaveBlock(blockId);
         
-        if (!userBlockData) {
-          throw new Error('Leave block assignment not found');
+        if (success) {
+          // After successful removal, refresh available blocks too
+          await fetchAvailableLeaveBlocks();
         }
-        
-        // Update the status to 'inactive'
-        const { error } = await supabase
-          .from('user_leave_blocks')
-          .update({ status: 'inactive' })
-          .eq('id', userBlockData.id);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Block Removed",
-          description: "Leave block has been removed from your assignments"
-        });
-        
-        // Refresh both lists
-        refreshLeaveBlocks();
-        fetchAvailableLeaveBlocks();
       } catch (error) {
         console.error('Error removing leave block:', error);
         toast({
@@ -198,7 +183,7 @@ export const LeaveBlockSettings = () => {
   };
 
   // For regular users, show their assigned leave blocks
-  const renderUserLeaveBlocks = () => {
+  function renderUserLeaveBlocks() {
     if (isLoading) {
       return (
         <div className="flex justify-center py-6">
@@ -327,16 +312,123 @@ export const LeaveBlockSettings = () => {
         ))}
       </div>
     );
-  };
+  }
+  
+  // Block details dialog for user view
+  function BlockDetailsDialog() {
+    if (!currentBlock) return null;
+    
+    return (
+      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Leave Block Details</DialogTitle>
+            <DialogDescription>
+              Information about your leave block
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-3 gap-2 items-center">
+              <span className="text-sm font-medium">Block Number:</span>
+              <span className="col-span-2">{currentBlock.block_number}</span>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2 items-center">
+              <span className="text-sm font-medium">Start Date:</span>
+              <span className="col-span-2">{format(new Date(currentBlock.start_date), 'MMM d, yyyy')}</span>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2 items-center">
+              <span className="text-sm font-medium">End Date:</span>
+              <span className="col-span-2">{format(new Date(currentBlock.end_date), 'MMM d, yyyy')}</span>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2 items-center">
+              <span className="text-sm font-medium">Duration:</span>
+              <span className="col-span-2">
+                {Math.ceil((new Date(currentBlock.end_date).getTime() - new Date(currentBlock.start_date).getTime()) / (1000 * 60 * 60 * 24))} days
+              </span>
+            </div>
+            
+            {currentBlock.split_designation && (
+              <div className="grid grid-cols-3 gap-2 items-center">
+                <span className="text-sm font-medium">Split:</span>
+                <span className="col-span-2">Part {currentBlock.split_designation}</span>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button onClick={() => setShowDetailsDialog(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
-  // If admin, show the original admin view for managing all leave blocks
-  const renderAdminLeaveBlocks = () => {
-    // This is the existing admin functionality, keep it as is
+  // Dialog to assign new leave blocks
+  function AssignLeaveBlockDialog() {
+    return (
+      <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Leave Block</DialogTitle>
+            <DialogDescription>
+              Select a leave block to assign to yourself
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {isLoadingAvailable ? (
+              <div className="flex justify-center py-6">
+                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
+              </div>
+            ) : availableBlocks.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                No available leave blocks to assign
+              </div>
+            ) : (
+              <div className="max-h-[300px] overflow-y-auto space-y-2">
+                {availableBlocks.map((block) => (
+                  <div 
+                    key={block.id}
+                    className="border rounded-md p-3 hover:bg-muted/50 cursor-pointer"
+                    onClick={() => assignLeaveBlock(block.id)}
+                  >
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
+                      <div>
+                        <p className="font-medium">Block {block.block_number}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(block.start_date), 'MMM d, yyyy')} - {format(new Date(block.end_date), 'MMM d, yyyy')}
+                        </p>
+                      </div>
+                      <Button size="sm" variant="outline" className="w-full md:w-auto">
+                        <PlusCircle className="h-4 w-4 mr-2" />
+                        Assign
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAssignDialog(false)}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+  
+  function renderAdminLeaveBlocks() {
+    // This is the admin functionality, just a placeholder to maintain the interface
     const [leaveBlocks, setLeaveBlocks] = useState<LeaveBlock[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [showEditDialog, setShowEditDialog] = useState(false);
-    const [currentBlock, setCurrentBlock] = useState<LeaveBlock | null>(null);
+    const [currentBlock, setCurrentBlockAdmin] = useState<LeaveBlock | null>(null);
     const [formData, setFormData] = useState({
       block_number: '',
       start_date: '',
@@ -447,7 +539,7 @@ export const LeaveBlockSettings = () => {
   };
 
   const handleEditBlock = async () => {
-    if (!currentBlock) return;
+    if (!currentBlockAdmin) return;
     
     try {
       setIsLoading(true);
@@ -479,7 +571,6 @@ export const LeaveBlockSettings = () => {
         toast({
           title: "Invalid Dates",
           description: "End date must be after start date",
-          variant: "destructive"
         });
         return;
       }
@@ -491,7 +582,7 @@ export const LeaveBlockSettings = () => {
           start_date: formData.start_date,
           end_date: formData.end_date
         })
-        .eq('id', currentBlock.id);
+        .eq('id', currentBlockAdmin.id);
       
       if (error) throw error;
       
@@ -502,7 +593,7 @@ export const LeaveBlockSettings = () => {
       
       resetForm();
       setShowEditDialog(false);
-      setCurrentBlock(null);
+      setCurrentBlockAdmin(null);
       fetchLeaveBlocks();
     } catch (error) {
       console.error('Error updating leave block:', error);
@@ -565,7 +656,7 @@ export const LeaveBlockSettings = () => {
   };
 
   const editBlock = (block: LeaveBlock) => {
-    setCurrentBlock(block);
+    setCurrentBlockAdmin(block);
     setFormData({
       block_number: block.block_number.toString(),
       start_date: block.start_date,
@@ -776,130 +867,5 @@ export const LeaveBlockSettings = () => {
         </Dialog>
       </div>
     );
-  };
-
-  // Block details dialog for user view
-  const BlockDetailsDialog = () => {
-    if (!currentBlock) return null;
-    
-    return (
-      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Leave Block Details</DialogTitle>
-            <DialogDescription>
-              Information about your leave block
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-2">
-            <div className="grid grid-cols-3 gap-2 items-center">
-              <span className="text-sm font-medium">Block Number:</span>
-              <span className="col-span-2">{currentBlock.block_number}</span>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-2 items-center">
-              <span className="text-sm font-medium">Start Date:</span>
-              <span className="col-span-2">{format(new Date(currentBlock.start_date), 'MMM d, yyyy')}</span>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-2 items-center">
-              <span className="text-sm font-medium">End Date:</span>
-              <span className="col-span-2">{format(new Date(currentBlock.end_date), 'MMM d, yyyy')}</span>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-2 items-center">
-              <span className="text-sm font-medium">Duration:</span>
-              <span className="col-span-2">
-                {Math.ceil((new Date(currentBlock.end_date).getTime() - new Date(currentBlock.start_date).getTime()) / (1000 * 60 * 60 * 24))} days
-              </span>
-            </div>
-            
-            {currentBlock.split_designation && (
-              <div className="grid grid-cols-3 gap-2 items-center">
-                <span className="text-sm font-medium">Split:</span>
-                <span className="col-span-2">Part {currentBlock.split_designation}</span>
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button onClick={() => setShowDetailsDialog(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  };
-
-  // Dialog to assign new leave blocks
-  const AssignLeaveBlockDialog = () => {
-    return (
-      <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Assign Leave Block</DialogTitle>
-            <DialogDescription>
-              Select a leave block to assign to yourself
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            {isLoadingAvailable ? (
-              <div className="flex justify-center py-6">
-                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
-              </div>
-            ) : availableBlocks.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground">
-                No available leave blocks to assign
-              </div>
-            ) : (
-              <div className="max-h-[300px] overflow-y-auto space-y-2">
-                {availableBlocks.map((block) => (
-                  <div 
-                    key={block.id}
-                    className="border rounded-md p-3 hover:bg-muted/50 cursor-pointer"
-                    onClick={() => assignLeaveBlock(block.id)}
-                  >
-                    <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-                      <div>
-                        <p className="font-medium">Block {block.block_number}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(block.start_date), 'MMM d, yyyy')} - {format(new Date(block.end_date), 'MMM d, yyyy')}
-                        </p>
-                      </div>
-                      <Button size="sm" variant="outline" className="w-full md:w-auto">
-                        <PlusCircle className="h-4 w-4 mr-2" />
-                        Assign
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAssignDialog(false)}>Cancel</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  };
-
-  return (
-    <div className="space-y-4">
-      {isAdmin ? (
-        // Admin view - existing functionality
-        renderAdminLeaveBlocks()
-      ) : (
-        // Regular user view - new functionality
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Your Leave Blocks</h3>
-          {renderUserLeaveBlocks()}
-          <BlockDetailsDialog />
-          <AssignLeaveBlockDialog />
-        </div>
-      )}
-    </div>
-  );
+  }
 };

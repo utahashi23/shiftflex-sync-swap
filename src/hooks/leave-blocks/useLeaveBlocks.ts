@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -126,6 +125,60 @@ export const useLeaveBlocks = () => {
       setIsLoading(false);
     }
   }, [user]);
+
+  // Create a function to handle removing a leave block assignment
+  const removeLeaveBlock = useCallback(async (blockId: string) => {
+    if (!user) return false;
+    
+    try {
+      setIsLoading(true);
+      
+      // Find the user_leave_blocks entry
+      const { data: userBlockData, error: findError } = await supabase
+        .from('user_leave_blocks')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('leave_block_id', blockId)
+        .eq('status', 'active')
+        .single();
+      
+      if (findError) {
+        console.error('Error finding leave block assignment:', findError);
+        throw new Error('Leave block assignment not found');
+      }
+      
+      if (!userBlockData) {
+        throw new Error('Leave block assignment not found');
+      }
+      
+      // Update the status to 'inactive' instead of deleting
+      const { error: updateError } = await supabase
+        .from('user_leave_blocks')
+        .update({ status: 'inactive' })
+        .eq('id', userBlockData.id);
+      
+      if (updateError) throw updateError;
+      
+      toast({
+        title: "Block Removed",
+        description: "Leave block has been removed from your assignments"
+      });
+      
+      // Refresh the leave blocks list
+      await fetchLeaveBlocks();
+      return true;
+    } catch (error) {
+      console.error('Error removing leave block:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove leave block",
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, fetchLeaveBlocks]);
 
   // Other methods remain the same
   const createLeaveSwapRequest = useCallback(async (leaveBlockId: string) => {
@@ -282,6 +335,7 @@ export const useLeaveBlocks = () => {
     refreshLeaveBlocks: fetchLeaveBlocks,
     createLeaveSwapRequest,
     splitLeaveBlock,
-    joinLeaveBlocks
+    joinLeaveBlocks,
+    removeLeaveBlock
   };
 };

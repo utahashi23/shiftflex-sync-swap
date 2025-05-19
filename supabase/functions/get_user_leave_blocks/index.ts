@@ -111,6 +111,7 @@ serve(async (req) => {
         )
       `)
       .eq('user_id', user_id)
+      .eq('status', 'active')
       .order('created_at', { ascending: true })
     
     if (error) {
