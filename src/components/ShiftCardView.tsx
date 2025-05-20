@@ -6,6 +6,7 @@ import { Sunrise, Sun, Moon, Clock, Calendar as CalendarIcon, ChevronLeft, Chevr
 import { Shift } from '@/hooks/useShiftData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import ShiftTypeIcon from '@/components/swaps/ShiftTypeIcon';
 
 interface ShiftCardViewProps {
   shifts: Shift[];
@@ -154,19 +155,19 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
                           </div>
                         </div>
                         
-                        {/* Delete button */}
+                        {/* Delete button - changed text color to black */}
                         {onDeleteShift && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 ml-2 absolute top-3 right-3 hover:bg-red-50"
+                            className="h-8 w-8 p-0 ml-2 absolute top-3 right-3 hover:bg-gray-100"
                             onClick={(e) => {
                               e.stopPropagation(); // Prevent card click
                               onDeleteShift(shift.id);
                             }}
                             aria-label="Delete shift"
                           >
-                            <Trash2 className="h-4 w-4 text-red-500" />
+                            <Trash2 className="h-4 w-4 text-black" />
                           </Button>
                         )}
                       </div>
@@ -175,7 +176,10 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
                       className="px-4 py-2 border-t bg-gray-50 text-xs text-gray-500 cursor-pointer"
                       onClick={() => onSelectShift(shift)}
                     >
-                      <span>Shift Type: <span className="capitalize">{shift.type}</span></span>
+                      <div className="flex items-center">
+                        <span className="mr-1">Shift Type:</span>
+                        <ShiftTypeIcon type={shift.type} className="h-4 w-4 mx-1" />
+                      </div>
                       {shift.colleagueType && shift.colleagueType !== 'Unknown' && (
                         <span className="ml-auto">{shift.colleagueType}</span>
                       )}
