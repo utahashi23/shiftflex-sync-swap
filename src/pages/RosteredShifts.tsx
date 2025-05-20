@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
 import ShiftCalendar from '@/components/ShiftCalendar';
@@ -19,6 +19,22 @@ const RosteredShifts = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const truckInputRef = useRef<HTMLElement | null>(null);
+  
+  // Effect to focus truck input when dialog opens
+  useEffect(() => {
+    if (isDialogOpen) {
+      // Add a small delay to ensure the input is rendered
+      const timeoutId = setTimeout(() => {
+        const truckInput = document.getElementById('truck-name-search');
+        if (truckInput) {
+          truckInput.focus();
+        }
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isDialogOpen]);
   
   const handleDateClick = (date: Date, shift: Shift | null) => {
     setSelectedDate(date);

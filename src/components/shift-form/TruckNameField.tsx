@@ -35,7 +35,7 @@ export const TruckNameField = ({
   return (
     <div>
       <div className="flex justify-between items-center mb-1.5">
-        <Label htmlFor="truck-name">Truck Name</Label>
+        <Label htmlFor="truck-name-search">Truck Name</Label>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
