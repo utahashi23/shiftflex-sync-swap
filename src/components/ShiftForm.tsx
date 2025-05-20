@@ -123,9 +123,13 @@ const ShiftForm = ({
           onSave={() => {}} // Form will be submitted by the form's onSubmit handler
           onCancel={onCancel}
           onDelete={async () => {
-            const success = await handleDelete();
-            if (success) {
-              onSuccess();
+            try {
+              const success = await handleDelete();
+              if (success === true) {
+                onSuccess();
+              }
+            } catch (error) {
+              console.error("Error deleting shift:", error);
             }
           }}
         />
