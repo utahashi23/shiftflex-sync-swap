@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Sunrise, Sun, Moon, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Sunrise, Sun, Moon, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { Shift } from '@/hooks/useShiftData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ interface ShiftCardViewProps {
   onSelectShift: (shift: Shift) => void;
   currentDate: Date;
   onChangeMonth: (increment: number) => void;
+  onDeleteShift?: (shiftId: string) => void;
 }
 
 const ShiftCardView: React.FC<ShiftCardViewProps> = ({ 
@@ -19,7 +21,8 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
   isLoading, 
   onSelectShift,
   currentDate,
-  onChangeMonth
+  onChangeMonth,
+  onDeleteShift
 }) => {
   // Group shifts by month for better organization
   const groupedShifts = shifts.reduce<Record<string, Shift[]>>((acc, shift) => {
@@ -128,8 +131,7 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
                 return (
                   <Card 
                     key={shift.id || shift.date} 
-                    className="w-full hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => onSelectShift(shift)}
+                    className="w-full hover:shadow-md transition-shadow relative"
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start">
@@ -151,9 +153,28 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
                             <span className="text-sm">{shift.startTime} - {shift.endTime}</span>
                           </div>
                         </div>
+                        
+                        {/* Delete button */}
+                        {onDeleteShift && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 ml-2 absolute top-3 right-3 hover:bg-red-50"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent card click
+                              onDeleteShift(shift.id);
+                            }}
+                            aria-label="Delete shift"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
-                    <CardFooter className="px-4 py-2 border-t bg-gray-50 text-xs text-gray-500">
+                    <CardFooter 
+                      className="px-4 py-2 border-t bg-gray-50 text-xs text-gray-500 cursor-pointer"
+                      onClick={() => onSelectShift(shift)}
+                    >
                       <span>Shift Type: <span className="capitalize">{shift.type}</span></span>
                       {shift.colleagueType && shift.colleagueType !== 'Unknown' && (
                         <span className="ml-auto">{shift.colleagueType}</span>

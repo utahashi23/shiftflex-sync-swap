@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { CalendarIcon, LayoutGrid, PlusCircle, Repeat } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,10 @@ const RosteredShifts = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRepeatDialogOpen, setIsRepeatDialogOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // State for delete confirmation
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [shiftToDelete, setShiftToDelete] = useState<string | null>(null);
   
   // Get shift data for both calendar and card views
   const { shifts, isLoading, refetchShifts } = useShiftData(currentDate, user?.id);
@@ -131,6 +136,43 @@ const RosteredShifts = () => {
     refetchShifts();
   };
   
+  // Handle delete shift
+  const handleDeleteShift = (shiftId: string) => {
+    setShiftToDelete(shiftId);
+    setIsDeleteDialogOpen(true);
+  };
+  
+  // Confirm delete shift
+  const confirmDeleteShift = async () => {
+    if (!shiftToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from('shifts')
+        .delete()
+        .eq('id', shiftToDelete);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Shift Deleted",
+        description: "The shift has been successfully deleted.",
+      });
+      
+      refetchShifts();
+    } catch (error) {
+      console.error('Error deleting shift:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete the shift. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setShiftToDelete(null);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+  
   return (
     <AppLayout>
       <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -158,7 +200,7 @@ const RosteredShifts = () => {
             aria-label="Add new shift"
             className="bg-blue-500 hover:bg-blue-600 text-white"
           >
-            <PlusCircle className="h-5 w-5" />
+            <PlusCircle className="h-5 w-5 text-white" />
           </Button>
 
           {viewType === 'card' && (
@@ -198,6 +240,7 @@ const RosteredShifts = () => {
             onSelectShift={handleSelectShift}
             currentDate={currentDate}
             onChangeMonth={handleChangeMonth}
+            onDeleteShift={handleDeleteShift}
           />
         </Card>
       )}
@@ -231,6 +274,27 @@ const RosteredShifts = () => {
         userId={user?.id}
         onSuccess={handleRepeatSuccess}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Shift</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this shift? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShiftToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteShift}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };
