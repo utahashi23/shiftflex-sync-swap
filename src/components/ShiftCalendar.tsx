@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useShiftData, getShiftForDate, Shift } from '@/hooks/useShiftData';
@@ -7,7 +6,7 @@ import { CalendarDayCell, CalendarSkeletonCell } from './calendar/CalendarDayCel
 import { CalendarHeader, WeekdayHeader } from './calendar/CalendarHeader';
 import { CalendarLegend } from './calendar/CalendarLegend';
 import { Button } from './ui/button';
-import { Repeat, PlusCircle } from 'lucide-react';
+import { PlusCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Label } from '@/components/ui/label';
@@ -23,6 +22,7 @@ import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Repeat } from 'lucide-react';
 
 interface ShiftCalendarProps {
   selectedDate: Date | null;
@@ -32,6 +32,7 @@ interface ShiftCalendarProps {
   currentDate: Date;
   setCurrentDate: (date: Date) => void;
   onAddNewShift?: () => void;
+  onOpenRepeatDialog?: () => void;
 }
 
 // Form schema for repeat options
@@ -49,7 +50,8 @@ const ShiftCalendar = ({
   setSelectedShift,
   currentDate,
   setCurrentDate,
-  onAddNewShift
+  onAddNewShift,
+  onOpenRepeatDialog
 }: ShiftCalendarProps) => {
   const { user } = useAuth();
   const { shifts, isLoading, refetchShifts } = useShiftData(currentDate, user?.id);
@@ -95,24 +97,6 @@ const ShiftCalendar = ({
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + increment);
     setCurrentDate(newDate);
-  };
-
-  const handleToggleRepeatMode = () => {
-    if (isSelectMode) {
-      // Exit select mode
-      setIsSelectMode(false);
-      setSelectedShifts([]);
-    } else {
-      // Enter select mode
-      setIsSelectMode(true);
-    }
-  };
-
-  const handleOpenRepeatDialog = () => {
-    if (selectedShifts.length === 0) {
-      return;
-    }
-    setIsRepeatDialogOpen(true);
   };
 
   const handleSubmitRepeat = async (values: RepeatFormValues) => {
@@ -382,49 +366,6 @@ const ShiftCalendar = ({
     <div className="flex flex-col p-4">
       <div className="flex justify-between items-center mb-4">
         <CalendarHeader currentDate={currentDate} onChangeMonth={changeMonth} />
-        
-        <div className="flex gap-2">
-          {!isSelectMode ? (
-            <>
-              {onAddNewShift && (
-                <Button 
-                  onClick={onAddNewShift}
-                  aria-label="Add new shift"
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                </Button>
-              )}
-              <Button 
-                variant="outline" 
-                onClick={handleToggleRepeatMode}
-                className="border-blue-500 text-blue-500 hover:bg-blue-50"
-              >
-                <Repeat className="h-4 w-4 mr-2" />
-                Repeat
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button 
-                variant="secondary" 
-                onClick={handleToggleRepeatMode}
-                className="bg-blue-100 text-blue-700 border-blue-300"
-              >
-                Selected: {selectedShifts.length}
-              </Button>
-              
-              <Button 
-                onClick={handleOpenRepeatDialog} 
-                disabled={selectedShifts.length === 0}
-                className="bg-blue-500 hover:bg-blue-600 text-white"
-              >
-                <Repeat className="h-4 w-4 mr-2" />
-                Repeat
-              </Button>
-            </>
-          )}
-        </div>
       </div>
       
       <WeekdayHeader />

@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
@@ -12,7 +13,7 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { CalendarIcon, LayoutGrid } from 'lucide-react';
+import { CalendarIcon, LayoutGrid, PlusCircle, Repeat } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import RepeatShiftsDialog from '@/components/RepeatShiftsDialog';
@@ -270,6 +271,26 @@ const RosteredShifts = () => {
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Action buttons (Add and Repeat) */}
+          <Button 
+            onClick={handleAddNewShift}
+            aria-label="Add new shift"
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            <PlusCircle className="h-4 w-4 mr-2" />
+            <span className="sr-only sm:not-sr-only">Add</span>
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={handleOpenRepeatDialog}
+            className="border-blue-500 text-blue-500 hover:bg-blue-50"
+          >
+            <Repeat className="h-4 w-4 mr-2" />
+            <span className="sr-only sm:not-sr-only">Repeat</span>
+          </Button>
+
+          {/* View toggle buttons */}
           <ToggleGroup type="single" value={viewType} onValueChange={(value) => value && setViewType(value as ViewType)}>
             <ToggleGroupItem value="calendar" aria-label="Calendar view">
               <CalendarIcon className="h-5 w-5" />
@@ -297,6 +318,7 @@ const RosteredShifts = () => {
             currentDate={currentDate}
             setCurrentDate={setCurrentDate}
             onAddNewShift={handleAddNewShift}
+            onOpenRepeatDialog={handleOpenRepeatDialog}
           />
         </Card>
       ) : (
@@ -334,7 +356,7 @@ const RosteredShifts = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Card View Repeat Shifts Dialog */}
+      {/* Repeat Shifts Dialog */}
       <RepeatShiftsDialog 
         open={isRepeatDialogOpen} 
         onOpenChange={setIsRepeatDialogOpen}
