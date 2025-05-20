@@ -271,6 +271,18 @@ const RosteredShifts = () => {
         </div>
         
         <div className="flex items-center gap-2">
+          {/* View toggle buttons first */}
+          <ToggleGroup type="single" value={viewType} onValueChange={(value) => value && setViewType(value as ViewType)}>
+            <ToggleGroupItem value="calendar" aria-label="Calendar view">
+              <CalendarIcon className="h-5 w-5" />
+              <span className="sr-only sm:not-sr-only sm:ml-2">Calendar</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="card" aria-label="Card view">
+              <LayoutGrid className="h-5 w-5" />
+              <span className="sr-only sm:not-sr-only sm:ml-2">List</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+          
           {/* Action buttons (Add and Repeat) */}
           <Button 
             onClick={handleAddNewShift}
@@ -289,18 +301,6 @@ const RosteredShifts = () => {
             <Repeat className="h-4 w-4 mr-2" />
             <span className="sr-only sm:not-sr-only">Repeat</span>
           </Button>
-
-          {/* View toggle buttons */}
-          <ToggleGroup type="single" value={viewType} onValueChange={(value) => value && setViewType(value as ViewType)}>
-            <ToggleGroupItem value="calendar" aria-label="Calendar view">
-              <CalendarIcon className="h-5 w-5" />
-              <span className="sr-only sm:not-sr-only sm:ml-2">Calendar</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="card" aria-label="Card view">
-              <LayoutGrid className="h-5 w-5" />
-              <span className="sr-only sm:not-sr-only sm:ml-2">List</span>
-            </ToggleGroupItem>
-          </ToggleGroup>
         </div>
       </div>
       
