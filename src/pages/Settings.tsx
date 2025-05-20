@@ -7,7 +7,7 @@ import { CalendarIntegration } from '@/components/settings/CalendarIntegration';
 import { ManualNotificationTrigger } from '@/components/settings/ManualNotificationTrigger';
 import { SwapPreferences } from '@/components/settings/SwapPreferences';
 import { LeaveBlockSettings } from '@/components/settings/LeaveBlockSettings';
-import { SystemPreferences } from '@/components/settings/SystemPreferences';
+import SystemPreferences from '@/components/settings/SystemPreferences';
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
