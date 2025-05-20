@@ -57,10 +57,16 @@ const ShiftForm = ({
   
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await handleSubmit(e);
-    if (success) {
-      // Call the provided onSuccess callback to refresh data in both views
-      onSuccess();
+    try {
+      // Call the handleSubmit function and await its result
+      const success = await handleSubmit(e);
+      // Check if success is true before calling onSuccess
+      if (success === true) {
+        // Call the provided onSuccess callback to refresh data in both views
+        onSuccess();
+      }
+    } catch (error) {
+      console.error("Error in form submission:", error);
     }
   };
   
