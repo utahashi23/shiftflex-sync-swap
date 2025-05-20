@@ -13,6 +13,7 @@ export interface Shift {
   endTime: string;
   type: 'day' | 'afternoon' | 'night';
   colleagueType: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown';
+  userId?: string; // Add userId for creating new shifts
 }
 
 export const useShiftData = (currentDate: Date, userId?: string) => {
@@ -60,7 +61,8 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
           startTime: shift.start_time.substring(0, 5), // Format as HH:MM
           endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
           type,
-          colleagueType
+          colleagueType,
+          userId: shift.user_id // Include the userId in the shift object
         };
       }) || [];
       
