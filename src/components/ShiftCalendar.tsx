@@ -25,11 +25,8 @@ const ShiftCalendar = ({
   const { shifts, isLoading } = useShiftData(currentDate, user?.id);
 
   const handleDateClick = (date: Date, shift: Shift | null) => {
-    if (shift) {
-      setSelectedShift(shift);
-    } else {
-      setSelectedShift(null);
-    }
+    // Always set the shift first if it exists
+    setSelectedShift(shift);
     setSelectedDate(date);
   };
 

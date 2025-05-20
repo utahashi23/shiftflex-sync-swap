@@ -64,7 +64,7 @@ const ShiftForm = ({
   
   return (
     <div className="flex flex-col">
-      <h3 className="text-lg font-semibold mb-6">{formTitle}</h3>
+      <h3 className="text-lg font-semibold mb-6">{selectedShift ? 'Edit Shift' : 'Add Shift to Calendar'}</h3>
       
       <form onSubmit={handleFormSubmit} className="space-y-4">
         <ShiftDateField 
