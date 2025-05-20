@@ -2,7 +2,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Sunrise, Sun, Moon, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { Shift } from '@/hooks/useShiftData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -97,38 +97,6 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
                 const dayName = format(shiftDate, 'EEE');
                 const dayNumber = format(shiftDate, 'd');
                 
-                // Determine shift type based on the Shift object
-                const getShiftIconClass = () => {
-                  switch(shift.type) {
-                    case 'day': 
-                      return {
-                        bg: "bg-yellow-100",
-                        text: "text-yellow-800",
-                        icon: <Sunrise className="h-5 w-5" />
-                      };
-                    case 'afternoon': 
-                      return {
-                        bg: "bg-orange-100",
-                        text: "text-orange-800",
-                        icon: <Sun className="h-5 w-5" />
-                      };
-                    case 'night': 
-                      return {
-                        bg: "bg-blue-100", 
-                        text: "text-blue-800",
-                        icon: <Moon className="h-5 w-5" />
-                      };
-                    default: 
-                      return {
-                        bg: "bg-gray-100",
-                        text: "text-gray-800",
-                        icon: <Clock className="h-5 w-5" />
-                      };
-                  }
-                };
-                
-                const { bg, text, icon } = getShiftIconClass();
-                
                 return (
                   <Card 
                     key={shift.id || shift.date} 
@@ -144,9 +112,6 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="font-medium text-lg">{shift.title}</h4>
-                            <div className={cn("p-1.5 rounded-full", bg, text)}>
-                              {icon}
-                            </div>
                           </div>
                           
                           <div className="flex items-center text-gray-600">
