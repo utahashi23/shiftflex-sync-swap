@@ -39,6 +39,8 @@ const RosteredShifts = () => {
   // State for delete confirmation
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [shiftToDelete, setShiftToDelete] = useState<string | null>(null);
+  const [shiftsToDelete, setShiftsToDelete] = useState<string[]>([]);
+  const [isMultiDeleteDialogOpen, setIsMultiDeleteDialogOpen] = useState(false);
   
   // Get shift data for both calendar and card views
   const { shifts, isLoading, refetchShifts } = useShiftData(currentDate, user?.id);
@@ -142,6 +144,12 @@ const RosteredShifts = () => {
     setIsDeleteDialogOpen(true);
   };
   
+  // Handle delete multiple shifts
+  const handleDeleteMultipleShifts = (shiftIds: string[]) => {
+    setShiftsToDelete(shiftIds);
+    setIsMultiDeleteDialogOpen(true);
+  };
+  
   // Confirm delete shift
   const confirmDeleteShift = async () => {
     if (!shiftToDelete) return;
@@ -170,6 +178,37 @@ const RosteredShifts = () => {
     } finally {
       setShiftToDelete(null);
       setIsDeleteDialogOpen(false);
+    }
+  };
+  
+  // Confirm delete multiple shifts
+  const confirmDeleteMultipleShifts = async () => {
+    if (shiftsToDelete.length === 0) return;
+    
+    try {
+      const { error } = await supabase
+        .from('shifts')
+        .delete()
+        .in('id', shiftsToDelete);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Shifts Deleted",
+        description: `Successfully deleted ${shiftsToDelete.length} shifts.`,
+      });
+      
+      refetchShifts();
+    } catch (error) {
+      console.error('Error deleting multiple shifts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete shifts. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setShiftsToDelete([]);
+      setIsMultiDeleteDialogOpen(false);
     }
   };
   
@@ -241,6 +280,7 @@ const RosteredShifts = () => {
             currentDate={currentDate}
             onChangeMonth={handleChangeMonth}
             onDeleteShift={handleDeleteShift}
+            onDeleteMultipleShifts={handleDeleteMultipleShifts}
           />
         </Card>
       )}
@@ -275,7 +315,7 @@ const RosteredShifts = () => {
         onSuccess={handleRepeatSuccess}
       />
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Single Shift Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -291,6 +331,27 @@ const RosteredShifts = () => {
               className="bg-red-500 hover:bg-red-600 text-white"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Delete Multiple Shifts Confirmation Dialog */}
+      <AlertDialog open={isMultiDeleteDialogOpen} onOpenChange={setIsMultiDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Shifts</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {shiftsToDelete.length} selected shifts? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShiftsToDelete([])}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteMultipleShifts}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              Delete {shiftsToDelete.length} Shifts
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

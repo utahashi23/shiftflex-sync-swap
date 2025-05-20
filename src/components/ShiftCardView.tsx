@@ -1,11 +1,12 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { Shift } from '@/hooks/useShiftData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import ShiftTypeIcon from '@/components/swaps/ShiftTypeIcon';
 
 interface ShiftCardViewProps {
@@ -15,6 +16,7 @@ interface ShiftCardViewProps {
   currentDate: Date;
   onChangeMonth: (increment: number) => void;
   onDeleteShift?: (shiftId: string) => void;
+  onDeleteMultipleShifts?: (shiftIds: string[]) => void;
 }
 
 const ShiftCardView: React.FC<ShiftCardViewProps> = ({ 
@@ -23,8 +25,12 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
   onSelectShift,
   currentDate,
   onChangeMonth,
-  onDeleteShift
+  onDeleteShift,
+  onDeleteMultipleShifts
 }) => {
+  // State for tracking selected shifts
+  const [selectedShifts, setSelectedShifts] = useState<string[]>([]);
+  
   // Group shifts by month for better organization
   const groupedShifts = shifts.reduce<Record<string, Shift[]>>((acc, shift) => {
     const date = new Date(shift.date);
@@ -37,6 +43,26 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
     
     return acc;
   }, {});
+
+  // Handle checkbox selection
+  const toggleShiftSelection = (e: React.MouseEvent, shiftId: string) => {
+    e.stopPropagation(); // Prevent card click
+    setSelectedShifts(prev => {
+      if (prev.includes(shiftId)) {
+        return prev.filter(id => id !== shiftId);
+      } else {
+        return [...prev, shiftId];
+      }
+    });
+  };
+
+  // Handle deleting multiple shifts
+  const handleDeleteSelected = () => {
+    if (onDeleteMultipleShifts && selectedShifts.length > 0) {
+      onDeleteMultipleShifts(selectedShifts);
+      setSelectedShifts([]);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -82,6 +108,20 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
         </Button>
       </div>
 
+      {/* Delete selected button */}
+      {selectedShifts.length > 0 && onDeleteMultipleShifts && (
+        <div className="flex justify-end w-full">
+          <Button 
+            variant="destructive" 
+            onClick={handleDeleteSelected}
+            className="mb-4"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Selected ({selectedShifts.length})
+          </Button>
+        </div>
+      )}
+
       {shifts.length === 0 ? (
         <div className="w-full text-center py-12">
           <CalendarIcon className="w-12 h-12 mx-auto text-gray-400" />
@@ -96,6 +136,7 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
                 const shiftDate = new Date(shift.date);
                 const dayName = format(shiftDate, 'EEE');
                 const dayNumber = format(shiftDate, 'd');
+                const isSelected = selectedShifts.includes(shift.id);
                 
                 return (
                   <Card 
@@ -113,6 +154,35 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="font-medium text-lg">{shift.title}</h4>
+                            
+                            {/* Checkbox for multi-select */}
+                            <div className="flex items-center space-x-3">
+                              <div 
+                                className="flex items-center"
+                                onClick={(e) => toggleShiftSelection(e, shift.id)}
+                              >
+                                <Checkbox 
+                                  checked={isSelected}
+                                  className="h-5 w-5"
+                                />
+                              </div>
+
+                              {/* Delete button */}
+                              {onDeleteShift && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Prevent card click
+                                    onDeleteShift(shift.id);
+                                  }}
+                                  aria-label="Delete shift"
+                                >
+                                  <Trash2 className="h-4 w-4 text-black" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                           
                           <div className="flex items-center text-gray-600">
@@ -120,22 +190,6 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
                             <span className="text-sm">{shift.startTime} - {shift.endTime}</span>
                           </div>
                         </div>
-                        
-                        {/* Delete button */}
-                        {onDeleteShift && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 ml-2 absolute top-3 right-3 hover:bg-gray-100"
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent card click
-                              onDeleteShift(shift.id);
-                            }}
-                            aria-label="Delete shift"
-                          >
-                            <Trash2 className="h-4 w-4 text-black" />
-                          </Button>
-                        )}
                       </div>
                     </CardContent>
                     <CardFooter 
