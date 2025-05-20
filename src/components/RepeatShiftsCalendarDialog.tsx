@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -5,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Shift } from '@/hooks/useShiftData';
-import { CalendarDayCell } from './calendar/CalendarDayCell';
 import { formatDateString, getDaysInMonth, getFirstDayOfMonth } from '@/utils/dateUtils';
 import { Calendar, Clock, Repeat } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';

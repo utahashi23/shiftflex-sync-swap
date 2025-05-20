@@ -2,6 +2,7 @@
 import { cn } from '@/lib/utils';
 import { Sunrise, Sun, Moon } from 'lucide-react';
 import { Shift } from '@/hooks/useShiftData';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface CalendarDayCellProps {
   day: number;
@@ -10,6 +11,7 @@ interface CalendarDayCellProps {
   isSelected: boolean;
   onClick: () => void;
   empty?: boolean;
+  isSelectMode?: boolean;
 }
 
 export const CalendarDayCell = ({
@@ -18,7 +20,8 @@ export const CalendarDayCell = ({
   shift,
   isSelected,
   onClick,
-  empty = false
+  empty = false,
+  isSelectMode = false
 }: CalendarDayCellProps) => {
   if (empty) {
     return <div className="calendar-cell"></div>;
@@ -30,12 +33,17 @@ export const CalendarDayCell = ({
         "calendar-cell cursor-pointer hover:bg-secondary/30 transition-colors",
         shift && "has-shift",
         isSelected && "selected",
+        isSelectMode && shift && "border-2 border-dashed", 
+        isSelectMode && isSelected && "border-blue-500 bg-blue-50"
       )}
       onClick={onClick}
     >
       <div className="flex justify-between items-start mb-1">
         <span className="text-sm font-medium">{day}</span>
-        {shift && (
+        {isSelectMode && shift && (
+          <Checkbox checked={isSelected} className="h-4 w-4" />
+        )}
+        {!isSelectMode && shift && (
           <span className={cn(
             "p-1 rounded-full",
             shift.type === 'day' ? "bg-yellow-100 text-yellow-800" : 
