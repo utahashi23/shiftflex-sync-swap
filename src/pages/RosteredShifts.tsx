@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
@@ -13,7 +12,7 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { CalendarIcon, LayoutGrid, PlusCircle } from 'lucide-react';
+import { CalendarIcon, LayoutGrid } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import RepeatShiftsDialog from '@/components/RepeatShiftsDialog';
@@ -44,6 +43,54 @@ const RosteredShifts = () => {
   
   // Get shift data for both calendar and card views
   const { shifts, isLoading, refetchShifts } = useShiftData(currentDate, user?.id);
+  
+  // Save user's view preference when it changes
+  useEffect(() => {
+    const saveViewPreference = async () => {
+      if (!user) return;
+      
+      try {
+        // Check if preference record exists first
+        const { data: existingPref, error: checkError } = await supabase
+          .from('system_preferences')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (checkError && checkError.code !== 'PGRST116') {
+          console.error('Error checking preferences:', checkError);
+          return;
+        }
+        
+        if (existingPref) {
+          // Update existing preference
+          const { error } = await supabase
+            .from('system_preferences')
+            .update({ roster_default_view: viewType })
+            .eq('user_id', user.id);
+            
+          if (error) throw error;
+        } else {
+          // Create new preference
+          const { error } = await supabase
+            .from('system_preferences')
+            .insert([{
+              user_id: user.id,
+              roster_default_view: viewType
+            }]);
+            
+          if (error) throw error;
+        }
+      } catch (error) {
+        console.error('Error saving view preference:', error);
+      }
+    };
+    
+    // Only save if user is logged in and we have a different viewType than default
+    if (user) {
+      saveViewPreference();
+    }
+  }, [viewType, user]);
   
   // Fetch user's preferred view from system preferences
   useEffect(() => {
@@ -233,25 +280,6 @@ const RosteredShifts = () => {
               <span className="sr-only sm:not-sr-only sm:ml-2">List</span>
             </ToggleGroupItem>
           </ToggleGroup>
-
-          <Button 
-            onClick={handleAddNewShift}
-            aria-label="Add new shift"
-            className="bg-blue-500 hover:bg-blue-600 text-white"
-          >
-            <PlusCircle className="h-5 w-5 text-white" />
-          </Button>
-
-          {viewType === 'card' && (
-            <Button 
-              onClick={handleOpenRepeatDialog}
-              aria-label="Repeat shifts"
-              variant="outline"
-              className="border-blue-500 text-blue-500 hover:bg-blue-50"
-            >
-              <span className="sr-only sm:not-sr-only sm:ml-2">Repeat</span>
-            </Button>
-          )}
         </div>
       </div>
       
@@ -268,6 +296,7 @@ const RosteredShifts = () => {
             }}
             currentDate={currentDate}
             setCurrentDate={setCurrentDate}
+            onAddNewShift={handleAddNewShift}
           />
         </Card>
       ) : (

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useShiftData, getShiftForDate, Shift } from '@/hooks/useShiftData';
 import { getDaysInMonth, getFirstDayOfMonth, formatDateString } from '@/utils/dateUtils';
@@ -6,7 +7,7 @@ import { CalendarDayCell, CalendarSkeletonCell } from './calendar/CalendarDayCel
 import { CalendarHeader, WeekdayHeader } from './calendar/CalendarHeader';
 import { CalendarLegend } from './calendar/CalendarLegend';
 import { Button } from './ui/button';
-import { Repeat } from 'lucide-react';
+import { Repeat, PlusCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Label } from '@/components/ui/label';
@@ -30,6 +31,7 @@ interface ShiftCalendarProps {
   setSelectedShift: (shift: Shift | null) => void;
   currentDate: Date;
   setCurrentDate: (date: Date) => void;
+  onAddNewShift?: () => void;
 }
 
 // Form schema for repeat options
@@ -46,7 +48,8 @@ const ShiftCalendar = ({
   selectedShift, 
   setSelectedShift,
   currentDate,
-  setCurrentDate
+  setCurrentDate,
+  onAddNewShift
 }: ShiftCalendarProps) => {
   const { user } = useAuth();
   const { shifts, isLoading, refetchShifts } = useShiftData(currentDate, user?.id);
@@ -94,7 +97,7 @@ const ShiftCalendar = ({
     setCurrentDate(newDate);
   };
 
-  const handleToggleSelectMode = () => {
+  const handleToggleRepeatMode = () => {
     if (isSelectMode) {
       // Exit select mode
       setIsSelectMode(false);
@@ -381,23 +384,45 @@ const ShiftCalendar = ({
         <CalendarHeader currentDate={currentDate} onChangeMonth={changeMonth} />
         
         <div className="flex gap-2">
-          <Button 
-            variant={isSelectMode ? "secondary" : "outline"} 
-            onClick={handleToggleSelectMode}
-            className={isSelectMode ? "bg-blue-100 text-blue-700 border-blue-300" : ""}
-          >
-            {isSelectMode ? `Selected: ${selectedShifts.length}` : "Select Shifts"}
-          </Button>
-          
-          {isSelectMode && (
-            <Button 
-              onClick={handleOpenRepeatDialog} 
-              disabled={selectedShifts.length === 0}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
-            >
-              <Repeat className="h-4 w-4 mr-2" />
-              Repeat
-            </Button>
+          {!isSelectMode ? (
+            <>
+              {onAddNewShift && (
+                <Button 
+                  onClick={onAddNewShift}
+                  aria-label="Add new shift"
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                </Button>
+              )}
+              <Button 
+                variant="outline" 
+                onClick={handleToggleRepeatMode}
+                className="border-blue-500 text-blue-500 hover:bg-blue-50"
+              >
+                <Repeat className="h-4 w-4 mr-2" />
+                Repeat
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button 
+                variant="secondary" 
+                onClick={handleToggleRepeatMode}
+                className="bg-blue-100 text-blue-700 border-blue-300"
+              >
+                Selected: {selectedShifts.length}
+              </Button>
+              
+              <Button 
+                onClick={handleOpenRepeatDialog} 
+                disabled={selectedShifts.length === 0}
+                className="bg-blue-500 hover:bg-blue-600 text-white"
+              >
+                <Repeat className="h-4 w-4 mr-2" />
+                Repeat
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -523,6 +548,7 @@ const ShiftCalendar = ({
                 <Button 
                   type="submit"
                   disabled={isSubmitting || selectedShifts.length === 0}
+                  isLoading={isSubmitting}
                 >
                   {isSubmitting ? 'Creating...' : 'Create Repeated Shifts'}
                 </Button>
