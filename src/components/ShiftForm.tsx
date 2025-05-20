@@ -59,12 +59,9 @@ const ShiftForm = ({
     e.preventDefault();
     try {
       // Call the handleSubmit function and await its result
-      const success = await handleSubmit(e);
-      // Check if success is true before calling onSuccess
-      if (success === true) {
-        // Call the provided onSuccess callback to refresh data in both views
-        onSuccess();
-      }
+      await handleSubmit(e);
+      // Call the provided onSuccess callback to refresh data in both views
+      onSuccess();
     } catch (error) {
       console.error("Error in form submission:", error);
     }
@@ -124,10 +121,10 @@ const ShiftForm = ({
           onCancel={onCancel}
           onDelete={async () => {
             try {
-              const success = await handleDelete();
-              if (success === true) {
-                onSuccess();
-              }
+              // Just call handleDelete and then call onSuccess
+              await handleDelete();
+              // Call success callback regardless of return value
+              onSuccess();
             } catch (error) {
               console.error("Error deleting shift:", error);
             }

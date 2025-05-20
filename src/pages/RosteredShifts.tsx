@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
@@ -22,8 +21,8 @@ const RosteredShifts = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // State for view toggle
-  const [viewType, setViewType] = useState<ViewType>('calendar');
+  // State for view toggle - changed default to 'card' instead of 'calendar'
+  const [viewType, setViewType] = useState<ViewType>('card');
   
   // States for shift selection and dialog
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -68,7 +67,7 @@ const RosteredShifts = () => {
     newDate.setMonth(newDate.getMonth() + increment);
     setCurrentDate(newDate);
   };
-
+  
   const handleFormSuccess = () => {
     toast({
       title: selectedShift ? "Shift Updated" : "Shift Created",
