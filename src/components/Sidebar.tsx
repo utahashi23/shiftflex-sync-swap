@@ -3,8 +3,6 @@ import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   Calendar,
-  Settings,
-  LogOut,
   Home,
   ArrowLeftRight,
   Users,
@@ -14,26 +12,17 @@ import {
   HelpCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 
 const Sidebar = () => {
-  const { isAdmin, signOut } = useAuth();
+  const { isAdmin } = useAuth();
 
   return (
     <div className="pb-12 w-full min-h-screen bg-black text-white hidden lg:block">
       <div className="flex flex-col h-full">
-        {/* Logo and app title */}
-        <div className="px-4 py-6">
-          <h2 className="text-2xl font-bold">ShiftSwapper</h2>
-          <p className="text-gray-400 text-sm">Staff Shift Management</p>
-        </div>
-        
-        <Separator className="bg-white/10" />
-        
         {/* Navigation links */}
-        <nav className="space-y-1 px-2 py-4 flex-1">
+        <nav className="space-y-1 px-2 py-4 flex-1 mt-6">
           <NavItem to="/" icon={<Home size={20} />} label="Home" />
           <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" />
           <NavItem to="/shifts" icon={<Calendar size={20} />} label="My Shifts" />
@@ -42,7 +31,6 @@ const Sidebar = () => {
           <NavItem to="/swaps-list" icon={<List size={20} />} label="Swaps List" />
           <NavItem to="/leave-swaps" icon={<Calendar size={20} />} label="Leave Swaps" />
           <NavItem to="/swap-preferences" icon={<UserCog size={20} />} label="Swap Preferences" />
-          <NavItem to="/settings" icon={<Settings size={20} />} label="Settings" />
           <NavItem to="/feedback" icon={<MessageSquareText size={20} />} label="Feedback" />
           <NavItem to="/faq" icon={<HelpCircle size={20} />} label="FAQ" />
           
@@ -53,22 +41,9 @@ const Sidebar = () => {
                 ADMIN SECTION
               </div>
               <NavItem to="/admin" icon={<Users size={20} />} label="Admin Panel" />
-              <NavItem to="/system-settings" icon={<Settings size={20} />} label="System Settings" />
             </>
           )}
         </nav>
-        
-        {/* Sign out button */}
-        <div className="px-4 py-4">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-white hover:bg-white/10"
-            onClick={signOut}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
-        </div>
       </div>
     </div>
   );

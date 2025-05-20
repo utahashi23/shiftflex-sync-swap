@@ -1,10 +1,10 @@
+
 import { Fragment, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Dialog, Transition } from '@headlessui/react';
 import {
   LayoutDashboard,
   Calendar,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -14,7 +14,8 @@ import {
   MessageSquare,
   LayoutList,
   Cog,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -27,10 +28,8 @@ const navigation = [
   { name: 'Shift Swaps', href: '/shift-swaps', icon: ArrowLeftRight, requiresAuth: true },
   { name: 'Browse Swaps', href: '/swaps-list', icon: LayoutList, requiresAuth: true }, 
   { name: 'Leave Swaps', href: '/leave-swaps', icon: Calendar, requiresAuth: true },
-  // Removed Roadmap item
   { name: 'Feedback', href: '/feedback', icon: MessageSquare, requiresAuth: false },
   { name: 'FAQ', href: '/faq', icon: FileQuestion, requiresAuth: false },
-  { name: 'Settings', href: '/settings', icon: Settings, requiresAuth: true },
 ];
 
 // Admin navigation items that will only be shown to admins and specific users
@@ -107,12 +106,10 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                   </Transition.Child>
                   <div className="h-0 flex-1 overflow-y-auto pt-5 pb-4">
                     <div className="flex flex-shrink-0 items-center px-4">
-                      <Link to="/">
-                        <div className="flex items-center">
-                          <div className="h-8 w-8 bg-indigo-600 rounded-md flex items-center justify-center text-white font-bold mr-2">SF</div>
-                          <span className="text-lg font-semibold text-gray-900">ShiftFlex</span>
-                        </div>
-                      </Link>
+                      <div className="flex items-center">
+                        <div className="h-8 w-8 bg-indigo-600 rounded-md flex items-center justify-center text-white font-bold mr-2">SF</div>
+                        <span className="text-lg font-semibold text-gray-900">ShiftFlex</span>
+                      </div>
                     </div>
                     <nav className="mt-5 space-y-1">
                       {navigation.map((item) =>
@@ -137,7 +134,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                         ) : null
                       )}
 
-                      {/* Add admin navigation items if user has system access */}
+                      {/* Admin navigation items in mobile sidebar */}
                       {user && hasSystemAccess && adminNavigation.map((item) => (
                         <Link
                           key={item.name}
@@ -157,25 +154,11 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                           {item.name}
                         </Link>
                       ))}
-                      
-                      {user && (
-                        <Button
-                          variant="ghost"
-                          className="group flex items-center px-3 py-2 text-base font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 w-full justify-start"
-                          onClick={handleSignOut}
-                        >
-                          <LogOut
-                            className="text-gray-400 group-hover:text-gray-500 mr-4 flex-shrink-0 h-6 w-6"
-                            aria-hidden="true"
-                          />
-                          Sign Out
-                        </Button>
-                      )}
                     </nav>
                   </div>
                   <div className="flex flex-shrink-0 border-t border-gray-200 p-4">
                     {user ? (
-                      <Link to="/settings" className="group block flex-shrink-0">
+                      <div className="group block flex-shrink-0">
                         <div className="flex items-center">
                           <div>
                             <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold">
@@ -184,12 +167,9 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                           </div>
                           <div className="ml-3">
                             <p className="text-base font-medium text-gray-700 group-hover:text-gray-900">{user.email}</p>
-                            <p className="text-sm font-medium text-gray-500 group-hover:text-gray-700">
-                              View profile
-                            </p>
                           </div>
                         </div>
-                      </Link>
+                      </div>
                     ) : (
                       <Link to="/login" className="group block flex-shrink-0">
                         <div className="flex items-center">
@@ -216,14 +196,6 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
         <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
           {/* Sidebar component, swap this element with another sidebar if you like */}
           <div className="flex flex-grow flex-col overflow-y-auto bg-white border-r border-gray-200">
-            <div className="flex flex-shrink-0 items-center h-16 px-4">
-              <Link to="/">
-                <div className="flex items-center">
-                  <div className="h-8 w-8 bg-indigo-600 rounded-md flex items-center justify-center text-white font-bold mr-2">SF</div>
-                  <span className="text-lg font-semibold text-gray-900">ShiftFlex</span>
-                </div>
-              </Link>
-            </div>
             <div className="flex flex-grow flex-col">
               <nav className="flex-1 mt-5 space-y-1 bg-white">
                 {navigation.map((item) =>
@@ -248,7 +220,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                   ) : null
                 )}
 
-                {/* Add admin navigation items if user has system access */}
+                {/* Admin navigation items if user has system access */}
                 {user && hasSystemAccess && adminNavigation.map((item) => (
                   <Link
                     key={item.name}
@@ -268,47 +240,54 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                     {item.name}
                   </Link>
                 ))}
-                
-                {user && (
-                  <Button
-                    variant="ghost"
-                    className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 w-full justify-start"
-                    onClick={handleSignOut}
-                  >
-                    <LogOut
-                      className="text-gray-400 group-hover:text-gray-500 mr-3 flex-shrink-0 h-6 w-6"
-                      aria-hidden="true"
-                    />
-                    Sign Out
-                  </Button>
-                )}
               </nav>
             </div>
           </div>
         </div>
         <div className="lg:pl-64 flex flex-col flex-1">
-          <div className="relative z-10 flex h-16 shrink-0 bg-white border-b border-gray-200 lg:border-none">
-            <button
-              type="button"
-              className="border-r border-gray-200 px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <span className="sr-only">Open sidebar</span>
-              <Menu className="h-6 w-6" aria-hidden="true" />
-            </button>
-            <div className="flex flex-1 justify-between px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center">
-                {/* Add ShiftFlex logo in mobile header */}
-                <div className="flex lg:hidden items-center">
-                  <div className="h-8 w-8 bg-indigo-600 rounded-md flex items-center justify-center text-white font-bold mr-2">
-                    SF
-                  </div>
-                  <span className="text-lg font-semibold text-gray-900">ShiftFlex</span>
+          <div className="relative z-10 flex h-16 shrink-0 bg-white border-b border-gray-200">
+            {/* Left side of header: Logo and burger menu */}
+            <div className="flex items-center">
+              <button
+                type="button"
+                className="px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <span className="sr-only">Open sidebar</span>
+                <Menu className="h-6 w-6" aria-hidden="true" />
+              </button>
+              
+              {/* Logo - visible on all screens */}
+              <Link to="/" className="flex items-center ml-2 lg:ml-4">
+                <div className="h-8 w-8 bg-indigo-600 rounded-md flex items-center justify-center text-white font-bold mr-2">
+                  SF
                 </div>
-              </div>
-              <div className="flex items-center ml-4 md:ml-6">
-                {/* Profile dropdown or user info can go here */}
-              </div>
+                <span className="text-lg font-semibold text-gray-900">ShiftFlex</span>
+              </Link>
+            </div>
+            
+            {/* Right side of header: Settings and Logout buttons */}
+            <div className="ml-auto flex items-center pr-4">
+              {user && (
+                <>
+                  <Link 
+                    to="/settings" 
+                    className="p-2 text-gray-500 hover:text-gray-700 mr-2"
+                    aria-label="Settings"
+                  >
+                    <Settings className="h-5 w-5" />
+                  </Link>
+                  
+                  <Button
+                    variant="ghost"
+                    className="text-gray-500 hover:text-gray-700"
+                    onClick={handleSignOut}
+                    aria-label="Sign out"
+                  >
+                    <LogOut className="h-5 w-5" />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
