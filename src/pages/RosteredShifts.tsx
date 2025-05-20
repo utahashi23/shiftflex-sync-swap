@@ -23,7 +23,7 @@ const RosteredShifts = () => {
   
   // Effect to focus truck input when dialog opens
   useEffect(() => {
-    if (isDialogOpen) {
+    if (isDialogOpen && !selectedShift) {
       // Add a small delay to ensure the input is rendered
       const timeoutId = setTimeout(() => {
         const truckInput = document.getElementById('truck-name-search');
@@ -34,7 +34,7 @@ const RosteredShifts = () => {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [isDialogOpen]);
+  }, [isDialogOpen, selectedShift]);
   
   const handleDateClick = (date: Date, shift: Shift | null) => {
     setSelectedDate(date);

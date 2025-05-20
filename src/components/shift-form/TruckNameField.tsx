@@ -16,6 +16,7 @@ interface TruckNameFieldProps {
   isTruckDropdownOpen: boolean;
   setIsTruckDropdownOpen: (isOpen: boolean) => void;
   onSelectTruck: (name: string) => void;
+  isEditMode?: boolean;
 }
 
 export const TruckNameField = ({ 
@@ -23,7 +24,8 @@ export const TruckNameField = ({
   setSearchTerm, 
   isTruckDropdownOpen, 
   setIsTruckDropdownOpen, 
-  onSelectTruck 
+  onSelectTruck,
+  isEditMode = false
 }: TruckNameFieldProps) => {
   const { truckNames, isLoading: isLoadingTrucks } = useTruckNames();
   

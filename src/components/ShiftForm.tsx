@@ -28,9 +28,9 @@ const ShiftForm = ({
   const {
     formTitle,
     isLoading,
-    shiftDate,
     searchTerm,
     isTruckDropdownOpen,
+    shiftDate,
     shiftStartTime,
     shiftEndTime,
     shiftType,
@@ -78,6 +78,7 @@ const ShiftForm = ({
           isTruckDropdownOpen={isTruckDropdownOpen}
           setIsTruckDropdownOpen={setIsTruckDropdownOpen}
           onSelectTruck={handleTruckSelection}
+          isEditMode={!!selectedShift}
         />
 
         <ShiftOptionsFields
