@@ -16,6 +16,7 @@ const CalendarManagement = () => {
   
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+  const [currentDate, setCurrentDate] = useState(new Date());
   
   return (
     <AppLayout>
@@ -35,6 +36,8 @@ const CalendarManagement = () => {
               setSelectedDate={setSelectedDate}
               selectedShift={selectedShift}
               setSelectedShift={setSelectedShift}
+              currentDate={currentDate}
+              setCurrentDate={setCurrentDate}
             />
           </Card>
         </div>
