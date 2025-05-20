@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
@@ -11,9 +12,10 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { CalendarIcon, LayoutGrid, PlusCircle } from 'lucide-react';
+import { CalendarIcon, LayoutGrid, PlusCircle, Repeat } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import RepeatShiftsDialog from '@/components/RepeatShiftsDialog';
 
 // Define view types
 type ViewType = 'calendar' | 'card';
@@ -30,6 +32,7 @@ const RosteredShifts = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isRepeatDialogOpen, setIsRepeatDialogOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   
   // Get shift data for both calendar and card views
@@ -115,6 +118,18 @@ const RosteredShifts = () => {
     setSelectedShift(null);
     setIsDialogOpen(true);
   };
+
+  const handleOpenRepeatDialog = () => {
+    setIsRepeatDialogOpen(true);
+  };
+
+  const handleRepeatSuccess = (count: number) => {
+    toast({
+      title: "Shifts Repeated",
+      description: `Successfully created ${count} new repeated shifts.`,
+    });
+    refetchShifts();
+  };
   
   return (
     <AppLayout>
@@ -145,6 +160,18 @@ const RosteredShifts = () => {
           >
             <PlusCircle className="h-5 w-5" />
           </Button>
+
+          {viewType === 'card' && (
+            <Button 
+              onClick={handleOpenRepeatDialog}
+              aria-label="Repeat shifts"
+              variant="outline"
+              className="border-blue-500 text-blue-500 hover:bg-blue-50"
+            >
+              <Repeat className="h-5 w-5" />
+              <span className="sr-only sm:not-sr-only sm:ml-2">Repeat</span>
+            </Button>
+          )}
         </div>
       </div>
       
@@ -195,6 +222,15 @@ const RosteredShifts = () => {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Repeat Shifts Dialog */}
+      <RepeatShiftsDialog 
+        open={isRepeatDialogOpen} 
+        onOpenChange={setIsRepeatDialogOpen}
+        shifts={shifts}
+        userId={user?.id}
+        onSuccess={handleRepeatSuccess}
+      />
     </AppLayout>
   );
 };
