@@ -22,6 +22,7 @@ const FeedbackPage = lazy(() => import('@/pages/Feedback'));
 const FAQPage = lazy(() => import('@/pages/FAQ'));
 const CalendarManagementPage = lazy(() => import('@/pages/CalendarManagement'));
 const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmail'));
+const RosteredShiftsPage = lazy(() => import('@/pages/RosteredShifts')); // Add the new page
 
 function App() {
   return (
@@ -43,6 +44,7 @@ function App() {
             <Route path="/feedback" element={<FeedbackPage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/calendar" element={<CalendarManagementPage />} />
+            <Route path="/roster-2" element={<RosteredShiftsPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
