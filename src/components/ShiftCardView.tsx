@@ -100,7 +100,8 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
                 return (
                   <Card 
                     key={shift.id || shift.date} 
-                    className="w-full hover:shadow-md transition-shadow relative"
+                    className="w-full hover:shadow-md transition-shadow relative cursor-pointer"
+                    onClick={() => onSelectShift(shift)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start">
@@ -138,8 +139,7 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
                       </div>
                     </CardContent>
                     <CardFooter 
-                      className="px-4 py-2 border-t bg-gray-50 text-xs text-gray-500 cursor-pointer"
-                      onClick={() => onSelectShift(shift)}
+                      className="px-4 py-2 border-t bg-gray-50 text-xs text-gray-500"
                     >
                       <div className="flex items-center">
                         <span className="mr-1">Shift Type:</span>
