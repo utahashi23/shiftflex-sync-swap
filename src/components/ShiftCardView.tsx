@@ -155,7 +155,7 @@ const ShiftCardView: React.FC<ShiftCardViewProps> = ({
                           </div>
                         </div>
                         
-                        {/* Delete button - changed text color to black */}
+                        {/* Delete button */}
                         {onDeleteShift && (
                           <Button
                             variant="ghost"
