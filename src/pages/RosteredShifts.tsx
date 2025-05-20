@@ -63,6 +63,12 @@ const RosteredShifts = () => {
     setIsDialogOpen(true);
   };
   
+  const handleChangeMonth = (increment: number) => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() + increment);
+    setCurrentDate(newDate);
+  };
+  
   return (
     <AppLayout>
       <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -106,6 +112,8 @@ const RosteredShifts = () => {
             shifts={shifts}
             isLoading={isLoading}
             onSelectShift={handleSelectShift}
+            currentDate={currentDate}
+            onChangeMonth={handleChangeMonth}
           />
         </Card>
       )}
