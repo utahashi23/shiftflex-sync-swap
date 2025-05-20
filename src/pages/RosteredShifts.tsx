@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
@@ -140,10 +139,9 @@ const RosteredShifts = () => {
           </ToggleGroup>
 
           <Button 
-            variant="outline" 
-            size="icon"
             onClick={handleAddNewShift}
             aria-label="Add new shift"
+            className="bg-blue-500 hover:bg-blue-600 text-white"
           >
             <PlusCircle className="h-5 w-5" />
           </Button>
