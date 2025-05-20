@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ShiftSwapDialogProps {
   open: boolean;
@@ -55,7 +56,7 @@ export const ShiftSwapDialog = ({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
-        className="max-w-md flex flex-col" 
+        className="max-w-md max-h-[90vh]" 
         onPointerDownOutside={(e) => {
           // Prevent dialog from closing when clicking inside calendar elements
           if ((e.target as HTMLElement).closest('.rdp')) {
@@ -79,9 +80,11 @@ export const ShiftSwapDialog = ({
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         
-        <div className="py-4">
-          {children}
-        </div>
+        <ScrollArea className="max-h-[60vh]">
+          <div className="py-4">
+            {children}
+          </div>
+        </ScrollArea>
         
         <DialogFooter className="mt-4 pt-2 border-t">
           {onCancel && (

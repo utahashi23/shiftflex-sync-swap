@@ -9,6 +9,7 @@ import { Shift } from '@/hooks/useShiftData';
 import ShiftForm from '@/components/ShiftForm';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const RosteredShifts = () => {
   useAuthRedirect({ protectedRoute: true });
@@ -48,29 +49,31 @@ const RosteredShifts = () => {
         />
       </Card>
 
-      {/* Dialog for shift form */}
+      {/* Dialog for shift form with scrollable content */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh]">
           <DialogTitle>
             {selectedShift ? 'Edit Shift' : 'Add Shift to Calendar'}
           </DialogTitle>
-          <ShiftForm 
-            selectedDate={selectedDate}
-            selectedShift={selectedShift}
-            onCancel={() => {
-              setIsDialogOpen(false);
-              setSelectedShift(null);
-              setSelectedDate(null);
-            }}
-            onSuccess={() => {
-              toast({
-                title: selectedShift ? "Shift Updated" : "Shift Created",
-                description: `Successfully ${selectedShift ? 'updated' : 'created'} the shift.`,
-              });
-              setIsDialogOpen(false);
-              setSelectedShift(null);
-            }}
-          />
+          <ScrollArea className="h-full max-h-[70vh]">
+            <ShiftForm 
+              selectedDate={selectedDate}
+              selectedShift={selectedShift}
+              onCancel={() => {
+                setIsDialogOpen(false);
+                setSelectedShift(null);
+                setSelectedDate(null);
+              }}
+              onSuccess={() => {
+                toast({
+                  title: selectedShift ? "Shift Updated" : "Shift Created",
+                  description: `Successfully ${selectedShift ? 'updated' : 'created'} the shift.`,
+                });
+                setIsDialogOpen(false);
+                setSelectedShift(null);
+              }}
+            />
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </AppLayout>
