@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import AppLayout from '@/layouts/AppLayout';
@@ -12,6 +13,7 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { CalendarIcon, LayoutGrid } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 // Define view types
 type ViewType = 'calendar' | 'card';
@@ -21,7 +23,7 @@ const RosteredShifts = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // State for view toggle - changed default to 'card' instead of 'calendar'
+  // State for view toggle - initialize with card view, but we'll update it from preferences
   const [viewType, setViewType] = useState<ViewType>('card');
   
   // States for shift selection and dialog
@@ -32,6 +34,35 @@ const RosteredShifts = () => {
   
   // Get shift data for both calendar and card views
   const { shifts, isLoading, refetchShifts } = useShiftData(currentDate, user?.id);
+  
+  // Fetch user's preferred view from system preferences
+  useEffect(() => {
+    const fetchPreferredView = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('system_preferences')
+          .select('roster_default_view')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
+          console.error('Error fetching preferred view:', error);
+          return;
+        }
+        
+        if (data && data.roster_default_view) {
+          // Set the view type based on user preferences
+          setViewType(data.roster_default_view as ViewType);
+        }
+      } catch (error) {
+        console.error('Error fetching user preferences:', error);
+      }
+    };
+    
+    fetchPreferredView();
+  }, [user]);
   
   // Effect to focus truck input when dialog opens
   useEffect(() => {
