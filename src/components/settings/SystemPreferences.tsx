@@ -1,171 +1,167 @@
 
-import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { CalendarIcon, LayoutGrid } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
-// Define the view types
+// Define the view type
 type RosterViewType = 'calendar' | 'card';
 
-// Define the system preferences type
-interface SystemPreferences {
-  id?: string;
-  user_id: string;
-  roster_default_view: RosterViewType;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export function SystemPreferences() {
+const SystemPreferences = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [rosterView, setRosterView] = useState<RosterViewType>('card');
   const [isSaving, setIsSaving] = useState(false);
-  const [defaultRosterView, setDefaultRosterView] = useState<RosterViewType>('card');
-  
-  // Fetch the user's system preferences
+
   useEffect(() => {
-    const fetchPreferences = async () => {
+    const fetchUserPreferences = async () => {
       if (!user) return;
       
       setIsLoading(true);
+      
       try {
         const { data, error } = await supabase
           .from('system_preferences')
-          .select('*')
+          .select('roster_default_view')
           .eq('user_id', user.id)
           .single();
           
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
-          throw error;
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error fetching user preferences:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to load your preferences.',
+            variant: 'destructive'
+          });
+          return;
         }
         
         if (data) {
-          setDefaultRosterView(data.roster_default_view || 'card');
+          setRosterView(data.roster_default_view as RosterViewType);
         }
       } catch (error) {
-        console.error('Error fetching system preferences:', error);
+        console.error('Error in fetchUserPreferences:', error);
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchPreferences();
-  }, [user]);
-  
-  // Save the user's system preferences
-  const savePreferences = async () => {
+    fetchUserPreferences();
+  }, [user, toast]);
+
+  const handleSavePreferences = async () => {
     if (!user) return;
     
     setIsSaving(true);
+    
     try {
-      const preferences: SystemPreferences = {
-        user_id: user.id,
-        roster_default_view: defaultRosterView,
-      };
-      
-      // Check if the user already has preferences
-      const { data: existingData } = await supabase
+      // Check if preferences exist first
+      const { data: existingPreference, error: checkError } = await supabase
         .from('system_preferences')
         .select('id')
         .eq('user_id', user.id)
-        .single();
-        
+        .maybeSingle();
+      
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+      
       let result;
       
-      if (existingData?.id) {
+      if (existingPreference) {
         // Update existing preferences
         result = await supabase
           .from('system_preferences')
-          .update(preferences)
-          .eq('id', existingData.id)
-          .select();
+          .update({
+            roster_default_view: rosterView,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
       } else {
         // Insert new preferences
         result = await supabase
           .from('system_preferences')
-          .insert(preferences)
-          .select();
+          .insert({
+            user_id: user.id,
+            roster_default_view: rosterView
+          });
       }
       
-      if (result.error) throw result.error;
+      if (result.error) {
+        throw result.error;
+      }
       
       toast({
-        title: "Preferences Saved",
-        description: "Your system preferences have been updated.",
+        title: 'Preferences Saved',
+        description: 'Your system preferences have been updated.'
       });
     } catch (error) {
-      console.error('Error saving system preferences:', error);
+      console.error('Error saving preferences:', error);
       toast({
-        title: "Error Saving Preferences",
-        description: "There was a problem saving your preferences.",
-        variant: "destructive",
+        title: 'Save Failed',
+        description: 'Could not save your preferences. Please try again.',
+        variant: 'destructive'
       });
     } finally {
       setIsSaving(false);
     }
   };
-  
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>System Preferences</CardTitle>
         <CardDescription>
-          Configure your system interface preferences
+          Configure how the system works for you
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <div>
-                <Label className="text-base font-medium">Roster View</Label>
-                <p className="text-sm text-muted-foreground">
-                  Choose your default roster view
-                </p>
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-medium mb-2">Default Roster View</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Choose how you'd like to view your roster by default
+            </p>
+            
+            <RadioGroup 
+              value={rosterView} 
+              onValueChange={(value) => setRosterView(value as RosterViewType)}
+              className="grid grid-cols-2 gap-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="card" id="card-view" />
+                <Label htmlFor="card-view" className="flex items-center gap-2">
+                  <LayoutGrid className="h-4 w-4" />
+                  List View
+                </Label>
               </div>
               
-              <RadioGroup 
-                value={defaultRosterView} 
-                onValueChange={(value) => setDefaultRosterView(value as RosterViewType)}
-                className="grid grid-cols-1 gap-2 sm:grid-cols-2"
-              >
-                <div className="flex items-center space-x-2 rounded-md border p-3">
-                  <RadioGroupItem value="calendar" id="calendar-view" />
-                  <Label htmlFor="calendar-view" className="flex-grow cursor-pointer">
-                    Calendar View
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 rounded-md border p-3">
-                  <RadioGroupItem value="card" id="list-view" />
-                  <Label htmlFor="list-view" className="flex-grow cursor-pointer">
-                    List View
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
-            
-            <Button 
-              onClick={savePreferences}
-              disabled={isSaving}
-              className="w-full"
-            >
-              {isSaving ? "Saving..." : "Save Preferences"}
-            </Button>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="calendar" id="calendar-view" />
+                <Label htmlFor="calendar-view" className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4" />
+                  Calendar View
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
-        )}
+
+          <Button 
+            onClick={handleSavePreferences}
+            disabled={isLoading || isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Save Preferences'}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
-}
+};
+
+export default SystemPreferences;

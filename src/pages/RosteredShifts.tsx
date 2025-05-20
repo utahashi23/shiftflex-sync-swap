@@ -12,8 +12,9 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { CalendarIcon, LayoutGrid } from 'lucide-react';
+import { CalendarIcon, LayoutGrid, PlusCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 
 // Define view types
 type ViewType = 'calendar' | 'card';
@@ -109,6 +110,12 @@ const RosteredShifts = () => {
     // Refetch shifts to update both views
     refetchShifts();
   };
+
+  const handleAddNewShift = () => {
+    setSelectedDate(new Date());
+    setSelectedShift(null);
+    setIsDialogOpen(true);
+  };
   
   return (
     <AppLayout>
@@ -120,16 +127,27 @@ const RosteredShifts = () => {
           </p>
         </div>
         
-        <ToggleGroup type="single" value={viewType} onValueChange={(value) => value && setViewType(value as ViewType)}>
-          <ToggleGroupItem value="calendar" aria-label="Calendar view">
-            <CalendarIcon className="h-5 w-5" />
-            <span className="sr-only sm:not-sr-only sm:ml-2">Calendar</span>
-          </ToggleGroupItem>
-          <ToggleGroupItem value="card" aria-label="Card view">
-            <LayoutGrid className="h-5 w-5" />
-            <span className="sr-only sm:not-sr-only sm:ml-2">List</span>
-          </ToggleGroupItem>
-        </ToggleGroup>
+        <div className="flex items-center gap-2">
+          <ToggleGroup type="single" value={viewType} onValueChange={(value) => value && setViewType(value as ViewType)}>
+            <ToggleGroupItem value="calendar" aria-label="Calendar view">
+              <CalendarIcon className="h-5 w-5" />
+              <span className="sr-only sm:not-sr-only sm:ml-2">Calendar</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="card" aria-label="Card view">
+              <LayoutGrid className="h-5 w-5" />
+              <span className="sr-only sm:not-sr-only sm:ml-2">List</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={handleAddNewShift}
+            aria-label="Add new shift"
+          >
+            <PlusCircle className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
       
       {viewType === 'calendar' ? (
