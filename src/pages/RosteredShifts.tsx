@@ -32,7 +32,7 @@ const RosteredShifts = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   
   // Get shift data for both calendar and card views
-  const { shifts, isLoading } = useShiftData(currentDate, user?.id);
+  const { shifts, isLoading, refetchShifts } = useShiftData(currentDate, user?.id);
   
   // Effect to focus truck input when dialog opens
   useEffect(() => {
@@ -67,6 +67,17 @@ const RosteredShifts = () => {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + increment);
     setCurrentDate(newDate);
+  };
+
+  const handleFormSuccess = () => {
+    toast({
+      title: selectedShift ? "Shift Updated" : "Shift Created",
+      description: `Successfully ${selectedShift ? 'updated' : 'created'} the shift.`,
+    });
+    setIsDialogOpen(false);
+    setSelectedShift(null);
+    // Refetch shifts to update both views
+    refetchShifts();
   };
   
   return (
@@ -133,14 +144,7 @@ const RosteredShifts = () => {
                 setSelectedShift(null);
                 setSelectedDate(null);
               }}
-              onSuccess={() => {
-                toast({
-                  title: selectedShift ? "Shift Updated" : "Shift Created",
-                  description: `Successfully ${selectedShift ? 'updated' : 'created'} the shift.`,
-                });
-                setIsDialogOpen(false);
-                setSelectedShift(null);
-              }}
+              onSuccess={handleFormSuccess}
             />
           </ScrollArea>
         </DialogContent>

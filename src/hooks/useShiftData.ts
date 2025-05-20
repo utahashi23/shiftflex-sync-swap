@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { getMonthDateRange } from '@/utils/dateUtils';
@@ -19,69 +19,70 @@ export const useShiftData = (currentDate: Date, userId?: string) => {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchShifts = async () => {
-      if (!userId) {
-        setIsLoading(false);
-        return;
-      }
+  const fetchShifts = useCallback(async () => {
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // Get date range for the current month
+      const { startDate, endDate } = getMonthDateRange(currentDate);
       
-      setIsLoading(true);
+      // Fetch shifts for the current month
+      const { data, error } = await supabase
+        .from('shifts')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: true });
+        
+      if (error) throw error;
       
-      try {
-        // Get date range for the current month
-        const { startDate, endDate } = getMonthDateRange(currentDate);
+      // Format the shifts for the calendar with updated shift type logic
+      const formattedShifts: Shift[] = data?.map(shift => {
+        // Use the common getShiftType function for consistency
+        const type = getShiftType(shift.start_time);
         
-        // Fetch shifts for the current month
-        const { data, error } = await supabase
-          .from('shifts')
-          .select('*')
-          .eq('user_id', userId)
-          .gte('date', startDate)
-          .lte('date', endDate)
-          .order('date', { ascending: true });
-          
-        if (error) throw error;
+        // Create title from truck name or use default format
+        const title = shift.truck_name || `Shift-${shift.id.substring(0, 5)}`;
         
-        // Format the shifts for the calendar with updated shift type logic
-        const formattedShifts: Shift[] = data?.map(shift => {
-          // Use the common getShiftType function for consistency
-          const type = getShiftType(shift.start_time);
-          
-          // Create title from truck name or use default format
-          const title = shift.truck_name || `Shift-${shift.id.substring(0, 5)}`;
-          
-          // Ensure colleagueType is one of the valid union types
-          const colleagueType = validateColleagueType(shift.colleague_type);
-          
-          return {
-            id: shift.id,
-            date: shift.date,
-            title,
-            startTime: shift.start_time.substring(0, 5), // Format as HH:MM
-            endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
-            type,
-            colleagueType
-          };
-        }) || [];
+        // Ensure colleagueType is one of the valid union types
+        const colleagueType = validateColleagueType(shift.colleague_type);
         
-        setShifts(formattedShifts);
-      } catch (error) {
-        console.error('Error fetching shifts:', error);
-        toast({
-          title: "Failed to load shifts",
-          description: "There was a problem loading your shifts. Please try again later.",
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchShifts();
+        return {
+          id: shift.id,
+          date: shift.date,
+          title,
+          startTime: shift.start_time.substring(0, 5), // Format as HH:MM
+          endTime: shift.end_time.substring(0, 5),     // Format as HH:MM
+          type,
+          colleagueType
+        };
+      }) || [];
+      
+      setShifts(formattedShifts);
+    } catch (error) {
+      console.error('Error fetching shifts:', error);
+      toast({
+        title: "Failed to load shifts",
+        description: "There was a problem loading your shifts. Please try again later.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }, [currentDate, userId]);
 
-  return { shifts, isLoading };
+  // Initial data fetch
+  useEffect(() => {
+    fetchShifts();
+  }, [fetchShifts]);
+
+  return { shifts, isLoading, refetchShifts: fetchShifts };
 };
 
 // Helper function to validate colleague type

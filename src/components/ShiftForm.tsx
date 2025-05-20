@@ -59,6 +59,7 @@ const ShiftForm = ({
     e.preventDefault();
     const success = await handleSubmit(e);
     if (success) {
+      // Call the provided onSuccess callback to refresh data in both views
       onSuccess();
     }
   };
@@ -115,7 +116,12 @@ const ShiftForm = ({
           isFormComplete={isFormComplete}
           onSave={() => {}} // Form will be submitted by the form's onSubmit handler
           onCancel={onCancel}
-          onDelete={handleDelete}
+          onDelete={async () => {
+            const success = await handleDelete();
+            if (success) {
+              onSuccess();
+            }
+          }}
         />
       </form>
     </div>
