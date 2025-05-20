@@ -1,5 +1,4 @@
 
-import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useShiftData, getShiftForDate, Shift } from '@/hooks/useShiftData';
 import { getDaysInMonth, getFirstDayOfMonth, formatDateString } from '@/utils/dateUtils';
@@ -12,15 +11,18 @@ interface ShiftCalendarProps {
   setSelectedDate: (date: Date | null) => void;
   selectedShift: Shift | null;
   setSelectedShift: (shift: Shift | null) => void;
+  currentDate: Date;
+  setCurrentDate: (date: Date) => void;
 }
 
 const ShiftCalendar = ({ 
   selectedDate, 
   setSelectedDate, 
   selectedShift, 
-  setSelectedShift 
+  setSelectedShift,
+  currentDate,
+  setCurrentDate
 }: ShiftCalendarProps) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
   const { user } = useAuth();
   const { shifts, isLoading } = useShiftData(currentDate, user?.id);
 
