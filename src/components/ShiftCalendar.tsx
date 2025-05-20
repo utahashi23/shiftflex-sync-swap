@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useShiftData, getShiftForDate, Shift } from '@/hooks/useShiftData';
 import { getDaysInMonth, getFirstDayOfMonth, formatDateString } from '@/utils/dateUtils';
 import { CalendarDayCell, CalendarSkeletonCell } from './calendar/CalendarDayCell';
-import { CalendarHeader, WeekdayHeader } from './calendar/CalendarHeader';
+import { WeekdayHeader } from './calendar/CalendarHeader';
 import { CalendarLegend } from './calendar/CalendarLegend';
 import { Button } from './ui/button';
 import { PlusCircle } from 'lucide-react';
@@ -18,7 +19,7 @@ import { Form, FormField, FormItem, FormControl, FormMessage } from '@/component
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -364,8 +365,27 @@ const ShiftCalendar = ({
 
   return (
     <div className="flex flex-col p-4">
-      <div className="flex justify-between items-center mb-4">
-        <CalendarHeader currentDate={currentDate} onChangeMonth={changeMonth} />
+      {/* Month navigation that matches the card view style */}
+      <div className="flex items-center justify-between mb-4">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={() => changeMonth(-1)}
+          aria-label="Previous month"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        
+        <h2 className="font-medium text-lg">{format(currentDate, 'MMMM yyyy')}</h2>
+        
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={() => changeMonth(1)}
+          aria-label="Next month"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
       
       <WeekdayHeader />
