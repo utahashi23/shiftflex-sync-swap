@@ -19,7 +19,6 @@ const RosteredShifts = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const truckInputRef = useRef<HTMLElement | null>(null);
   
   // Effect to focus truck input when dialog opens
   useEffect(() => {
@@ -37,6 +36,7 @@ const RosteredShifts = () => {
   }, [isDialogOpen, selectedShift]);
   
   const handleDateClick = (date: Date, shift: Shift | null) => {
+    console.log("handleDateClick called with date:", date, "and shift:", shift);
     setSelectedDate(date);
     setSelectedShift(shift);
     setIsDialogOpen(true);
@@ -58,7 +58,9 @@ const RosteredShifts = () => {
           selectedShift={selectedShift}
           setSelectedShift={(shift) => {
             if (shift) {
+              console.log("Setting selectedShift in RosteredShifts:", shift);
               setSelectedShift(shift);
+              setSelectedDate(new Date(shift.date));
               setIsDialogOpen(true);
             }
           }}
