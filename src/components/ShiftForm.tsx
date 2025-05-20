@@ -8,6 +8,7 @@ import { TimeFields } from './shift-form/TimeFields';
 import { ShiftTypeIndicator } from './shift-form/ShiftTypeIndicator';
 import { FormActions } from './shift-form/FormActions';
 import { Shift } from '@/hooks/useShiftData';
+import { useEffect } from 'react';
 
 // Types
 interface ShiftFormProps {
@@ -61,6 +62,16 @@ const ShiftForm = ({
       onSuccess();
     }
   };
+  
+  // Log the values for debugging
+  useEffect(() => {
+    console.log("ShiftForm rendered with selectedShift:", selectedShift);
+    console.log("Current form values:", { 
+      searchTerm, shiftDate, shiftStartTime, 
+      shiftEndTime, shiftType, colleagueType 
+    });
+  }, [selectedShift, searchTerm, shiftDate, shiftStartTime, 
+      shiftEndTime, shiftType, colleagueType]);
   
   return (
     <div className="flex flex-col">

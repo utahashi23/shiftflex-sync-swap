@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -41,10 +42,15 @@ export const useShiftForm = ({
   const [colleagueType, setColleagueType] = useState<'Qualified' | 'Graduate' | 'ACO' | 'Unknown'>('Unknown');
   const [shiftLength, setShiftLength] = useState('custom');
   
-  // Update form based on selection
+  // Update form based on selection - this is where we need to properly set the values
   useEffect(() => {
+    // Log for debugging
+    console.log("useShiftForm effect - selectedShift:", selectedShift);
+    console.log("useShiftForm effect - selectedDate:", selectedDate);
+    
     if (selectedShift) {
-      // Editing mode
+      // Editing mode - populate all fields
+      console.log("Setting form for existing shift:", selectedShift);
       setFormTitle('Edit Shift');
       setTruckName(selectedShift.title);
       setSearchTerm(selectedShift.title);
@@ -59,6 +65,7 @@ export const useShiftForm = ({
       setShiftLength('custom');
     } else if (selectedDate) {
       // Adding new shift - ensure correct timezone handling
+      console.log("Setting form for new shift with date:", selectedDate);
       setFormTitle('Add Shift to Calendar');
       setTruckName('');
       setSearchTerm('');
