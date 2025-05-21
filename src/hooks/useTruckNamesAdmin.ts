@@ -10,6 +10,7 @@ export interface TruckName {
   area_id: string | null;
   status: string;
   created_at: string;
+  address: string | null;
   area?: Area | null;
 }
 
@@ -62,11 +63,11 @@ export const useTruckNamesAdmin = (areaId?: string) => {
     }
   };
 
-  const addTruckName = async (name: string, areaId: string | null) => {
+  const addTruckName = async (name: string, areaId: string | null, address: string | null = null) => {
     try {
       const { data, error } = await supabase
         .from('truck_names')
-        .insert([{ name, area_id: areaId }])
+        .insert([{ name, area_id: areaId, address }])
         .select();
 
       if (error) {
@@ -92,11 +93,11 @@ export const useTruckNamesAdmin = (areaId?: string) => {
     }
   };
 
-  const updateTruckName = async (id: string, name: string, areaId: string | null) => {
+  const updateTruckName = async (id: string, name: string, areaId: string | null, address: string | null = null) => {
     try {
       const { error } = await supabase
         .from('truck_names')
-        .update({ name, area_id: areaId })
+        .update({ name, area_id: areaId, address })
         .eq('id', id);
 
       if (error) {

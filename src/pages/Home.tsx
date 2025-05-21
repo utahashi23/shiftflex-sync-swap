@@ -9,12 +9,15 @@ const Home = () => {
       <p className="text-xl mb-8 text-center">
         The easiest way to manage and swap your work shifts
       </p>
-      <div className="flex gap-4">
+      <div className="flex flex-wrap gap-4 justify-center">
         <Button asChild variant="default">
           <Link to="/login">Sign In</Link>
         </Button>
         <Button asChild variant="outline">
           <Link to="/dashboard">Dashboard</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link to="/system-settings">System Settings</Link>
         </Button>
       </div>
     </div>

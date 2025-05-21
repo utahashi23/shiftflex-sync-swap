@@ -748,6 +748,7 @@ export type Database = {
       }
       truck_names: {
         Row: {
+          address: string | null
           area_id: string | null
           created_at: string
           id: string
@@ -755,6 +756,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          address?: string | null
           area_id?: string | null
           created_at?: string
           id?: string
@@ -762,6 +764,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          address?: string | null
           area_id?: string | null
           created_at?: string
           id?: string

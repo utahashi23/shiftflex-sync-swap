@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { 
   Card, 
@@ -17,13 +18,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SafeSelect } from "@/components/ui/safe-select";
-import { Loader2, Pencil, Trash, Plus, Upload } from 'lucide-react';
+import { Loader2, Pencil, Trash, Plus, Upload, MapPin } from 'lucide-react';
 import { useTruckNamesAdmin, TruckName } from '@/hooks/useTruckNamesAdmin';
 import { useAreas } from '@/hooks/useAreas';
 import { useRegions } from '@/hooks/useRegions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { CSVUploader } from "./CSVUploader";
 import { SearchFilter } from "./SearchFilter";
+import { TruckDataImporter } from './TruckDataImporter';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const TruckNameSettings = () => {
   const { truckNames, isLoading, isRefreshing, fetchTruckNames, addTruckName, updateTruckName, deleteTruckName } = useTruckNamesAdmin();
@@ -31,12 +34,14 @@ export const TruckNameSettings = () => {
   const { areas } = useAreas();
   
   const [newTruckName, setNewTruckName] = useState('');
+  const [newTruckAddress, setNewTruckAddress] = useState('');
   const [selectedAreaId, setSelectedAreaId] = useState<string>('');
   const [selectedRegionId, setSelectedRegionId] = useState<string>('');
   const [filteredAreas, setFilteredAreas] = useState(areas);
   
   const [editingTruck, setEditingTruck] = useState<TruckName | null>(null);
   const [editName, setEditName] = useState('');
+  const [editAddress, setEditAddress] = useState('');
   const [editAreaId, setEditAreaId] = useState<string>('');
   const [editRegionId, setEditRegionId] = useState<string>('');
   const [editFilteredAreas, setEditFilteredAreas] = useState(areas);
@@ -45,6 +50,7 @@ export const TruckNameSettings = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importTab, setImportTab] = useState<string>('basic');
   const [searchFilter, setSearchFilter] = useState('');
 
   // Filter areas based on selected region
@@ -70,8 +76,9 @@ export const TruckNameSettings = () => {
 
   const handleAddTruck = async () => {
     if (!newTruckName.trim()) return;
-    await addTruckName(newTruckName.trim(), selectedAreaId || null);
+    await addTruckName(newTruckName.trim(), selectedAreaId || null, newTruckAddress.trim() || null);
     setNewTruckName('');
+    setNewTruckAddress('');
     setSelectedAreaId('');
     setSelectedRegionId('');
     setIsAddDialogOpen(false);
@@ -79,9 +86,10 @@ export const TruckNameSettings = () => {
 
   const handleUpdateTruck = async () => {
     if (!editingTruck || !editName.trim()) return;
-    await updateTruckName(editingTruck.id, editName.trim(), editAreaId || null);
+    await updateTruckName(editingTruck.id, editName.trim(), editAreaId || null, editAddress.trim() || null);
     setEditingTruck(null);
     setEditName('');
+    setEditAddress('');
     setEditAreaId('');
     setEditRegionId('');
     setIsEditDialogOpen(false);
@@ -97,6 +105,7 @@ export const TruckNameSettings = () => {
   const handleEditClick = (truck: TruckName) => {
     setEditingTruck(truck);
     setEditName(truck.name);
+    setEditAddress(truck.address || '');
     setEditAreaId(truck.area_id || '');
     if (truck.area) {
       setEditRegionId(truck.area.region_id);
@@ -116,6 +125,7 @@ export const TruckNameSettings = () => {
     
     return truckNames.filter(truck => 
       truck.name.toLowerCase().includes(lowerFilter) ||
+      (truck.address && truck.address.toLowerCase().includes(lowerFilter)) ||
       (truck.area?.name && truck.area.name.toLowerCase().includes(lowerFilter)) ||
       (truck.area?.region?.name && truck.area.region.name.toLowerCase().includes(lowerFilter))
     );
@@ -133,23 +143,38 @@ export const TruckNameSettings = () => {
             <DialogTrigger asChild>
               <Button variant="outline" className="flex items-center gap-1">
                 <Upload className="h-4 w-4" />
-                Import CSV
+                Import
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-3xl">
               <DialogHeader>
-                <DialogTitle>Import Truck Names from CSV</DialogTitle>
+                <DialogTitle>Import Truck Data</DialogTitle>
               </DialogHeader>
-              <CSVUploader 
-                entityType="truck_names"
-                onSuccess={() => {
-                  fetchTruckNames();
-                  setIsImportDialogOpen(false);
-                }}
-                requiredColumns={["name"]}
-                optionalColumns={["area_id"]}
-                additionalInfo="The CSV must contain 'name' column. The 'area_id' column is optional and should match existing area IDs."
-              />
+              <Tabs defaultValue="basic" value={importTab} onValueChange={setImportTab} className="w-full">
+                <TabsList className="grid grid-cols-2 mb-4">
+                  <TabsTrigger value="basic">Basic Import</TabsTrigger>
+                  <TabsTrigger value="advanced">Advanced Import</TabsTrigger>
+                </TabsList>
+                <TabsContent value="basic">
+                  <CSVUploader 
+                    entityType="truck_names"
+                    onSuccess={() => {
+                      fetchTruckNames();
+                      setIsImportDialogOpen(false);
+                    }}
+                    requiredColumns={["name"]}
+                    optionalColumns={["area_id", "address"]}
+                    additionalInfo="The CSV must contain 'name' column. The 'area_id' and 'address' columns are optional."
+                  />
+                </TabsContent>
+                <TabsContent value="advanced">
+                  <TruckDataImporter 
+                    onSuccess={() => {
+                      fetchTruckNames();
+                    }}
+                  />
+                </TabsContent>
+              </Tabs>
             </DialogContent>
           </Dialog>
           
@@ -170,6 +195,13 @@ export const TruckNameSettings = () => {
                     placeholder="Truck Name" 
                     value={newTruckName} 
                     onChange={(e) => setNewTruckName(e.target.value)} 
+                  />
+                </div>
+                <div>
+                  <Input 
+                    placeholder="Address" 
+                    value={newTruckAddress} 
+                    onChange={(e) => setNewTruckAddress(e.target.value)} 
                   />
                 </div>
                 <div>
@@ -208,7 +240,7 @@ export const TruckNameSettings = () => {
       <CardContent>
         <div className="mb-4">
           <SearchFilter 
-            placeholder="Search truck names, areas, or regions..." 
+            placeholder="Search truck names, areas, regions, or addresses..." 
             onFilterChange={setSearchFilter} 
           />
         </div>
@@ -223,6 +255,7 @@ export const TruckNameSettings = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Address</TableHead>
                   <TableHead>Area</TableHead>
                   <TableHead>Region</TableHead>
                   <TableHead className="w-[180px] text-right">Actions</TableHead>
@@ -233,6 +266,16 @@ export const TruckNameSettings = () => {
                   filteredTrucks.map((truck) => (
                     <TableRow key={truck.id}>
                       <TableCell>{truck.name}</TableCell>
+                      <TableCell className="truncate max-w-[250px]">
+                        {truck.address ? (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3.5 w-3.5 text-gray-500 mr-1" />
+                            {truck.address}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500 italic">No address</span>
+                        )}
+                      </TableCell>
                       <TableCell>{truck.area?.name || 'Not Assigned'}</TableCell>
                       <TableCell>{truck.area?.region?.name || 'Not Assigned'}</TableCell>
                       <TableCell className="text-right">
@@ -261,7 +304,7 @@ export const TruckNameSettings = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       {searchFilter ? "No matching truck names found." : "No truck names found."}
                     </TableCell>
                   </TableRow>
@@ -283,6 +326,13 @@ export const TruckNameSettings = () => {
                   placeholder="Truck Name" 
                   value={editName} 
                   onChange={(e) => setEditName(e.target.value)} 
+                />
+              </div>
+              <div>
+                <Input 
+                  placeholder="Address" 
+                  value={editAddress} 
+                  onChange={(e) => setEditAddress(e.target.value)} 
                 />
               </div>
               <div>
