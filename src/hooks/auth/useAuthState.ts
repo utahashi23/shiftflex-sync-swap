@@ -28,13 +28,23 @@ export const useAuthState = () => {
           setUser(extendedUser);
           setIsEmailVerified(extendedUser.email_confirmed_at !== null);
           
-          // Check if user is admin
-          setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+          // Check if user is admin - enhanced to check both app_metadata and specific email
+          const isUserAdmin = extendedUser.app_metadata?.role === 'admin' || 
+            extendedUser.email === 'njalasankhulani@gmail.com' || 
+            extendedUser.email === 'sfadmin';
+          
+          setIsAdmin(isUserAdmin);
+          console.log('User auth state updated:', { 
+            email: extendedUser.email, 
+            isAdmin: isUserAdmin,
+            appMetadata: extendedUser.app_metadata
+          });
 
           // Handle authentication events
           if (event === 'SIGNED_IN') {
-            // For admin user (sfadmin), check if they're in the user_roles table
-            if (extendedUser.email === 'sfadmin') {
+            // For admin user, check if they're in the user_roles table
+            if (isUserAdmin) {
+              console.log('Admin user signed in:', extendedUser.email);
               try {
                 // Use type assertions to work around TypeScript errors with Supabase client
                 const { data, error } = await supabase.rpc('has_role', { 
@@ -49,6 +59,7 @@ export const useAuthState = () => {
                       user_id: extendedUser.id,
                       role: 'admin'
                     });
+                  console.log('Added admin role for user:', extendedUser.email);
                 }
               } catch (error) {
                 console.error("Error checking admin role:", error);
@@ -77,7 +88,18 @@ export const useAuthState = () => {
         const extendedUser = currentSession.user as unknown as ExtendedUser;
         setUser(extendedUser);
         setIsEmailVerified(extendedUser.email_confirmed_at !== null);
-        setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+        
+        // Also check if specific admin user
+        const isUserAdmin = extendedUser.app_metadata?.role === 'admin' || 
+          extendedUser.email === 'njalasankhulani@gmail.com' || 
+          extendedUser.email === 'sfadmin';
+          
+        setIsAdmin(isUserAdmin);
+        console.log('Initial auth check:', { 
+          email: extendedUser.email, 
+          isAdmin: isUserAdmin, 
+          appMetadata: extendedUser.app_metadata
+        });
       }
       
       setIsLoading(false);

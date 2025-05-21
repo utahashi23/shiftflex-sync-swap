@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Dialog, Transition } from '@headlessui/react';
 import {
@@ -10,30 +10,33 @@ import {
   CalendarDays,
   Home,
   FileQuestion,
-  MessageSquare,
-  LayoutList,
-  Cog,
   ArrowLeftRight,
   Settings,
   Users,
-  Database
+  Database,
+  UserCog,
+  List
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { EmailDomainWarning } from '@/components/EmailDomainWarning';
 
 const navigation = [
+  { name: 'Home', href: '/', icon: Home, requiresAuth: false },
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, requiresAuth: true },
   { name: 'My Roster', href: '/roster-2', icon: CalendarDays, requiresAuth: true },
   { name: 'Shift Swaps', href: '/shift-swaps', icon: ArrowLeftRight, requiresAuth: true },
-  { name: 'Browse Swaps', href: '/swaps-list', icon: LayoutList, requiresAuth: true }, 
+  { name: 'Browse Swaps', href: '/swaps-list', icon: List, requiresAuth: true }, 
   { name: 'Leave Swaps', href: '/leave-swaps', icon: Calendar, requiresAuth: true },
+  { name: 'Swap Preferences', href: '/swap-preferences', icon: UserCog, requiresAuth: true },
   { name: 'FAQ', href: '/faq', icon: FileQuestion, requiresAuth: false },
 ];
 
-// Admin navigation items that will only be shown to admins and specific users
+// Admin navigation items
 const adminNavigation = [
-  { name: 'System Settings', href: '/system-settings', icon: Cog, requiresAuth: true }
+  { name: 'Admin Panel', href: '/admin', icon: Users, requiresAuth: true },
+  { name: 'Admin Dashboard', href: '/admin-dashboard', icon: Database, requiresAuth: true },
+  { name: 'System Settings', href: '/system-settings', icon: Settings, requiresAuth: true }
 ];
 
 function classNames(...classes: string[]) {
@@ -46,10 +49,15 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Check if user is the specific admin that we want to allow access to system settings
-  const isSpecificAdmin = user?.id === '2e8fce25-0d63-4148-abd9-2653c31d9b0c';
-  const hasSystemAccess = isAdmin || isSpecificAdmin;
-
+  useEffect(() => {
+    // Log auth status for debugging
+    console.log("AppLayout - Auth status:", { 
+      isAdmin, 
+      userEmail: user?.email,
+      userMetadata: user?.app_metadata
+    });
+  }, [user, isAdmin]);
+  
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
@@ -139,38 +147,25 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                           <div className="mt-6 mb-2 px-3 text-xs font-semibold text-gray-500">
                             ADMIN SECTION
                           </div>
-                          <Link
-                            to="/admin"
-                            className={classNames(
-                              location.pathname === "/admin" ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
-                              'group flex items-center px-3 py-2 text-base font-medium rounded-md'
-                            )}
-                          >
-                            <Users
+                          {adminNavigation.map((item) => (
+                            <Link
+                              key={item.name}
+                              to={item.href}
                               className={classNames(
-                                location.pathname === "/admin" ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500',
-                                'mr-4 flex-shrink-0 h-6 w-6'
+                                location.pathname === item.href ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                                'group flex items-center px-3 py-2 text-base font-medium rounded-md'
                               )}
-                              aria-hidden="true"
-                            />
-                            Admin Panel
-                          </Link>
-                          <Link
-                            to="/admin-dashboard"
-                            className={classNames(
-                              location.pathname === "/admin-dashboard" ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
-                              'group flex items-center px-3 py-2 text-base font-medium rounded-md'
-                            )}
-                          >
-                            <Database
-                              className={classNames(
-                                location.pathname === "/admin-dashboard" ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500',
-                                'mr-4 flex-shrink-0 h-6 w-6'
-                              )}
-                              aria-hidden="true"
-                            />
-                            Admin Dashboard
-                          </Link>
+                            >
+                              <item.icon
+                                className={classNames(
+                                  location.pathname === item.href ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500',
+                                  'mr-4 flex-shrink-0 h-6 w-6'
+                                )}
+                                aria-hidden="true"
+                              />
+                              {item.name}
+                            </Link>
+                          ))}
                         </>
                       )}
                     </nav>
@@ -211,9 +206,9 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           </Dialog>
         </Transition.Root>
 
-        {/* Static sidebar for desktop */}
+        {/* Static sidebar for desktop - use our separate Sidebar component */}
         <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
-          {/* Sidebar component, swap this element with another sidebar if you like */}
+          {/* Import actual Sidebar component */}
           <div className="flex flex-grow flex-col overflow-y-auto bg-white border-r border-gray-200">
             <div className="flex flex-grow flex-col">
               <nav className="flex-1 mt-5 space-y-1 bg-white">
@@ -239,44 +234,31 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                   ) : null
                 )}
 
-                {/* Admin navigation items if user has system access */}
+                {/* Admin navigation items if user is admin */}
                 {isAdmin && (
                   <>
                     <div className="mt-6 mb-2 px-3 text-xs font-semibold text-gray-500">
                       ADMIN SECTION
                     </div>
-                    <Link
-                      to="/admin"
-                      className={classNames(
-                        location.pathname === "/admin" ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
-                        'group flex items-center px-3 py-2 text-sm font-medium rounded-md'
-                      )}
-                    >
-                      <Users
+                    {adminNavigation.map((item) => (
+                      <Link
+                        key={item.name}
+                        to={item.href}
                         className={classNames(
-                          location.pathname === "/admin" ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500',
-                          'mr-3 flex-shrink-0 h-6 w-6'
+                          location.pathname === item.href ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                          'group flex items-center px-3 py-2 text-sm font-medium rounded-md'
                         )}
-                        aria-hidden="true"
-                      />
-                      Admin Panel
-                    </Link>
-                    <Link
-                      to="/admin-dashboard"
-                      className={classNames(
-                        location.pathname === "/admin-dashboard" ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
-                        'group flex items-center px-3 py-2 text-sm font-medium rounded-md'
-                      )}
-                    >
-                      <Database
-                        className={classNames(
-                          location.pathname === "/admin-dashboard" ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500',
-                          'mr-3 flex-shrink-0 h-6 w-6'
-                        )}
-                        aria-hidden="true"
-                      />
-                      Admin Dashboard
-                    </Link>
+                      >
+                        <item.icon
+                          className={classNames(
+                            location.pathname === item.href ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500',
+                            'mr-3 flex-shrink-0 h-6 w-6'
+                          )}
+                          aria-hidden="true"
+                        />
+                        {item.name}
+                      </Link>
+                    ))}
                   </>
                 )}
               </nav>
