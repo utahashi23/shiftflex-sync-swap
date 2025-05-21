@@ -1,10 +1,11 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { SwapRequest, PreferredDate, DeletePreferredDateResult } from './types';
 import { getUserSwapRequestsApi } from './api';
-import { deleteSwapRequest } from './deleteSwapRequest';
-import { deletePreferredDate } from './deletePreferredDate';
+import { deleteSwapRequestApi } from './deleteSwapRequest';
+import { deletePreferredDateApi } from './deletePreferredDate';
 import { createSwapRequestApi } from './createSwapRequest';
 
 export const useSwapRequests = (defaultStatus: string = 'pending') => {
@@ -77,10 +78,10 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
       setIsDeleting(true);
       
       console.log(`Deleting swap request with ID: ${requestId}`);
-      const result = await deleteSwapRequest(requestId);
+      const result = await deleteSwapRequestApi(requestId);
       
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to delete swap request');
+      if (!result) {
+        throw new Error('Failed to delete swap request');
       }
       
       // Update the local state to remove the deleted request
@@ -120,7 +121,7 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
       setIsDeleting(true);
       
       console.log(`Attempting to delete preferred date ${dayId} from request ${requestId}`);
-      const result = await deletePreferredDate(dayId, requestId);
+      const result = await deletePreferredDateApi(dayId, requestId);
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to delete preferred date');
@@ -142,7 +143,7 @@ export const useSwapRequests = (defaultStatus: string = 'pending') => {
             if (req.id === requestId) {
               return {
                 ...req,
-                preferred_dates: req.preferred_dates?.filter(pd => pd.id !== dayId)
+                preferredDates: req.preferredDates?.filter(pd => pd.id !== dayId)
               };
             }
             return req;
