@@ -1,73 +1,85 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { DeletePreferredDateResult } from './types';
 
-// Export the result type for use in other components
-export interface DeletePreferredDateResult {
-  success: boolean;
-  requestDeleted?: boolean;
-  error?: string;
-}
-
-export async function deletePreferredDate(dayId: string, requestId: string): Promise<DeletePreferredDateResult> {
+/**
+ * Delete a preferred date from a swap request
+ */
+export const deletePreferredDateApi = async (
+  dayId: string, 
+  requestId: string
+): Promise<DeletePreferredDateResult> => {
+  if (!dayId || !requestId) {
+    return { success: false, error: 'Day ID and Request ID are required' };
+  }
+  
   try {
-    if (!dayId || !requestId) {
-      console.error('Missing required parameters:', { dayId, requestId });
-      return {
-        success: false,
-        error: 'Missing required parameters: Both day ID and request ID are required'
+    console.log('Deleting preferred date:', dayId, 'from request:', requestId);
+    
+    // First check how many preferred dates exist
+    const { count, error: countError } = await supabase
+      .from('improved_swap_wanted_dates')
+      .select('*', { count: 'exact', head: true })
+      .eq('swap_id', requestId);
+    
+    if (countError) {
+      throw new Error('Failed to check preferred dates count');
+    }
+    
+    // If this is the last one, we should delete the entire request
+    if (count === 1) {
+      console.log('Last preferred date, deleting the entire request');
+      
+      // Delete the swap request (which will cascade to delete the preferred date)
+      const { error } = await supabase
+        .from('improved_shift_swaps')
+        .delete()
+        .eq('id', requestId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Request Deleted",
+        description: "This was the only preferred date, so the entire request has been deleted.",
+        variant: "default"
+      });
+      
+      return { 
+        success: true, 
+        requestDeleted: true,
+        message: 'This was the last preferred date, so the entire request has been deleted'
       };
     }
     
-    // Check if user is authenticated
-    const { data: session } = await supabase.auth.getSession();
-    if (!session?.session) {
-      console.error('No active session found');
-      return {
-        success: false,
-        error: 'Authentication required'
-      };
-    }
+    // Otherwise just delete this specific preferred date
+    const { error } = await supabase
+      .from('improved_swap_wanted_dates')
+      .delete()
+      .eq('id', dayId)
+      .eq('swap_id', requestId);
     
-    console.log(`Deleting preferred date ${dayId} from request ${requestId}`);
-
-    // Call the edge function "delete_preferred_day" and pass the auth token in headers
-    const { data, error } = await supabase.functions.invoke('delete_preferred_day', {
-      body: {
-        day_id: dayId,
-        request_id: requestId
-      }
-    });
-
-    if (error) {
-      console.error('Error from edge function:', error);
-      throw error;
-    }
-
-    // Check if data is an object with error property
-    if (!data || (typeof data === 'object' && 'error' in data && data.error)) {
-      console.error('Server returned error:', data?.error);
-      throw new Error(data?.error || 'Unknown error from server');
-    }
-
-    console.log('Delete preferred date result:', data);
-    return {
-      success: true,
-      requestDeleted: data?.requestDeleted || false
-    };
-  } catch (error: any) {
-    console.error('Error in deletePreferredDate:', error);
+    if (error) throw error;
+    
     toast({
-      title: 'Error',
-      description: error.message || 'Failed to delete preferred date',
-      variant: 'destructive'
+      title: "Date Removed",
+      description: "The preferred date has been removed from your swap request.",
+      variant: "default"
     });
-    return {
-      success: false,
-      error: error.message || 'Failed to delete preferred date'
+    
+    return { success: true, requestDeleted: false };
+    
+  } catch (error: any) {
+    console.error('Error deleting preferred date:', error);
+    
+    toast({
+      title: "Error",
+      description: "There was a problem removing the preferred date.",
+      variant: "destructive"
+    });
+    
+    return { 
+      success: false, 
+      error: error.message || 'Failed to delete preferred date' 
     };
   }
-}
-
-// Also export as API function for consistent naming
-export const deletePreferredDateApi = deletePreferredDate;
+};

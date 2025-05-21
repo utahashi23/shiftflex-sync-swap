@@ -140,6 +140,7 @@ export type Database = {
           matched_with_id: string | null
           requester_id: string
           requester_shift_id: string
+          required_skillset: string[] | null
           status: string
           updated_at: string
           wanted_date: string
@@ -151,6 +152,7 @@ export type Database = {
           matched_with_id?: string | null
           requester_id: string
           requester_shift_id: string
+          required_skillset?: string[] | null
           status?: string
           updated_at?: string
           wanted_date: string
@@ -162,6 +164,7 @@ export type Database = {
           matched_with_id?: string | null
           requester_id?: string
           requester_shift_id?: string
+          required_skillset?: string[] | null
           status?: string
           updated_at?: string
           wanted_date?: string

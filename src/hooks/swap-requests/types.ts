@@ -1,40 +1,29 @@
 
-// Type definitions for swap requests
-
 export interface SwapRequest {
   id: string;
   requester_id: string;
   requester_shift_id: string;
-  status: string;
+  wanted_date: string;
+  accepted_shift_types: string[];
+  status: 'pending' | 'matched' | 'confirmed' | 'completed';
+  matched_with_id: string | null;
   created_at: string;
-  updated_at?: string;
-  acceptor_id?: string;
-  acceptor_shift_id?: string;
-  preferred_dates?: PreferredDate[];
-  preferred_dates_count?: number;
-  required_skillset?: string[];
-  shifts?: any; // Adding this to support the RequestedSwaps component
+  updated_at: string;
+  required_skillset?: string[] | null;
+  shifts?: any;
+  preferredDates?: PreferredDate[];
 }
 
 export interface PreferredDate {
   id: string;
   date: string;
-  request_id?: string;
-  accepted_types?: string[];
+  swap_id: string;
+  created_at: string;
 }
 
 export interface DeletePreferredDateResult {
   success: boolean;
-  error?: string;
   requestDeleted?: boolean;
+  error?: string;
   message?: string;
-}
-
-export interface CreateSwapRequestParams {
-  shiftId: string;
-  preferredDates: {
-    date: string;
-    acceptedTypes: string[];
-  }[];
-  requiredSkillset?: string[];
 }
