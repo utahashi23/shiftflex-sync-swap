@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Card,
@@ -35,9 +34,11 @@ const MyLeave = () => {
     
     setProcessingAction(true);
     try {
-      await splitLeaveBlock(selectedBlock.id);
-      setSplitDialogOpen(false);
-      setSelectedBlock(null);
+      const success = await splitLeaveBlock(selectedBlock.id);
+      if (success) {
+        setSplitDialogOpen(false);
+        setSelectedBlock(null);
+      }
     } finally {
       setProcessingAction(false);
     }

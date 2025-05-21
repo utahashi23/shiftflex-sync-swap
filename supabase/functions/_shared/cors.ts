@@ -1,25 +1,27 @@
 
+// CORS headers for all responses
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 };
 
-export function getAuthToken(req: Request): string | null {
+// Helper function to extract auth token
+export const getAuthToken = (req: Request): string | null => {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return null;
   
   // Extract the token part (remove "Bearer " if present)
-  const parts = authHeader.split(' ');
-  if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
-    return parts[1];
-  }
-  
-  return authHeader;  // Return as-is if no "Bearer " prefix
-}
+  return authHeader.split(' ')[1] || authHeader;
+};
 
-export function createUnauthorizedResponse(message: string): Response {
+// Helper function to create unauthorized response
+export const createUnauthorizedResponse = (message: string = 'Unauthorized') => {
   return new Response(
-    JSON.stringify({ success: false, error: message }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+    JSON.stringify({ error: message }),
+    { 
+      status: 401, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    }
   );
-}
+};

@@ -228,6 +228,11 @@ export const useLeaveBlocks = () => {
       
       if (sessionError || !sessionData?.session?.access_token) {
         console.error('Session error or missing token:', sessionError);
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to complete this action",
+          variant: "destructive"
+        });
         throw new Error('Authentication required');
       }
       
@@ -242,14 +247,13 @@ export const useLeaveBlocks = () => {
           user_id: user.id 
         },
         headers: { 
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${accessToken}`
         }
       });
       
       if (error) {
         console.error('Error from edge function:', error);
-        throw error;
+        throw new Error(error.message || 'Failed to split leave block');
       }
       
       if (!data || !data.success) {
@@ -280,7 +284,7 @@ export const useLeaveBlocks = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user, fetchLeaveBlocks]);
+  }, [user, fetchLeaveBlocks, toast]);
 
   const joinLeaveBlocks = useCallback(async (blockAId: string, blockBId: string) => {
     if (!user) return false;

@@ -11,8 +11,31 @@ serve(async (req) => {
   }
 
   try {
+    // Parse the request body more safely
+    let requestBody;
+    try {
+      const text = await req.text();
+      if (!text) {
+        console.error('Empty request body');
+        return new Response(
+          JSON.stringify({ success: false, error: 'Empty request body' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+      
+      requestBody = JSON.parse(text);
+      console.log('Parsed request body:', JSON.stringify(requestBody));
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError.message);
+      return new Response(
+        JSON.stringify({ success: false, error: `Invalid JSON: ${parseError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+    
     // Get the request parameters
-    const { user_leave_block_id, user_id } = await req.json()
+    const { user_leave_block_id, user_id } = requestBody;
+    console.log(`Processing request with user_leave_block_id: ${user_leave_block_id}, user_id: ${user_id}`);
     
     // Validate required parameters
     if (!user_leave_block_id) {
@@ -68,6 +91,8 @@ serve(async (req) => {
       );
     }
 
+    console.log('Authenticated user:', authUser.id);
+    
     // Verify request is from the user or an admin
     const { data: isAdmin } = await supabaseClient.rpc('has_role', { 
       _user_id: authUser.id,
@@ -96,6 +121,8 @@ serve(async (req) => {
       )
     }
 
+    console.log('Found user leave block:', JSON.stringify(userLeaveBlock));
+
     // Use the service role to bypass RLS
     const adminClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -109,6 +136,7 @@ serve(async (req) => {
     )
 
     // Call the split_leave_block database function
+    console.log('Calling split_leave_block function with block_id:', userLeaveBlock.leave_block_id);
     const { data: result, error: splitError } = await adminClient.rpc(
       'split_leave_block',
       { block_id: userLeaveBlock.leave_block_id }
@@ -121,6 +149,8 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       )
     }
+
+    console.log('Split successful, result:', JSON.stringify(result));
 
     return new Response(
       JSON.stringify({ success: true, ...result }),
