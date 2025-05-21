@@ -17,7 +17,7 @@ const Home = () => {
           <Link to="/dashboard">Dashboard</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link to="/rostered-shifts">My Shifts</Link>
+          <Link to="/roster-2">My Roster</Link>
         </Button>
         <Button asChild variant="outline">
           <Link to="/system-settings">System Settings</Link>

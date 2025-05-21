@@ -1,4 +1,3 @@
-
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -26,9 +25,7 @@ const Sidebar = () => {
         <nav className="space-y-1 px-2 py-4 flex-1 mt-6">
           <NavItem to="/" icon={<Home size={20} />} label="Home" />
           <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" />
-          <NavItem to="/shifts" icon={<Calendar size={20} />} label="My Shifts" />
-          <NavItem to="/calendar" icon={<Calendar size={20} />} label="Calendar" />
-          <NavItem to="/roster-2" icon={<CalendarDays size={20} />} label="Roster 2" />
+          <NavItem to="/roster-2" icon={<CalendarDays size={20} />} label="My Roster" />
           <NavItem to="/shift-swaps" icon={<ArrowLeftRight size={20} />} label="Shift Swaps" />
           <NavItem to="/swaps-list" icon={<List size={20} />} label="Swaps List" />
           <NavItem to="/leave-swaps" icon={<Calendar size={20} />} label="Leave Swaps" />

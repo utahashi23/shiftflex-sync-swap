@@ -22,9 +22,7 @@ import { EmailDomainWarning } from '@/components/EmailDomainWarning';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, requiresAuth: true },
-  { name: 'Roster', href: '/calendar', icon: CalendarDays, requiresAuth: true },
-  { name: 'My Shifts', href: '/shifts', icon: Calendar, requiresAuth: true },
-  { name: 'Roster 2', href: '/roster-2', icon: CalendarDays, requiresAuth: true },
+  { name: 'My Roster', href: '/roster-2', icon: CalendarDays, requiresAuth: true },
   { name: 'Shift Swaps', href: '/shift-swaps', icon: ArrowLeftRight, requiresAuth: true },
   { name: 'Browse Swaps', href: '/swaps-list', icon: LayoutList, requiresAuth: true }, 
   { name: 'Leave Swaps', href: '/leave-swaps', icon: Calendar, requiresAuth: true },
