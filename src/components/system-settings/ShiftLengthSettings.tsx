@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, Loader2 } from "lucide-react";
 import { 
   Dialog,
   DialogContent,
@@ -37,14 +37,21 @@ export const ShiftLengthSettings = () => {
   const fetchShiftLengths = async () => {
     try {
       setIsLoading(true);
+      console.log("Fetching shift lengths...");
       const { data, error } = await supabase
         .from('shift_lengths')
         .select('*')
         .order('hours', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching shift lengths:", error);
+        throw error;
+      }
+      
+      console.log("Shift lengths fetched:", data);
       setShiftLengths(data || []);
     } catch (error: any) {
+      console.error("Error in fetchShiftLengths:", error);
       toast({
         title: "Error",
         description: `Failed to load shift lengths: ${error.message}`,
@@ -163,7 +170,10 @@ export const ShiftLengthSettings = () => {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-8">Loading shift lengths...</div>
+        <div className="flex justify-center items-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+          <span className="ml-2">Loading shift lengths...</span>
+        </div>
       ) : shiftLengths.length === 0 ? (
         <div className="text-center py-8 border rounded-md bg-muted/50">
           <p className="text-muted-foreground">No shift lengths configured yet</p>

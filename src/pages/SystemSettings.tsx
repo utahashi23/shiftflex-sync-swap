@@ -8,11 +8,12 @@ import { ShiftLengthSettings } from '@/components/system-settings/ShiftLengthSet
 import { RegionSettings } from '@/components/system-settings/RegionSettings';
 import { AreaSettings } from '@/components/system-settings/AreaSettings';
 import { TruckNameSettings } from '@/components/system-settings/TruckNameSettings';
-import { ColleagueTypeSettings } from '@/components/system-settings/ColleagueTypeSettings';
+import { SimpleColleagueTypeSettings } from '@/components/system-settings/SimpleColleagueTypeSettings';
 import { SwapPreferences } from '@/components/settings/SwapPreferences';
 import { LeaveBlockSettings } from '@/components/system-settings/LeaveBlockSettings';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 
 const SystemSettings = () => {
   useAuthRedirect({ protectedRoute: true });
@@ -24,6 +25,13 @@ const SystemSettings = () => {
   const hasSystemAccess = isAdmin || isSpecificAdmin;
 
   useEffect(() => {
+    console.log("SystemSettings - Auth state:", { 
+      isLoading, 
+      user: user?.email, 
+      isAdmin, 
+      hasSystemAccess 
+    });
+
     if (!isLoading && !user) {
       toast({
         title: "Authentication Required",
@@ -39,7 +47,18 @@ const SystemSettings = () => {
         variant: "destructive",
       });
     }
-  }, [user, isLoading, hasSystemAccess, toast]);
+  }, [user, isLoading, hasSystemAccess, toast, isAdmin]);
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Loading authentication...</span>
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!hasSystemAccess) {
     return (
@@ -65,8 +84,8 @@ const SystemSettings = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="shift-lengths" className="space-y-6">
-        <TabsList>
+      <Tabs defaultValue="colleague-types" className="space-y-6">
+        <TabsList className="overflow-x-auto flex flex-nowrap max-w-full">
           <TabsTrigger value="shift-lengths">Shift Lengths</TabsTrigger>
           <TabsTrigger value="regions">Regions</TabsTrigger>
           <TabsTrigger value="areas">Areas</TabsTrigger>
@@ -137,7 +156,7 @@ const SystemSettings = () => {
               </p>
             </div>
             <Separator />
-            <ColleagueTypeSettings />
+            <SimpleColleagueTypeSettings />
           </div>
         </TabsContent>
         
