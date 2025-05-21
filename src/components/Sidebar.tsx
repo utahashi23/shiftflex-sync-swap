@@ -10,14 +10,15 @@ import {
   List,
   HelpCircle,
   CalendarDays,
-  Database
+  Database,
+  Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 
 const Sidebar = () => {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return (
     <div className="pb-12 w-full min-h-screen bg-black text-white hidden lg:block">
