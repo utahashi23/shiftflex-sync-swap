@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from '@/components/ui/form';
@@ -7,8 +7,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { format } from 'date-fns';
-import { CalendarIcon, CheckCircle } from 'lucide-react';
+import { format, addMonths, subMonths } from 'date-fns';
+import { CalendarIcon, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Shift } from '@/hooks/useShiftData';
@@ -43,6 +43,8 @@ const RepeatShiftsDialog: React.FC<RepeatShiftsDialogProps> = ({
   onSuccess 
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [filteredShifts, setFilteredShifts] = useState<Shift[]>([]);
 
   const form = useForm<RepeatFormValues>({
     resolver: zodResolver(formSchema),
@@ -53,8 +55,32 @@ const RepeatShiftsDialog: React.FC<RepeatShiftsDialogProps> = ({
     },
   });
 
+  // Filter shifts by current month
+  useEffect(() => {
+    const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    
+    const shiftsInMonth = shifts.filter(shift => {
+      const shiftDate = new Date(shift.date);
+      return shiftDate >= monthStart && shiftDate <= monthEnd;
+    });
+    
+    setFilteredShifts(shiftsInMonth);
+    
+    // Clear selections if we change months
+    form.setValue('selectedShifts', []);
+  }, [currentMonth, shifts, form]);
+
+  const handlePreviousMonth = () => {
+    setCurrentMonth(prevMonth => subMonths(prevMonth, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(prevMonth => addMonths(prevMonth, 1));
+  };
+
   const handleSelectAll = () => {
-    form.setValue('selectedShifts', shifts.map(shift => shift.id));
+    form.setValue('selectedShifts', filteredShifts.map(shift => shift.id));
   };
 
   const handleClearSelection = () => {
@@ -80,6 +106,7 @@ const RepeatShiftsDialog: React.FC<RepeatShiftsDialogProps> = ({
   const resetDialog = () => {
     setStep(1);
     form.reset();
+    setCurrentMonth(new Date());
     onOpenChange(false);
   };
 
@@ -148,12 +175,12 @@ const RepeatShiftsDialog: React.FC<RepeatShiftsDialogProps> = ({
         }
         case 'weekly': {
           // Weekly pattern - repeat every 7 days
-          repeatShifts(selectedShiftsData, values.endDate, 7);
+          await repeatShifts(selectedShiftsData, values.endDate, 7);
           break;
         }
         case 'fortnightly': {
           // Fortnightly pattern - repeat every 14 days
-          repeatShifts(selectedShiftsData, values.endDate, 14);
+          await repeatShifts(selectedShiftsData, values.endDate, 14);
           break;
         }
         case 'monthly': {
@@ -295,12 +322,40 @@ const RepeatShiftsDialog: React.FC<RepeatShiftsDialogProps> = ({
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {step === 1 ? (
               <>
+                {/* Month navigation */}
+                <div className="flex justify-between items-center mb-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon"
+                    onClick={handlePreviousMonth}
+                    aria-label="Previous month"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  <h3 className="font-medium">
+                    {format(currentMonth, 'MMMM yyyy')}
+                  </h3>
+                  
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon"
+                    onClick={handleNextMonth}
+                    aria-label="Next month"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+
                 <div className="flex justify-between mb-2">
                   <Button 
                     type="button" 
                     variant="outline" 
                     size="sm"
                     onClick={handleSelectAll}
+                    disabled={filteredShifts.length === 0}
                   >
                     Select All
                   </Button>
@@ -309,6 +364,7 @@ const RepeatShiftsDialog: React.FC<RepeatShiftsDialogProps> = ({
                     variant="outline" 
                     size="sm" 
                     onClick={handleClearSelection}
+                    disabled={selectedShiftIds.length === 0}
                   >
                     Clear
                   </Button>
@@ -316,10 +372,10 @@ const RepeatShiftsDialog: React.FC<RepeatShiftsDialogProps> = ({
                 
                 <div className="h-[50vh] overflow-y-auto">
                   <div className="space-y-2">
-                    {shifts.length === 0 ? (
-                      <p className="text-center py-4 text-muted-foreground">No shifts found to repeat</p>
+                    {filteredShifts.length === 0 ? (
+                      <p className="text-center py-4 text-muted-foreground">No shifts found for {format(currentMonth, 'MMMM yyyy')}</p>
                     ) : (
-                      shifts.map((shift) => {
+                      filteredShifts.map((shift) => {
                         const isSelected = selectedShiftIds.includes(shift.id);
                         return (
                           <Card 
@@ -449,6 +505,7 @@ const RepeatShiftsDialog: React.FC<RepeatShiftsDialogProps> = ({
                             onSelect={field.onChange}
                             disabled={(date) => date < new Date()}
                             initialFocus
+                            className={cn("p-3 pointer-events-auto")}
                           />
                         </PopoverContent>
                       </Popover>
