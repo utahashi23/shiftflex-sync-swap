@@ -26,7 +26,6 @@ const navigation = [
   { name: 'Shift Swaps', href: '/shift-swaps', icon: ArrowLeftRight, requiresAuth: true },
   { name: 'Browse Swaps', href: '/swaps-list', icon: LayoutList, requiresAuth: true }, 
   { name: 'Leave Swaps', href: '/leave-swaps', icon: Calendar, requiresAuth: true },
-  { name: 'Feedback', href: '/feedback', icon: MessageSquare, requiresAuth: false },
   { name: 'FAQ', href: '/faq', icon: FileQuestion, requiresAuth: false },
 ];
 

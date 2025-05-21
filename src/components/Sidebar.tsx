@@ -1,3 +1,4 @@
+
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -7,7 +8,6 @@ import {
   Users,
   UserCog,
   List,
-  MessageSquareText,
   HelpCircle,
   CalendarDays
 } from "lucide-react";
@@ -30,7 +30,6 @@ const Sidebar = () => {
           <NavItem to="/swaps-list" icon={<List size={20} />} label="Swaps List" />
           <NavItem to="/leave-swaps" icon={<Calendar size={20} />} label="Leave Swaps" />
           <NavItem to="/swap-preferences" icon={<UserCog size={20} />} label="Swap Preferences" />
-          <NavItem to="/feedback" icon={<MessageSquareText size={20} />} label="Feedback" />
           <NavItem to="/faq" icon={<HelpCircle size={20} />} label="FAQ" />
           
           {/* Admin-only section */}
