@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedSwapForm } from "./swaps/ImprovedSwapForm";
@@ -84,7 +83,7 @@ const ImprovedShiftSwaps = () => {
   } = useSwapRequests();
 
   // Get matches data directly from the requests based on status
-  const swapMatches = requests?.filter(r => r.status === 'matched' || r.status === 'accepted') || [];
+  const swapMatches = requests?.filter(r => r.status === 'matched' || r.status === 'accepted' || r.status === 'confirmed') || [];
   const swapPastMatches = requests?.filter(r => r.status === 'completed') || [];
   
   // Convert to component match format

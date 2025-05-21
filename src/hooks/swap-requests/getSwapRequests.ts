@@ -34,13 +34,17 @@ export const getSwapRequestsApi = async (): Promise<SwapRequest[]> => {
         console.error(`Error fetching preferred dates for request ${request.id}:`, datesError);
         return {
           ...request,
-          preferredDates: []
+          preferredDates: [],
+          // Ensure status is one of the allowed values
+          status: request.status as SwapRequest['status'] 
         };
       }
       
       return {
         ...request,
-        preferredDates: preferredDates || []
+        preferredDates: preferredDates || [],
+        // Ensure status is one of the allowed values
+        status: request.status as SwapRequest['status']
       };
     }));
     

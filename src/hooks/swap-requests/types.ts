@@ -5,7 +5,7 @@ export interface SwapRequest {
   requester_shift_id: string;
   wanted_date: string;
   accepted_shift_types: string[];
-  status: 'pending' | 'matched' | 'confirmed' | 'completed';
+  status: 'pending' | 'matched' | 'accepted' | 'confirmed' | 'completed';
   matched_with_id: string | null;
   created_at: string;
   updated_at: string;
