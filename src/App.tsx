@@ -1,9 +1,15 @@
 
 import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import Loading from '@/components/Loading';
 import { AuthProvider } from '@/hooks/auth';
+
+// Maintenance page
+import MaintenancePage from '@/pages/MaintenancePage';
+
+// Application in maintenance mode
+const MAINTENANCE_MODE = true;
 
 // Lazy load pages for better performance
 const HomePage = lazy(() => import('@/pages/Index'));
@@ -22,7 +28,7 @@ const FeedbackPage = lazy(() => import('@/pages/Feedback'));
 const FAQPage = lazy(() => import('@/pages/FAQ'));
 const CalendarManagementPage = lazy(() => import('@/pages/CalendarManagement'));
 const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmail'));
-const RosteredShiftsPage = lazy(() => import('@/pages/RosteredShifts')); // Add the new page
+const RosteredShiftsPage = lazy(() => import('@/pages/RosteredShifts'));
 
 function App() {
   return (
@@ -30,23 +36,34 @@ function App() {
       <AuthProvider>
         <Suspense fallback={<Loading />}>
           <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/shifts" element={<ShiftsPage />} />
-            <Route path="/shift-swaps" element={<ShiftSwapsPage />} />
-            <Route path="/leave-swaps" element={<LeaveSwapsPage />} />
-            <Route path="/swap-preferences" element={<SwapPreferencesPage />} />
-            <Route path="/swaps-list" element={<SwapsListPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/system-settings" element={<SystemSettingsPage />} />
-            <Route path="/feedback" element={<FeedbackPage />} />
-            <Route path="/faq" element={<FAQPage />} />
-            <Route path="/calendar" element={<CalendarManagementPage />} />
-            <Route path="/roster-2" element={<RosteredShiftsPage />} />
-            <Route path="/verify-email" element={<VerifyEmailPage />} />
-            <Route path="*" element={<NotFoundPage />} />
+            {MAINTENANCE_MODE ? (
+              <>
+                {/* When in maintenance mode, only show the maintenance page */}
+                <Route path="/" element={<MaintenancePage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </>
+            ) : (
+              <>
+                {/* Normal routes when not in maintenance */}
+                <Route path="/" element={<HomePage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/shifts" element={<ShiftsPage />} />
+                <Route path="/shift-swaps" element={<ShiftSwapsPage />} />
+                <Route path="/leave-swaps" element={<LeaveSwapsPage />} />
+                <Route path="/swap-preferences" element={<SwapPreferencesPage />} />
+                <Route path="/swaps-list" element={<SwapsListPage />} />
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/system-settings" element={<SystemSettingsPage />} />
+                <Route path="/feedback" element={<FeedbackPage />} />
+                <Route path="/faq" element={<FAQPage />} />
+                <Route path="/calendar" element={<CalendarManagementPage />} />
+                <Route path="/roster-2" element={<RosteredShiftsPage />} />
+                <Route path="/verify-email" element={<VerifyEmailPage />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </>
+            )}
           </Routes>
         </Suspense>
         <Toaster />

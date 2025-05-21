@@ -4,6 +4,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './auth'; // Import from the main auth barrel file
 import { supabase } from '@/integrations/supabase/client';
 
+// Determine if the application is in maintenance mode
+const MAINTENANCE_MODE = true;
+
 type UseAuthRedirectOptions = {
   protectedRoute?: boolean;
   adminRoute?: boolean;
@@ -22,54 +25,62 @@ export const useAuthRedirect = ({
   const location = useLocation();
 
   useEffect(() => {
-    // Wait until auth state is loaded
-    if (isLoading) return;
+    // If in maintenance mode and not on the root path, redirect to home
+    if (MAINTENANCE_MODE && location.pathname !== '/') {
+      navigate('/', { replace: true });
+      return;
+    }
 
-    // Check session status directly
-    const checkSession = async () => {
-      if (!user && (protectedRoute || adminRoute)) {
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) {
-          // Store the current path to redirect back after login
-          navigate('/login', { 
-            state: { returnUrl: location.pathname },
-            replace: true  // Use replace to prevent back button issues
-          });
+    // If not in maintenance mode, proceed with normal auth checks
+    if (!MAINTENANCE_MODE) {
+      // Wait until auth state is loaded
+      if (isLoading) return;
+
+      // Check session status directly
+      const checkSession = async () => {
+        if (!user && (protectedRoute || adminRoute)) {
+          const { data } = await supabase.auth.getSession();
+          if (!data.session) {
+            // Store the current path to redirect back after login
+            navigate('/login', { 
+              state: { returnUrl: location.pathname },
+              replace: true  // Use replace to prevent back button issues
+            });
+          }
         }
+      };
+
+      checkSession();
+
+      // For routes requiring authentication (e.g., dashboard, settings)
+      if (protectedRoute && !user) {
+        // Store the current path to redirect back after login
+        navigate('/login', { 
+          state: { returnUrl: location.pathname },
+          replace: true  // Use replace to prevent back button issues
+        });
+        return;
       }
-    };
 
-    checkSession();
+      // For admin-only routes
+      if (adminRoute && (!user || !isAdmin)) {
+        navigate('/dashboard', { replace: true });
+        return;
+      }
 
-    // For routes requiring authentication (e.g., dashboard, settings)
-    if (protectedRoute && !user) {
-      // Store the current path to redirect back after login
-      navigate('/login', { 
-        state: { returnUrl: location.pathname },
-        replace: true  // Use replace to prevent back button issues
-      });
-      return;
+      // For routes requiring email verification
+      if (verificationRequired && user && !isEmailVerified) {
+        navigate('/verify-email', { replace: true });
+        return;
+      }
+
+      // For authentication routes (login, register) - redirect authenticated users away
+      if (authRoutes && user) {
+        const returnUrl = location.state?.returnUrl || '/dashboard';
+        navigate(returnUrl, { replace: true });
+        return;
+      }
     }
-
-    // For admin-only routes
-    if (adminRoute && (!user || !isAdmin)) {
-      navigate('/dashboard', { replace: true });
-      return;
-    }
-
-    // For routes requiring email verification
-    if (verificationRequired && user && !isEmailVerified) {
-      navigate('/verify-email', { replace: true });
-      return;
-    }
-
-    // For authentication routes (login, register) - redirect authenticated users away
-    if (authRoutes && user) {
-      const returnUrl = location.state?.returnUrl || '/dashboard';
-      navigate(returnUrl, { replace: true });
-      return;
-    }
-
   }, [isLoading, user, isAdmin, protectedRoute, adminRoute, authRoutes, verificationRequired, isEmailVerified, navigate, location]);
 
   return {
