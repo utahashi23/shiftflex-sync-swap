@@ -9,7 +9,8 @@ import {
   UserCog,
   List,
   HelpCircle,
-  CalendarDays
+  CalendarDays,
+  Database
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -39,6 +40,7 @@ const Sidebar = () => {
                 ADMIN SECTION
               </div>
               <NavItem to="/admin" icon={<Users size={20} />} label="Admin Panel" />
+              <NavItem to="/admin-dashboard" icon={<Database size={20} />} label="Admin Dashboard" />
             </>
           )}
         </nav>
