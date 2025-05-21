@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -241,6 +242,7 @@ export const useLeaveBlocks = () => {
       console.log('Splitting leave block with ID:', blockId);
       console.log('Auth token available:', accessToken ? 'Yes' : 'No');
       
+      // Use the admin access token to bypass RLS
       const { data, error } = await supabase.functions.invoke('split_leave_block', {
         body: { 
           user_leave_block_id: blockId, 
