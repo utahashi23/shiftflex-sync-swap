@@ -50,43 +50,98 @@ export const RecordLookup = () => {
 
       switch (activeTab) {
         case 'users':
-          const { data: userData, error: userError } = await supabase.rpc('admin_search_users', {
-            search_term: searchTerm
-          });
+          // Query users directly from the auth.users table
+          const { data: users, error: userError } = await supabase.auth.admin.listUsers();
           
           if (userError) throw userError;
-          data = userData;
+          
+          data = users.users.filter((user: any) => {
+            const firstName = user.user_metadata?.first_name || '';
+            const lastName = user.user_metadata?.last_name || '';
+            const email = user.email || '';
+            const searchLower = searchTerm.toLowerCase();
+            
+            return email.toLowerCase().includes(searchLower) || 
+                  firstName.toLowerCase().includes(searchLower) ||
+                  lastName.toLowerCase().includes(searchLower);
+          });
           break;
 
         case 'shifts':
           const { data: shiftData, error: shiftError } = await supabase
             .from('shifts')
-            .select('*, auth.users!inner(email)')
+            .select('*, user_id')
             .or(`date::text.ilike.%${searchTerm}%,truck_name.ilike.%${searchTerm}%,colleague_type.ilike.%${searchTerm}%`)
             .limit(50);
             
           if (shiftError) throw shiftError;
           
+          // Get user emails for the shifts
+          const userIds = shiftData.map(s => s.user_id).filter(Boolean);
+          let userEmails: Record<string, string> = {};
+          
+          if (userIds.length > 0) {
+            const { data: usersWithEmail } = await supabase.auth.admin.listUsers();
+            
+            if (usersWithEmail) {
+              usersWithEmail.users.forEach((u: any) => {
+                userEmails[u.id] = u.email;
+              });
+            }
+          }
+          
           // Process data to add email
           data = shiftData.map((shift: any) => ({
             ...shift,
-            email: shift.auth?.users?.email || 'N/A',
+            email: userEmails[shift.user_id] || 'N/A',
           }));
           break;
 
         case 'swap_requests':
           const { data: swapData, error: swapError } = await supabase
             .from('shift_swap_requests')
-            .select('*, auth.users!inner(email), shifts(*)')
+            .select('*')
             .or(`status.ilike.%${searchTerm}%,requester_id.ilike.%${searchTerm}%`)
             .limit(50);
             
           if (swapError) throw swapError;
           
-          // Process data to add email
+          // Get user emails for the swaps
+          const swapUserIds = swapData.map(s => s.requester_id).filter(Boolean);
+          let swapUserEmails: Record<string, string> = {};
+          
+          if (swapUserIds.length > 0) {
+            const { data: usersWithEmail } = await supabase.auth.admin.listUsers();
+            
+            if (usersWithEmail) {
+              usersWithEmail.users.forEach((u: any) => {
+                swapUserEmails[u.id] = u.email;
+              });
+            }
+          }
+          
+          // Get shift details
+          const shiftIds = swapData.map(s => s.requester_shift_id).filter(Boolean);
+          let shiftDetails: Record<string, any> = {};
+          
+          if (shiftIds.length > 0) {
+            const { data: shiftsData } = await supabase
+              .from('shifts')
+              .select('*')
+              .in('id', shiftIds);
+            
+            if (shiftsData) {
+              shiftsData.forEach(s => {
+                shiftDetails[s.id] = s;
+              });
+            }
+          }
+          
+          // Process data to add email and shift details
           data = swapData.map((swap: any) => ({
             ...swap,
-            email: swap.auth?.users?.email || 'N/A',
+            email: swapUserEmails[swap.requester_id] || 'N/A',
+            shifts: shiftDetails[swap.requester_shift_id] || null
           }));
           break;
 
@@ -136,8 +191,8 @@ export const RecordLookup = () => {
             <TableRow key={user.id}>
               <TableCell>{user.email}</TableCell>
               <TableCell>
-                {user.first_name && user.last_name 
-                  ? `${user.first_name} ${user.last_name}` 
+                {user.user_metadata?.first_name && user.user_metadata?.last_name 
+                  ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}` 
                   : 'N/A'}
               </TableCell>
               <TableCell>{new Date(user.created_at).toLocaleString()}</TableCell>

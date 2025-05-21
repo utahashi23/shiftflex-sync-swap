@@ -62,23 +62,36 @@ export const UserManagement = () => {
     try {
       setIsLoading(true);
       
-      // Get users from auth.users
-      const { data: authUsers, error: authError } = await supabase.rpc('admin_get_users');
+      // Get users from auth.users table directly
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
       
       if (authError) {
         throw authError;
       }
+
+      // Get user roles
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('*');
+        
+      if (rolesError) {
+        throw rolesError;
+      }
       
       // Format the users with additional data from profiles if available
-      const formattedUsers = authUsers.map((user: any) => ({
-        id: user.id,
-        email: user.email,
-        created_at: user.created_at,
-        first_name: user.user_metadata?.first_name || '',
-        last_name: user.user_metadata?.last_name || '',
-        role: user.role || 'user',
-        status: user.status || 'active'
-      }));
+      const formattedUsers = authUsers.users.map((user: any) => {
+        const userRole = userRoles?.find(role => role.user_id === user.id);
+        
+        return {
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at,
+          first_name: user.user_metadata?.first_name || '',
+          last_name: user.user_metadata?.last_name || '',
+          role: userRole?.role || 'user',
+          status: user.status || 'active'
+        };
+      });
       
       setUsers(formattedUsers);
     } catch (error) {
@@ -109,26 +122,36 @@ export const UserManagement = () => {
     
     try {
       // Update user metadata
-      const { error: updateError } = await supabase.auth.admin.updateUserById(
-        currentUser.id,
-        {
-          user_metadata: {
-            first_name: editedValues.first_name,
-            last_name: editedValues.last_name,
-          },
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: {
+          first_name: editedValues.first_name,
+          last_name: editedValues.last_name,
         }
-      );
+      });
       
       if (updateError) throw updateError;
       
       // Update user role if changed
       if (currentUser.role !== editedValues.role) {
-        const { error: roleError } = await supabase.rpc('admin_update_user_role', {
-          user_id: currentUser.id,
-          new_role: editedValues.role
-        });
+        // Delete existing role 
+        const { error: deleteRoleError } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', currentUser.id);
+          
+        if (deleteRoleError) throw deleteRoleError;
         
-        if (roleError) throw roleError;
+        // Add new role
+        if (editedValues.role !== 'user') {
+          const { error: insertRoleError } = await supabase
+            .from('user_roles')
+            .insert({ 
+              user_id: currentUser.id,
+              role: editedValues.role
+            });
+            
+          if (insertRoleError) throw insertRoleError;
+        }
       }
       
       // Update local state
