@@ -9,19 +9,14 @@ import {
   UserCog,
   List,
   HelpCircle,
-  CalendarDays,
-  Database,
-  Activity,
-  Settings
+  CalendarDays
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 
 const Sidebar = () => {
-  const { user, isAdmin } = useAuth();
-  
-  console.log("Sidebar - isAdmin:", isAdmin, "User:", user?.email);
+  const { isAdmin } = useAuth();
 
   return (
     <div className="pb-12 w-full min-h-screen bg-black text-white hidden lg:block">
@@ -44,8 +39,6 @@ const Sidebar = () => {
                 ADMIN SECTION
               </div>
               <NavItem to="/admin" icon={<Users size={20} />} label="Admin Panel" />
-              <NavItem to="/admin-dashboard" icon={<Database size={20} />} label="Admin Dashboard" />
-              <NavItem to="/system-settings" icon={<Settings size={20} />} label="System Settings" />
             </>
           )}
         </nav>
