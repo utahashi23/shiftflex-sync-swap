@@ -11,6 +11,14 @@ serve(async (req) => {
   }
 
   try {
+    // Extract the authorization token using the shared helper
+    const token = getAuthToken(req);
+    
+    if (!token) {
+      console.error('Missing or invalid authorization token');
+      return createUnauthorizedResponse('Missing or invalid authorization token');
+    }
+
     // Parse the request body more safely
     let requestBody;
     try {
@@ -43,26 +51,6 @@ serve(async (req) => {
         JSON.stringify({ success: false, error: 'User leave block ID is required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
-    }
-    
-    // Extract the authorization token
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error('Missing Authorization header');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Authorization header is required' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
-    }
-    
-    // Extract the token part (remove "Bearer " if present)
-    const token = authHeader.split(' ')[1] || authHeader;
-    if (!token) {
-      console.error('Invalid Authorization header format');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Invalid Authorization header format' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
     }
 
     console.log('Auth token received, creating client');

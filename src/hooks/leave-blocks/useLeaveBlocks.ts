@@ -284,7 +284,7 @@ export const useLeaveBlocks = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user, fetchLeaveBlocks, toast]);
+  }, [user, fetchLeaveBlocks]);
 
   const joinLeaveBlocks = useCallback(async (blockAId: string, blockBId: string) => {
     if (!user) return false;
