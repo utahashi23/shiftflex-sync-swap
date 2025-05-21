@@ -2,7 +2,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
-import { Button } from "@/components/ui/button";
 
 const MaintenancePage = () => {
   const navigate = useNavigate();
@@ -48,19 +47,6 @@ const MaintenancePage = () => {
           <p className="text-gray-700 mb-4">
             We'll keep you in the loop. Stay tuned – application development is ongoing and updates are coming soon!
           </p>
-          
-          <div className="border-t border-gray-200 mt-6 pt-6">
-            <p className="text-sm text-gray-500">
-              If you have any questions, please contact your administrator.
-            </p>
-          </div>
-        </div>
-
-        {/* Newsletter signup or notification option */}
-        <div className="mt-4">
-          <Button variant="outline" disabled>
-            Get notified when we're back
-          </Button>
         </div>
       </div>
       
