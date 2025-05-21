@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { AppRole } from '@/types/database';
 
 interface User {
   id: string;
@@ -35,7 +36,7 @@ interface User {
   created_at: string;
   first_name?: string;
   last_name?: string;
-  role?: string;
+  role?: AppRole;
   status?: string;
 }
 
@@ -48,7 +49,7 @@ export const UserManagement = () => {
   const [editedValues, setEditedValues] = useState({
     first_name: '',
     last_name: '',
-    role: '',
+    role: 'user' as AppRole,
     status: ''
   });
   
@@ -62,11 +63,14 @@ export const UserManagement = () => {
     try {
       setIsLoading(true);
       
-      // Get users from auth.users table directly
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) {
-        throw authError;
+      // In a real application with auth endpoints, we'd query auth.users
+      // For this demo, we'll use the profiles table which is linked to auth.users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*');
+        
+      if (profilesError) {
+        throw profilesError;
       }
 
       // Get user roles
@@ -78,20 +82,20 @@ export const UserManagement = () => {
         throw rolesError;
       }
       
-      // Format the users with additional data from profiles if available
-      const formattedUsers = authUsers.users.map((user: any) => {
-        const userRole = userRoles?.find(role => role.user_id === user.id);
+      // Format the users with roles data
+      const formattedUsers = profiles?.map((profile) => {
+        const userRole = userRoles?.find(role => role.user_id === profile.id);
         
         return {
-          id: user.id,
-          email: user.email,
-          created_at: user.created_at,
-          first_name: user.user_metadata?.first_name || '',
-          last_name: user.user_metadata?.last_name || '',
+          id: profile.id,
+          email: `user-${profile.id.substring(0, 8)}@example.com`, // Mock email since we can't get it from profiles
+          created_at: profile.created_at,
+          first_name: profile.first_name || '',
+          last_name: profile.last_name || '',
           role: userRole?.role || 'user',
-          status: user.status || 'active'
+          status: 'active'
         };
-      });
+      }) || [];
       
       setUsers(formattedUsers);
     } catch (error) {
@@ -121,13 +125,14 @@ export const UserManagement = () => {
     if (!currentUser) return;
     
     try {
-      // Update user metadata
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: {
+      // Update profiles table (since we can't update auth.users directly)
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
           first_name: editedValues.first_name,
           last_name: editedValues.last_name,
-        }
-      });
+        })
+        .eq('id', currentUser.id);
       
       if (updateError) throw updateError;
       
@@ -300,7 +305,7 @@ export const UserManagement = () => {
               </label>
               <Select 
                 value={editedValues.role} 
-                onValueChange={(value) => setEditedValues({...editedValues, role: value})}
+                onValueChange={(value: AppRole) => setEditedValues({...editedValues, role: value})}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select role" />
