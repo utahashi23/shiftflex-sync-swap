@@ -16,7 +16,6 @@ export interface AuthContextType {
   isLoading: boolean;
   isAdmin: boolean;
   isEmailVerified: boolean;
-  adminCheckComplete: boolean; // Add this property
   signUp: (email: string, password: string, metadata?: { firstName?: string, lastName?: string, organization?: string, organizationCode?: string, employeeId?: string }) => Promise<{ success: boolean; error?: any }>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: any }>;
   signOut: () => Promise<void>; // Changed from boolean to void to match implementation

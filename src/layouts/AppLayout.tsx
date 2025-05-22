@@ -14,8 +14,7 @@ import {
   LayoutList,
   Cog,
   ArrowLeftRight,
-  Settings,
-  BarChart2
+  Settings
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -32,8 +31,7 @@ const navigation = [
 
 // Admin navigation items that will only be shown to admins and specific users
 const adminNavigation = [
-  { name: 'System Settings', href: '/system-settings', icon: Cog, requiresAuth: true },
-  { name: 'Admin Dashboard', href: '/admin-dashboard', icon: BarChart2, requiresAuth: true }
+  { name: 'System Settings', href: '/system-settings', icon: Cog, requiresAuth: true }
 ];
 
 function classNames(...classes: string[]) {
@@ -243,7 +241,6 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
             </div>
           </div>
         </div>
-        
         <div className="lg:pl-64 flex flex-col flex-1">
           <div className="relative z-10 flex h-16 shrink-0 bg-white border-b border-gray-200">
             {/* Left side of header: Logo and burger menu */}

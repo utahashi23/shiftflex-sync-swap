@@ -22,8 +22,7 @@ const FeedbackPage = lazy(() => import('@/pages/Feedback'));
 const FAQPage = lazy(() => import('@/pages/FAQ'));
 const CalendarManagementPage = lazy(() => import('@/pages/CalendarManagement'));
 const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmail'));
-const RosteredShiftsPage = lazy(() => import('@/pages/RosteredShifts'));
-const AdminDashboardPage = lazy(() => import('@/pages/AdminDashboard')); // Add the new admin dashboard page
+const RosteredShiftsPage = lazy(() => import('@/pages/RosteredShifts')); // Add the new page
 
 function App() {
   return (
@@ -40,7 +39,6 @@ function App() {
             <Route path="/swap-preferences" element={<SwapPreferencesPage />} />
             <Route path="/swaps-list" element={<SwapsListPage />} />
             <Route path="/admin" element={<AdminPage />} />
-            <Route path="/admin-dashboard" element={<AdminDashboardPage />} /> {/* Add the new route */}
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/system-settings" element={<SystemSettingsPage />} />
             <Route path="/feedback" element={<FeedbackPage />} />
