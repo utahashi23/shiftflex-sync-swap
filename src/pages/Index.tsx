@@ -8,13 +8,19 @@ import { Calendar, Truck, Shuffle, Settings } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isAdmin } = useAuth();
 
   useEffect(() => {
     if (!isLoading && user) {
-      navigate('/dashboard');
+      // If the user is an admin, redirect them to the admin dashboard
+      if (isAdmin) {
+        navigate('/admin-dashboard');
+      } else {
+        // Regular users go to the normal dashboard
+        navigate('/dashboard');
+      }
     }
-  }, [user, isLoading, navigate]);
+  }, [user, isLoading, isAdmin, navigate]);
 
   const features = [
     {

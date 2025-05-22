@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from '@/hooks/auth';
@@ -11,7 +11,8 @@ import {
   Users, 
   BarChart2, 
   ScrollText, 
-  Database
+  Database, 
+  AlertCircle 
 } from "lucide-react";
 import {
   Table,
@@ -34,6 +35,7 @@ import {
   Legend
 } from 'recharts';
 import DashboardDebug from '@/components/dashboard/DashboardDebug';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 // Mock data for demonstration
 const mockUsers = [
@@ -70,7 +72,7 @@ const mockSwapStats = [
 
 const AdminDashboard = () => {
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isComponentMounted, setIsComponentMounted] = useState(false);
   
   // Get auth state directly from useAuth to avoid redirection loops
   const { user, isAdmin, isLoading: authLoading } = useAuth();
@@ -80,12 +82,25 @@ const AdminDashboard = () => {
   const [searchCategory, setSearchCategory] = useState('users');
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  // Check authentication once when component mounts
+  // Track component mounting to prevent multiple state updates
   useEffect(() => {
-    console.log('AdminDashboard mounted - checking auth state', { user, isAdmin });
+    setIsComponentMounted(true);
+    console.log('AdminDashboard mounted, auth state:', { 
+      user: user?.id, 
+      isAdmin, 
+      authLoading 
+    });
     
-    // Wait for auth to load before making decisions
-    if (!authLoading) {
+    return () => {
+      console.log('AdminDashboard unmounted');
+    };
+  }, []);
+
+  // Check authentication once the auth state is loaded
+  useEffect(() => {
+    if (isComponentMounted && !authLoading) {
+      console.log('Auth loaded, checking access:', { user: user?.id, isAdmin });
+      
       if (!user) {
         console.log('Admin Dashboard: User not authenticated');
         setAuthError('Authentication required');
@@ -97,14 +112,8 @@ const AdminDashboard = () => {
         console.log('Admin Dashboard: User authenticated and authorized as admin');
         setAuthError(null);
       }
-      
-      setIsLoading(false);
     }
-    
-    return () => {
-      console.log('AdminDashboard unmounted');
-    };
-  }, [user, isAdmin, authLoading]);
+  }, [user, isAdmin, authLoading, isComponentMounted]);
   
   // Handle search function
   const handleSearch = () => {
@@ -143,11 +152,12 @@ const AdminDashboard = () => {
     : mockUsers;
 
   // Display loading state
-  if (authLoading || isLoading) {
+  if (authLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-[60vh]">
           <div className="text-center">
+            <div className="w-10 h-10 mb-4 rounded-full animate-spin border-t-2 border-primary border-solid mx-auto"></div>
             <p className="text-gray-500">Loading dashboard...</p>
           </div>
         </div>
@@ -160,17 +170,37 @@ const AdminDashboard = () => {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-[60vh]">
-          <div className="text-center p-8 bg-red-50 border border-red-200 rounded-lg">
-            <h2 className="text-2xl font-bold text-red-600 mb-4">Access Error</h2>
-            <p className="text-gray-700">{authError}</p>
-            <p className="text-sm text-gray-500 mt-4">
-              You need to be logged in as an administrator to access this page.
-            </p>
+          <div className="text-center p-8 bg-destructive/10 border border-destructive/20 rounded-lg max-w-2xl w-full">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-destructive mb-4">{authError}</h2>
+            
+            <Alert variant="destructive" className="mb-4">
+              <AlertTitle>Access Error</AlertTitle>
+              <AlertDescription>
+                You need to be logged in as an administrator to access this page.
+              </AlertDescription>
+            </Alert>
+            
             {user && (
-              <p className="text-xs text-gray-500 mt-2">
-                Logged in user {user.id} is {isAdmin ? '' : 'not'} recognized as an admin.
-              </p>
+              <div className="mt-6 text-sm bg-muted p-4 rounded-md">
+                <h3 className="font-medium mb-2">Debug Information</h3>
+                <p className="mb-2">
+                  User ID: <code className="bg-muted-foreground/20 px-1 rounded">{user.id}</code>
+                </p>
+                <p className="mb-2">
+                  Admin Status: <code className="bg-muted-foreground/20 px-1 rounded">{isAdmin ? 'true' : 'false'}</code>
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Please contact your system administrator for assistance.
+                </p>
+              </div>
             )}
+            
+            <div className="mt-6">
+              <Button variant="default" onClick={() => window.location.href = '/dashboard'}>
+                Return to Dashboard
+              </Button>
+            </div>
           </div>
         </div>
       </AppLayout>
