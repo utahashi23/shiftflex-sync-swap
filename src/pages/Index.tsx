@@ -1,9 +1,34 @@
+
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/auth';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Truck, Shuffle, Settings } from "lucide-react";
+
+// Define the features array
+const features = [
+  {
+    title: "Schedule Management",
+    description: "Easily view and manage your shifts with our intuitive calendar interface.",
+    icon: <Calendar className="w-5 h-5 text-primary" />
+  },
+  {
+    title: "Truck Assignments",
+    description: "View your assigned trucks and locations for upcoming shifts.",
+    icon: <Truck className="w-5 h-5 text-primary" />
+  },
+  {
+    title: "Swap Requests",
+    description: "Initiate and respond to shift swap requests with colleagues.",
+    icon: <Shuffle className="w-5 h-5 text-primary" />
+  },
+  {
+    title: "Preferences",
+    description: "Set your availability and preferences for optimal scheduling.",
+    icon: <Settings className="w-5 h-5 text-primary" />
+  }
+];
 
 const Index = () => {
   const navigate = useNavigate();
