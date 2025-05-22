@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -188,7 +187,8 @@ const AdminDashboard = () => {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={user.status === 'Active' ? "success" : "destructive"}>
+                            {/* Fixed: Changed "success" to "secondary" for active users */}
+                            <Badge variant={user.status === 'Active' ? "secondary" : "destructive"}>
                               {user.status}
                             </Badge>
                           </TableCell>
@@ -308,10 +308,11 @@ const AdminDashboard = () => {
                         <TableRow key={index}>
                           <TableCell className="font-mono text-xs">{log.timestamp}</TableCell>
                           <TableCell>
+                            {/* Fixed: Changed "warning" to "secondary" for WARNING logs */}
                             <Badge 
                               variant={
                                 log.level === 'ERROR' ? "destructive" : 
-                                log.level === 'WARNING' ? "warning" : 
+                                log.level === 'WARNING' ? "secondary" : 
                                 "default"
                               }
                             >
