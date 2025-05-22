@@ -15,93 +15,43 @@ export const useAuthState = () => {
   const [isEmailVerified, setIsEmailVerified] = useState(false);
 
   useEffect(() => {
-    // Flag to track initial setup
+    // Flag to track component mount state
     let mounted = true;
     
-    // Set up auth state listener FIRST
+    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mounted) return;
         
-        console.log('Auth state changed event:', event);
-        
+        console.log('Auth state changed:', event);
         setSession(newSession);
         
         if (newSession?.user) {
-          // Ensure we're using ExtendedUser type
           const extendedUser = newSession.user as unknown as ExtendedUser;
           setUser(extendedUser);
           setIsEmailVerified(!!extendedUser.email_confirmed_at);
           
-          // Check if user is admin directly from the database
+          // Simple admin check via direct database query
           try {
-            // First try with RPC function
-            const { data: isUserAdmin, error } = await supabase.rpc('has_role', {
-              _user_id: extendedUser.id,
-              _role: 'admin'
-            });
+            const { data: userRoles, error } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', extendedUser.id)
+              .eq('role', 'admin');
             
-            if (!error && mounted) {
-              console.log('Admin check result:', isUserAdmin);
-              setIsAdmin(!!isUserAdmin);
-            } else if (error && mounted) {
-              console.error('Error checking admin role:', error);
-              
-              // Fallback to direct query as a backup method
-              const { data: userRoles, error: rolesError } = await supabase
-                .from('user_roles')
-                .select('*')
-                .eq('user_id', extendedUser.id)
-                .eq('role', 'admin');
-                
-              if (!rolesError && userRoles && userRoles.length > 0 && mounted) {
-                console.log('User found in user_roles table as admin');
-                setIsAdmin(true);
-              } else {
-                // Final fallback to app_metadata
-                setIsAdmin(extendedUser.app_metadata?.role === 'admin');
-              }
+            if (mounted) {
+              const adminStatus = !error && userRoles && userRoles.length > 0;
+              console.log('Admin check result:', adminStatus, 'for user', extendedUser.id);
+              setIsAdmin(adminStatus);
             }
           } catch (err) {
+            console.error('Admin check error:', err);
             if (mounted) {
-              console.error('Error in admin role check:', err);
-              // Fallback to app_metadata
+              // Fallback to metadata check
               setIsAdmin(extendedUser.app_metadata?.role === 'admin');
             }
           }
-          
-          // Handle specific authentication events
-          if (event === 'SIGNED_IN') {
-            // Special handling for sfadmin user to ensure they have admin role
-            if (extendedUser.email === 'sfadmin@example.com') {
-              try {
-                // Direct query to check if user is already an admin
-                const { data: existingRole } = await supabase
-                  .from('user_roles')
-                  .select('*')
-                  .eq('user_id', extendedUser.id)
-                  .eq('role', 'admin')
-                  .maybeSingle();
-                
-                if (!existingRole && mounted) {
-                  // Add admin role if not already present
-                  await supabase
-                    .from('user_roles')
-                    .insert({
-                      user_id: extendedUser.id,
-                      role: 'admin'
-                    });
-                  
-                  // Update state to reflect new admin status
-                  setIsAdmin(true);
-                }
-              } catch (error) {
-                console.error("Error checking/setting admin role:", error);
-              }
-            }
-          }
         } else if (mounted) {
-          // Clear user state on sign out or session expiration
           setUser(null);
           setIsEmailVerified(false);
           setIsAdmin(false);
@@ -109,65 +59,51 @@ export const useAuthState = () => {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
-      if (!mounted) return;
-      
-      setSession(currentSession);
-      
-      if (currentSession?.user) {
-        // Ensure we're using ExtendedUser type
-        const extendedUser = currentSession.user as unknown as ExtendedUser;
-        setUser(extendedUser);
-        setIsEmailVerified(!!extendedUser.email_confirmed_at);
+    // Then check for existing session
+    const initSession = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
         
-        // Check if user is admin directly from the database
-        try {
-          // First try with RPC function
-          const { data: isUserAdmin, error } = await supabase.rpc('has_role', {
-            _user_id: extendedUser.id,
-            _role: 'admin'
-          });
+        if (!mounted) return;
+        
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          const extendedUser = currentSession.user as unknown as ExtendedUser;
+          setUser(extendedUser);
+          setIsEmailVerified(!!extendedUser.email_confirmed_at);
           
-          if (!error && mounted) {
-            console.log('Initial admin check result:', isUserAdmin);
-            setIsAdmin(!!isUserAdmin);
-          } else if (error && mounted) {
-            console.error('Error in initial admin check:', error);
-            
-            // Fallback to direct query
-            const { data: userRoles, error: rolesError } = await supabase
+          // Simple admin check via direct database query
+          try {
+            const { data: userRoles, error } = await supabase
               .from('user_roles')
-              .select('*')
+              .select('role')
               .eq('user_id', extendedUser.id)
               .eq('role', 'admin');
-              
-            if (!rolesError && userRoles && userRoles.length > 0 && mounted) {
-              console.log('User found in user_roles table as admin');
-              setIsAdmin(true);
-            } else {
-              // Final fallback to app_metadata
+            
+            if (mounted) {
+              const adminStatus = !error && userRoles && userRoles.length > 0;
+              console.log('Initial admin check result:', adminStatus, 'for user', extendedUser.id);
+              setIsAdmin(adminStatus);
+            }
+          } catch (err) {
+            console.error('Initial admin check error:', err);
+            if (mounted) {
+              // Fallback to metadata check
               setIsAdmin(extendedUser.app_metadata?.role === 'admin');
             }
           }
-        } catch (err) {
-          if (mounted) {
-            console.error('Error in initial admin role check:', err);
-            // Fallback to app_metadata
-            setIsAdmin(extendedUser.app_metadata?.role === 'admin');
-          }
+        }
+      } catch (error) {
+        console.error('Session fetch error:', error);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
         }
       }
-      
-      if (mounted) {
-        setIsLoading(false);
-      }
-    }).catch(error => {
-      if (mounted) {
-        console.error('Error getting session:', error);
-        setIsLoading(false);
-      }
-    });
+    };
+    
+    initSession();
 
     return () => {
       mounted = false;

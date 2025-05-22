@@ -11,7 +11,6 @@ import {
   Users, 
   BarChart2, 
   ScrollText, 
-  Database, 
   AlertCircle 
 } from "lucide-react";
 import {
@@ -22,22 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  Legend
-} from 'recharts';
-import DashboardDebug from '@/components/dashboard/DashboardDebug';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
-// Mock data for demonstration
+// Mock data for demonstration - keeping the same mock data
 const mockUsers = [
   { id: 1, name: 'John Doe', email: 'john@example.com', role: 'User', status: 'Active', lastActive: '2025-05-20' },
   { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'User', status: 'Active', lastActive: '2025-05-21' },
@@ -54,96 +40,23 @@ const mockLogs = [
   { timestamp: '2025-05-22 09:10:45', level: 'INFO', message: 'User logout: john@example.com', module: 'Authentication' },
 ];
 
-const mockUserStats = [
-  { name: 'Jan', total: 24 },
-  { name: 'Feb', total: 28 },
-  { name: 'Mar', total: 35 },
-  { name: 'Apr', total: 42 },
-  { name: 'May', total: 50 },
-];
-
-const mockSwapStats = [
-  { name: 'Jan', pending: 10, completed: 5, rejected: 2 },
-  { name: 'Feb', pending: 12, completed: 8, rejected: 3 },
-  { name: 'Mar', pending: 8, completed: 15, rejected: 1 },
-  { name: 'Apr', pending: 15, completed: 12, rejected: 4 },
-  { name: 'May', pending: 20, completed: 18, rejected: 2 },
-];
+// Debug component for displaying auth state
+const AuthDebug = ({ data }) => (
+  <div className="mb-4 p-4 bg-gray-100 rounded-md text-sm">
+    <h3 className="font-medium mb-1">Auth Debug Info</h3>
+    <pre className="whitespace-pre-wrap overflow-auto max-h-40">
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  </div>
+);
 
 const AdminDashboard = () => {
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [isComponentMounted, setIsComponentMounted] = useState(false);
-  
-  // Get auth state directly from useAuth to avoid redirection loops
-  const { user, isAdmin, isLoading: authLoading } = useAuth();
+  // Get auth state directly
+  const { user, isAdmin, isLoading } = useAuth();
   
   // State for search functionality
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchCategory, setSearchCategory] = useState('users');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-
-  // Track component mounting to prevent multiple state updates
-  useEffect(() => {
-    setIsComponentMounted(true);
-    console.log('AdminDashboard mounted, auth state:', { 
-      user: user?.id, 
-      isAdmin, 
-      authLoading 
-    });
-    
-    return () => {
-      console.log('AdminDashboard unmounted');
-    };
-  }, []);
-
-  // Check authentication once the auth state is loaded
-  useEffect(() => {
-    if (isComponentMounted && !authLoading) {
-      console.log('Auth loaded, checking access:', { user: user?.id, isAdmin });
-      
-      if (!user) {
-        console.log('Admin Dashboard: User not authenticated');
-        setAuthError('Authentication required');
-      } else if (!isAdmin) {
-        console.log('Admin Dashboard: User not admin, isAdmin value:', isAdmin);
-        console.log('User object:', JSON.stringify(user, null, 2));
-        setAuthError('Admin access required');
-      } else {
-        console.log('Admin Dashboard: User authenticated and authorized as admin');
-        setAuthError(null);
-      }
-    }
-  }, [user, isAdmin, authLoading, isComponentMounted]);
   
-  // Handle search function
-  const handleSearch = () => {
-    if (!searchTerm.trim()) return;
-    
-    // Mock search functionality - in a real app, this would query the database
-    switch (searchCategory) {
-      case 'users':
-        setSearchResults(mockUsers.filter(user => 
-          user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          user.email.toLowerCase().includes(searchTerm.toLowerCase())
-        ));
-        break;
-      case 'shifts':
-        setSearchResults([
-          { id: 123, user: 'John Doe', date: '2025-05-25', time: '08:00-16:00', type: 'Day Shift' },
-          { id: 124, user: 'Jane Smith', date: '2025-05-26', time: '16:00-00:00', type: 'Night Shift' }
-        ]);
-        break;
-      case 'swaps':
-        setSearchResults([
-          { id: 456, requester: 'John Doe', date: '2025-05-25', status: 'Pending' },
-          { id: 457, requester: 'Jane Smith', date: '2025-05-26', status: 'Completed' }
-        ]);
-        break;
-      default:
-        setSearchResults([]);
-    }
-  };
-
   // Filter users based on search term
   const filteredUsers = searchTerm 
     ? mockUsers.filter(user => 
@@ -152,7 +65,7 @@ const AdminDashboard = () => {
     : mockUsers;
 
   // Display loading state
-  if (authLoading) {
+  if (isLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-[60vh]">
@@ -166,13 +79,13 @@ const AdminDashboard = () => {
   }
 
   // Display error if there's an auth issue
-  if (authError) {
+  if (!user || !isAdmin) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-[60vh]">
           <div className="text-center p-8 bg-destructive/10 border border-destructive/20 rounded-lg max-w-2xl w-full">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-destructive mb-4">{authError}</h2>
+            <h2 className="text-2xl font-bold text-destructive mb-4">Admin Access Required</h2>
             
             <Alert variant="destructive" className="mb-4">
               <AlertTitle>Access Error</AlertTitle>
@@ -182,18 +95,12 @@ const AdminDashboard = () => {
             </Alert>
             
             {user && (
-              <div className="mt-6 text-sm bg-muted p-4 rounded-md">
-                <h3 className="font-medium mb-2">Debug Information</h3>
-                <p className="mb-2">
-                  User ID: <code className="bg-muted-foreground/20 px-1 rounded">{user.id}</code>
-                </p>
-                <p className="mb-2">
-                  Admin Status: <code className="bg-muted-foreground/20 px-1 rounded">{isAdmin ? 'true' : 'false'}</code>
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Please contact your system administrator for assistance.
-                </p>
-              </div>
+              <AuthDebug data={{
+                userId: user.id,
+                isAdmin,
+                email: user.email,
+                metadata: user.user_metadata,
+              }} />
             )}
             
             <div className="mt-6">
@@ -209,7 +116,13 @@ const AdminDashboard = () => {
 
   return (
     <AppLayout>
-      <DashboardDebug isVisible={true} data={{ user, isAdmin }} />
+      {/* Debug information - visible in any environment */}
+      <AuthDebug data={{
+        userId: user.id,
+        email: user.email,
+        isAdmin,
+        metadata: user.user_metadata,
+      }} />
       
       <div className="space-y-6">
         <div>
@@ -225,17 +138,9 @@ const AdminDashboard = () => {
               <Users className="h-4 w-4 mr-2" />
               User Management
             </TabsTrigger>
-            <TabsTrigger value="statistics">
-              <BarChart2 className="h-4 w-4 mr-2" />
-              Statistics
-            </TabsTrigger>
             <TabsTrigger value="logs">
               <ScrollText className="h-4 w-4 mr-2" />
               System Logs
-            </TabsTrigger>
-            <TabsTrigger value="lookup">
-              <Search className="h-4 w-4 mr-2" />
-              Record Lookup
             </TabsTrigger>
           </TabsList>
 
@@ -284,7 +189,7 @@ const AdminDashboard = () => {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={user.status === 'Active' ? "secondary" : "destructive"}>
+                            <Badge variant={user.status === 'Active' ? "default" : "destructive"}>
                               {user.status}
                             </Badge>
                           </TableCell>
@@ -297,86 +202,8 @@ const AdminDashboard = () => {
                     </TableBody>
                   </Table>
                 </div>
-
-                <div className="flex justify-between items-center mt-4">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {filteredUsers.length} of {mockUsers.length} users
-                  </div>
-                  <Button>
-                    <Users className="mr-2 h-4 w-4" />
-                    Add New User
-                  </Button>
-                </div>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* Statistics Tab */}
-          <TabsContent value="statistics" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>User Growth</CardTitle>
-                  <CardDescription>
-                    Monthly user registration statistics
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart
-                        data={mockUserStats}
-                        margin={{
-                          top: 10,
-                          right: 30,
-                          left: 0,
-                          bottom: 0,
-                        }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Area type="monotone" dataKey="total" stroke="#8884d8" fill="#8884d8" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Shift Swap Activity</CardTitle>
-                  <CardDescription>
-                    Monthly shift swap request statistics
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={mockSwapStats}
-                        margin={{
-                          top: 5,
-                          right: 30,
-                          left: 20,
-                          bottom: 5,
-                        }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="pending" fill="#8884d8" />
-                        <Bar dataKey="completed" fill="#82ca9d" />
-                        <Bar dataKey="rejected" fill="#ff8042" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
           </TabsContent>
 
           {/* System Logs Tab */}
@@ -421,84 +248,6 @@ const AdminDashboard = () => {
                     </TableBody>
                   </Table>
                 </div>
-
-                <div className="flex justify-between items-center mt-4">
-                  <div className="text-sm text-muted-foreground">
-                    Showing recent logs
-                  </div>
-                  <Button variant="outline">
-                    Export Logs
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Record Lookup Tab */}
-          <TabsContent value="lookup" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Record Lookup</CardTitle>
-                <CardDescription>
-                  Search across all system records
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="grid flex-1 gap-2">
-                    <Input 
-                      placeholder="Search by name, email, ID..." 
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <select
-                    className="h-10 rounded-md border border-input bg-background px-3 py-2"
-                    value={searchCategory}
-                    onChange={(e) => setSearchCategory(e.target.value)}
-                  >
-                    <option value="users">Users</option>
-                    <option value="shifts">Shifts</option>
-                    <option value="swaps">Swap Requests</option>
-                  </select>
-                  <Button onClick={handleSearch}>
-                    <Search className="mr-2 h-4 w-4" />
-                    Search
-                  </Button>
-                </div>
-
-                {searchResults.length > 0 && (
-                  <div className="rounded-md border mt-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {Object.keys(searchResults[0]).map((key) => (
-                            <TableHead key={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {searchResults.map((result, index) => (
-                          <TableRow key={index}>
-                            {Object.values(result).map((value, idx) => (
-                              <TableCell key={idx}>{value as string}</TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-
-                {searchTerm && searchResults.length === 0 && (
-                  <div className="text-center py-8">
-                    <Database className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-2 text-lg font-semibold">No records found</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Try changing your search term or category
-                    </p>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>

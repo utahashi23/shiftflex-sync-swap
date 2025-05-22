@@ -1,7 +1,7 @@
 
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/hooks/auth'; // Import from the correct barrel file
+import { useAuth } from '@/hooks/auth';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Truck, Shuffle, Settings } from "lucide-react";
@@ -12,13 +12,20 @@ const Index = () => {
 
   useEffect(() => {
     if (!isLoading && user) {
-      // If the user is an admin, redirect them to the admin dashboard
-      if (isAdmin) {
-        navigate('/admin-dashboard');
-      } else {
-        // Regular users go to the normal dashboard
-        navigate('/dashboard');
-      }
+      console.log('Index: User logged in', { isAdmin });
+      
+      // Wait a small delay to ensure admin status is correctly loaded
+      const redirectTimer = setTimeout(() => {
+        if (isAdmin) {
+          console.log('Index: Redirecting to admin dashboard');
+          navigate('/admin-dashboard');
+        } else {
+          console.log('Index: Redirecting to regular dashboard');
+          navigate('/dashboard');
+        }
+      }, 500);
+      
+      return () => clearTimeout(redirectTimer);
     }
   }, [user, isLoading, isAdmin, navigate]);
 
