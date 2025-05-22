@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/auth';
@@ -8,14 +7,20 @@ import { Calendar, Truck, Shuffle, Settings } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, isLoading, isAdmin } = useAuth();
+  const { user, isLoading, isAdmin, adminCheckComplete } = useAuth();
 
   useEffect(() => {
+    // Only redirect when loading is complete and we have a user
     if (!isLoading && user) {
-      console.log('Index: User logged in', { isAdmin });
+      console.log('Index: Authentication state', { 
+        user: user?.id, 
+        isAdmin, 
+        adminCheckComplete,
+        email: user?.email
+      });
       
-      // Wait a small delay to ensure admin status is correctly loaded
-      const redirectTimer = setTimeout(() => {
+      // Only redirect when admin check is complete
+      if (adminCheckComplete) {
         if (isAdmin) {
           console.log('Index: Redirecting to admin dashboard');
           navigate('/admin-dashboard');
@@ -23,40 +28,12 @@ const Index = () => {
           console.log('Index: Redirecting to regular dashboard');
           navigate('/dashboard');
         }
-      }, 500);
-      
-      return () => clearTimeout(redirectTimer);
+      }
     }
-  }, [user, isLoading, isAdmin, navigate]);
+  }, [user, isLoading, isAdmin, adminCheckComplete, navigate]);
 
-  const features = [
-    {
-      title: "Shift Calendar",
-      description: "View and manage your upcoming shifts in a convenient calendar view",
-      icon: <Calendar className="h-8 w-8 text-primary" />,
-      path: "/calendar"
-    },
-    {
-      title: "Shift Swaps",
-      description: "Request and accept shift swaps with your colleagues",
-      icon: <Shuffle className="h-8 w-8 text-primary" />,
-      path: "/shifts"
-    },
-    {
-      title: "Truck Assignment",
-      description: "See which truck you're assigned to for each shift",
-      icon: <Truck className="h-8 w-8 text-primary" />,
-      path: "/calendar"
-    },
-    {
-      title: "Account Settings",
-      description: "Update your personal information and preferences",
-      icon: <Settings className="h-8 w-8 text-primary" />,
-      path: "/settings"
-    }
-  ];
-
-  if (isLoading) {
+  // Display loading state
+  if (isLoading || (user && !adminCheckComplete)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
@@ -64,11 +41,15 @@ const Index = () => {
             <div className="w-10 h-10 rounded-full animate-pulse bg-primary"></div>
           </div>
           <h1 className="text-2xl font-bold mb-4 text-gray-700">Loading ShiftFlex...</h1>
+          {user && !adminCheckComplete && (
+            <p className="text-sm text-gray-500">Checking permissions...</p>
+          )}
         </div>
       </div>
     );
   }
 
+  // Keep the rest of your component the same
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
       <div className="container mx-auto px-4 py-16">

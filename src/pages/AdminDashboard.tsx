@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,13 +7,7 @@ import AppLayout from '@/layouts/AppLayout';
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { 
-  Search, 
-  Users, 
-  BarChart2, 
-  ScrollText, 
-  AlertCircle 
-} from "lucide-react";
+import { Users, ScrollText, AlertCircle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -51,8 +46,8 @@ const AuthDebug = ({ data }) => (
 );
 
 const AdminDashboard = () => {
-  // Get auth state directly
-  const { user, isAdmin, isLoading } = useAuth();
+  // Get auth state directly with added adminCheckComplete flag
+  const { user, isAdmin, isLoading, adminCheckComplete } = useAuth();
   
   // State for search functionality
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,14 +59,38 @@ const AdminDashboard = () => {
         user.email.toLowerCase().includes(searchTerm.toLowerCase()))
     : mockUsers;
 
+  // Track admin check attempts for debugging
+  const [checkAttempts, setCheckAttempts] = useState(0);
+  
+  // Increment check attempts for tracking
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCheckAttempts(prev => prev + 1);
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [checkAttempts]);
+
   // Display loading state
-  if (isLoading) {
+  if (isLoading || !adminCheckComplete) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-[60vh]">
           <div className="text-center">
             <div className="w-10 h-10 mb-4 rounded-full animate-spin border-t-2 border-primary border-solid mx-auto"></div>
             <p className="text-gray-500">Loading dashboard...</p>
+            {checkAttempts > 5 && (
+              <div className="mt-4 text-sm text-amber-600">
+                <p>Still checking admin status... ({checkAttempts} attempts)</p>
+                <AuthDebug data={{
+                  userId: user?.id,
+                  email: user?.email,
+                  isAdmin,
+                  adminCheckComplete,
+                  checkAttempts
+                }} />
+              </div>
+            )}
           </div>
         </div>
       </AppLayout>
@@ -94,14 +113,13 @@ const AdminDashboard = () => {
               </AlertDescription>
             </Alert>
             
-            {user && (
-              <AuthDebug data={{
-                userId: user.id,
-                isAdmin,
-                email: user.email,
-                metadata: user.user_metadata,
-              }} />
-            )}
+            <AuthDebug data={{
+              userId: user?.id,
+              isAdmin,
+              adminCheckComplete,
+              email: user?.email,
+              metadata: user?.user_metadata,
+            }} />
             
             <div className="mt-6">
               <Button variant="default" onClick={() => window.location.href = '/dashboard'}>
@@ -116,11 +134,12 @@ const AdminDashboard = () => {
 
   return (
     <AppLayout>
-      {/* Debug information - visible in any environment */}
+      {/* Always show debug information for troubleshooting */}
       <AuthDebug data={{
         userId: user.id,
         email: user.email,
         isAdmin,
+        adminCheckComplete,
         metadata: user.user_metadata,
       }} />
       

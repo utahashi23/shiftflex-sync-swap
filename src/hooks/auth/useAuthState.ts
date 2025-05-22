@@ -13,10 +13,43 @@ export const useAuthState = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [adminCheckComplete, setAdminCheckComplete] = useState(false);
 
   useEffect(() => {
     // Flag to track component mount state
     let mounted = true;
+    
+    // Define admin check function to avoid code duplication
+    const checkAdminStatus = async (userId: string) => {
+      if (!mounted) return;
+      
+      try {
+        const { data: userRoles, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .eq('role', 'admin')
+          .single();
+        
+        if (!mounted) return;
+        
+        // Set admin status based on database result
+        const adminStatus = !error && userRoles !== null;
+        console.log(`Admin check result: ${adminStatus ? 'YES' : 'NO'} for user ${userId}`);
+        setIsAdmin(adminStatus);
+        setAdminCheckComplete(true);
+      } catch (err) {
+        console.error('Admin check error:', err);
+        if (mounted) {
+          // Fallback to metadata check
+          const extendedUser = user as ExtendedUser;
+          const isAdminFromMetadata = extendedUser?.app_metadata?.role === 'admin';
+          console.log(`Admin metadata fallback: ${isAdminFromMetadata ? 'YES' : 'NO'}`);
+          setIsAdmin(isAdminFromMetadata || false);
+          setAdminCheckComplete(true);
+        }
+      }
+    };
     
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -31,30 +64,13 @@ export const useAuthState = () => {
           setUser(extendedUser);
           setIsEmailVerified(!!extendedUser.email_confirmed_at);
           
-          // Simple admin check via direct database query
-          try {
-            const { data: userRoles, error } = await supabase
-              .from('user_roles')
-              .select('role')
-              .eq('user_id', extendedUser.id)
-              .eq('role', 'admin');
-            
-            if (mounted) {
-              const adminStatus = !error && userRoles && userRoles.length > 0;
-              console.log('Admin check result:', adminStatus, 'for user', extendedUser.id);
-              setIsAdmin(adminStatus);
-            }
-          } catch (err) {
-            console.error('Admin check error:', err);
-            if (mounted) {
-              // Fallback to metadata check
-              setIsAdmin(extendedUser.app_metadata?.role === 'admin');
-            }
-          }
+          // Check admin status
+          await checkAdminStatus(extendedUser.id);
         } else if (mounted) {
           setUser(null);
           setIsEmailVerified(false);
           setIsAdmin(false);
+          setAdminCheckComplete(true);
         }
       }
     );
@@ -73,29 +89,16 @@ export const useAuthState = () => {
           setUser(extendedUser);
           setIsEmailVerified(!!extendedUser.email_confirmed_at);
           
-          // Simple admin check via direct database query
-          try {
-            const { data: userRoles, error } = await supabase
-              .from('user_roles')
-              .select('role')
-              .eq('user_id', extendedUser.id)
-              .eq('role', 'admin');
-            
-            if (mounted) {
-              const adminStatus = !error && userRoles && userRoles.length > 0;
-              console.log('Initial admin check result:', adminStatus, 'for user', extendedUser.id);
-              setIsAdmin(adminStatus);
-            }
-          } catch (err) {
-            console.error('Initial admin check error:', err);
-            if (mounted) {
-              // Fallback to metadata check
-              setIsAdmin(extendedUser.app_metadata?.role === 'admin');
-            }
-          }
+          // Check admin status
+          await checkAdminStatus(extendedUser.id);
+        } else {
+          setAdminCheckComplete(true);
         }
       } catch (error) {
         console.error('Session fetch error:', error);
+        if (mounted) {
+          setAdminCheckComplete(true);
+        }
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -117,6 +120,7 @@ export const useAuthState = () => {
     isLoading,
     isAdmin,
     isEmailVerified,
+    adminCheckComplete,
     setUser,
     setSession
   };
