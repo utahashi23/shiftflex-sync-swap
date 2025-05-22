@@ -1,4 +1,5 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
@@ -68,349 +69,405 @@ const mockSwapStats = [
 ];
 
 const AdminDashboard = () => {
-  // Redirect non-admin users
-  useAuthRedirect({ protectedRoute: true, adminRoute: true });
+  const [authError, setAuthError] = useState<string | null>(null);
   
-  // State for search functionality
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchCategory, setSearchCategory] = useState('users');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  
-  // Handle search function
-  const handleSearch = () => {
-    if (!searchTerm.trim()) return;
+  try {
+    // Redirect non-admin users
+    const { isAuthenticated, isAuthorized } = useAuthRedirect({ 
+      protectedRoute: true, 
+      adminRoute: true 
+    });
     
-    // Mock search functionality - in a real app, this would query the database
-    switch (searchCategory) {
-      case 'users':
-        setSearchResults(mockUsers.filter(user => 
+    console.log('Auth state:', { isAuthenticated, isAuthorized });
+    
+    // State for search functionality
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchCategory, setSearchCategory] = useState('users');
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+    
+    // Add effect to detect and log any authentication issues
+    useEffect(() => {
+      console.log('AdminDashboard mounted - checking auth state');
+      if (!isAuthenticated) {
+        console.log('User is not authenticated');
+        setAuthError('Authentication required');
+      } else if (!isAuthorized) {
+        console.log('User is not authorized (admin access required)');
+        setAuthError('Admin access required');
+      } else {
+        console.log('User is authenticated and authorized');
+        setAuthError(null);
+      }
+    }, [isAuthenticated, isAuthorized]);
+    
+    // Handle search function
+    const handleSearch = () => {
+      if (!searchTerm.trim()) return;
+      
+      // Mock search functionality - in a real app, this would query the database
+      switch (searchCategory) {
+        case 'users':
+          setSearchResults(mockUsers.filter(user => 
+            user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            user.email.toLowerCase().includes(searchTerm.toLowerCase())
+          ));
+          break;
+        case 'shifts':
+          setSearchResults([
+            { id: 123, user: 'John Doe', date: '2025-05-25', time: '08:00-16:00', type: 'Day Shift' },
+            { id: 124, user: 'Jane Smith', date: '2025-05-26', time: '16:00-00:00', type: 'Night Shift' }
+          ]);
+          break;
+        case 'swaps':
+          setSearchResults([
+            { id: 456, requester: 'John Doe', date: '2025-05-25', status: 'Pending' },
+            { id: 457, requester: 'Jane Smith', date: '2025-05-26', status: 'Completed' }
+          ]);
+          break;
+        default:
+          setSearchResults([]);
+      }
+    };
+
+    // Filter users based on search term
+    const filteredUsers = searchTerm 
+      ? mockUsers.filter(user => 
           user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          user.email.toLowerCase().includes(searchTerm.toLowerCase())
-        ));
-        break;
-      case 'shifts':
-        setSearchResults([
-          { id: 123, user: 'John Doe', date: '2025-05-25', time: '08:00-16:00', type: 'Day Shift' },
-          { id: 124, user: 'Jane Smith', date: '2025-05-26', time: '16:00-00:00', type: 'Night Shift' }
-        ]);
-        break;
-      case 'swaps':
-        setSearchResults([
-          { id: 456, requester: 'John Doe', date: '2025-05-25', status: 'Pending' },
-          { id: 457, requester: 'Jane Smith', date: '2025-05-26', status: 'Completed' }
-        ]);
-        break;
-      default:
-        setSearchResults([]);
-    }
-  };
+          user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+      : mockUsers;
 
-  // Filter users based on search term
-  const filteredUsers = searchTerm 
-    ? mockUsers.filter(user => 
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()))
-    : mockUsers;
-
-  return (
-    <AppLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-          <p className="text-muted-foreground">
-            Comprehensive system administration and monitoring tools.
-          </p>
-        </div>
-
-        <Tabs defaultValue="users" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="users">
-              <Users className="h-4 w-4 mr-2" />
-              User Management
-            </TabsTrigger>
-            <TabsTrigger value="statistics">
-              <BarChart2 className="h-4 w-4 mr-2" />
-              Statistics
-            </TabsTrigger>
-            <TabsTrigger value="logs">
-              <ScrollText className="h-4 w-4 mr-2" />
-              System Logs
-            </TabsTrigger>
-            <TabsTrigger value="lookup">
-              <Search className="h-4 w-4 mr-2" />
-              Record Lookup
-            </TabsTrigger>
-          </TabsList>
-
-          {/* User Management Tab */}
-          <TabsContent value="users" className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle>User Management</CardTitle>
-                <CardDescription>
-                  View and manage user accounts in the system.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center mb-4 gap-2">
-                  <Input 
-                    placeholder="Search by name or email..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="max-w-md"
-                  />
-                  <Button variant="outline" onClick={() => setSearchTerm('')}>
-                    Clear
-                  </Button>
-                </div>
-
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Last Active</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredUsers.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell>{user.name}</TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>
-                            <Badge variant={user.role === 'Admin' ? "secondary" : "outline"}>
-                              {user.role}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {/* Fixed: Changed "success" to "secondary" for active users */}
-                            <Badge variant={user.status === 'Active' ? "secondary" : "destructive"}>
-                              {user.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{user.lastActive}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm">Edit</Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <div className="flex justify-between items-center mt-4">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {filteredUsers.length} of {mockUsers.length} users
-                  </div>
-                  <Button>
-                    <Users className="mr-2 h-4 w-4" />
-                    Add New User
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Statistics Tab */}
-          <TabsContent value="statistics" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>User Growth</CardTitle>
-                  <CardDescription>
-                    Monthly user registration statistics
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart
-                        data={mockUserStats}
-                        margin={{
-                          top: 10,
-                          right: 30,
-                          left: 0,
-                          bottom: 0,
-                        }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Area type="monotone" dataKey="total" stroke="#8884d8" fill="#8884d8" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Shift Swap Activity</CardTitle>
-                  <CardDescription>
-                    Monthly shift swap request statistics
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={mockSwapStats}
-                        margin={{
-                          top: 5,
-                          right: 30,
-                          left: 20,
-                          bottom: 5,
-                        }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="pending" fill="#8884d8" />
-                        <Bar dataKey="completed" fill="#82ca9d" />
-                        <Bar dataKey="rejected" fill="#ff8042" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+    // Display error if there's an auth issue
+    if (authError) {
+      return (
+        <AppLayout>
+          <div className="flex items-center justify-center h-[60vh]">
+            <div className="text-center p-8 bg-red-50 border border-red-200 rounded-lg">
+              <h2 className="text-2xl font-bold text-red-600 mb-4">Access Error</h2>
+              <p className="text-gray-700">{authError}</p>
+              <p className="text-sm text-gray-500 mt-4">
+                You need to be logged in as an administrator to access this page.
+              </p>
             </div>
-          </TabsContent>
+          </div>
+        </AppLayout>
+      );
+    }
 
-          {/* System Logs Tab */}
-          <TabsContent value="logs" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>System Logs</CardTitle>
-                <CardDescription>
-                  Review system activities and errors
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Timestamp</TableHead>
-                        <TableHead>Level</TableHead>
-                        <TableHead>Module</TableHead>
-                        <TableHead>Message</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {mockLogs.map((log, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-mono text-xs">{log.timestamp}</TableCell>
-                          <TableCell>
-                            {/* Fixed: Changed "warning" to "secondary" for WARNING logs */}
-                            <Badge 
-                              variant={
-                                log.level === 'ERROR' ? "destructive" : 
-                                log.level === 'WARNING' ? "secondary" : 
-                                "default"
-                              }
-                            >
-                              {log.level}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{log.module}</TableCell>
-                          <TableCell>{log.message}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+            <p className="text-muted-foreground">
+              Comprehensive system administration and monitoring tools.
+            </p>
+          </div>
 
-                <div className="flex justify-between items-center mt-4">
-                  <div className="text-sm text-muted-foreground">
-                    Showing recent logs
-                  </div>
-                  <Button variant="outline">
-                    Export Logs
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          <Tabs defaultValue="users" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="users">
+                <Users className="h-4 w-4 mr-2" />
+                User Management
+              </TabsTrigger>
+              <TabsTrigger value="statistics">
+                <BarChart2 className="h-4 w-4 mr-2" />
+                Statistics
+              </TabsTrigger>
+              <TabsTrigger value="logs">
+                <ScrollText className="h-4 w-4 mr-2" />
+                System Logs
+              </TabsTrigger>
+              <TabsTrigger value="lookup">
+                <Search className="h-4 w-4 mr-2" />
+                Record Lookup
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Record Lookup Tab */}
-          <TabsContent value="lookup" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Record Lookup</CardTitle>
-                <CardDescription>
-                  Search across all system records
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="grid flex-1 gap-2">
+            {/* User Management Tab */}
+            <TabsContent value="users" className="space-y-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle>User Management</CardTitle>
+                  <CardDescription>
+                    View and manage user accounts in the system.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center mb-4 gap-2">
                     <Input 
-                      placeholder="Search by name, email, ID..." 
+                      placeholder="Search by name or email..." 
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      className="max-w-md"
                     />
+                    <Button variant="outline" onClick={() => setSearchTerm('')}>
+                      Clear
+                    </Button>
                   </div>
-                  <select
-                    className="h-10 rounded-md border border-input bg-background px-3 py-2"
-                    value={searchCategory}
-                    onChange={(e) => setSearchCategory(e.target.value)}
-                  >
-                    <option value="users">Users</option>
-                    <option value="shifts">Shifts</option>
-                    <option value="swaps">Swap Requests</option>
-                  </select>
-                  <Button onClick={handleSearch}>
-                    <Search className="mr-2 h-4 w-4" />
-                    Search
-                  </Button>
-                </div>
 
-                {searchResults.length > 0 && (
-                  <div className="rounded-md border mt-4">
+                  <div className="rounded-md border">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          {Object.keys(searchResults[0]).map((key) => (
-                            <TableHead key={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</TableHead>
-                          ))}
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Last Active</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {searchResults.map((result, index) => (
-                          <TableRow key={index}>
-                            {Object.values(result).map((value, idx) => (
-                              <TableCell key={idx}>{value as string}</TableCell>
-                            ))}
+                        {filteredUsers.map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell>{user.name}</TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>
+                              <Badge variant={user.role === 'Admin' ? "secondary" : "outline"}>
+                                {user.role}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={user.status === 'Active' ? "secondary" : "destructive"}>
+                                {user.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{user.lastActive}</TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm">Edit</Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
-                )}
 
-                {searchTerm && searchResults.length === 0 && (
-                  <div className="text-center py-8">
-                    <Database className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-2 text-lg font-semibold">No records found</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Try changing your search term or category
-                    </p>
+                  <div className="flex justify-between items-center mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {filteredUsers.length} of {mockUsers.length} users
+                    </div>
+                    <Button>
+                      <Users className="mr-2 h-4 w-4" />
+                      Add New User
+                    </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </AppLayout>
-  );
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Statistics Tab */}
+            <TabsContent value="statistics" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>User Growth</CardTitle>
+                    <CardDescription>
+                      Monthly user registration statistics
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart
+                          data={mockUserStats}
+                          margin={{
+                            top: 10,
+                            right: 30,
+                            left: 0,
+                            bottom: 0,
+                          }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis />
+                          <Tooltip />
+                          <Area type="monotone" dataKey="total" stroke="#8884d8" fill="#8884d8" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Shift Swap Activity</CardTitle>
+                    <CardDescription>
+                      Monthly shift swap request statistics
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={mockSwapStats}
+                          margin={{
+                            top: 5,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                          }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="pending" fill="#8884d8" />
+                          <Bar dataKey="completed" fill="#82ca9d" />
+                          <Bar dataKey="rejected" fill="#ff8042" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* System Logs Tab */}
+            <TabsContent value="logs" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>System Logs</CardTitle>
+                  <CardDescription>
+                    Review system activities and errors
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Timestamp</TableHead>
+                          <TableHead>Level</TableHead>
+                          <TableHead>Module</TableHead>
+                          <TableHead>Message</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {mockLogs.map((log, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="font-mono text-xs">{log.timestamp}</TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={
+                                  log.level === 'ERROR' ? "destructive" : 
+                                  log.level === 'WARNING' ? "secondary" : 
+                                  "default"
+                                }
+                              >
+                                {log.level}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{log.module}</TableCell>
+                            <TableCell>{log.message}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <div className="flex justify-between items-center mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing recent logs
+                    </div>
+                    <Button variant="outline">
+                      Export Logs
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Record Lookup Tab */}
+            <TabsContent value="lookup" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Record Lookup</CardTitle>
+                  <CardDescription>
+                    Search across all system records
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="grid flex-1 gap-2">
+                      <Input 
+                        placeholder="Search by name, email, ID..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                    <select
+                      className="h-10 rounded-md border border-input bg-background px-3 py-2"
+                      value={searchCategory}
+                      onChange={(e) => setSearchCategory(e.target.value)}
+                    >
+                      <option value="users">Users</option>
+                      <option value="shifts">Shifts</option>
+                      <option value="swaps">Swap Requests</option>
+                    </select>
+                    <Button onClick={handleSearch}>
+                      <Search className="mr-2 h-4 w-4" />
+                      Search
+                    </Button>
+                  </div>
+
+                  {searchResults.length > 0 && (
+                    <div className="rounded-md border mt-4">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            {Object.keys(searchResults[0]).map((key) => (
+                              <TableHead key={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {searchResults.map((result, index) => (
+                            <TableRow key={index}>
+                              {Object.values(result).map((value, idx) => (
+                                <TableCell key={idx}>{value as string}</TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+
+                  {searchTerm && searchResults.length === 0 && (
+                    <div className="text-center py-8">
+                      <Database className="mx-auto h-12 w-12 text-muted-foreground" />
+                      <h3 className="mt-2 text-lg font-semibold">No records found</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Try changing your search term or category
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </AppLayout>
+    );
+  } catch (error) {
+    console.error('Error in AdminDashboard:', error);
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center p-8 bg-red-50 border border-red-200 rounded-lg">
+            <h2 className="text-2xl font-bold text-red-600 mb-4">An Error Occurred</h2>
+            <p className="text-gray-700">
+              {error instanceof Error ? error.message : 'Unknown error occurred'}
+            </p>
+            <p className="text-sm text-gray-500 mt-4">
+              Please try again later or contact support if the issue persists.
+            </p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 };
 
 export default AdminDashboard;
