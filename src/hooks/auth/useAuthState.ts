@@ -28,8 +28,26 @@ export const useAuthState = () => {
           setUser(extendedUser);
           setIsEmailVerified(extendedUser.email_confirmed_at !== null);
           
-          // Check if user is admin
-          setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+          // Check if user is admin by directly querying the user_roles table
+          try {
+            const { data: isUserAdmin, error } = await supabase.rpc('has_role', {
+              _user_id: extendedUser.id,
+              _role: 'admin'
+            });
+            
+            if (!error) {
+              console.log('Admin check result:', isUserAdmin);
+              setIsAdmin(!!isUserAdmin);
+            } else {
+              console.error('Error checking admin role:', error);
+              // Fallback check using app_metadata for backward compatibility
+              setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+            }
+          } catch (err) {
+            console.error('Error in admin role check:', err);
+            // Fallback to app_metadata
+            setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+          }
 
           // Handle authentication events
           if (event === 'SIGNED_IN') {
@@ -69,7 +87,7 @@ export const useAuthState = () => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       setSession(currentSession);
       
       if (currentSession?.user) {
@@ -77,7 +95,27 @@ export const useAuthState = () => {
         const extendedUser = currentSession.user as unknown as ExtendedUser;
         setUser(extendedUser);
         setIsEmailVerified(extendedUser.email_confirmed_at !== null);
-        setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+        
+        // Direct check for admin role
+        try {
+          const { data: isUserAdmin, error } = await supabase.rpc('has_role', {
+            _user_id: extendedUser.id,
+            _role: 'admin'
+          });
+          
+          if (!error) {
+            console.log('Initial admin check result:', isUserAdmin);
+            setIsAdmin(!!isUserAdmin);
+          } else {
+            console.error('Error in initial admin check:', error);
+            // Fallback to app_metadata
+            setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+          }
+        } catch (err) {
+          console.error('Error in initial admin role check:', err);
+          // Fallback check using app_metadata
+          setIsAdmin(extendedUser.app_metadata?.role === 'admin');
+        }
       }
       
       setIsLoading(false);

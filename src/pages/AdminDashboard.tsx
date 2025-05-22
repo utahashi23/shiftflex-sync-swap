@@ -1,8 +1,6 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { useAuth } from '@/hooks/auth';
 import AppLayout from '@/layouts/AppLayout';
 import { Badge } from "@/components/ui/badge";
@@ -74,46 +72,39 @@ const AdminDashboard = () => {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Get auth state directly from useAuth to avoid multiple redirects
-  const { user, isAdmin } = useAuth();
-  
-  // Use a non-redirecting version of useAuthRedirect to just check status
-  const authCheck = useCallback(() => {
-    if (!user) {
-      console.log('Admin Dashboard: User not authenticated');
-      setAuthError('Authentication required');
-      return false;
-    }
-    
-    if (!isAdmin) {
-      console.log('Admin Dashboard: User not admin');
-      setAuthError('Admin access required');
-      return false;
-    }
-    
-    console.log('Admin Dashboard: User authenticated and authorized');
-    setAuthError(null);
-    return true;
-  }, [user, isAdmin]);
+  // Get auth state directly from useAuth to avoid redirection loops
+  const { user, isAdmin, isLoading: authLoading } = useAuth();
   
   // State for search functionality
   const [searchTerm, setSearchTerm] = useState('');
   const [searchCategory, setSearchCategory] = useState('users');
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  // Run auth check once when component mounts
+  // Check authentication once when component mounts
   useEffect(() => {
-    console.log('AdminDashboard mounted - checking auth state');
+    console.log('AdminDashboard mounted - checking auth state', { user, isAdmin });
     
-    const isAuthorized = authCheck();
-    
-    // Only finish loading if authorized or error already set
-    setIsLoading(false);
+    // Wait for auth to load before making decisions
+    if (!authLoading) {
+      if (!user) {
+        console.log('Admin Dashboard: User not authenticated');
+        setAuthError('Authentication required');
+      } else if (!isAdmin) {
+        console.log('Admin Dashboard: User not admin, isAdmin value:', isAdmin);
+        console.log('User object:', JSON.stringify(user, null, 2));
+        setAuthError('Admin access required');
+      } else {
+        console.log('Admin Dashboard: User authenticated and authorized as admin');
+        setAuthError(null);
+      }
+      
+      setIsLoading(false);
+    }
     
     return () => {
       console.log('AdminDashboard unmounted');
     };
-  }, [authCheck]);
+  }, [user, isAdmin, authLoading]);
   
   // Handle search function
   const handleSearch = () => {
@@ -152,7 +143,7 @@ const AdminDashboard = () => {
     : mockUsers;
 
   // Display loading state
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-[60vh]">
@@ -175,6 +166,11 @@ const AdminDashboard = () => {
             <p className="text-sm text-gray-500 mt-4">
               You need to be logged in as an administrator to access this page.
             </p>
+            {user && (
+              <p className="text-xs text-gray-500 mt-2">
+                Logged in user {user.id} is {isAdmin ? '' : 'not'} recognized as an admin.
+              </p>
+            )}
           </div>
         </div>
       </AppLayout>
@@ -183,7 +179,7 @@ const AdminDashboard = () => {
 
   return (
     <AppLayout>
-      <DashboardDebug isVisible={process.env.NODE_ENV !== 'production'} data={{ user, isAdmin }} />
+      <DashboardDebug isVisible={true} data={{ user, isAdmin }} />
       
       <div className="space-y-6">
         <div>
