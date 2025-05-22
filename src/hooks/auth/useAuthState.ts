@@ -24,7 +24,10 @@ export const useAuthState = () => {
       if (!mounted) return;
       
       try {
-        const { data: userRoles, error } = await supabase
+        console.log('Checking admin status for user:', userId);
+        
+        // Direct query to get the admin role for this user
+        const { data, error } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', userId)
@@ -33,8 +36,11 @@ export const useAuthState = () => {
         
         if (!mounted) return;
         
-        // Set admin status based on database result
-        const adminStatus = !error && userRoles !== null;
+        // Log the query results for debugging
+        console.log('Admin check query result:', { data, error });
+        
+        // Set admin status based on whether data was returned
+        const adminStatus = (data !== null);
         console.log(`Admin check result: ${adminStatus ? 'YES' : 'NO'} for user ${userId}`);
         setIsAdmin(adminStatus);
         setAdminCheckComplete(true);
@@ -89,6 +95,7 @@ export const useAuthState = () => {
           setUser(extendedUser);
           setIsEmailVerified(!!extendedUser.email_confirmed_at);
           
+          console.log('Existing session found for user:', extendedUser.id);
           // Check admin status
           await checkAdminStatus(extendedUser.id);
         } else {
@@ -125,3 +132,4 @@ export const useAuthState = () => {
     setSession
   };
 };
+
