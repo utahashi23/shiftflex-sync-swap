@@ -10,15 +10,20 @@ import {
   updateUser as authUpdateUser,
   updatePassword as authUpdatePassword
 } from "./auth-utils";
+import { ExtendedUser } from "./types";
+import { Session } from "@supabase/supabase-js";
 
 /**
  * Hook to provide authentication actions
  */
-export const useAuthActions = () => {
+export const useAuthActions = (
+  setUser?: React.Dispatch<React.SetStateAction<ExtendedUser | null>>,
+  setSession?: React.Dispatch<React.SetStateAction<Session | null>>
+) => {
   const navigate = useNavigate();
 
   // Sign out function
-  const signOut = async () => {
+  const signOut = async (): Promise<void> => { // Updated return type to void
     try {
       const { error } = await supabase.auth.signOut();
       
@@ -29,7 +34,7 @@ export const useAuthActions = () => {
           description: error.message,
           variant: "destructive",
         });
-        return false;
+        return;
       }
       
       // Navigate to home page after successful sign out
@@ -40,7 +45,7 @@ export const useAuthActions = () => {
       
       // Force navigation to the root page
       navigate('/', { replace: true });
-      return true;
+      return;
     } catch (error: any) {
       console.error("Sign out exception:", error);
       toast({
@@ -48,7 +53,7 @@ export const useAuthActions = () => {
         description: error?.message || "An unexpected error occurred",
         variant: "destructive",
       });
-      return false;
+      return;
     }
   };
 
@@ -59,8 +64,15 @@ export const useAuthActions = () => {
       
       if (sessionData.session) {
         const { data: userData } = await supabase.auth.getUser();
+        
+        // Update state if setters provided
+        if (setSession) setSession(sessionData.session);
+        if (setUser) setUser(userData.user as ExtendedUser);
+        
         return { session: sessionData.session, user: userData.user };
       } else {
+        if (setSession) setSession(null);
+        if (setUser) setUser(null);
         return { session: null, user: null };
       }
     } catch (error) {
@@ -162,7 +174,7 @@ export const useAuthActions = () => {
 
   // Check organization code
   const checkOrganizationCode = async (code: string) => {
-    return Promise.resolve(checkOrgCode(code));
+    return checkOrgCode(code);
   };
 
   return {
