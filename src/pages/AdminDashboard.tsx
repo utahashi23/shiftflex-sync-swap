@@ -1,8 +1,9 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
+import { useAuth } from '@/hooks/auth';
 import AppLayout from '@/layouts/AppLayout';
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ import {
   Bar,
   Legend
 } from 'recharts';
+import DashboardDebug from '@/components/dashboard/DashboardDebug';
 
 // Mock data for demonstration
 const mockUsers = [
@@ -70,35 +72,48 @@ const mockSwapStats = [
 
 const AdminDashboard = () => {
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isRendered, setIsRendered] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Use a ref to prevent infinite renders
-  const { isAuthenticated, isAuthorized } = useAuthRedirect({ 
-    protectedRoute: true, 
-    adminRoute: true 
-  });
+  // Get auth state directly from useAuth to avoid multiple redirects
+  const { user, isAdmin } = useAuth();
+  
+  // Use a non-redirecting version of useAuthRedirect to just check status
+  const authCheck = useCallback(() => {
+    if (!user) {
+      console.log('Admin Dashboard: User not authenticated');
+      setAuthError('Authentication required');
+      return false;
+    }
+    
+    if (!isAdmin) {
+      console.log('Admin Dashboard: User not admin');
+      setAuthError('Admin access required');
+      return false;
+    }
+    
+    console.log('Admin Dashboard: User authenticated and authorized');
+    setAuthError(null);
+    return true;
+  }, [user, isAdmin]);
   
   // State for search functionality
   const [searchTerm, setSearchTerm] = useState('');
   const [searchCategory, setSearchCategory] = useState('users');
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  
-  // Add effect to detect and log any authentication issues
+
+  // Run auth check once when component mounts
   useEffect(() => {
     console.log('AdminDashboard mounted - checking auth state');
-    if (!isAuthenticated) {
-      console.log('User is not authenticated');
-      setAuthError('Authentication required');
-    } else if (!isAuthorized) {
-      console.log('User is not authorized (admin access required)');
-      setAuthError('Admin access required');
-    } else {
-      console.log('User is authenticated and authorized');
-      setAuthError(null);
-    }
     
-    setIsRendered(true);
-  }, [isAuthenticated, isAuthorized]);
+    const isAuthorized = authCheck();
+    
+    // Only finish loading if authorized or error already set
+    setIsLoading(false);
+    
+    return () => {
+      console.log('AdminDashboard unmounted');
+    };
+  }, [authCheck]);
   
   // Handle search function
   const handleSearch = () => {
@@ -136,6 +151,19 @@ const AdminDashboard = () => {
         user.email.toLowerCase().includes(searchTerm.toLowerCase()))
     : mockUsers;
 
+  // Display loading state
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center">
+            <p className="text-gray-500">Loading dashboard...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   // Display error if there's an auth issue
   if (authError) {
     return (
@@ -153,21 +181,10 @@ const AdminDashboard = () => {
     );
   }
 
-  // Don't render the full content until auth check is complete to prevent flashing
-  if (!isRendered) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-[60vh]">
-          <div className="text-center">
-            <p className="text-gray-500">Loading dashboard...</p>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
-
   return (
     <AppLayout>
+      <DashboardDebug isVisible={process.env.NODE_ENV !== 'production'} data={{ user, isAdmin }} />
+      
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
