@@ -47,7 +47,7 @@ const ImprovedShiftSwaps = () => {
     // Filter by date range
     if (filters.dateRange.from || filters.dateRange.to) {
       filtered = filtered.filter(request => {
-        const requestDate = new Date(request.shift_date);
+        const requestDate = new Date(request.wanted_date);
         const fromDate = filters.dateRange.from;
         const toDate = filters.dateRange.to;
         
@@ -64,18 +64,18 @@ const ImprovedShiftSwaps = () => {
     
     // Filter by truck name
     if (filters.truckName) {
-      filtered = filtered.filter(request => request.truck_name === filters.truckName);
+      filtered = filtered.filter(request => request.shifts?.truck_name === filters.truckName);
     }
     
     // Filter by shift type
     if (filters.shiftType) {
-      filtered = filtered.filter(request => request.shift_type === filters.shiftType);
+      filtered = filtered.filter(request => request.accepted_shift_types?.includes(filters.shiftType));
     }
     
     // Sort by date
     filtered.sort((a, b) => {
-      const dateA = new Date(a.shift_date);
-      const dateB = new Date(b.shift_date);
+      const dateA = new Date(a.wanted_date);
+      const dateB = new Date(b.wanted_date);
       return filters.sortDirection === 'asc' 
         ? dateA.getTime() - dateB.getTime()
         : dateB.getTime() - dateA.getTime();
@@ -192,7 +192,7 @@ const ImprovedShiftSwaps = () => {
               ))}
             </div>
           ) : filteredRequests.length === 0 ? (
-            <EmptySwapRequests onCreateRequest={() => setIsFormOpen(true)} />
+            <EmptySwapRequests />
           ) : (
             <div className="space-y-4">
               {filteredRequests.map((request) => (
