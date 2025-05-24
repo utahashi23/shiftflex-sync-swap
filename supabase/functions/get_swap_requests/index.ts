@@ -32,8 +32,14 @@ serve(async (req) => {
       return createUnauthorizedResponse('No bearer token provided');
     }
 
-    // Create a Supabase client with the auth token
+    // Create a Supabase client with service role key for bypassing RLS
     const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    // Verify the user token with the anon client
+    const anonClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { 
@@ -45,28 +51,35 @@ serve(async (req) => {
       }
     )
 
-    // Get the authenticated user
+    // Get the authenticated user to verify the token
     const {
       data: { user },
       error: userError,
-    } = await supabaseClient.auth.getUser()
+    } = await anonClient.auth.getUser()
 
     if (userError || !user) {
       console.error('Auth error:', userError)
-      return createUnauthorizedResponse('Unauthorized - Check authentication token');
+      return createUnauthorizedResponse('Invalid authentication token');
     }
 
     console.log('Authenticated user:', user.id)
     
     // Check if user is allowed to access this data
-    // Users can only access their own data unless they're an admin
-    const isAdmin = await checkIsAdmin(supabaseClient, user.id)
-    
-    if (user.id !== user_id && !isAdmin) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized to access this data' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
-      )
+    if (user.id !== user_id) {
+      // Check if user is admin
+      const { data: adminCheck, error: adminError } = await supabaseClient
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .single()
+      
+      if (adminError || !adminCheck) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized to access this data' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        )
+      }
     }
     
     // Use the RPC function to safely get user swap requests
@@ -96,22 +109,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }
 })
-
-// Helper functions
-async function checkIsAdmin(client: any, userId: string): Promise<boolean> {
-  const { data, error } = await client.rpc('has_role', { 
-    _user_id: userId,
-    _role: 'admin'
-  })
-  
-  if (error) {
-    console.error('Error checking admin role:', error)
-    return false
-  }
-  
-  return !!data
-}
