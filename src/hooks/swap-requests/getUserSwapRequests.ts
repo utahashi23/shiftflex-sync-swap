@@ -22,13 +22,18 @@ export const getUserSwapRequestsApi = async (status: string = 'pending'): Promis
     }
     
     const userId = sessionData.session.user.id;
+    const authToken = sessionData.session.access_token;
+    
     console.log('Calling edge function with user ID:', userId);
     
-    // Call the edge function with proper authentication
+    // Call the edge function with proper authentication headers
     const response = await supabase.functions.invoke('get_swap_requests', {
       body: { 
         user_id: userId,
         status: status
+      },
+      headers: {
+        Authorization: `Bearer ${authToken}`
       }
     });
       
