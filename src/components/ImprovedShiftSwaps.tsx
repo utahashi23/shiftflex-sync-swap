@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedSwapForm } from "./swaps/ImprovedSwapForm";
@@ -420,22 +421,26 @@ const ImprovedShiftSwaps = () => {
 
   // Month navigation component that can be reused
   const MonthNavigation = () => (
-    <div className="flex items-center space-x-2">
+    <div className="flex items-center w-full">
       <Button 
         variant="outline" 
-        size="icon" 
+        size="sm" 
         onClick={goToPreviousMonth}
+        className="flex-shrink-0"
       >
         <ChevronLeft className="h-4 w-4" />
         <span className="sr-only">Previous Month</span>
       </Button>
-      <h2 className="text-[0.85rem] font-medium">
-        {format(currentMonth, 'MMMM yyyy')}
-      </h2>
+      <div className="flex-1 text-center">
+        <h2 className="text-[0.85rem] font-medium">
+          {format(currentMonth, 'MMMM yyyy')}
+        </h2>
+      </div>
       <Button 
         variant="outline" 
-        size="icon" 
+        size="sm" 
         onClick={goToNextMonth}
+        className="flex-shrink-0"
       >
         <ChevronRight className="h-4 w-4" />
         <span className="sr-only">Next Month</span>
