@@ -9,9 +9,9 @@ import { useSwapRequests } from '@/hooks/useSwapRequests';
 import { SwapFiltersDialog, SwapFilters } from '@/components/swaps/SwapFiltersDialog';
 import { RegionPreferencesButton } from '@/components/swaps/RegionPreferencesButton';
 import { ImprovedSwapForm } from '@/components/swaps/ImprovedSwapForm';
-import { SwapRequestCard } from '@/components/swaps/SwapRequestCard';
-import { SwapRequestSkeleton } from '@/components/swaps/SwapRequestSkeleton';
-import { EmptySwapRequests } from '@/components/swaps/EmptySwapRequests';
+import SwapRequestCard from '@/components/swaps/SwapRequestCard';
+import SwapRequestSkeleton from '@/components/swaps/SwapRequestSkeleton';
+import EmptySwapRequests from '@/components/swaps/EmptySwapRequests';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -28,12 +28,15 @@ const ImprovedShiftSwaps = () => {
   });
 
   const { 
-    swapRequests, 
+    requests: swapRequests, 
     isLoading, 
     error, 
-    refreshRequests,
-    availableTrucks 
+    fetchRequests: refreshRequests,
+    createSwapRequest
   } = useSwapRequests();
+
+  // Mock available trucks for now - this should come from a proper hook later
+  const availableTrucks = [];
 
   // Apply filters to swap requests
   const filteredRequests = React.useMemo(() => {
@@ -85,9 +88,13 @@ const ImprovedShiftSwaps = () => {
     setFilters(newFilters);
   };
 
-  const handleFormSuccess = () => {
-    setIsFormOpen(false);
-    refreshRequests();
+  const handleFormSubmit = async (shiftIds: string[], wantedDates: string[], acceptedTypes: string[], requiredSkillset?: string[]) => {
+    const success = await createSwapRequest(shiftIds, wantedDates, acceptedTypes, requiredSkillset);
+    if (success) {
+      setIsFormOpen(false);
+      refreshRequests();
+    }
+    return success;
   };
 
   const previousMonth = () => {
@@ -192,7 +199,7 @@ const ImprovedShiftSwaps = () => {
                 <SwapRequestCard
                   key={request.id}
                   request={request}
-                  onUpdate={refreshRequests}
+                  onDelete={refreshRequests}
                 />
               ))}
             </div>
@@ -204,7 +211,9 @@ const ImprovedShiftSwaps = () => {
       <ImprovedSwapForm
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
-        onSuccess={handleFormSuccess}
+        onSubmit={handleFormSubmit}
+        currentMonth={currentMonth}
+        filters={filters}
       />
 
       <SwapFiltersDialog
