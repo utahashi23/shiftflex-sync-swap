@@ -32,14 +32,8 @@ serve(async (req) => {
       return createUnauthorizedResponse('No bearer token provided');
     }
 
-    // Create a Supabase client with service role key for bypassing RLS
+    // Create a Supabase client with the user's token for authentication
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    // Verify the user token with the anon client
-    const anonClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { 
@@ -55,7 +49,7 @@ serve(async (req) => {
     const {
       data: { user },
       error: userError,
-    } = await anonClient.auth.getUser()
+    } = await supabaseClient.auth.getUser()
 
     if (userError || !user) {
       console.error('Auth error:', userError)
@@ -64,10 +58,15 @@ serve(async (req) => {
 
     console.log('Authenticated user:', user.id)
     
-    // Check if user is allowed to access this data
+    // Check if user is authorized to access this data
     if (user.id !== user_id) {
-      // Check if user is admin
-      const { data: adminCheck, error: adminError } = await supabaseClient
+      // Check if user is admin using service role client
+      const serviceClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      )
+      
+      const { data: adminCheck, error: adminError } = await serviceClient
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
@@ -82,8 +81,14 @@ serve(async (req) => {
       }
     }
     
+    // Use the service role client for the RPC function to bypass RLS
+    const serviceClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+    
     // Use the RPC function to safely get user swap requests
-    const { data, error: fetchError } = await supabaseClient.rpc(
+    const { data, error: fetchError } = await serviceClient.rpc(
       'get_user_swap_requests_safe',
       { 
         p_user_id: user_id,
