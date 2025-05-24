@@ -464,8 +464,12 @@ const ImprovedShiftSwaps = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end mb-4">
-        <RegionPreferencesButton />
+      <div className="flex justify-between items-center mb-4">
+        <div></div>
+        <div className="flex items-center space-x-2">
+          <FilterButton tab={activeTab === 'create' ? 'create' : 'mySwaps'} />
+          <RegionPreferencesButton />
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -476,12 +480,9 @@ const ImprovedShiftSwaps = () => {
         </TabsList>
         
         <TabsContent value="create" className="mt-6 space-y-4">
-          {/* Create Swap tab with filter button */}
-          <div className="flex items-center justify-between mb-4">
+          {/* Create Swap tab without filter button */}
+          <div className="flex items-center justify-start mb-4">
             <MonthNavigation />
-            <div className="flex items-center space-x-2">
-              <FilterButton tab="create" />
-            </div>
           </div>
           
           <div className="grid gap-6">
@@ -497,13 +498,9 @@ const ImprovedShiftSwaps = () => {
         </TabsContent>
         
         <TabsContent value="mySwaps" className="mt-6">
-          {/* Month navigation and controls */}
-          <div className="flex items-center justify-between mb-4">
+          {/* Month navigation without filter button */}
+          <div className="flex items-center justify-start mb-4">
             <MonthNavigation />
-            
-            <div className="flex items-center space-x-2">
-              <FilterButton tab="mySwaps" />
-            </div>
           </div>
           
           {/* My Swaps Tab Content */}
