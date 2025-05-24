@@ -32,7 +32,7 @@ serve(async (req) => {
       return createUnauthorizedResponse('No bearer token provided');
     }
 
-    // Create a Supabase client with the user's token for authentication
+    // Create a Supabase client with the auth token
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -45,7 +45,7 @@ serve(async (req) => {
       }
     )
 
-    // Get the authenticated user to verify the token
+    // Get the authenticated user
     const {
       data: { user },
       error: userError,
@@ -53,42 +53,24 @@ serve(async (req) => {
 
     if (userError || !user) {
       console.error('Auth error:', userError)
-      return createUnauthorizedResponse('Invalid authentication token');
+      return createUnauthorizedResponse('Unauthorized - Check authentication token');
     }
 
     console.log('Authenticated user:', user.id)
     
-    // Check if user is authorized to access this data
-    if (user.id !== user_id) {
-      // Check if user is admin using service role client
-      const serviceClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    // Check if user is allowed to access this data
+    // Users can only access their own data unless they're an admin
+    const isAdmin = await checkIsAdmin(supabaseClient, user.id)
+    
+    if (user.id !== user_id && !isAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized to access this data' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
       )
-      
-      const { data: adminCheck, error: adminError } = await serviceClient
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .single()
-      
-      if (adminError || !adminCheck) {
-        return new Response(
-          JSON.stringify({ error: 'Unauthorized to access this data' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
-        )
-      }
     }
     
-    // Use the service role client for the RPC function to bypass RLS
-    const serviceClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-    
     // Use the RPC function to safely get user swap requests
-    const { data, error: fetchError } = await serviceClient.rpc(
+    const { data, error: fetchError } = await supabaseClient.rpc(
       'get_user_swap_requests_safe',
       { 
         p_user_id: user_id,
@@ -114,7 +96,22 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
     )
   }
 })
+
+// Helper functions
+async function checkIsAdmin(client: any, userId: string): Promise<boolean> {
+  const { data, error } = await client.rpc('has_role', { 
+    _user_id: userId,
+    _role: 'admin'
+  })
+  
+  if (error) {
+    console.error('Error checking admin role:', error)
+    return false
+  }
+  
+  return !!data
+}

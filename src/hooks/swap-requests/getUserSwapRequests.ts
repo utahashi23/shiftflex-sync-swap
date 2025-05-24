@@ -9,10 +9,10 @@ import { SwapRequest } from './types';
 export const getUserSwapRequestsApi = async (status: string = 'pending'): Promise<SwapRequest[]> => {
   try {
     // Get the current session to pass the auth token
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const { data: sessionData } = await supabase.auth.getSession();
     
-    if (sessionError || !sessionData.session) {
-      console.error('No active session found:', sessionError);
+    if (!sessionData.session) {
+      console.error('No active session found');
       toast({
         title: "Authentication Error",
         description: "You must be logged in to view swap requests.",
@@ -22,24 +22,23 @@ export const getUserSwapRequestsApi = async (status: string = 'pending'): Promis
     }
     
     const userId = sessionData.session.user.id;
-    const authToken = sessionData.session.access_token;
     
-    console.log('Calling edge function with user ID:', userId);
-    
-    // Call the edge function with proper authentication headers
+    // Important: Use the invoke method without passing the auth_token in the body
+    // The token is automatically included in the request headers by the SDK
     const response = await supabase.functions.invoke('get_swap_requests', {
       body: { 
         user_id: userId,
         status: status
       },
+      // Explicitly add authorization header with bearer token
       headers: {
-        Authorization: `Bearer ${authToken}`
+        Authorization: `Bearer ${sessionData.session.access_token}`
       }
     });
       
     if (response.error) {
-      console.error('Edge function error:', response.error);
-      throw new Error(response.error.message || 'Failed to fetch swap requests');
+      console.error('Error fetching swap requests:', response.error);
+      throw response.error;
     }
     
     // Process the response data to match the SwapRequest format
@@ -68,17 +67,10 @@ export const getUserSwapRequestsApi = async (status: string = 'pending'): Promis
           endTime: shift.endTime?.substring(0, 5) || "",
           type: shift.type
         },
-        preferredDates: formattedDates,
-        // Add these properties for compatibility with the filtering
-        wanted_date: shift.date,
-        shifts: {
-          truck_name: shift.truckName
-        },
-        accepted_shift_types: item.accepted_shift_types || ['day', 'afternoon', 'night']
+        preferredDates: formattedDates
       };
     }).filter(Boolean) as SwapRequest[];
     
-    console.log('Successfully processed swap requests:', swapRequests.length);
     return swapRequests;
   } catch (error) {
     console.error('Error in getUserSwapRequestsApi:', error);
