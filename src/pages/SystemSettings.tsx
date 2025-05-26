@@ -11,6 +11,7 @@ import { TruckNameSettings } from '@/components/system-settings/TruckNameSetting
 import { ColleagueTypeSettings } from '@/components/system-settings/ColleagueTypeSettings';
 import { SwapPreferences } from '@/components/settings/SwapPreferences';
 import { LeaveBlockSettings } from '@/components/system-settings/LeaveBlockSettings';
+import { FormCustomizationSettings } from '@/components/system-settings/FormCustomizationSettings';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect } from 'react';
 
@@ -72,6 +73,7 @@ const SystemSettings = () => {
           <TabsTrigger value="areas">Areas</TabsTrigger>
           <TabsTrigger value="truck-names">Truck Names</TabsTrigger>
           <TabsTrigger value="colleague-types">Colleague Types</TabsTrigger>
+          <TabsTrigger value="form-customization">Form Customization</TabsTrigger>
           <TabsTrigger value="swap-preferences">Swap Preferences</TabsTrigger>
           <TabsTrigger value="leave-blocks">Leave Blocks</TabsTrigger>
         </TabsList>
@@ -138,6 +140,19 @@ const SystemSettings = () => {
             </div>
             <Separator />
             <ColleagueTypeSettings />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="form-customization">
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium">Form Customization</h3>
+              <p className="text-sm text-muted-foreground">
+                Customize labels and field visibility for the Add Shift form
+              </p>
+            </div>
+            <Separator />
+            <FormCustomizationSettings />
           </div>
         </TabsContent>
         

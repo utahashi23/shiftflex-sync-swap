@@ -1,32 +1,20 @@
 
-import { useState, useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { supabase } from '@/integrations/supabase/client';
+import { useFormCustomization } from '@/hooks/useFormCustomization';
 
 interface ShiftOptionsFieldsProps {
   shiftLength: string;
   onShiftLengthChange: (length: string) => void;
   colleagueType: string;
-  onColleagueTypeChange: (type: any) => void;
-}
-
-interface ColleagueType {
-  id: string;
-  name: string;
+  onColleagueTypeChange: (type: 'Qualified' | 'Graduate' | 'ACO' | 'Unknown') => void;
 }
 
 export const ShiftOptionsFields = ({
@@ -35,50 +23,21 @@ export const ShiftOptionsFields = ({
   colleagueType,
   onColleagueTypeChange
 }: ShiftOptionsFieldsProps) => {
-  const [colleagueTypes, setColleagueTypes] = useState<ColleagueType[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { settings, isLoading } = useFormCustomization();
 
-  useEffect(() => {
-    const fetchColleagueTypes = async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('colleague_types')
-          .select('id, name')
-          .order('name');
-          
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          setColleagueTypes(data);
-        } else {
-          // If no colleague types found in the database, use default ones
-          setColleagueTypes([
-            { id: 'Qualified', name: 'Qualified' },
-            { id: 'Graduate', name: 'Graduate' },
-            { id: 'ACO', name: 'ACO' },
-            { id: 'Unknown', name: 'Unknown' }
-          ]);
-        }
-      } catch (error) {
-        console.error('Error fetching colleague types:', error);
-        // Use default types if there's an error
-        setColleagueTypes([
-          { id: 'Qualified', name: 'Qualified' },
-          { id: 'Graduate', name: 'Graduate' },
-          { id: 'ACO', name: 'ACO' },
-          { id: 'Unknown', name: 'Unknown' }
-        ]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchColleagueTypes();
-  }, []);
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm flex items-center">
+          Loading...
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Shift Length Field */}
       <div>
         <div className="flex justify-between items-center mb-1.5">
           <Label htmlFor="shift-length">Shift Length</Label>
@@ -90,15 +49,12 @@ export const ShiftOptionsFields = ({
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Select a predefined shift length or use custom times</p>
+                <p>Choose a predefined shift length or select custom to set your own times</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
-        <Select
-          value={shiftLength}
-          onValueChange={onShiftLengthChange}
-        >
+        <Select value={shiftLength} onValueChange={onShiftLengthChange}>
           <SelectTrigger>
             <SelectValue placeholder="Select shift length" />
           </SelectTrigger>
@@ -111,40 +67,38 @@ export const ShiftOptionsFields = ({
           </SelectContent>
         </Select>
       </div>
-      
-      <div>
-        <div className="flex justify-between items-center mb-1.5">
-          <Label htmlFor="colleague-type">Colleague Type</Label>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <AlertCircle className="h-4 w-4 text-gray-400" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Specify who you'll be working with</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+
+      {/* Colleague Type Field - Only show if enabled in settings */}
+      {settings.show_colleague_type && (
+        <div>
+          <div className="flex justify-between items-center mb-1.5">
+            <Label htmlFor="colleague-type">Colleague Type</Label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <AlertCircle className="h-4 w-4 text-gray-400" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Select your qualification level or role type</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <Select value={colleagueType} onValueChange={onColleagueTypeChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select colleague type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Qualified">Qualified</SelectItem>
+              <SelectItem value="Graduate">Graduate</SelectItem>
+              <SelectItem value="ACO">ACO</SelectItem>
+              <SelectItem value="Unknown">Unknown</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <Select
-          value={colleagueType}
-          onValueChange={onColleagueTypeChange}
-          disabled={isLoading}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select colleague type" />
-          </SelectTrigger>
-          <SelectContent>
-            {colleagueTypes.map((type) => (
-              <SelectItem key={type.id} value={type.name}>
-                {type.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      )}
     </div>
   );
 };
