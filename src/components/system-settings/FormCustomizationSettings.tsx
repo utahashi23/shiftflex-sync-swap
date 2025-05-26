@@ -42,8 +42,12 @@ export const FormCustomizationSettings = () => {
         throw error;
       }
 
-      if (data?.settings) {
-        setSettings(data.settings as FormCustomization);
+      if (data?.settings && typeof data.settings === 'object' && !Array.isArray(data.settings)) {
+        const dbSettings = data.settings as Record<string, any>;
+        setSettings(prev => ({
+          ...prev,
+          ...dbSettings
+        }));
       }
     } catch (error) {
       console.error('Error loading form customization settings:', error);
@@ -64,8 +68,9 @@ export const FormCustomizationSettings = () => {
         .from('system_preferences')
         .upsert({
           category: 'form_customization',
-          settings: settings,
-          updated_at: new Date().toISOString()
+          settings: settings as any,
+          updated_at: new Date().toISOString(),
+          user_id: (await supabase.auth.getUser()).data.user?.id || ''
         });
 
       if (error) throw error;

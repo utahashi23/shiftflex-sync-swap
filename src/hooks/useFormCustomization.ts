@@ -34,8 +34,12 @@ export const useFormCustomization = () => {
         throw error;
       }
 
-      if (data?.settings) {
-        setSettings({ ...DEFAULT_SETTINGS, ...data.settings });
+      if (data?.settings && typeof data.settings === 'object' && !Array.isArray(data.settings)) {
+        const dbSettings = data.settings as Record<string, any>;
+        setSettings({ 
+          ...DEFAULT_SETTINGS, 
+          ...dbSettings 
+        });
       }
     } catch (error) {
       console.error('Error fetching form customization settings:', error);
