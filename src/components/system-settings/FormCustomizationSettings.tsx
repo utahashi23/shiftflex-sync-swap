@@ -44,9 +44,15 @@ export const FormCustomizationSettings = () => {
 
       if (data?.settings && typeof data.settings === 'object' && !Array.isArray(data.settings)) {
         const dbSettings = data.settings as Record<string, any>;
+        console.log('Loaded settings from DB:', dbSettings);
+        
         setSettings(prev => ({
           ...prev,
-          ...dbSettings
+          truck_name_label: dbSettings.truck_name_label || prev.truck_name_label,
+          truck_name_placeholder: dbSettings.truck_name_placeholder || prev.truck_name_placeholder,
+          show_colleague_type: typeof dbSettings.show_colleague_type === 'boolean' 
+            ? dbSettings.show_colleague_type 
+            : dbSettings.show_colleague_type === 'true' || dbSettings.show_colleague_type === true
         }));
       }
     } catch (error) {
@@ -64,13 +70,30 @@ export const FormCustomizationSettings = () => {
   const saveSettings = async () => {
     setIsSaving(true);
     try {
+      console.log('Saving settings:', settings);
+      
+      // Ensure we have a user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Create the settings object with explicit types
+      const settingsToSave = {
+        truck_name_label: settings.truck_name_label,
+        truck_name_placeholder: settings.truck_name_placeholder,
+        show_colleague_type: Boolean(settings.show_colleague_type)
+      };
+
+      console.log('Settings being saved:', settingsToSave);
+
       const { error } = await supabase
         .from('system_preferences')
         .upsert({
           category: 'form_customization',
-          settings: settings as any,
+          settings: settingsToSave,
           updated_at: new Date().toISOString(),
-          user_id: (await supabase.auth.getUser()).data.user?.id || ''
+          user_id: user.id
         });
 
       if (error) throw error;
@@ -79,6 +102,9 @@ export const FormCustomizationSettings = () => {
         title: "Success",
         description: "Form customization settings saved successfully",
       });
+      
+      // Reload settings to verify save
+      await loadSettings();
     } catch (error) {
       console.error('Error saving form customization settings:', error);
       toast({
@@ -92,6 +118,7 @@ export const FormCustomizationSettings = () => {
   };
 
   const handleInputChange = (field: keyof FormCustomization, value: string | boolean) => {
+    console.log(`Updating ${field} to:`, value, typeof value);
     setSettings(prev => ({
       ...prev,
       [field]: value
@@ -145,6 +172,9 @@ export const FormCustomizationSettings = () => {
               <Label htmlFor="show-colleague-type">Show Colleague Type Field</Label>
               <p className="text-sm text-muted-foreground">
                 Controls whether the colleague type field is visible in the Add Shift form
+              </p>
+              <p className="text-xs text-gray-500">
+                Current value: {String(settings.show_colleague_type)} ({typeof settings.show_colleague_type})
               </p>
             </div>
             <Switch
