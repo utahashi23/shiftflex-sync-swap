@@ -9,6 +9,7 @@ import { ShiftTypeIndicator } from './shift-form/ShiftTypeIndicator';
 import { FormActions } from './shift-form/FormActions';
 import { Shift } from '@/hooks/useShiftData';
 import { useEffect } from 'react';
+import { useFormCustomization } from '@/hooks/useFormCustomization';
 
 // Types
 interface ShiftFormProps {
@@ -25,6 +26,7 @@ const ShiftForm = ({
   onSuccess
 }: ShiftFormProps) => {
   const { user } = useAuth();
+  const { settings: formSettings, isLoading: isLoadingSettings } = useFormCustomization();
   
   const {
     formTitle,
@@ -74,8 +76,24 @@ const ShiftForm = ({
       searchTerm, shiftDate, shiftStartTime, 
       shiftEndTime, shiftType, colleagueType 
     });
+    console.log("Form settings:", formSettings);
+    console.log("Show colleague type:", formSettings.show_colleague_type);
   }, [selectedShift, searchTerm, shiftDate, shiftStartTime, 
-      shiftEndTime, shiftType, colleagueType]);
+      shiftEndTime, shiftType, colleagueType, formSettings]);
+  
+  // Show loading state while settings are loading
+  if (isLoadingSettings) {
+    return (
+      <div className="flex flex-col">
+        <h3 className="text-lg font-semibold mb-6">Loading...</h3>
+        <div className="animate-pulse space-y-4">
+          <div className="h-10 bg-gray-200 rounded"></div>
+          <div className="h-10 bg-gray-200 rounded"></div>
+          <div className="h-10 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="flex flex-col">

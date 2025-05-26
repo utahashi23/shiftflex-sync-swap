@@ -25,6 +25,10 @@ export const ShiftOptionsFields = ({
 }: ShiftOptionsFieldsProps) => {
   const { settings, isLoading } = useFormCustomization();
 
+  // Add debugging
+  console.log("ShiftOptionsFields - settings:", settings);
+  console.log("ShiftOptionsFields - show_colleague_type:", settings.show_colleague_type);
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -97,6 +101,14 @@ export const ShiftOptionsFields = ({
               <SelectItem value="Unknown">Unknown</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+      )}
+
+      {/* Debug info - remove this after testing */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="col-span-full text-xs text-gray-500 border p-2 rounded">
+          Debug: show_colleague_type = {String(settings.show_colleague_type)}, 
+          isLoading = {String(isLoading)}
         </div>
       )}
     </div>
