@@ -727,23 +727,29 @@ export type Database = {
       }
       system_preferences: {
         Row: {
+          category: string | null
           created_at: string | null
           id: string
           roster_default_view: string
+          settings: Json | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          category?: string | null
           created_at?: string | null
           id?: string
           roster_default_view?: string
+          settings?: Json | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          category?: string | null
           created_at?: string | null
           id?: string
           roster_default_view?: string
+          settings?: Json | null
           updated_at?: string | null
           user_id?: string
         }
