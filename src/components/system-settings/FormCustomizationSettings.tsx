@@ -13,13 +13,15 @@ interface FormCustomization {
   truck_name_label: string;
   truck_name_placeholder: string;
   show_colleague_type: boolean;
+  region_preferences_button_text: string;
 }
 
 export const FormCustomizationSettings = () => {
   const [settings, setSettings] = useState<FormCustomization>({
     truck_name_label: 'Truck Name',
     truck_name_placeholder: 'Search for a truck name',
-    show_colleague_type: true
+    show_colleague_type: true,
+    region_preferences_button_text: 'Region/Area Preferences'
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -52,7 +54,8 @@ export const FormCustomizationSettings = () => {
           truck_name_placeholder: dbSettings.truck_name_placeholder || prev.truck_name_placeholder,
           show_colleague_type: typeof dbSettings.show_colleague_type === 'boolean' 
             ? dbSettings.show_colleague_type 
-            : dbSettings.show_colleague_type === 'true' || dbSettings.show_colleague_type === true
+            : dbSettings.show_colleague_type === 'true' || dbSettings.show_colleague_type === true,
+          region_preferences_button_text: dbSettings.region_preferences_button_text || prev.region_preferences_button_text
         }));
       }
     } catch (error) {
@@ -82,7 +85,8 @@ export const FormCustomizationSettings = () => {
       const settingsToSave = {
         truck_name_label: settings.truck_name_label,
         truck_name_placeholder: settings.truck_name_placeholder,
-        show_colleague_type: Boolean(settings.show_colleague_type)
+        show_colleague_type: Boolean(settings.show_colleague_type),
+        region_preferences_button_text: settings.region_preferences_button_text
       };
 
       console.log('Settings being saved:', settingsToSave);
@@ -157,6 +161,23 @@ export const FormCustomizationSettings = () => {
               value={settings.truck_name_placeholder}
               onChange={(e) => handleInputChange('truck_name_placeholder', e.target.value)}
               placeholder="e.g., Search for a vehicle, Enter unit ID, etc."
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Button Text Customization</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2">
+            <Label htmlFor="region-preferences-button">Region/Area Preferences Button Text</Label>
+            <Input
+              id="region-preferences-button"
+              value={settings.region_preferences_button_text}
+              onChange={(e) => handleInputChange('region_preferences_button_text', e.target.value)}
+              placeholder="e.g., Location Preferences, Area Settings, etc."
             />
           </div>
         </CardContent>

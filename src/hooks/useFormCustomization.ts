@@ -6,12 +6,14 @@ interface FormCustomization {
   truck_name_label: string;
   truck_name_placeholder: string;
   show_colleague_type: boolean;
+  region_preferences_button_text: string;
 }
 
 const DEFAULT_SETTINGS: FormCustomization = {
   truck_name_label: 'Truck Name',
   truck_name_placeholder: 'Search for a truck name',
-  show_colleague_type: true
+  show_colleague_type: true,
+  region_preferences_button_text: 'Region/Area Preferences'
 };
 
 export const useFormCustomization = () => {
@@ -43,7 +45,8 @@ export const useFormCustomization = () => {
           truck_name_placeholder: dbSettings.truck_name_placeholder || DEFAULT_SETTINGS.truck_name_placeholder,
           show_colleague_type: typeof dbSettings.show_colleague_type === 'boolean' 
             ? dbSettings.show_colleague_type 
-            : dbSettings.show_colleague_type === 'true' || dbSettings.show_colleague_type === true
+            : dbSettings.show_colleague_type === 'true' || dbSettings.show_colleague_type === true,
+          region_preferences_button_text: dbSettings.region_preferences_button_text || DEFAULT_SETTINGS.region_preferences_button_text
         };
         
         console.log('useFormCustomization - Processed settings:', processedSettings);
